@@ -6,6 +6,9 @@
 			<thead>
 			<tr>
 				<th>Domain</th>
+				<th>Aliases</th>
+				<th>Mailboxes</th>
+				<th>Alias-Domains</th>
 				<th>Active</th>
 				<th></th>
 				<th></th>
@@ -18,7 +21,20 @@
 					[% line.name %]
 				</td>
 				<td>
-					[% line.is_active %]
+					[% line.num_aliases %]
+				</td>
+				<td>
+					[% line.num_mailboxes %]
+				</td>
+				<td>
+					[% line.num_domainaliases %]
+				</td>
+				<td>
+					[% IF line.is_active == 1 %]
+					<a href="vboxadm.pl?rm=update_domain&domain_id=[% line.id %]&is_active=0">Yes</a>
+					[% ELSE %]
+					<a href="vboxadm.pl?rm=update_domain&domain_id=[% line.id %]&is_active=1">No</a>
+					[% END %]
 				</td>
 				<td>
 					<a href="vboxadm.pl?rm=edit_domain&domain_id=[% line.id %]">edit</a>

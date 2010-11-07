@@ -41,10 +41,10 @@
 					[% END %]
 				</td>
 				<td>
-					<a href="vboxadm.pl?rm=edit_mailbox&domain_id=[% line.id %]">edit</a>
+					<a href="vboxadm.pl?rm=edit_mailbox&mailbox_id=[% line.id %]">edit</a>
 				</td>
 				<td>
-					<a href="vboxadm.pl?rm=remove_mailbox&domain_id=[% line.id %]">del</a>
+					<a href="vboxadm.pl?rm=remove_mailbox&mailbox_id=[% line.id %]">del</a>
 				</td>
 			</tr>
 		[% IF loop.last %]

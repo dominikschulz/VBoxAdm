@@ -1,5 +1,5 @@
     <footer>
-	<a href="http://vboxadm.gauner.org/" target="_blank">VBoxAdm</a>
+	<a href="http://vboxadm.gauner.org/?version=[% version %]" target="_blank">VBoxAdm [% version %]</a>
 	&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 	Logged in as [% username %]
 	&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;

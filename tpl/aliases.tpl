@@ -22,7 +22,11 @@
 					[% line.target %]
 				</td>
 				<td>
-					[% line.is_active %]
+					[% IF line.is_active == 1 %]
+					Yes
+					[% ELSE %]
+					No
+					[% END %]
 				</td>
 				<td>
 					<a href="vboxadm.pl?rm=edit_alias&domain_id=[% line.id %]">edit</a>

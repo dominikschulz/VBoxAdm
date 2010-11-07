@@ -12,6 +12,13 @@ use warnings;
 # Neede for database connection
 use CGI::Application::Plugin::DBH (qw/dbh_config dbh/);
 
+use CGI::Application::Plugin::Redirect;
+
+# http://search.cpan.org/~ceeshek/CGI-Application-Plugin-Session-1.03/lib/CGI/Application/Plugin/Session.pm
+use CGI::Application::Plugin::Session;
+
+# access with $self->session->param();
+
 # http://search.cpan.org/~ceeshek/CGI-Application-Plugin-TT-1.05/lib/CGI/Application/Plugin/TT.pm
 use CGI::Application::Plugin::TT;
 
@@ -19,7 +26,7 @@ use CGI::Application::Plugin::TT;
 use CGI::Application::Plugin::RequireSSL;
 
 # http://search.cpan.org/~cromedome/CGI-Application-Plugin-CAPTCHA-0.01/lib/CGI/Application/Plugin/CAPTCHA.pm
-use CGI::Application::Plugin::CAPTCHA;
+# use CGI::Application::Plugin::CAPTCHA;
 
 # http://search.cpan.org/~ceeshek/CGI-Application-Plugin-Authorization-0.07/lib/CGI/Application/Plugin/Authorization.pm
 # http://search.cpan.org/~ceeshek/CGI-Application-Plugin-Authorization-0.07/lib/CGI/Application/Plugin/Authorization/Driver/DBI.pm
@@ -31,21 +38,6 @@ use Config::Std;
 #use VBoxAdm::Frontend::Admin '@VERSION@';
 
 our $VERSION = '@VERSION@';
-
-__PACKAGE__->authen->config(
-     DRIVER => [ 'DBI',
-         TABLES       => ['mailboxes', 'domains'],
-         CONSTRAINTS => {
-             "CONCAT(mailboxes.local_part,'\@',domains.name)"		=> '__CREDENTIAL_1__',
-             'mailboxes.password' => '__CREDENTIAL_2__', # TODO passwords should be 'encrypted' MD5:
-             'mailboxes.is_active'		=> '1',
-             'domains.is_active'			=> '1',
-             '(mailboxes.is_superadmin OR mailboxes.is_domainadmin) AND 1' => '1',
-         },
-     ],
-     LOGOUT_RUNMODE => 'public_login',
-     LOGIN_RUNMODE => 'public_login',
-);
 
 ############################################
 # Usage      : ????
@@ -59,22 +51,74 @@ sub setup {
     my $self = shift;
     $self->start_mode('public_login');
     $self->run_modes(
+
+        #
+        # Public
+        #
         'public_login'          => 'show_login',
-        'domains'        => 'show_domains',
-        'create_domain'  => 'show_create_domain',
-        'add_domain'     => 'show_add_domain',
-        'remove_domain'  => 'show_remove_domain',
-        'domain_aliases' => 'show_domain_aliases',
-        'create_domain_alias'	=> 'show_create_domain_alias',
-        'add_domain_alias' => 'show_add_domain_alias',
-        'aliases'        => 'show_aliases',
+        'public_create_captcha' => 'show_captcha',
+
+        #
+        # Private
+        #
+        # Domains
+        'domains'       => 'show_domains',
+        'create_domain' => 'show_create_domain',
+        'add_domain'    => 'show_add_domain',
+        'remove_domain' => 'show_remove_domain',
+
+        # no need for 'edit_domain', we can only change is_active anyway
+        'update_domain' => 'show_update_domain',
+
+        # Domain Aliases
+        'domain_aliases'      => 'show_domain_aliases',
+        'create_domain_alias' => 'show_create_domain_alias',
+        'add_domain_alias'    => 'show_add_domain_alias',
+        'edit_domain_alias'   => 'show_edit_domain_alias',
+        'update_domain_alias' => 'show_update_domain_alias',
+
+        # Aliases
+        'aliases'      => 'show_aliases',
+        'create_alias' => 'show_create_alias',
+        'add_alias'    => 'show_add_alias',
+        'remove_alias' => 'show_remove_alias',
+        'edit_alias'   => 'show_edit_alias',
+        'update_alias' => 'show_update_alias',
+
+        # Mailboxes
         'mailboxes'      => 'show_mailboxes',
         'create_mailbox' => 'show_create_mailbox',
-        'log'            => 'show_log',
-        'create_captcha' => 'show_captcha',
-        'admins'         => 'show_admins',
+        'add_mailbox'    => 'show_add_mailbox',
+        'remove_mailbox' => 'show_remove_mailbox',
+        'edit_mailbox'   => 'show_edit_mailbox',
+        'update_mailbox' => 'show_update_mailbox',
+
+        # Log
+        'log' => 'show_log',
+
+        # Admins
+        'admins' => 'show_admins',
     );
-    $self->authen->protected_runmodes(qr/^(?!public_)/);
+    $self->authen->config(
+        DRIVER => [
+            'DBI',
+            TABLES      => [ 'mailboxes', 'domains' ],
+            CONSTRAINTS => {
+                "CONCAT(mailboxes.local_part,'\@',domains.name)" => '__CREDENTIAL_1__',
+                'mailboxes.password'                             => '__CREDENTIAL_2__',    # TODO passwords should be 'encrypted' MD5:
+                'mailboxes.is_active'                            => '1',
+                'domains.is_active'                              => '1',
+
+                # WARNING: This contraint relies on an implementation detail of Plugin::Authentication!
+                # This is bad style, but there is no other way right now.
+                '(mailboxes.is_superadmin OR mailboxes.is_domainadmin) AND 1' => '1',
+            },
+        ],
+        LOGOUT_RUNMODE => 'public_login',
+        LOGIN_RUNMODE  => 'public_login',
+    );
+
+    #$self->authen->protected_runmodes(qr/^(?!public_)/);
 
     #
     # Configuration
@@ -124,6 +168,8 @@ sub setup {
     #
     # Captachas
     #
+
+=begin disabled
     $self->captcha_config(
         IMAGE_OPTIONS => {
             width    => 220,
@@ -137,15 +183,28 @@ sub setup {
         CREATE_OPTIONS   => [ 'ttf', 'rect' ],
         PARTICLE_OPTIONS => [300],
     );
+=cut
 
 }
 
+sub teardown {
+    my $self = shift;
+
+    # Disconnect when done
+    $self->dbh->disconnect();
+}
+
+=begin disabled
 sub show_captcha {
     my $self = shift;
     return $self->captcha_create;
 
 }
+=cut
 
+#
+# Template::Toolkit Hooks
+#
 sub tt_post_process {
     my $self    = shift;
     my $htmlref = shift;
@@ -159,12 +218,43 @@ sub tt_post_process {
     return;
 }
 
-sub teardown {
-    my $self = shift;
-
-    # Disconnect when done
-    $self->dbh->disconnect();
+sub tt_pre_process {
+    my ( $self, $file, $vars ) = @_;
+    $vars->{username} = $self->authen->username;
+    $vars->{version}  = $VERSION;
+    return;
 }
+
+#
+# Misc. private Subs
+#
+sub log {
+    my $self = shift;
+    my $msg  = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    if ($msg) {
+        my $query = "INSERT INTO log (ts,msg) VALUES(NOW(),?)";
+        my $sth   = $dbh->prepare($query);
+        if ( $sth->execute($msg) ) {
+            $sth->finish();
+            return 1;
+        }
+        else {
+            $sth->finish();
+            return;
+        }
+    }
+    else {
+        return;
+    }
+}
+
+#
+# Public
+#
 
 sub show_login {
     my $self = shift;
@@ -172,6 +262,44 @@ sub show_login {
     my %params = ( title => 'VBoxAdm Login', nonavigation => 1, );
 
     return $self->tt_process( 'login.tpl', \%params );
+}
+
+#
+# Private
+#
+
+#
+# Domains
+#
+
+sub show_domains {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    my $query = "SELECT id,name,is_active,";
+    $query .= "(SELECT COUNT(*) FROM aliases WHERE domain_id = domains.id) AS num_aliases,";
+    $query .= "(SELECT COUNT(*) FROM mailboxes WHERE domain_id = domains.id) AS num_mailboxes,";
+    $query .= "(SELECT COUNT(*) FROM domain_aliases WHERE domain_id = domains.id) AS num_domainaliases";
+    $query .= " FROM domains ORDER BY name";
+    my $sth = $dbh->prepare($query);
+    $sth->execute();
+
+    my @domains = ();
+    while ( my @row = $sth->fetchrow_array() ) {
+        push( @domains,
+            { id => $row[0], name => $row[1], is_active => $row[2], num_aliases => $row[3], num_mailboxes => $row[4], num_domainaliases => $row[5], } );
+    }
+
+    my %params = (
+        'title'   => 'VBoxAdm Domains',
+        'domains' => \@domains,
+    );
+
+    return $self->tt_process( 'domains.tpl', \%params );
 }
 
 sub show_create_domain {
@@ -184,14 +312,171 @@ sub show_create_domain {
     return $self->tt_process( 'domain-create.tpl', \%params );
 }
 
-sub show_create_domain_alias {
-	  # TODO HIGH only super-admin here!
+sub show_add_domain {
+
+    # TODO HIGH only super-admin here!
     my $self = shift;
-    
-		# Get our database connection
+
+    # Get our database connection
     my $dbh = $self->dbh();
 
-		# TODO HIGH if domainadmin only one domain here
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain             = lc( $q->param('domain') );
+    my $create_domainadmin = $q->param('create_domainadmin');
+
+    if ( $domain && $create_domainadmin ) {
+        my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
+        my $sth   = $dbh->prepare($query);
+        if ( $sth->execute($domain) ) {
+
+            # add log entry
+            $self->log( "Domain '$domain' added by " . $self->authen->username );
+
+            # TODO append/set status msg
+            $self->redirect('vboxadm.pl?rm=domains');
+        }
+        else {
+
+            # add log entry
+            $self->log( "Failed to add Domain '$domain' by " . $self->authen->username . ". DBI Error: " . $sth->errstr );
+        }
+        $sth->finish();
+
+        # TODO append/set status msg
+        $self->redirect('vboxadm.pl?rm=domains');
+    }
+    else {
+
+        # TODO show error on domain-create.tpl
+    }
+
+    # TODO append/set status msg
+    $self->redirect('vboxadm.pl?rm=domains');
+    return;
+}
+
+sub show_remove_domain {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain_id = $q->param('domain_id');
+
+    if ($domain_id) {
+        my $query = "DELETE FROM domains WHERE id = ?";
+        my $sth   = $dbh->prepare($query);
+        if ( $sth->execute($domain_id) ) {
+
+            # log
+            $self->log( "Domain #$domain_id removed by " . $self->authen->username );
+
+            # TODO show success and redirect to domain list
+        }
+        else {
+
+            # log
+            $self->log( "Failed to remove Domain #$domain_id by " . $self->authen->username . ". DBI Error: " . $sth->errstr );
+
+            # TODO show error
+        }
+    }
+    else {
+
+        # TODO show error msg
+    }
+
+    # TODO append/set status msg
+    $self->redirect('vboxadm.pl?rm=domains');
+}
+
+sub show_update_domain {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain_id = $q->param('domain_id');
+    my $is_active = $q->param('is_active');
+
+    if ( $domain_id && defined($is_active) ) {
+        my $query      = "UPDATE domains SET is_active = ? WHERE id = ?";
+        my $sth        = $dbh->prepare($query);
+        my $status_str = 'disabled';
+        if ($is_active) {
+            $status_str = 'enabled';
+        }
+        if ( $sth->execute( $is_active, $domain_id ) ) {
+
+            # log
+            $self->log( "Domain #$domain_id $status_str by " . $self->authen->username );
+
+            # TODO show success and redirect to domain list
+        }
+        else {
+
+            # log
+            $self->log( "Failed to set Domain #$domain_id $status_str by " . $self->authen->username );
+
+            # TODO show error
+        }
+    }
+
+    # TODO append/set status msg
+    $self->redirect('vboxadm.pl?rm=domains');
+}
+
+#
+# Domain Aliases
+#
+
+sub show_domain_aliases {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    my $query = "SELECT da.id,da.name,da.is_active,d.name FROM ";
+    $query .= "domain_aliases AS da LEFT JOIN domains AS d ON da.domain_id = d.id ORDER BY da.name";
+    my $sth = $dbh->prepare($query);
+    $sth->execute();
+
+    my @domains = ();
+    while ( my @row = $sth->fetchrow_array() ) {
+        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], target => $row[3], } );
+    }
+
+    my %params = (
+        'title'   => 'VBoxAdm Domain-Aliases',
+        'domains' => \@domains,
+    );
+
+    return $self->tt_process( 'domain-aliases.tpl', \%params );
+}
+
+sub show_create_domain_alias {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # TODO HIGH if domainadmin only one domain here
     my $query = "SELECT id,name,is_active FROM domains ORDER BY name";
     my $sth   = $dbh->prepare($query);
     $sth->execute();
@@ -220,16 +505,19 @@ sub show_add_domain_alias {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $domain_alias             = lc( $q->param('domain_alias') );
-    my $domain_id = $q->param('domain');
+    my $domain_alias = lc( $q->param('domain_alias') );
+    my $domain_id    = $q->param('domain');
 
     if ( $domain_alias && $domain_id ) {
         my $query = "INSERT INTO domain_aliases (name,domain_id,is_active) VALUES(?,?,1)";
         my $sth   = $dbh->prepare($query);
-        if($sth->execute($domain_alias,$domain_id)) {
-        	# TODO add log entry
-        } else {
-        	# TODO add log entry
+        if ( $sth->execute( $domain_alias, $domain_id ) ) {
+
+            # TODO add log entry
+        }
+        else {
+
+            # TODO add log entry
         }
         $sth->finish();
 
@@ -245,33 +533,8 @@ sub show_add_domain_alias {
     return $self->tt_process( 'domain-alias-create.tpl', \%params );
 }
 
-sub show_create_mailbox {
+sub show_remove_domain_alias {
 
-    # TODO HIGH only super-admin here!
-    my $self = shift;
-    
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-		# TODO HIGH if domainadmin only one domain here
-    my $query = "SELECT id,name,is_active FROM domains ORDER BY name";
-    my $sth   = $dbh->prepare($query);
-    $sth->execute();
-
-    my @domains = ();
-    while ( my @row = $sth->fetchrow_array() ) {
-        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], } );
-    }
-
-    my %params = (
-        'title'   => 'Add Mailbox',
-        'domains' => \@domains,
-    );
-
-    return $self->tt_process( 'mailbox-create.tpl', \%params );
-}
-
-sub show_add_mailbox {
     # TODO HIGH only super-admin here!
     my $self = shift;
 
@@ -281,96 +544,116 @@ sub show_add_mailbox {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $domain_id             = $q->param('domain');
-    my $username					 = lc( $q->param('username') );
-    my $password = $q->param('password');
-    my $password_2 = $q->param('password_2');
-    my $name = lc($q->param('name'));
+    my $domain_id = $q->param('domain_id');
+
+    if ($domain_id) {
+        my $query = "DELETE FROM domain_aliases WHERE id = ?";
+        my $sth   = $dbh->prepare($query);
+        if ( $sth->execute($domain_id) ) {
+
+            # log
+            $self->log( "Domain-Alias #$domain_id removed by " . $self->authen->username );
+
+            # TODO show success and redirect to domain list
+        }
+        else {
+
+            # log
+            $self->log( "Failed to remove Domain-Alias #$domain_id by " . $self->authen->username . ". DBI Error: " . $sth->errstr );
+
+            # TODO show error
+        }
+    }
+    else {
+
+        # TODO show error msg
+    }
+
+    # TODO append/set status msg
+    $self->redirect('vboxadm.pl?rm=domain_aliases');
+}
+
+sub show_edit_domain_alias {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain_id = $q->param('domain_id');
+
+    # TODO get data
+
+    # TODO show form
+}
+
+sub show_update_domain_alias {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain_id = $q->param('domain_id');
     my $is_active = $q->param('is_active');
-    my $send_welcome_mail = $q->param('send_welcome_mail');
+    my $target    = $q->param('target');
 
-    if ( $domain_id && $username && $password && $name && $password eq $password_2) {
-        my $query = "INSERT INTO mailboxes (domain_id,local_part,password,is_active) VALUES(?,?,?,?)";
-        my $sth   = $dbh->prepare($query);
-        if($sth->execute($domain_id,$username,$password,$is_active)) {
-        	# TODO add log entry
-        } else {
-        	# TODO add log entry
+    if ( $domain_id && defined($is_active) ) {
+        my $query      = "UPDATE domain_aliases SET is_active = ? WHERE id = ?";
+        my $sth        = $dbh->prepare($query);
+        my $status_str = 'disabled';
+        if ($is_active) {
+            $status_str = 'enabled';
         }
-        $sth->finish();
+        if ( $sth->execute( $is_active, $domain_id ) ) {
 
-        # TODO redirect to show_domains
-    }
-    else {
+            # log
+            $self->log( "Domain-Alias #$domain_id $status_str by " . $self->authen->username );
 
-        # TODO show error on domain-create.tpl
-    }
-
-    my %params = ( 'title' => 'Add Mailbox', );
-
-    return $self->tt_process( 'mailbox-create.tpl', \%params );
-}
-
-sub show_add_domain {
-
-    # TODO HIGH only super-admin here!
-    my $self = shift;
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $domain             = lc( $q->param('domain') );
-    my $create_domainadmin = $q->param('create_domainadmin');
-
-    if ( $domain && $create_domainadmin ) {
-        my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
-        my $sth   = $dbh->prepare($query);
-        if($sth->execute($domain)) {
-        	# TODO add log entry
-        } else {
-        	# TODO add log entry
+            # TODO show success and redirect to domain list
         }
-        $sth->finish();
+        else {
 
-        # TODO redirect to show_domains
+            # log
+            $self->log( "Failed to set Domain-Alias #$domain_id $status_str by " . $self->authen->username );
+
+            # TODO show error
+        }
     }
-    else {
+    if ( $domain_id && $target ) {
+        my $query = "UPDATE domain_aliases SET domain_id = ? WHERE id = ?";
+        my $sth   = $dbh->prepare($query);
+        if ( $sth->execute( $target, $domain_id ) ) {
 
-        # TODO show error on domain-create.tpl
+            # log
+            $self->log( "Domain-Alias #$domain_id redirected to Domain #$target by " . $self->authen->username );
+
+            # TODO show success and redirect to domain list
+        }
+        else {
+
+            # log
+            $self->log( "Failed to redirect Domain-Alias #$domain_id to #$target by " . $self->authen->username );
+
+            # TODO show error
+        }
     }
 
-    my %params = ( 'title' => 'Add Domain', );
-
-    return $self->tt_process( 'domain-create.tpl', \%params );
+    # TODO append/set status msg
+    $self->redirect('vboxadm.pl?rm=domain_aliases');
 }
 
-sub show_domains {
-
-    # TODO HIGH only super-admin here!
-    my $self = shift;
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $query = "SELECT id,name,is_active FROM domains ORDER BY name";
-    my $sth   = $dbh->prepare($query);
-    $sth->execute();
-
-    my @domains = ();
-    while ( my @row = $sth->fetchrow_array() ) {
-        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], } );
-    }
-
-    my %params = (
-        'title'   => 'VBoxAdm Domains',
-        'domains' => \@domains,
-    );
-
-    return $self->tt_process( 'domains.tpl', \%params );
-}
+#
+# Aliases
+#
 
 sub show_aliases {
 
@@ -380,8 +663,8 @@ sub show_aliases {
     # Get our database connection
     my $dbh = $self->dbh();
 
-    my $query =
-      "SELECT a.id,a.local_part,a.is_active,a.goto,d.name FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id ORDER BY a.local_part,d.name";
+    my $query = "SELECT a.id,a.local_part,a.is_active,a.goto,d.name FROM ";
+    $query .= "aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id ORDER BY a.local_part,d.name";
     my $sth = $dbh->prepare($query);
     $sth->execute();
 
@@ -398,7 +681,7 @@ sub show_aliases {
     return $self->tt_process( 'aliases.tpl', \%params );
 }
 
-sub show_domain_aliases {
+sub show_create_alias {
 
     # TODO HIGH only super-admin here!
     my $self = shift;
@@ -406,22 +689,184 @@ sub show_domain_aliases {
     # Get our database connection
     my $dbh = $self->dbh();
 
-    my $query = "SELECT da.id,da.name,da.is_active,d.name FROM domain_aliases AS da LEFT JOIN domains AS d ON da.domain_id = d.id ORDER BY da.name";
+    # TODO HIGH if domainadmin only one domain here
+    my $query = "SELECT id,name,is_active FROM domains ORDER BY name";
     my $sth   = $dbh->prepare($query);
     $sth->execute();
 
     my @domains = ();
     while ( my @row = $sth->fetchrow_array() ) {
-        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], target => $row[3], } );
+        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], } );
     }
 
     my %params = (
-        'title'   => 'VBoxAdm Domain-Aliases',
+        'title'   => 'Add Domain Alias',
         'domains' => \@domains,
     );
 
-    return $self->tt_process( 'domain-aliases.tpl', \%params );
+    return $self->tt_process( 'domain-alias-create.tpl', \%params );
 }
+
+sub show_add_alias {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain_alias = lc( $q->param('domain_alias') );
+    my $domain_id    = $q->param('domain');
+
+    if ( $domain_alias && $domain_id ) {
+        my $query = "INSERT INTO domain_aliases (name,domain_id,is_active) VALUES(?,?,1)";
+        my $sth   = $dbh->prepare($query);
+        if ( $sth->execute( $domain_alias, $domain_id ) ) {
+
+            # TODO add log entry
+        }
+        else {
+
+            # TODO add log entry
+        }
+        $sth->finish();
+
+        # TODO redirect to show_domains
+    }
+    else {
+
+        # TODO show error on domain-create.tpl
+    }
+
+    my %params = ( 'title' => 'Add Domain Alias', );
+
+    return $self->tt_process( 'domain-alias-create.tpl', \%params );
+}
+
+sub show_remove_alias {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $alias_id = $q->param('alias_id');
+
+    if ($alias_id) {
+        my $query = "DELETE FROM aliases WHERE id = ?";
+        my $sth   = $dbh->prepare($query);
+        if ( $sth->execute($alias_id) ) {
+
+            # log
+            $self->log( "Alias #$alias_id removed by " . $self->authen->username );
+
+            # TODO show success and redirect to domain list
+        }
+        else {
+
+            # log
+            $self->log( "Failed to remove Alias #$alias_id by " . $self->authen->username . ". DBI Error: " . $sth->errstr );
+
+            # TODO show error
+        }
+    }
+    else {
+
+        # TODO show error msg
+    }
+
+    # TODO append/set status msg
+    $self->redirect('vboxadm.pl?rm=aliases');
+}
+
+sub show_edit_alias {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $alias_id = $q->param('alias_id');
+
+    # TODO get data
+
+    # TODO show form
+}
+
+sub show_update_alias {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $alias_id  = $q->param('alias_id');
+    my $is_active = $q->param('is_active');
+    my $target    = $q->param('target');
+
+    if ( $alias_id && defined($is_active) ) {
+        my $query      = "UPDATE aliases SET is_active = ? WHERE id = ?";
+        my $sth        = $dbh->prepare($query);
+        my $status_str = 'disabled';
+        if ($is_active) {
+            $status_str = 'enabled';
+        }
+        if ( $sth->execute( $is_active, $alias_id ) ) {
+
+            # log
+            $self->log( "Alias #$alias_id $status_str by " . $self->authen->username );
+
+            # TODO show success and redirect to domain list
+        }
+        else {
+
+            # log
+            $self->log( "Failed to set Alias #$alias_id $status_str by " . $self->authen->username );
+
+            # TODO show error
+        }
+    }
+    if ( $alias_id && $target ) {
+        my $query = "UPDATE aliases SET goto = ? WHERE id = ?";
+        my $sth   = $dbh->prepare($query);
+        if ( $sth->execute( $target, $alias_id ) ) {
+
+            # log
+            $self->log( "Alias #$alias_id redirected to $target by " . $self->authen->username );
+
+            # show success and redirect to domain list
+            $self->session->param( 'notify', 'Redirected to Alias #$alias_id to $target' );
+        }
+        else {
+
+            # log
+            $self->log( "Failed to redirect Alias #$alias_id to $target by " . $self->authen->username );
+
+            # store error
+            $self->session->param( 'notify', 'Failed to redirect Alias to $target' );
+        }
+    }
+    $self->redirect('vboxadm.pl?rm=aliases');
+}
+
+#
+# Mailboxes
+#
 
 sub show_mailboxes {
 
@@ -431,8 +876,8 @@ sub show_mailboxes {
     # Get our database connection
     my $dbh = $self->dbh();
 
-    my $query =
-"SELECT m.id,m.local_part,m.is_active,d.name,m.max_msg_size,m.is_on_vacation,m.quota FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id ORDER BY m.local_part,d.name";
+    my $query = "SELECT m.id,m.local_part,m.is_active,d.name,m.max_msg_size,m.is_on_vacation,m.quota ";
+    $query .= "FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id ORDER BY m.local_part,d.name";
     my $sth = $dbh->prepare($query);
     $sth->execute();
 
@@ -460,7 +905,7 @@ sub show_mailboxes {
     return $self->tt_process( 'mailboxes.tpl', \%params );
 }
 
-sub show_admins {
+sub show_create_mailbox {
 
     # TODO HIGH only super-admin here!
     my $self = shift;
@@ -468,39 +913,176 @@ sub show_admins {
     # Get our database connection
     my $dbh = $self->dbh();
 
-    my $query =
-"SELECT m.id,m.local_part,m.is_active,d.name,m.is_domainadmin,m.is_superadmin FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.is_superadmin OR m.is_domainadmin ORDER BY m.is_superadmin,m.is_domainadmin,m.local_part,d.name";
-    my $sth = $dbh->prepare($query);
+    # TODO HIGH if domainadmin only one domain here
+    my $query = "SELECT id,name,is_active FROM domains ORDER BY name";
+    my $sth   = $dbh->prepare($query);
     $sth->execute();
 
-    my @admins = ();
+    my @domains = ();
     while ( my @row = $sth->fetchrow_array() ) {
-        push(
-            @admins,
-            {
-                id             => $row[0],
-                local_part     => $row[1],
-                is_active      => $row[2],
-                domain         => $row[3],
-                is_domainadmin => $row[4],
-                is_superadmin  => $row[5],
-            }
-        );
+        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], } );
     }
 
     my %params = (
-        'title'  => 'VBoxAdm Admins',
-        'admins' => \@admins,
+        'title'   => 'Add Mailbox',
+        'domains' => \@domains,
     );
 
-    return $self->tt_process( 'admins.tpl', \%params );
+    return $self->tt_process( 'mailbox-create.tpl', \%params );
 }
 
-sub show_mailbox {
+sub show_add_mailbox {
 
-    # TODO HIGH only domain- and super-admin here!
+    # TODO HIGH only super-admin here!
     my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain_id         = $q->param('domain');
+    my $username          = lc( $q->param('username') );
+    my $password          = $q->param('password');
+    my $password_2        = $q->param('password_2');
+    my $name              = lc( $q->param('name') );
+    my $is_active         = $q->param('is_active');
+    my $send_welcome_mail = $q->param('send_welcome_mail');
+
+    if ( $domain_id && $username && $password && $name && $password eq $password_2 ) {
+        my $query = "INSERT INTO mailboxes (domain_id,local_part,password,is_active) VALUES(?,?,?,?)";
+        my $sth   = $dbh->prepare($query);
+        if ( $sth->execute( $domain_id, $username, $password, $is_active ) ) {
+
+            # TODO add log entry
+        }
+        else {
+
+            # TODO add log entry
+        }
+        $sth->finish();
+
+        # TODO redirect to show_domains
+    }
+    else {
+
+        # TODO show error on domain-create.tpl
+    }
+
+    my %params = ( 'title' => 'Add Mailbox', );
+
+    return $self->tt_process( 'mailbox-create.tpl', \%params );
 }
+
+sub show_remove_mailbox {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $mailbox_id = $q->param('mailbox_id');
+
+    if ($mailbox_id) {
+        my $query = "DELETE FROM mailboxes WHERE id = ?";
+        my $sth   = $dbh->prepare($query);
+        if ( $sth->execute($mailbox_id) ) {
+
+            # log
+            $self->log( "Mailbox #$mailbox_id removed by " . $self->authen->username );
+
+            # TODO show success and redirect to domain list
+        }
+        else {
+
+            # log
+            $self->log( "Failed to remove Mailbox #$mailbox_id by " . $self->authen->username . ". DBI Error: " . $sth->errstr );
+
+            # TODO show error
+        }
+    }
+    else {
+
+        # TODO show error msg
+    }
+
+    # TODO append/set status msg
+    $self->redirect('vboxadm.pl?rm=mailboxes');
+}
+
+sub show_edit_mailbox {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $mailbox_id = $q->param('mailbox_id');
+
+    # TODO get data
+
+    # TODO show form
+}
+
+sub show_update_mailbox {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $mailbox_id = $q->param('mailbox_id');
+    my $is_active  = $q->param('is_active');
+
+    # TODO get the other options
+
+    if ( $mailbox_id && defined($is_active) ) {
+        my $query      = "UPDATE mailboxes SET is_active = ? WHERE id = ?";
+        my $sth        = $dbh->prepare($query);
+        my $status_str = 'disabled';
+        if ($is_active) {
+            $status_str = 'enabled';
+        }
+        if ( $sth->execute( $is_active, $mailbox_id ) ) {
+
+            # log
+            $self->log( "Mailbox #$mailbox_id $status_str by " . $self->authen->username );
+
+            # TODO show success and redirect to domain list
+        }
+        else {
+
+            # log
+            $self->log( "Failed to set Mailbox #$mailbox_id $status_str by " . $self->authen->username );
+
+            # TODO show error
+        }
+    }
+    if ($mailbox_id) {
+
+        # TODO high update the other options
+    }
+
+    # TODO append/set status msg
+    $self->redirect('vboxadm.pl?rm=mailboxes');
+}
+
+#
+# Log
+#
 
 sub show_log {
     my $self = shift;
@@ -525,6 +1107,47 @@ sub show_log {
     );
 
     return $self->tt_process( 'log.tpl', \%params );
+}
+
+#
+# Admins
+#
+
+sub show_admins {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    my $query = "SELECT m.id,m.local_part,m.is_active,d.name,m.is_domainadmin,m.is_superadmin ";
+    $query .= "FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.is_superadmin ";
+    $query .= "OR m.is_domainadmin ORDER BY m.is_superadmin,m.is_domainadmin,m.local_part,d.name";
+    my $sth = $dbh->prepare($query);
+    $sth->execute();
+
+    my @admins = ();
+    while ( my @row = $sth->fetchrow_array() ) {
+        push(
+            @admins,
+            {
+                id             => $row[0],
+                local_part     => $row[1],
+                is_active      => $row[2],
+                domain         => $row[3],
+                is_domainadmin => $row[4],
+                is_superadmin  => $row[5],
+            }
+        );
+    }
+
+    my %params = (
+        'title'  => 'VBoxAdm Admins',
+        'admins' => \@admins,
+    );
+
+    return $self->tt_process( 'admins.tpl', \%params );
 }
 
 1;
