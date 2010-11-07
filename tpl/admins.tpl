@@ -17,16 +17,28 @@
 		[% END %]
 			<tr>
 				<td>
-					[% line.local_part %]@[% line.domain %]
+					<a href="vboxadm.pl?rm=edit_mailbox&domain_id=[% line.id %]">[% line.local_part %]@[% line.domain %]</a>
 				</td>
 				<td>
-					[% line.is_active %]
+					[% IF line.is_active == 1 %]
+					Yes
+					[% ELSE %]
+					No
+					[% END %]
 				</td>
 				<td>
-					[% line.is_domainadmin %]
+					[% IF line.is_domainadmin == 1 %]
+					Yes
+					[% ELSE %]
+					No
+					[% END %]
 				</td>
 				<td>
-					[% line.is_superadmin %]
+					[% IF line.is_superadmin == 1 %]
+					Yes
+					[% ELSE %]
+					No
+					[% END %]
 				</td>
 				<td>
 					<a href="vboxadm.pl?rm=edit_mailbox&domain_id=[% line.id %]">edit</a>

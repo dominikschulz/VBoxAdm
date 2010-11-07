@@ -38,5 +38,7 @@
 		</table>
 		[% END %]
 		[% END %]
+		<br />
+		<a href="vboxadm.pl?rm=create_domain_alias">Add Domain Alias</a>
     </div>
 [% INCLUDE footer.tpl %]

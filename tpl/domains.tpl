@@ -24,7 +24,7 @@
 					<a href="vboxadm.pl?rm=edit_domain&domain_id=[% line.id %]">edit</a>
 				</td>
 				<td>
-					<a href="vboxadm.pl?rm=remote_domain&domain_id=[% line.id %]">del</a>
+					<a href="vboxadm.pl?rm=remove_domain&domain_id=[% line.id %]">del</a>
 				</td>
 			</tr>
 		[% IF loop.last %]
@@ -34,6 +34,7 @@
 		</table>
 		[% END %]
 		[% END %]
+		<br />
 		<a href="vboxadm.pl?rm=create_domain">Add Domain</a>
     </div>
 [% INCLUDE footer.tpl %]

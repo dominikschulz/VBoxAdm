@@ -298,30 +298,138 @@ ul.flash-error {
 	text-align: center;
 }
 
-#login_header {
-	width: 750px;
-	margin: 0 auto;
-	padding-bottom: 10px;
-	text-align: left;
+div.login {
+  width: 30em;
+  margin: auto;
+  padding: 3px;
+  font-weight: bold;
+  border: 2px solid #999999;
+  color: #303c5f;
+  font-family: sans-serif;
 }
-
-#login {
-	width: 750px;
-	margin: 0 auto;
+div.login div {
+  margin: 0;
+  padding: 0;
+  border: none;
 }
-
-#login_table {
-	border-left: 8px solid gray;
-	border-right: 8px solid gray;
-	background: #eeeeee;
-	width: 350px;
-	margin: 0 auto;
-	border-collapse: separate;
-	border-spacing: 10px;
+div.login .login_header {
+  background: #999;
+  border-bottom: 1px solid #1b2236;
+  height: 1.5em;
+  padding: 0.45em;
+  text-align: left;
+  color: #fff;
+  font-size: 100%;
+  font-weight: bold;
 }
-
-#login_table h4 {
-	font-size: 13px;
+div.login .login_content {
+  background: #ddd;
+  padding: 0.8em;
+  border-top: 1px solid white;
+  border-bottom: 1px solid #565656;
+  font-size: 80%;
+}
+div.login .login_footer {
+  background: #888;
+  border-top: 1px solid white;
+  border-bottom: 1px solid white;
+  text-align: left;
+  padding: 0;
+  margin: 0;
+  min-height: 2.8em;
+}
+div.login fieldset {
+  margin: 0;
+  padding: 0;
+  border: none;
+  width: 100%;
+}
+div.login label {
+  clear: left;
+  float: left;
+  padding: 0.6em 1em 0.6em 0;
+  width: 8em;
+  text-align: right;
+}
+/* image courtesy of http://www.famfamfam.com/lab/icons/silk/  */
+#authen_loginfield {
+  background: url('/icons/fffsilk/pencil.png') no-repeat 0 1px;
+  background-color: #fff;
+  border-top: solid 1px #565656;
+  border-left: solid 1px #565656;
+  border-bottom: solid 1px #a2aac4;
+  border-right: solid 1px #a2aac4;
+  padding: 2px 0 2px 18px;
+  margin: 0.3em 0;
+  width: 12em;
+}
+/* image courtesy of http://www.famfamfam.com/lab/icons/silk/  */
+#authen_passwordfield {
+  background: url('/icons/fffsilk/key.png') no-repeat 0 1px;
+  background-color: #fff;
+  border-top: solid 1px #565656;
+  border-left: solid 1px #565656;
+  border-bottom: solid 1px #a2aac4;
+  border-right: solid 1px #a2aac4;
+  padding: 2px 0 2px 18px;
+  margin: 0.3em 0;
+  width: 12em;
+}
+#authen_rememberuserfield {
+  clear: left;
+  margin-left: 8em;
+}
+#authen_loginfield:focus {
+  background-color: #ffc;
+  color: #000;
+}
+#authen_passwordfield:focus {
+  background-color: #ffc;
+  color: #000;
+}
+div.login a {
+  font-size: 80%;
+  color: #303c5f;
+}
+div.login div.buttons input {
+  border-top: solid 2px #a2aac4;
+  border-left: solid 2px #a2aac4;
+  border-bottom: solid 2px #565656;
+  border-right: solid 2px #565656;
+  background-color: #ddd;
+  padding: .2em 1em ;
+  font-size: 80%;
+  font-weight: bold;
+  color: #303c5f;
+}
+div.login div.buttons {
+  display: block;
+  margin: 8px 4px;
+  width: 100%;
+}
+#authen_loginbutton {
+  float: right;
+  margin-right: 1em;
+}
+#authen_registerlink {
+  display: block;
+}
+#authen_forgotpasswordlink {
+  display: block;
+}
+ul.message {
+  margin-top: 0;
+  margin-bottom: 0;
+  list-style: none;
+}
+ul.message li {
+  text-indent: -2em;
+  padding: 0px;
+  margin: 0px;
+  font-style: italic;
+}
+ul.message li.warning {
+  color: red;
 }
 
 nav {

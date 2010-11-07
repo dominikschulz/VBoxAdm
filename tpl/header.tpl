@@ -40,7 +40,9 @@
 
   <div id="container">
     <header>
-    <img src="/images/vboxadm-logo.png" width="400" /><br />
+    <img src="/images/vboxadm-logo.png" /><br />
     <h2>Virtual Mailbox Admin</h2>
+    [% IF nonavigation != 1 %]
 	[% INCLUDE navigation.tpl %]
+	[% END %]
     </header>

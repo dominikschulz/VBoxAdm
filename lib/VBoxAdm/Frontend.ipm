@@ -23,12 +23,29 @@ use CGI::Application::Plugin::CAPTCHA;
 
 # http://search.cpan.org/~ceeshek/CGI-Application-Plugin-Authorization-0.07/lib/CGI/Application/Plugin/Authorization.pm
 # http://search.cpan.org/~ceeshek/CGI-Application-Plugin-Authorization-0.07/lib/CGI/Application/Plugin/Authorization/Driver/DBI.pm
+# http://search.cpan.org/~silasmonk/CGI-Application-Plugin-Authentication-0.18/lib/CGI/Application/Plugin/Authentication.pm
+use CGI::Application::Plugin::Authentication;
 
 use Config::Std;
 
 #use VBoxAdm::Frontend::Admin '@VERSION@';
 
 our $VERSION = '@VERSION@';
+
+__PACKAGE__->authen->config(
+     DRIVER => [ 'DBI',
+         TABLES       => ['mailboxes', 'domains'],
+         CONSTRAINTS => {
+             "CONCAT(mailboxes.local_part,'\@',domains.name)"		=> '__CREDENTIAL_1__',
+             'mailboxes.password' => '__CREDENTIAL_2__', # TODO passwords should be 'encrypted' MD5:
+             'mailboxes.is_active'		=> '1',
+             'domains.is_active'			=> '1',
+             '(mailboxes.is_superadmin OR mailboxes.is_domainadmin) AND 1' => '1',
+         },
+     ],
+     LOGOUT_RUNMODE => 'public_login',
+     LOGIN_RUNMODE => 'public_login',
+);
 
 ############################################
 # Usage      : ????
@@ -40,20 +57,24 @@ our $VERSION = '@VERSION@';
 # See Also   : n/a
 sub setup {
     my $self = shift;
-    $self->start_mode('login');
+    $self->start_mode('public_login');
     $self->run_modes(
-        'login'          => 'show_login',
+        'public_login'          => 'show_login',
         'domains'        => 'show_domains',
         'create_domain'  => 'show_create_domain',
         'add_domain'     => 'show_add_domain',
         'remove_domain'  => 'show_remove_domain',
         'domain_aliases' => 'show_domain_aliases',
+        'create_domain_alias'	=> 'show_create_domain_alias',
+        'add_domain_alias' => 'show_add_domain_alias',
         'aliases'        => 'show_aliases',
         'mailboxes'      => 'show_mailboxes',
+        'create_mailbox' => 'show_create_mailbox',
         'log'            => 'show_log',
         'create_captcha' => 'show_captcha',
         'admins'         => 'show_admins',
     );
+    $self->authen->protected_runmodes(qr/^(?!public_)/);
 
     #
     # Configuration
@@ -115,8 +136,6 @@ sub setup {
         },
         CREATE_OPTIONS   => [ 'ttf', 'rect' ],
         PARTICLE_OPTIONS => [300],
-
-        #DEBUG => 1,
     );
 
 }
@@ -150,7 +169,7 @@ sub teardown {
 sub show_login {
     my $self = shift;
 
-    my %params = ( title => 'VBoxAdm', );
+    my %params = ( title => 'VBoxAdm Login', nonavigation => 1, );
 
     return $self->tt_process( 'login.tpl', \%params );
 }
@@ -163,6 +182,133 @@ sub show_create_domain {
     my %params = ( 'title' => 'Add Domain', );
 
     return $self->tt_process( 'domain-create.tpl', \%params );
+}
+
+sub show_create_domain_alias {
+	  # TODO HIGH only super-admin here!
+    my $self = shift;
+    
+		# Get our database connection
+    my $dbh = $self->dbh();
+
+		# TODO HIGH if domainadmin only one domain here
+    my $query = "SELECT id,name,is_active FROM domains ORDER BY name";
+    my $sth   = $dbh->prepare($query);
+    $sth->execute();
+
+    my @domains = ();
+    while ( my @row = $sth->fetchrow_array() ) {
+        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], } );
+    }
+
+    my %params = (
+        'title'   => 'Add Domain Alias',
+        'domains' => \@domains,
+    );
+
+    return $self->tt_process( 'domain-alias-create.tpl', \%params );
+}
+
+sub show_add_domain_alias {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain_alias             = lc( $q->param('domain_alias') );
+    my $domain_id = $q->param('domain');
+
+    if ( $domain_alias && $domain_id ) {
+        my $query = "INSERT INTO domain_aliases (name,domain_id,is_active) VALUES(?,?,1)";
+        my $sth   = $dbh->prepare($query);
+        if($sth->execute($domain_alias,$domain_id)) {
+        	# TODO add log entry
+        } else {
+        	# TODO add log entry
+        }
+        $sth->finish();
+
+        # TODO redirect to show_domains
+    }
+    else {
+
+        # TODO show error on domain-create.tpl
+    }
+
+    my %params = ( 'title' => 'Add Domain Alias', );
+
+    return $self->tt_process( 'domain-alias-create.tpl', \%params );
+}
+
+sub show_create_mailbox {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+    
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+		# TODO HIGH if domainadmin only one domain here
+    my $query = "SELECT id,name,is_active FROM domains ORDER BY name";
+    my $sth   = $dbh->prepare($query);
+    $sth->execute();
+
+    my @domains = ();
+    while ( my @row = $sth->fetchrow_array() ) {
+        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], } );
+    }
+
+    my %params = (
+        'title'   => 'Add Mailbox',
+        'domains' => \@domains,
+    );
+
+    return $self->tt_process( 'mailbox-create.tpl', \%params );
+}
+
+sub show_add_mailbox {
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain_id             = $q->param('domain');
+    my $username					 = lc( $q->param('username') );
+    my $password = $q->param('password');
+    my $password_2 = $q->param('password_2');
+    my $name = lc($q->param('name'));
+    my $is_active = $q->param('is_active');
+    my $send_welcome_mail = $q->param('send_welcome_mail');
+
+    if ( $domain_id && $username && $password && $name && $password eq $password_2) {
+        my $query = "INSERT INTO mailboxes (domain_id,local_part,password,is_active) VALUES(?,?,?,?)";
+        my $sth   = $dbh->prepare($query);
+        if($sth->execute($domain_id,$username,$password,$is_active)) {
+        	# TODO add log entry
+        } else {
+        	# TODO add log entry
+        }
+        $sth->finish();
+
+        # TODO redirect to show_domains
+    }
+    else {
+
+        # TODO show error on domain-create.tpl
+    }
+
+    my %params = ( 'title' => 'Add Mailbox', );
+
+    return $self->tt_process( 'mailbox-create.tpl', \%params );
 }
 
 sub show_add_domain {
@@ -182,7 +328,11 @@ sub show_add_domain {
     if ( $domain && $create_domainadmin ) {
         my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
         my $sth   = $dbh->prepare($query);
-        $sth->execute($domain);
+        if($sth->execute($domain)) {
+        	# TODO add log entry
+        } else {
+        	# TODO add log entry
+        }
         $sth->finish();
 
         # TODO redirect to show_domains

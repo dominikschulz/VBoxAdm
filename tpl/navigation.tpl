@@ -6,7 +6,7 @@
 		<li><a href="vboxadm.pl?rm=aliases">Aliases</a></li>
 		<li><a href="vboxadm.pl?rm=mailboxes">Mailboxes</a></li>
 		<li><a href="vboxadm.pl?rm=log">View Log</a></li>
-		<li><a href="vboxadm.pl?rm=logout">Logout</a></li>
+		<li><a href="vboxadm.pl?rm=login&authen_logout=1">Logout</a></li>
 	</ul>
 </nav>
 <br clear="all" />

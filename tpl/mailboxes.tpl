@@ -21,13 +21,21 @@
 					[% line.local_part %]@[% line.domain %]
 				</td>
 				<td>
-					[% line.is_active %]
+					[% IF line.is_active == 1 %]
+					Yes
+					[% ELSE %]
+					No
+					[% END %]
 				</td>
 				<td>
 					[% line.max_msg_size %]
 				</td>
 				<td>
-					[% line.is_on_vacation %]
+					[% IF line.is_on_vacatione == 1 %]
+					Yes
+					[% ELSE %]
+					No
+					[% END %]
 				</td>
 				<td>
 					[% line.quota %]
@@ -46,5 +54,7 @@
 		</table>
 		[% END %]
 		[% END %]
+		<br />
+		<a href="vboxadm.pl?rm=create_mailbox">Add Mailbox</a>
     </div>
 [% INCLUDE footer.tpl %]
