@@ -1,0 +1,201 @@
+package OCP::Frontend;
+
+# TODO use captacha plugin to protect login
+# TODO use require ssl
+# TODO HIGH enforce lower case usernames and domain
+
+use base 'CGI::Application';
+
+use strict;
+use warnings;
+
+# Neede for database connection
+use CGI::Application::Plugin::DBH (qw/dbh_config dbh/);
+# http://search.cpan.org/~ceeshek/CGI-Application-Plugin-TT-1.05/lib/CGI/Application/Plugin/TT.pm
+use CGI::Application::Plugin::TT;
+# http://search.cpan.org/~dhorne/CGI-Application-Plugin-RequireSSL-0.04/lib/CGI/Application/Plugin/RequireSSL.pm
+use CGI::Application::Plugin::RequireSSL;
+# http://search.cpan.org/~cromedome/CGI-Application-Plugin-CAPTCHA-0.01/lib/CGI/Application/Plugin/CAPTCHA.pm
+use CGI::Application::Plugin::CAPTCHA;
+# http://search.cpan.org/~ceeshek/CGI-Application-Plugin-Authorization-0.07/lib/CGI/Application/Plugin/Authorization.pm
+# http://search.cpan.org/~ceeshek/CGI-Application-Plugin-Authorization-0.07/lib/CGI/Application/Plugin/Authorization/Driver/DBI.pm
+
+use Config::Std;
+
+#use VBoxAdm::Frontend::Admin '@VERSION@';
+
+our $VERSION = '@VERSION@';
+
+############################################
+# Usage      : ????
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub setup {
+    my $self = shift;
+    $self->start_mode('login');
+    $self->run_modes(
+        'login' => 'show_login',
+        'domains' => 'show_domains',
+        'domain_aliases'   => 'show_domainaliases',
+        'aliases'     => 'show_aliases',
+        'mailboxes'  => 'show_mailboxes',
+        'log'      => 'show_log',
+    );
+
+    # Valid config file locations to try
+    my @conffile_locations = qw(
+      vboxadm.conf
+      conf/vboxadm.conf
+      /etc/vboxadm/vboxadm.conf
+    );
+
+    my ( %config, $conffile_used );
+
+    # Try all config file locations
+    foreach my $loc (@conffile_locations) {
+        if ( -r $loc ) {
+            $conffile_used = $loc;
+            read_config $loc => %config;
+            last;
+        }
+    }
+
+		my $user = $config{'default'}{'dbuser'} || 'root';
+		my $pass = $config{'default'}{'dbpass'} || 'root';
+		my $db = $config{'default'}{'dbdb'} || 'vboxadm';
+		my $port = $config{'default'}{'dbport'} || 3306;
+		my $host = $config{'default'}{'dbhost'} || 'localhost';
+    my $dsn = "DBI:mysql:database=$db;user=$user;password=$pass;host=$host;port=$port";
+
+    # Connect to DBI database, same args as DBI->connect();
+    $self->dbh_config($dsn);
+}
+
+sub teardown {
+    my $self = shift;
+
+    # Disconnect when done
+    $self->dbh->disconnect();
+}
+
+sub show_login {
+    my $self = shift;
+}
+
+sub show_domains {
+    my $self = shift;
+}
+
+sub show_domain_aliases {
+    my $self = shift;
+}
+
+sub show_mailboxes {
+    my $self = shift;
+}
+
+sub show_log {
+    my $self = shift;
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+VBoxAdm::Frontend - Frontend for VBoxAdm
+
+=head1 VERSION
+
+This documentation refers to VBoxAdm::Frontend version @VERSION@
+built on @BUILDDATE@.
+
+=head1 SYNOPSIS
+
+    use VBoxAdm::Frontend;
+		my $vadm = VBoxAdm::Frontend->new();
+		$vadm->run();
+
+=head1 DESCRIPTION
+
+A full description of the module and its features.
+May include numerous subsections (i.e., =head2, =head3, etc.).
+
+=head1 SUBROUTINES/METHODS
+
+A separate section listing the public components of the module's interface.
+These normally consist of either subroutines that may be exported, or methods
+that may be called on objects belonging to the classes that the module provides.
+Name the section accordingly.
+
+In an object-oriented module, this section should begin with a sentence of the
+form "An object of this class represents...", to give the reader a high-level
+context to help them understand the methods that are subsequently described.
+
+=head1 DIAGNOSTICS
+
+A list of every error and warning message that the module can generate
+(even the ones that will "never happen"), with a full explanation of each
+problem, one or more likely causes, and any suggested remedies.
+(See also "Documenting Errors" in Chapter 13.)
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+A full explanation of any configuration system(s) used by the module,
+including the names and locations of any configuration files, and the
+meaning of any environment variables or properties that can be set. These
+descriptions must also include details of any configuration language used.
+(See also "Configuration Files" in Chapter 19.)
+
+=head1 DEPENDENCIES
+
+A list of all the other modules that this module relies upon, including any
+restrictions on versions, and an indication of whether these required modules are
+part of the standard Perl distribution, part of the module's distribution,
+or must be installed separately.
+
+=head1 INCOMPATIBILITIES
+
+A list of any modules that this module cannot be used in conjunction with.
+This may be due to name conflicts in the interface, or competition for
+system or program resources, or due to internal limitations of Perl
+(for example, many modules that use source code filters are mutually
+incompatible).
+
+=head1 BUGS AND LIMITATIONS
+
+A list of known problems with the module, together with some indication of
+whether they are likely to be fixed in an upcoming release.
+
+Also a list of restrictions on the features the module does provide:
+data types that cannot be handled, performance issues and the circumstances
+in which they may arise, practical limitations on the size of data sets,
+special cases that are not (yet) handled, etc.
+
+There are no known bugs in this module.
+Please report problems to 
+
+Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This module is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself. See L<perlartistic>.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+=cut

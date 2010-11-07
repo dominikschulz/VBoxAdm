@@ -1,0 +1,7 @@
+#!/usr/bin/perl
+use lib qw(../lib);
+
+use VBoxAdm::Frontend '@VERSION@';
+
+my $ocp = VBoxAdm::Frontend->new();
+$ocp->run();

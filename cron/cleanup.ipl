@@ -1,0 +1,4 @@
+# TODO cronjob which does this:
+# - create uncreated mailboxes
+# - remove deleted mailboxes
+# - remove expired vacation_notify entries
