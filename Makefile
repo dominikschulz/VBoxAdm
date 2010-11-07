@@ -34,7 +34,7 @@ SBINDIR=$(DESTDIR)/usr/sbin
 MANDIR=$(DESTDIR)/usr/share/man
 CFGDIR ?= $(DESTDIR)/etc
 LIBDIR=$(DESTDIR)/usr/share/perl5
-VBOXLIBDIR=$(DESTDIR)/usr/lib/mtk
+VBOXLIBDIR=$(DESTDIR)/usr/lib/vboxadm
 VHDIR=$(DESTDIR)/var/lib/vboxadm
 
 # Files
@@ -44,7 +44,7 @@ BINFILES = \
 	cron/cleanup.pl
 
 LIBFILES = \
-	lib/VboxAdm/Frontend.pm
+	lib/VBoxAdm/Frontend.pm
 
 .PHONY: install tidy critic test
 
@@ -90,6 +90,7 @@ real-install: all test man
 	$(INSTALL_PROGRAM) cgi-bin/vboxadm.pl $(VHDIR)/cgi-bin/vboxadm.pl
 	$(INSTALL_PROGRAM) cron/cleanup.pl $(VBOXLIBDIR)/bin/cleanup
 	$(INSTALL_DATA) lib/VBoxAdm/Frontend.pm $(LIBDIR)/VBoxAdm/Frontend.pm
+	$(INSTALL_DATA) tpl/*.tpl $(VBOXLIBDIR)/tpl/
 #	$(INSTALL_DATA) res/css/ocp.css $(VHDIR)/htdocs/css/ocp.css
 #	$(INSTALL_DATA) res/js/sorttable.js $(VHDIR)/htdocs/js/sorttable.js
 #	$(INSTALL_DATA) res/images/*.png $(VHDIR)/htdocs/images/

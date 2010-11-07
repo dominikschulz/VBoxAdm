@@ -1,4 +1,4 @@
-package OCP::Frontend;
+package VBoxAdm::Frontend;
 
 # TODO use captacha plugin to protect login
 # TODO use require ssl
@@ -44,8 +44,12 @@ sub setup {
         'aliases'     => 'show_aliases',
         'mailboxes'  => 'show_mailboxes',
         'log'      => 'show_log',
+        'create_captcha' => 'show_captcha',
     );
 
+		#
+		# Configuration
+		#
     # Valid config file locations to try
     my @conffile_locations = qw(
       vboxadm.conf
@@ -64,6 +68,9 @@ sub setup {
         }
     }
 
+		#
+		# Database
+		#
 		my $user = $config{'default'}{'dbuser'} || 'root';
 		my $pass = $config{'default'}{'dbpass'} || 'root';
 		my $db = $config{'default'}{'dbdb'} || 'vboxadm';
@@ -73,6 +80,56 @@ sub setup {
 
     # Connect to DBI database, same args as DBI->connect();
     $self->dbh_config($dsn);
+    
+    #
+    # Templates
+    #
+    $self->tt_config(
+    	TEMPLATE_OPTIONS => {
+    		INCLUDE_PATH => ['tpl','../tpl','/var/lib/vboxadm/tpl'],
+    		POST_CHOMP	=> 1,
+    		FILTERS => {
+    			'currency' => sub { sprintf('%0.2f', @_) },
+    		}
+    	}
+    );
+    
+    #
+    # Captachas
+    #
+    $self->captcha_config(
+            IMAGE_OPTIONS    => {
+                width    => 150,
+                height   => 40,
+                lines    => 10,
+                #font     => "/Library/Fonts/Arial",
+                ptsize   => 18,
+                bgcolor  => "#FFCC00",
+            },
+            CREATE_OPTIONS   => [ 'ttf', 'rect' ],
+            PARTICLE_OPTIONS => [ 300 ],
+            DEBUG => 1,
+        );
+    
+}
+
+sub show_captcha {
+	my $self = shift;
+	return $self->captcha_create;
+	
+}
+
+sub tt_post_process {
+	my $self = shift;
+	my $htmlref = shift;
+	
+	    # clean up the resulting HTML
+    require HTML::Clean;
+    my $h = HTML::Clean->new($htmlref);
+    $h->strip;
+    my $newref = $h->data;
+    $$htmlref = $$newref;
+    return;
 }
 
 sub teardown {
@@ -84,6 +141,12 @@ sub teardown {
 
 sub show_login {
     my $self = shift;
+    
+    my %params = (
+    	title => 'VBoxAdm',
+    );
+    
+    return $self->tt_process('login.tpl', \%params);
 }
 
 sub show_domains {

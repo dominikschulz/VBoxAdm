@@ -3,5 +3,5 @@ use lib qw(../lib);
 
 use VBoxAdm::Frontend '@VERSION@';
 
-my $ocp = VBoxAdm::Frontend->new();
-$ocp->run();
+my $vbox = VBoxAdm::Frontend->new();
+$vbox->run();
