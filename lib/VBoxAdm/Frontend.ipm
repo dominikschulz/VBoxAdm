@@ -11,12 +11,16 @@ use warnings;
 
 # Neede for database connection
 use CGI::Application::Plugin::DBH (qw/dbh_config dbh/);
+
 # http://search.cpan.org/~ceeshek/CGI-Application-Plugin-TT-1.05/lib/CGI/Application/Plugin/TT.pm
 use CGI::Application::Plugin::TT;
+
 # http://search.cpan.org/~dhorne/CGI-Application-Plugin-RequireSSL-0.04/lib/CGI/Application/Plugin/RequireSSL.pm
 use CGI::Application::Plugin::RequireSSL;
+
 # http://search.cpan.org/~cromedome/CGI-Application-Plugin-CAPTCHA-0.01/lib/CGI/Application/Plugin/CAPTCHA.pm
 use CGI::Application::Plugin::CAPTCHA;
+
 # http://search.cpan.org/~ceeshek/CGI-Application-Plugin-Authorization-0.07/lib/CGI/Application/Plugin/Authorization.pm
 # http://search.cpan.org/~ceeshek/CGI-Application-Plugin-Authorization-0.07/lib/CGI/Application/Plugin/Authorization/Driver/DBI.pm
 
@@ -38,18 +42,22 @@ sub setup {
     my $self = shift;
     $self->start_mode('login');
     $self->run_modes(
-        'login' => 'show_login',
-        'domains' => 'show_domains',
-        'domain_aliases'   => 'show_domainaliases',
-        'aliases'     => 'show_aliases',
-        'mailboxes'  => 'show_mailboxes',
-        'log'      => 'show_log',
+        'login'          => 'show_login',
+        'domains'        => 'show_domains',
+        'create_domain'  => 'show_create_domain',
+        'add_domain'     => 'show_add_domain',
+        'remove_domain'  => 'show_remove_domain',
+        'domain_aliases' => 'show_domain_aliases',
+        'aliases'        => 'show_aliases',
+        'mailboxes'      => 'show_mailboxes',
+        'log'            => 'show_log',
         'create_captcha' => 'show_captcha',
+        'admins'         => 'show_admins',
     );
 
-		#
-		# Configuration
-		#
+    #
+    # Configuration
+    #
     # Valid config file locations to try
     my @conffile_locations = qw(
       vboxadm.conf
@@ -68,62 +76,62 @@ sub setup {
         }
     }
 
-		#
-		# Database
-		#
-		my $user = $config{'default'}{'dbuser'} || 'root';
-		my $pass = $config{'default'}{'dbpass'} || 'root';
-		my $db = $config{'default'}{'dbdb'} || 'vboxadm';
-		my $port = $config{'default'}{'dbport'} || 3306;
-		my $host = $config{'default'}{'dbhost'} || 'localhost';
-    my $dsn = "DBI:mysql:database=$db;user=$user;password=$pass;host=$host;port=$port";
+    #
+    # Database
+    #
+    my $user = $config{'default'}{'dbuser'} || 'root';
+    my $pass = $config{'default'}{'dbpass'} || 'root';
+    my $db   = $config{'default'}{'dbdb'}   || 'vboxadm';
+    my $port = $config{'default'}{'dbport'} || 3306;
+    my $host = $config{'default'}{'dbhost'} || 'localhost';
+    my $dsn  = "DBI:mysql:database=$db;user=$user;password=$pass;host=$host;port=$port";
 
     # Connect to DBI database, same args as DBI->connect();
     $self->dbh_config($dsn);
-    
+
     #
     # Templates
     #
     $self->tt_config(
-    	TEMPLATE_OPTIONS => {
-    		INCLUDE_PATH => ['tpl','../tpl','/var/lib/vboxadm/tpl'],
-    		POST_CHOMP	=> 1,
-    		FILTERS => {
-    			'currency' => sub { sprintf('%0.2f', @_) },
-    		}
-    	}
+        TEMPLATE_OPTIONS => {
+            INCLUDE_PATH => [ 'tpl', '../tpl', '/var/lib/vboxadm/tpl' ],
+            POST_CHOMP   => 1,
+            FILTERS => { 'currency' => sub { sprintf( '%0.2f', @_ ) }, }
+        }
     );
-    
+
     #
     # Captachas
     #
     $self->captcha_config(
-            IMAGE_OPTIONS    => {
-                width    => 150,
-                height   => 40,
-                lines    => 10,
-                #font     => "/Library/Fonts/Arial",
-                ptsize   => 18,
-                bgcolor  => "#FFCC00",
-            },
-            CREATE_OPTIONS   => [ 'ttf', 'rect' ],
-            PARTICLE_OPTIONS => [ 300 ],
-            DEBUG => 1,
-        );
-    
+        IMAGE_OPTIONS => {
+            width    => 220,
+            height   => 60,
+            lines    => 10,
+            font     => "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+            ptsize   => 18,
+            bgcolor  => "#FFCC00",
+            scramble => 1,
+        },
+        CREATE_OPTIONS   => [ 'ttf', 'rect' ],
+        PARTICLE_OPTIONS => [300],
+
+        #DEBUG => 1,
+    );
+
 }
 
 sub show_captcha {
-	my $self = shift;
-	return $self->captcha_create;
-	
+    my $self = shift;
+    return $self->captcha_create;
+
 }
 
 sub tt_post_process {
-	my $self = shift;
-	my $htmlref = shift;
-	
-	    # clean up the resulting HTML
+    my $self    = shift;
+    my $htmlref = shift;
+
+    # clean up the resulting HTML
     require HTML::Clean;
     my $h = HTML::Clean->new($htmlref);
     $h->strip;
@@ -141,28 +149,232 @@ sub teardown {
 
 sub show_login {
     my $self = shift;
-    
-    my %params = (
-    	title => 'VBoxAdm',
-    );
-    
-    return $self->tt_process('login.tpl', \%params);
+
+    my %params = ( title => 'VBoxAdm', );
+
+    return $self->tt_process( 'login.tpl', \%params );
+}
+
+sub show_create_domain {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    my %params = ( 'title' => 'Add Domain', );
+
+    return $self->tt_process( 'domain-create.tpl', \%params );
+}
+
+sub show_add_domain {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain             = lc( $q->param('domain') );
+    my $create_domainadmin = $q->param('create_domainadmin');
+
+    if ( $domain && $create_domainadmin ) {
+        my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
+        my $sth   = $dbh->prepare($query);
+        $sth->execute($domain);
+        $sth->finish();
+
+        # TODO redirect to show_domains
+    }
+    else {
+
+        # TODO show error on domain-create.tpl
+    }
+
+    my %params = ( 'title' => 'Add Domain', );
+
+    return $self->tt_process( 'domain-create.tpl', \%params );
 }
 
 sub show_domains {
+
+    # TODO HIGH only super-admin here!
     my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    my $query = "SELECT id,name,is_active FROM domains ORDER BY name";
+    my $sth   = $dbh->prepare($query);
+    $sth->execute();
+
+    my @domains = ();
+    while ( my @row = $sth->fetchrow_array() ) {
+        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], } );
+    }
+
+    my %params = (
+        'title'   => 'VBoxAdm Domains',
+        'domains' => \@domains,
+    );
+
+    return $self->tt_process( 'domains.tpl', \%params );
+}
+
+sub show_aliases {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    my $query =
+      "SELECT a.id,a.local_part,a.is_active,a.goto,d.name FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id ORDER BY a.local_part,d.name";
+    my $sth = $dbh->prepare($query);
+    $sth->execute();
+
+    my @aliases = ();
+    while ( my @row = $sth->fetchrow_array() ) {
+        push( @aliases, { id => $row[0], local_part => $row[1], is_active => $row[2], target => $row[3], domain => $row[4], } );
+    }
+
+    my %params = (
+        'title'   => 'VBoxAdm Aliases',
+        'aliases' => \@aliases,
+    );
+
+    return $self->tt_process( 'aliases.tpl', \%params );
 }
 
 sub show_domain_aliases {
+
+    # TODO HIGH only super-admin here!
     my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    my $query = "SELECT da.id,da.name,da.is_active,d.name FROM domain_aliases AS da LEFT JOIN domains AS d ON da.domain_id = d.id ORDER BY da.name";
+    my $sth   = $dbh->prepare($query);
+    $sth->execute();
+
+    my @domains = ();
+    while ( my @row = $sth->fetchrow_array() ) {
+        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], target => $row[3], } );
+    }
+
+    my %params = (
+        'title'   => 'VBoxAdm Domain-Aliases',
+        'domains' => \@domains,
+    );
+
+    return $self->tt_process( 'domain-aliases.tpl', \%params );
 }
 
 sub show_mailboxes {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    my $query =
+"SELECT m.id,m.local_part,m.is_active,d.name,m.max_msg_size,m.is_on_vacation,m.quota FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id ORDER BY m.local_part,d.name";
+    my $sth = $dbh->prepare($query);
+    $sth->execute();
+
+    my @mailboxes = ();
+    while ( my @row = $sth->fetchrow_array() ) {
+        push(
+            @mailboxes,
+            {
+                id             => $row[0],
+                local_part     => $row[1],
+                is_active      => $row[2],
+                domain         => $row[3],
+                max_msg_size   => $row[4],
+                is_on_vacation => $row[5],
+                quota          => $row[6],
+            }
+        );
+    }
+
+    my %params = (
+        'title'     => 'VBoxAdm Aliases',
+        'mailboxes' => \@mailboxes,
+    );
+
+    return $self->tt_process( 'mailboxes.tpl', \%params );
+}
+
+sub show_admins {
+
+    # TODO HIGH only super-admin here!
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    my $query =
+"SELECT m.id,m.local_part,m.is_active,d.name,m.is_domainadmin,m.is_superadmin FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.is_superadmin OR m.is_domainadmin ORDER BY m.is_superadmin,m.is_domainadmin,m.local_part,d.name";
+    my $sth = $dbh->prepare($query);
+    $sth->execute();
+
+    my @admins = ();
+    while ( my @row = $sth->fetchrow_array() ) {
+        push(
+            @admins,
+            {
+                id             => $row[0],
+                local_part     => $row[1],
+                is_active      => $row[2],
+                domain         => $row[3],
+                is_domainadmin => $row[4],
+                is_superadmin  => $row[5],
+            }
+        );
+    }
+
+    my %params = (
+        'title'  => 'VBoxAdm Admins',
+        'admins' => \@admins,
+    );
+
+    return $self->tt_process( 'admins.tpl', \%params );
+}
+
+sub show_mailbox {
+
+    # TODO HIGH only domain- and super-admin here!
     my $self = shift;
 }
 
 sub show_log {
     my $self = shift;
+
+    # TODO HIGH only allow super admin here!
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    my $query = "SELECT * FROM log ORDER BY ts DESC LIMIT 30";
+    my $sth   = $dbh->prepare($query);
+    $sth->execute();
+
+    my @log = ();
+    while ( my @row = $sth->fetchrow_array() ) {
+        push( @log, { ts => $row[0], msg => $row[1], } );
+    }
+
+    my %params = (
+        'title' => 'VBoxAdm Log',
+        'log'   => \@log,
+    );
+
+    return $self->tt_process( 'log.tpl', \%params );
 }
 
 1;

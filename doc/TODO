@@ -4,6 +4,10 @@ use CGI::Application and Template::Toolkit.
 
 use postfixadmin vacation.pl for vacation handling
 
+no user logins to vboxadm, only domainadmins and superadmins.
+the user part is handled by a roundcube plugin
+http://trac.roundcube.net/wiki/Doc_Plugins
+
 ###########################################################################
 Postfix:
 ###########################################################################
