@@ -26,6 +26,12 @@ SELECT goto FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE
 virtual_alias_domain_maps (Domain-Alias Aliases):
 SELECT goto FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id LEFT JOIN domain_aliases AS da ON da.domain_id = d.id WHERE da.name = '%d' AND a.local_part = '%u' AND a.is_active AND d.is_active AND da.is_active;
 
+virtual_domain_maps (Domains):
+SELECT name FROM domains WHERE domain = '%s' AND is_active
+
+virtual_domain_alias_maps (Domain-Aliases):
+SELECT name FROM domain_alias WHERE name = '%s' AND is_active
+
 virtual_mailbox_maps (Mailboxes / Maildirs ):
 SELECT CONCAT(d.name, '/', m.local_part) AS maildir FROM domains AS d LEFT JOIN mailboxes AS m ON m.domain_id = d.id WHERE d.name = '%d' AND m.local_part = '%d' AND d.is_active AND m.is_active;
 
@@ -75,9 +81,15 @@ recipient_delimiter = +
 inet_interfaces = all
 inet_protocols = all
 #inet_protocols = ipv4
-virtual_mailbox_domains = proxy:mysql:/etc/postfix/mysql-virtual-mailbox-domains.cf
-virtual_mailbox_maps = proxy:mysql:/etc/postfix/mysql-virtual-mailbox-maps.cf
-virtual_alias_maps = proxy:mysql:/etc/postfix/mysql-virtual-alias-maps.cf,proxy:mysql:/etc/postfix/mysql-email2email.cf
+virtual_mailbox_domains =
+	proxy:mysql:/etc/postfix/maps/virtual_domain_maps.cf,
+	proxy:mysql:/etc/postfix/maps/virtual_domain_alias_maps.cf
+virtual_mailbox_maps =
+	proxy:mysql:/etc/postfix/maps/virtual_mailbox_maps.cf,
+	proxy:mysql:/etc/postfix/maps/virtual_alias_domain_mailbox_maps.cf
+virtual_alias_maps =
+	proxy:mysql:/etc/postfix/maps/virtual_alias_maps.cf,
+	proxy:mysql:/etc/postfix/maps/virtual_alias_domain_maps.cf
 virtual_transport = dovecot
 dovecot_destination_recipient_limit = 1
 smtpd_sasl_type = dovecot
@@ -85,12 +97,12 @@ smtpd_sasl_path = private/auth
 smtpd_sasl_auth_enable = yes
 smtpd_recipient_restrictions =
 # Postmaster, abuse und andere role-accounts
-        check_recipient_access btree:/etc/postfix/access_recipient-rfc,
+        check_recipient_access btree:/etc/postfix/maps/access_recipient-rfc,
 # White- und Blacklisting
-        check_client_access btree:/etc/postfix/access_client,
-        check_helo_access btree:/etc/postfix/access_helo,
-        check_sender_access btree:/etc/postfix/access_sender,
-        check_recipient_access btree:/etc/postfix/access_recipient,
+        check_client_access btree:/etc/postfix/maps/access_client,
+        check_helo_access btree:/etc/postfix/maps/access_helo,
+        check_sender_access btree:/etc/postfix/maps/access_sender,
+        check_recipient_access btree:/etc/postfix/maps/access_recipient,
 # Keine unsauberen Mails annehmen!
         reject_non_fqdn_sender,
         reject_non_fqdn_recipient,
@@ -263,6 +275,8 @@ mailman   unix  -       n       n       -       -       pipe
   ${nexthop} ${user}
 dovecot   unix  -       n       n       -       -       pipe
   flags=DRhu user=vmail:vmail argv=/usr/lib/dovecot/deliver -d ${user}@${domain}
+#vacation  unix	-		n		n		-		-		pipe
+#  flags=Rq user=vacation argv=/usr/bin/vacation -f ${sender} -- ${recipient}
 
 ###########################################################################
 Dovecot:

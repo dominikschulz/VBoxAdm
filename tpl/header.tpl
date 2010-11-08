@@ -45,4 +45,11 @@
     [% IF nonavigation != 1 %]
 	[% INCLUDE navigation.tpl %]
 	[% END %]
+	[% IF notify %]
+	<br />
+	<div class="error_msg standout">
+	[% notify %]
+	</div>
+	<br />
+	[% END %]
     </header>
