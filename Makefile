@@ -83,19 +83,25 @@ real-install: all test man
 	$(INSTALL) -d $(CFGDIR)/vboxadm
 	$(INSTALL) -d $(LIBDIR)/VBoxAdm
 	$(INSTALL) -d $(MANDIR)/man1 $(MANDIR)/man3 $(MANDIR)/man8
-	$(INSTALL) -d $(VBOXLIBDIR)/bin
-	$(INSTALL) -g www-data -d $(VHDIR)/cgi-bin $(VHDIR)/htdocs/css $(VHDIR)/htdocs/images $(VHDIR)/htdocs/js
+	$(INSTALL) -d $(VBOXLIBDIR)/bin $(VBOXLIBDIR)/tpl
+	$(INSTALL) -g www-data -d $(VHDIR)/cgi-bin $(VHDIR)/htdocs/css $(VHDIR)/htdocs/images
+	$(INSTALL) -g www-data -d $(VHDIR)/htdocs/js/libs $(VHDIR)/htdocs/js/mylibs $(VHDIR)/htdocs/js/profiling
 	$(INSTALL_DATA) doc/man/VBoxAdm::Frontend.8 $(MANDIR)/man8/VBoxAdm::Frontend.8
 	$(INSTALL_PROGRAM) bin/vacation.pl $(VBOXLIBDIR)/bin/vacation
 	$(INSTALL_PROGRAM) cgi-bin/vboxadm.pl $(VHDIR)/cgi-bin/vboxadm.pl
 	$(INSTALL_PROGRAM) cron/cleanup.pl $(VBOXLIBDIR)/bin/cleanup
 	$(INSTALL_DATA) lib/VBoxAdm/Frontend.pm $(LIBDIR)/VBoxAdm/Frontend.pm
 	$(INSTALL_DATA) tpl/*.tpl $(VBOXLIBDIR)/tpl/
-#	$(INSTALL_DATA) res/css/ocp.css $(VHDIR)/htdocs/css/ocp.css
-#	$(INSTALL_DATA) res/js/sorttable.js $(VHDIR)/htdocs/js/sorttable.js
-#	$(INSTALL_DATA) res/images/*.png $(VHDIR)/htdocs/images/
-#	$(INSTALL_DATA) res/images/*.svg $(VHDIR)/htdocs/images/
-#	$(INSTALL_DATA) res/images/*.gif $(VHDIR)/htdocs/images/
+	$(INSTALL_DATA) res/css/*.css $(VHDIR)/htdocs/css/
+	$(INSTALL_DATA) res/images/*.png $(VHDIR)/htdocs/images/
+	$(INSTALL_DATA) res/js/*.js $(VHDIR)/htdocs/js/
+	$(INSTALL_DATA) res/js/libs/*.js $(VHDIR)/htdocs/js/libs/
+	$(INSTALL_DATA) res/js/mylibs/*.js $(VHDIR)/htdocs/js/mylibs/
+	$(INSTALL_DATA) res/js/profiling/*.js $(VHDIR)/htdocs/js/profiling/
+	$(INSTALL_DATA) res/apple-touch-icon.png $(VHDIR)/htdocs/apple-touch-icon.png
+	$(INSTALL_DATA) res/crossdomain.xml $(VHDIR)/htdocs/crossdomain.xml
+	$(INSTALL_DATA) res/favicon.ico $(VHDIR)/htdocs/favicon.ico
+	$(INSTALL_DATA) res/robots.txt $(VHDIR)/htdocs/robots.txt
 	$(INSTALL_CONF) conf/vboxadm.conf.dist $(CFGDIR)/vboxadm/vboxadm.conf
 
 tidy:

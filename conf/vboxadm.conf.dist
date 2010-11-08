@@ -1,0 +1,5 @@
+[default]
+dbuser=vboxadm
+dbpass=vboxadm
+dbdb=vboxadm
+dbhost=localhost
