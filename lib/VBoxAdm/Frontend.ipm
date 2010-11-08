@@ -114,8 +114,9 @@ sub setup {
                 '(mailboxes.is_superadmin OR mailboxes.is_domainadmin) AND 1' => '1',
             },
         ],
-        LOGOUT_RUNMODE => 'public_login',
-        LOGIN_RUNMODE  => 'public_login',
+        LOGOUT_RUNMODE      => 'public_login',
+        LOGIN_RUNMODE       => 'public_login',
+        POST_LOGIN_CALLBACK => \&log_login,
     );
 
     #$self->authen->protected_runmodes(qr/^(?!public_)/);
@@ -250,6 +251,13 @@ sub log {
     else {
         return;
     }
+}
+
+sub log_login {
+    my $self = shift;
+    return unless ( $self->authen->is_authenticated );
+    $self->log( "User " . $self->authen->username . " logged in." );
+    return 1;
 }
 
 #
@@ -700,11 +708,11 @@ sub show_create_alias {
     }
 
     my %params = (
-        'title'   => 'Add Domain Alias',
+        'title'   => 'Add Alias',
         'domains' => \@domains,
     );
 
-    return $self->tt_process( 'domain-alias-create.tpl', \%params );
+    return $self->tt_process( 'alias-create.tpl', \%params );
 }
 
 sub show_add_alias {
