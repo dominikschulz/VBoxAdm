@@ -889,7 +889,7 @@ sub show_mailboxes {
     # Get our database connection
     my $dbh = $self->dbh();
 
-    my $query = "SELECT m.id,m.local_part,m.is_active,d.name,m.max_msg_size,m.is_on_vacation,m.quota ";
+    my $query = "SELECT m.id,m.local_part,m.is_active,d.name,m.max_msg_size,m.is_on_vacation,m.quota,m.name ";
     $query .= "FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id ORDER BY m.local_part,d.name";
     my $sth = $dbh->prepare($query);
     $sth->execute();
@@ -906,6 +906,7 @@ sub show_mailboxes {
                 max_msg_size   => $row[4],
                 is_on_vacation => $row[5],
                 quota          => $row[6],
+                name           => $row[7],
             }
         );
     }
