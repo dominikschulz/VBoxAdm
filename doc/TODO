@@ -6,6 +6,7 @@ use/adapt postfixadmin vacation.pl for vacation handling
 no user logins to vboxadm, only domainadmins and superadmins.
 the user part is handled by a roundcube plugin
 http://trac.roundcube.net/wiki/Doc_Plugins
+http://trac.roundcube.net/browser/trunk/plugins/password
 
 - Password Schemes
 Select correct password scheme
@@ -16,27 +17,32 @@ implement Policy-Daemon based on http://www.corpit.ru/mjt/smtpd-policy-template.
 - Debianiazion
 Create debian package
 
+- Amavis Konfiguration
+
 ###########################################################################
 Postfix:
 ###########################################################################
 
 virtual_alias_maps (Aliases):
-SELECT goto FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE d.name = '%d' AND a.local_part = '%u' AND a.is_active AND d.is_active;
+SELECT goto FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE d.name = '%d' AND a.local_part = '%u' AND a.is_active AND d.is_active
 
 virtual_alias_domain_maps (Domain-Alias Aliases):
-SELECT goto FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id LEFT JOIN domain_aliases AS da ON da.domain_id = d.id WHERE da.name = '%d' AND a.local_part = '%u' AND a.is_active AND d.is_active AND da.is_active;
+SELECT goto FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id LEFT JOIN domain_aliases AS da ON da.domain_id = d.id WHERE da.name = '%d' AND a.local_part = '%u' AND a.is_active AND d.is_active AND da.is_active
 
 virtual_domain_maps (Domains):
-SELECT name FROM domains WHERE domain = '%s' AND is_active
+SELECT name FROM domains WHERE name = '%s' AND is_active
 
 virtual_domain_alias_maps (Domain-Aliases):
-SELECT name FROM domain_alias WHERE name = '%s' AND is_active
+SELECT name FROM domain_aliases WHERE name = '%s' AND is_active
 
 virtual_mailbox_maps (Mailboxes / Maildirs ):
-SELECT CONCAT(d.name, '/', m.local_part) AS maildir FROM domains AS d LEFT JOIN mailboxes AS m ON m.domain_id = d.id WHERE d.name = '%d' AND m.local_part = '%d' AND d.is_active AND m.is_active;
+SELECT CONCAT(d.name, '/', m.local_part) AS maildir FROM domains AS d LEFT JOIN mailboxes AS m ON m.domain_id = d.id WHERE d.name = '%d' AND m.local_part = '%d' AND d.is_active AND m.is_active
 
 virtual_alias_domain_mailbox_maps (Domain-Alias-Mailboxen):
-SELECT CONCAT(d.name, '/', m.local_part) AS maildir FROM domains AS d LEFT JOIN mailboxes AS m ON m.domain_id = d.id LEFT JOIN domain_aliases AS da ON da.domain_id = d.id WHERE da.name = '%d' AND m.local_part = '%u' AND d.is_active AND m.is_active;
+SELECT CONCAT(d.name, '/', m.local_part) AS maildir FROM domains AS d LEFT JOIN mailboxes AS m ON m.domain_id = d.id LEFT JOIN domain_aliases AS da ON da.domain_id = d.id WHERE da.name = '%d' AND m.local_part = '%u' AND d.is_active AND m.is_active
+
+virtual_vacation_alias_maps (Vacation Mailbox Aliases):
+SELECT CONCAT(ma.local_part,'#',d.name,'@autoreply.planet49.com') AS goto FROM mailboxes AS ma LEFT JOIN domains AS d ON ma.domain_id = d.id WHERE is_on_vacation AND d.name = '%d' AND ma.local_part = '%u'
 
 ### main.cf ###
 # See /usr/share/postfix/main.cf.dist for a commented, more complete version
@@ -155,6 +161,41 @@ bounce_queue_lifetime = 2d
 default_database_type = btree
 message_size_limit = 26214400
 2bounce_notice_recipient = postmaster
+# Vacation
+transport_maps = btree:/etc/postfix/maps/transport
+
+### transport ###
+# content of /etc/postfix/maps/transport
+autoreply.domain.tld	vacation:
+
+### access_client ###
+# Block or allow Client access based on IP (NO CIDR!)
+# use OK to allow (Whitelist) and REJEXT <TEXT> to block
+# 127.0.0.1     OK
+# 127.0.0.2     REJECT Go away
+
+### access_helo ##
+# Block or allow Helo access based on host or IP (NO CIDR!) 
+# use OK to allow (Whitelist) and REJEXT <TEXT> to block
+# 127.0.0.1     OK
+# 127.0.0.2     REJECT Go away
+
+### access_recipient ###
+# Block or allow Recipient access based on host, IP (NO CIDR!) or address
+# use OK to allow (Whitelist) and REJEXT <TEXT> to block
+# 127.0.0.1     OK
+# 127.0.0.2     REJECT Go away
+
+### access_sender ###
+# Block or allow Sender access based on host, IP (NO CIDR!) or sender address
+# use OK to allow (Whitelist) and REJEXT <TEXT> to block
+# 127.0.0.1     OK
+# 127.0.0.2     REJECT Go away
+
+### access_recipient-rfc ###
+# Allow RFC2142 Accounts                                                                                                                                                
+postmaster@             OK                                                                                                                                              
+abuse@                  OK
 
 ### master.cf ###
 #
@@ -282,7 +323,7 @@ dovecot   unix  -       n       n       -       -       pipe
 Dovecot:
 ###########################################################################
 default_pass_scheme = MD5-CRYPT
-password_query = SELECT CONCAT(m.local_part, '@', d.name) AS user, m.password FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = '%n' AND d.name = '%d' AND m.is_active AND d.is_active
+password_query = SELECT CONCAT(m.local_part, '@', d.name) AS user, m.password AS password FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = '%n' AND d.name = '%d' AND m.is_active AND d.is_active
 
 ### dovecot.conf ###
 /etc/dovecot# egrep -v '^\s*#' dovecot.conf | egrep -v '^$'
