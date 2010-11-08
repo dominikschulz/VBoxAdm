@@ -26,7 +26,7 @@
     			</div>
     		</div>
 			<input type="hidden" name="rm" value="authen_login" />
-			<input type="hidden" name="destination" value="vboxadm.pl?rm=mailboxes" />
+			<input type="hidden" name="destination" value="vboxadm.pl?rm=welcome" />
 		</form>
     </div>
 [% INCLUDE footer.tpl %]
