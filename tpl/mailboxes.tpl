@@ -2,7 +2,7 @@
     <div id="main">
 		[% FOREACH line IN mailboxes %]
 		[% IF loop.first %]
-		<table class="sortable">
+		<table class="sortable hilight">
 			<thead>
 			<tr>
 				<th>Mailbox</th>
@@ -26,9 +26,9 @@
 				</td>
 				<td>
 					[% IF line.is_active == 1 %]
-					Yes
+					<a href="vboxadm.pl?rm=update_mailbox&mailbox_id=[% line.id %]&is_active=0">Yes</a>
 					[% ELSE %]
-					No
+					<a href="vboxadm.pl?rm=update_mailbox&mailbox_id=[% line.id %]&is_active=1">No</a>
 					[% END %]
 				</td>
 				<td>

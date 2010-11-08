@@ -2,7 +2,7 @@
     <div id="main">
 		[% FOREACH line IN log %]
 		[% IF loop.first %]
-		<table>
+		<table class="hilight">
 			<thead>
 			<tr>
 				<th>Date</th>

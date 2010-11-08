@@ -2,7 +2,7 @@
     <div id="main">
 		[% FOREACH line IN domains %]
 		[% IF loop.first %]
-		<table class="sortable">
+		<table class="sortable hilight">
 			<thead>
 			<tr>
 				<th>Domain</th>
@@ -10,7 +10,6 @@
 				<th>Mailboxes</th>
 				<th>Alias-Domains</th>
 				<th>Active</th>
-				<th></th>
 				<th></th>
 			</tr>
 			</thead>
@@ -35,9 +34,6 @@
 					[% ELSE %]
 					<a href="vboxadm.pl?rm=update_domain&domain_id=[% line.id %]&is_active=1">No</a>
 					[% END %]
-				</td>
-				<td>
-					<a href="vboxadm.pl?rm=edit_domain&domain_id=[% line.id %]">edit</a>
 				</td>
 				<td>
 					<a href="vboxadm.pl?rm=remove_domain&domain_id=[% line.id %]">del</a>
