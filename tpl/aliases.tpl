@@ -2,7 +2,7 @@
     <div id="main">
 		[% FOREACH line IN aliases %]
 		[% IF loop.first %]
-		<table>
+		<table class="sortable">
 			<thead>
 			<tr>
 				<th>Alias</th>

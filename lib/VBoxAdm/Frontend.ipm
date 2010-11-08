@@ -118,8 +118,7 @@ sub setup {
         LOGIN_RUNMODE       => 'public_login',
         POST_LOGIN_CALLBACK => \&log_login,
     );
-
-    #$self->authen->protected_runmodes(qr/^(?!public_)/);
+    $self->authen->protected_runmodes(qr/^(?!public_)/);
 
     #
     # Configuration
@@ -160,7 +159,7 @@ sub setup {
     #
     $self->tt_config(
         TEMPLATE_OPTIONS => {
-            INCLUDE_PATH => [ 'tpl', '../tpl', '/var/lib/vboxadm/tpl' ],
+            INCLUDE_PATH => [ 'tpl', '../tpl', '/usr/lib/vboxadm/tpl' ],
             POST_CHOMP   => 1,
             FILTERS => { 'currency' => sub { sprintf( '%0.2f', @_ ) }, }
         }
