@@ -11,7 +11,7 @@
     		</tr>
     		<tr>
 				<td>Username:</td>
-				<td><input class="flat" type="text" name="domain_alias" /></td>
+				<td><input class="flat" type="text" name="local_part" /></td>
 				<td>@
 					[% FOREACH line IN domains %]
 						[% IF loop.first %]
