@@ -223,7 +223,7 @@ sub tt_pre_process {
     my ( $self, $file, $vars ) = @_;
     $vars->{username} = $self->authen->username;
     $vars->{version}  = $VERSION;
-    $vars->{notify} = $self->get_notify();
+    $vars->{notify}   = $self->get_notify();
     return;
 }
 
@@ -263,26 +263,26 @@ sub log_login {
 
 # add entry to notify
 sub add_notify {
-    my $self = shift;
-    my $msg = shift;
-    my $notify = $self->session->param( 'notify' );
+    my $self   = shift;
+    my $msg    = shift;
+    my $notify = $self->session->param('notify');
     $notify .= $msg . "\n";
-    $self->session->param('notify', $notify);
+    $self->session->param( 'notify', $notify );
     return 1;
 }
 
 # get and reset notify
 sub get_notify {
-    my $self = shift;
-    my $notify = $self->session->param( 'notify' );
-    $self->session->param('notify', '');
+    my $self   = shift;
+    my $notify = $self->session->param('notify');
+    $self->session->param( 'notify', '' );
     return $notify;
 }
 
 # get notify (no reset)
 sub peek_notify {
-    my $self = shift;
-    my $notify = $self->session->param( 'notify' );
+    my $self   = shift;
+    my $notify = $self->session->param('notify');
     return $notify;
 }
 
@@ -363,7 +363,7 @@ sub show_add_domain {
     if ( $domain && $create_domainadmin ) {
         my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
         my $sth   = $dbh->prepare($query);
-        my $msg = '';
+        my $msg   = '';
         if ( $sth->execute($domain) ) {
             $msg = "Domain '$domain' added";
         }
@@ -371,7 +371,7 @@ sub show_add_domain {
             $msg = "Failed to add Domain '$domain'. DBI Error: " . $sth->errstr;
         }
         $sth->finish();
-        $self->log( $msg .". User: " . $self->authen->username );
+        $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
         $self->redirect('vboxadm.pl?rm=domains');
     }
@@ -401,7 +401,7 @@ sub show_remove_domain {
     if ($domain_id) {
         my $query = "DELETE FROM domains WHERE id = ?";
         my $sth   = $dbh->prepare($query);
-        my $msg = '';
+        my $msg   = '';
         if ( $sth->execute($domain_id) ) {
             $msg = "Domain #$domain_id removed";
         }
@@ -409,7 +409,7 @@ sub show_remove_domain {
             $msg = "Failed to remove Domain #$domain_id. DBI Error: " . $sth->errstr;
         }
         $sth->finish();
-        $self->log( $msg .". User: " . $self->authen->username );
+        $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
         $self->redirect('vboxadm.pl?rm=domains');
     }
@@ -451,7 +451,7 @@ sub show_update_domain {
             $msg = "Failed to set Domain #$domain_id $status_str";
         }
         $sth->finish();
-        $self->log( $msg .". User: " . $self->authen->username );
+        $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
         $self->redirect('vboxadm.pl?rm=domains');
     }
@@ -534,19 +534,19 @@ sub show_add_domain_alias {
     if ( $domain_alias && $domain_id ) {
         my $query = "INSERT INTO domain_aliases (name,domain_id,is_active) VALUES(?,?,1)";
         my $sth   = $dbh->prepare($query);
-        
+
         if ( $sth->execute( $domain_alias, $domain_id ) ) {
             $msg = "Added domain alias '$domain_alias' to domain #$domain_id";
         }
         else {
-            $msg = "Failed to add domain alias '$domain_alias' to domain #$domain_id. DBI Errstr: ".$sth->errstr;
+            $msg = "Failed to add domain alias '$domain_alias' to domain #$domain_id. DBI Errstr: " . $sth->errstr;
         }
         $sth->finish();
     }
     else {
         $msg = "Failed to add domain alias. No domain_alias or target domain given!";
     }
-    $self->log( $msg .". User: " . $self->authen->username );
+    $self->log( $msg . ". User: " . $self->authen->username );
     $self->add_notify($msg);
     $self->redirect('vboxadm.pl?rm=domain_aliases');
 }
@@ -737,8 +737,8 @@ sub show_add_alias {
     my $q = $self->query();
 
     my $local_part = lc( $q->param('local_part') );
-    my $domain_id    = $q->param('domain');
-    my $goto = $q->param('goto');
+    my $domain_id  = $q->param('domain');
+    my $goto       = $q->param('goto');
 
     my $msg = '';
     if ( $local_part && $domain_id && $goto ) {
@@ -748,14 +748,14 @@ sub show_add_alias {
             $msg = "Alias $local_part @ $domain_id to $goto added";
         }
         else {
-            $msg = "Failed to add alias $local_part @ $domain_id => $goto. DBI-Errstr: ".$sth->errstr;
+            $msg = "Failed to add alias $local_part @ $domain_id => $goto. DBI-Errstr: " . $sth->errstr;
         }
         $sth->finish();
     }
     else {
         $msg = "Failed to add alias. Missing local_part, domain_id or target.";
     }
-    $self->log( $msg .". User: " . $self->authen->username );
+    $self->log( $msg . ". User: " . $self->authen->username );
     $self->add_notify($msg);
     $self->redirect('vboxadm.pl?rm=aliases');
 }
@@ -1085,6 +1085,7 @@ sub show_update_mailbox {
             # TODO show error
         }
     }
+
     if ($mailbox_id) {
 
         # TODO high update the other options
