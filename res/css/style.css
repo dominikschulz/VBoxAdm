@@ -599,12 +599,12 @@ thead {
 	background: #D9FF43; /*#D6FF85;*/ /*#ffdddd;*/
 }
 
-tr:hover {
+.hilight tr:hover {
         background: #D9FF43; /*#D6FF85;*/ /*#ffdddd;*/
 }
 
 
-#alias_domain_table h3, #alias_table h3, #mailbox_table h3, #overview_table h3, #log_table h3, #admin_table h3 {
+h3 {
 	background: silver;
 	text-align: left;
 	font-size: 12px;

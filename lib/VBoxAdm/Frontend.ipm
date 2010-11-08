@@ -3,8 +3,6 @@ package VBoxAdm::Frontend;
 # TODO use captacha plugin to protect login
 # TODO use require ssl
 # TODO HIGH enforce lower case usernames and domain
-# TODO add welcome page
-# TODO remove unnecessary scripts
 # TODO shorted alias target
 # TODO add search for list pages
 # TODO edit mailbox page
@@ -740,13 +738,21 @@ sub show_edit_domain_alias {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $alias_id = $q->param('alias_id');
+    my $domain_alias_id = $q->param('domain_alias_id');
 
     my $query = "SELECT domain_id, is_active FROM domain_aliases WHERE id = ?";
+    my $sth   = $dbh->prepare($query);
+    $sth->execute($domain_alias_id);
+    my @row = $sth->fetchrow_array();
 
-    # TODO get data
+    my %params = (
+        title           => 'Edit Domain Alias',
+        domain_id       => $row[0],
+        is_active       => $row[1],
+        domain_alias_id => $domain_alias_id,
+    );
 
-    # TODO show form
+    return $self->tt_process( 'domain-alias-edit.tpl', \%params );
 }
 
 sub show_update_domain_alias {
@@ -986,10 +992,17 @@ sub show_edit_alias {
     my $alias_id = $q->param('alias_id');
 
     my $query = "SELECT a.local_part,d.name,a.goto,a.is_active FROM aliases WHERE id = ?";
+    my $sth   = $dbh->prepare($query);
+    $sth->execute($alias_id);
+    my @row = $sth->fetchrow_array();
 
-    # TODO get data
+    my %params = (
+        title     => 'Edit Alias',
+        alias_id  => $row[0],
+        is_active => $row[1],
+    );
 
-    # TODO show form
+    return $self->tt_process( 'alias-edit.tpl', \%params );
 }
 
 sub show_update_alias {
@@ -1065,7 +1078,7 @@ sub show_mailboxes {
     my $query = "SELECT m.id,m.local_part,m.is_active,d.name,m.max_msg_size,m.is_on_vacation,m.quota,m.name ";
     $query .= "FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id ORDER BY m.local_part,d.name";
     my $sth = $dbh->prepare($query);
-    $sth->execute();
+    $sth->execute() or print "DBI-Error: " . $sth->errstr . "\n";
 
     my @mailboxes = ();
     while ( my @row = $sth->fetchrow_array() ) {
@@ -1167,7 +1180,7 @@ sub show_add_mailbox {
 
     $self->log( $msg . ". User: " . $self->authen->username );
     $self->add_notify($msg);
-    $self->redirect('vboxadm.pl?rm=domain_aliases');
+    $self->redirect('vboxadm.pl?rm=mailboxes');
     return;
 }
 
@@ -1207,7 +1220,7 @@ sub show_remove_mailbox {
 
     $self->log( $msg . ". User: " . $self->authen->username );
     $self->add_notify($msg);
-    $self->redirect('vboxadm.pl?rm=domain_aliases');
+    $self->redirect('vboxadm.pl?rm=mailboxes');
     return;
 }
 
@@ -1282,7 +1295,7 @@ sub show_update_mailbox {
 
     $self->log( $msg . ". User: " . $self->authen->username );
     $self->add_notify($msg);
-    $self->redirect('vboxadm.pl?rm=domain_aliases');
+    $self->redirect('vboxadm.pl?rm=mailboxes');
     return;
 }
 
@@ -1317,6 +1330,8 @@ sub show_log {
         'title' => 'VBoxAdm Log',
         'log'   => \@log,
     );
+
+    # TODO add pagination
 
     return $self->tt_process( 'log.tpl', \%params );
 }

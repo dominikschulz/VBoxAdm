@@ -2,7 +2,7 @@
     <div id="main">
 		[% FOREACH line IN admins %]
 		[% IF loop.first %]
-		<table class="sortable">
+		<table class="sortable hilight">
 			<thead>
 			<tr>
 				<th>User</th>
