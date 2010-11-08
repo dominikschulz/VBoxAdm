@@ -3,6 +3,15 @@ package VBoxAdm::Frontend;
 # TODO use captacha plugin to protect login
 # TODO use require ssl
 # TODO HIGH enforce lower case usernames and domain
+# TODO add welcome page
+# TODO remove unnecessary scripts
+# TODO shorted alias target
+# TODO add search for list pages
+# TODO edit mailbox page
+# TODO edit domain page
+# TODO edit domain_alias page
+# TODO edit alias page
+# TODO deletion confirmation popup
 
 use base 'CGI::Application';
 
