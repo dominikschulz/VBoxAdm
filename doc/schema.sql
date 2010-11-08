@@ -117,6 +117,7 @@ CREATE TABLE IF NOT EXISTS `mailboxes` (
   `domain_id` int(16) NOT NULL,
   `local_part` varchar(255) NOT NULL,
   `password` varchar(255) NOT NULL,
+  `name` varchar(255) NOT NULL,
   `is_active` tinyint(1) NOT NULL,
   `max_msg_size` int(16) NOT NULL,
   `is_on_vacation` tinyint(1) NOT NULL,

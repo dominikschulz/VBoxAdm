@@ -6,6 +6,7 @@
 			<thead>
 			<tr>
 				<th>Mailbox</th>
+				<th>User</th>
 				<th>Active</th>
 				<th>Max. Msgsize</th>
 				<th>Vacation</th>
@@ -19,6 +20,9 @@
 			<tr>
 				<td>
 					<a href="vboxadm.pl?rm=edit_mailbox&mailbox_id=[% line.id %]">[% line.local_part %]@[% line.domain %]</a>
+				</td>
+				<td>
+					[% line.name %]
 				</td>
 				<td>
 					[% IF line.is_active == 1 %]
