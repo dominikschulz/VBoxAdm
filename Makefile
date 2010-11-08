@@ -96,7 +96,7 @@ real-install: all test man
 	$(INSTALL_DATA) res/images/*.png $(VHDIR)/htdocs/images/
 	$(INSTALL_DATA) res/js/*.js $(VHDIR)/htdocs/js/
 	$(INSTALL_DATA) res/js/libs/*.js $(VHDIR)/htdocs/js/libs/
-	$(INSTALL_DATA) res/js/mylibs/*.js $(VHDIR)/htdocs/js/mylibs/
+#	$(INSTALL_DATA) res/js/mylibs/*.js $(VHDIR)/htdocs/js/mylibs/
 	$(INSTALL_DATA) res/js/profiling/*.js $(VHDIR)/htdocs/js/profiling/
 	$(INSTALL_DATA) res/apple-touch-icon.png $(VHDIR)/htdocs/apple-touch-icon.png
 	$(INSTALL_DATA) res/crossdomain.xml $(VHDIR)/htdocs/crossdomain.xml
