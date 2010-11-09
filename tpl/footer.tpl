@@ -7,6 +7,11 @@
 	&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 	Return to domain.tld
     </footer>
+    [% IF debug_msg %]
+    <div id="debug">
+    	[% debug_msg %]
+    </div>
+    [% END %]
   </div> <!--! end of #container -->
 
 

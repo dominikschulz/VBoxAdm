@@ -1,5 +1,12 @@
 [% INCLUDE header.tpl %]
     <div id="main">
+	    <div id="overview">
+			Search:
+			<form name="search" method="GET" action="vboxadm.pl">
+			<input type="hidden" name="rm" value="domain_aliases" />
+			<input type="textbox" name="search" size="10" value="[% search %]" />
+			</form>
+		</div>
 		[% FOREACH line IN domains %]
 		[% IF loop.first %]
 		<table class="sortable hilight">
@@ -16,10 +23,10 @@
 		[% END %]
 			<tr>
 				<td>
-					[% line.name %]
+					[% line.name | highlight(search) %]
 				</td>
 				<td>
-					[% line.target %]
+					[% line.target | highlight(search) %]
 				</td>
 				<td>
 					[% IF line.is_active == 1 %]
@@ -29,10 +36,10 @@
 					[% END %]
 				</td>
 				<td>
-					<a href="vboxadm.pl?rm=edit_domain_alias&domain_id=[% line.id %]">edit</a>
+					<a href="vboxadm.pl?rm=edit_domain_alias&domain_alias_id=[% line.id %]">edit</a>
 				</td>
 				<td>
-					<a href="vboxadm.pl?rm=remote_domain_alias&domain_id=[% line.id %]">del</a>
+					<a href="vboxadm.pl?rm=remove_domain_alias&domain_alias_id=[% line.id %]">del</a>
 				</td>
 			</tr>
 		[% IF loop.last %]

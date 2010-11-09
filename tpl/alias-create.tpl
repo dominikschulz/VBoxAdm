@@ -6,7 +6,7 @@
     	<table>
     		<tr>
     			<td colspan="3">
-    				<h3>Add a new domain alias</h3>
+    				<h3>Add a new alias</h3>
     			</td>
     		</tr>
     		<tr>

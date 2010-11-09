@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS `aliases` (
   `goto` varchar(255) NOT NULL,
   `is_active` tinyint(1) NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `domain_id` (`domain_id`,`local_part`),
+  UNIQUE KEY `domain_id` (`domain_id`,`local_part`),
   KEY `active` (`is_active`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=latin1;
 
@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS `mailboxes` (
   `is_domainadmin` tinyint(1) NOT NULL,
   `is_superadmin` tinyint(1) NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `domain_id` (`domain_id`,`local_part`)
+  UNIQUE KEY `domain_id` (`domain_id`,`local_part`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=latin1;
 
 --

@@ -27,7 +27,7 @@
 	    		<td></td>
 	    	</tr>
     	</table>
-    	Status: [% status %]
+    	Status: [% status %]<br />
     	</div>
     </div>
 [% INCLUDE footer.tpl %]

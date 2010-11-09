@@ -83,6 +83,7 @@ sub setup {
         'domain_aliases'      => 'show_domain_aliases',
         'create_domain_alias' => 'show_create_domain_alias',
         'add_domain_alias'    => 'show_add_domain_alias',
+        'remove_domain_alias' => 'show_remove_domain_alias',
         'edit_domain_alias'   => 'show_edit_domain_alias',
         'update_domain_alias' => 'show_update_domain_alias',
 
@@ -130,7 +131,10 @@ sub setup {
         POST_LOGIN_CALLBACK => \&log_login,
     );
 
-    $self->authen->protected_runmodes(qr/^(?!public_)/);
+    # only enable authen if called as CGI
+    if ( !$self->is_shell() ) {
+        $self->authen->protected_runmodes(qr/^(?!public_)/);
+    }
 
     #
     # Configuration
@@ -173,7 +177,25 @@ sub setup {
         TEMPLATE_OPTIONS => {
             INCLUDE_PATH => [ 'tpl', '../tpl', '/usr/lib/vboxadm/tpl' ],
             POST_CHOMP   => 1,
-            FILTERS => { 'currency' => sub { sprintf( '%0.2f', @_ ) }, }
+            FILTERS      => {
+                'currency' => sub { sprintf( '%0.2f', @_ ) },
+
+                # dynamic filter factory, see TT manpage
+                'highlight' => [
+                    sub {
+                        my ( $context, $search ) = @_;
+
+                        return sub {
+                            my $str = shift;
+                            if ($search) {
+                                $str =~ s/($search)/<span style='background-color: lightgreen'>$1<\/span>/g;
+                            }
+                            return $str;
+                          }
+                    },
+                    1
+                ],
+            }
         }
     );
 
@@ -220,6 +242,9 @@ sub show_captcha {
 sub tt_post_process {
     my $self    = shift;
     my $htmlref = shift;
+
+    # TODO HIGH disabled for debugging!
+    return;
 
     # clean up the resulting HTML
     require HTML::Clean;
@@ -308,6 +333,28 @@ sub peek_notify {
     return $notify;
 }
 
+# is the script run from a shell?
+sub is_shell {
+    my $self = shift;
+    if ( $ENV{'DISPLAY'} && $ENV{'PS1'} && $ENV{'SHELL'} && $ENV{'USER'} ) {
+        if (   $ENV{'DOCUMENT_ROOT'}
+            || $ENV{'GATEWAY_INTERFACE'}
+            || $ENV{'HTTP_HOST'}
+            || $ENV{'REMOTE_ADDR'}
+            || $ENV{'REQUEST_METHOD'}
+            || $ENV{'SERVER_SOFTWARE'} )
+        {
+            return;
+        }
+        else {
+            return 1;
+        }
+    }
+    else {
+        return;
+    }
+}
+
 sub is_domainadmin {
     my $self = shift;
 
@@ -375,9 +422,13 @@ sub show_welcome {
         $status = 'superadmin';
     }
 
+    #my @env = map("$_ => $ENV{$_}", sort keys %ENV);
+
     my %params = (
         'title'  => 'VBoxAdm Overview',
         'status' => $status,
+
+        #'env'		 => \@env,
     );
 
     return $self->tt_process( 'welcome.tpl', \%params );
@@ -401,6 +452,11 @@ sub show_domains {
     # Get our database connection
     my $dbh = $self->dbh();
 
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $search = $q->param('search') || undef;
+
     my $query = "SELECT id,name,is_active,";
     $query .= "(SELECT COUNT(*) FROM aliases WHERE domain_id = domains.id) AS num_aliases,";
     $query .= "(SELECT COUNT(*) FROM mailboxes WHERE domain_id = domains.id) AS num_mailboxes,";
@@ -418,7 +474,10 @@ sub show_domains {
     my %params = (
         'title'   => 'VBoxAdm Domains',
         'domains' => \@domains,
+        'search'  => $search,
     );
+
+    # TODO add search option
 
     return $self->tt_process( 'domains.tpl', \%params );
 }
@@ -590,6 +649,11 @@ sub show_domain_aliases {
     # Get our database connection
     my $dbh = $self->dbh();
 
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $search = $q->param('search') || undef;
+
     my $query = "SELECT da.id,da.name,da.is_active,d.name FROM ";
     $query .= "domain_aliases AS da LEFT JOIN domains AS d ON da.domain_id = d.id ORDER BY da.name";
     my $sth = $dbh->prepare($query);
@@ -699,17 +763,17 @@ sub show_remove_domain_alias {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $domain_id = $q->param('domain_id');
+    my $domain_alias_id = $q->param('domain_alias_id');
 
     my $msg = '';
-    if ($domain_id) {
+    if ($domain_alias_id) {
         my $query = "DELETE FROM domain_aliases WHERE id = ?";
         my $sth   = $dbh->prepare($query);
-        if ( $sth->execute($domain_id) ) {
-            $msg = "Domain-Alias #$domain_id removed";
+        if ( $sth->execute($domain_alias_id) ) {
+            $msg = "Domain-Alias #$domain_alias_id removed";
         }
         else {
-            $msg = "Failed to remove Domain-Alias #$domain_id. DBI Error: " . $sth->errstr;
+            $msg = "Failed to remove Domain-Alias #$domain_alias_id. DBI Error: " . $sth->errstr;
         }
     }
     else {
@@ -724,7 +788,7 @@ sub show_remove_domain_alias {
 sub show_edit_domain_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_shell() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -740,16 +804,31 @@ sub show_edit_domain_alias {
 
     my $domain_alias_id = $q->param('domain_alias_id');
 
-    my $query = "SELECT domain_id, is_active FROM domain_aliases WHERE id = ?";
+    # TODO HIGH if domainadmin only one domain here
+    my $query = "SELECT id,name,is_active FROM domains ORDER BY name";
     my $sth   = $dbh->prepare($query);
+    $sth->execute();
+
+    my @domains = ();
+    while ( my @row = $sth->fetchrow_array() ) {
+        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], } );
+    }
+    $sth->finish();
+
+    $query =
+      "SELECT da.id, da.name, da.domain_id, da.is_active, d.name FROM domain_aliases AS da LEFT JOIN domains AS d ON da.domain_id = d.id WHERE da.id = ?";
+    $sth = $dbh->prepare($query);
     $sth->execute($domain_alias_id);
     my @row = $sth->fetchrow_array();
+    $sth->finish();
 
     my %params = (
         title           => 'Edit Domain Alias',
-        domain_id       => $row[0],
-        is_active       => $row[1],
+        domain_name     => $row[1],
+        is_active       => $row[3],
+        target          => $row[2],
         domain_alias_id => $domain_alias_id,
+        domains         => \@domains,
     );
 
     return $self->tt_process( 'domain-alias-edit.tpl', \%params );
@@ -772,49 +851,38 @@ sub show_update_domain_alias {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $domain_id = $q->param('domain_id');
-    my $is_active = $q->param('is_active');
-    my $target    = $q->param('target');
+    my $domain_alias_id = $q->param('domain_alias_id');
+    my $is_active       = $q->param('is_active');
+    my $target          = $q->param('target');
 
     my $msg = '';
-    if ( $domain_id && defined($is_active) ) {
+
+    # TODO if domainadmin, verify that its his domain
+    if ( $domain_alias_id && defined($is_active) ) {
         my $query      = "UPDATE domain_aliases SET is_active = ? WHERE id = ?";
         my $sth        = $dbh->prepare($query);
         my $status_str = 'disabled';
-        if ($is_active) {
+        if ( $is_active eq 'on' || $is_active eq 'true' ) {
             $status_str = 'enabled';
+            $is_active  = 1;
         }
-        if ( $sth->execute( $is_active, $domain_id ) ) {
-
-            # log
-            $self->log( "Domain-Alias #$domain_id $status_str by " . $self->authen->username );
-
-            # TODO show success and redirect to domain list
+        if ( $sth->execute( $is_active, $domain_alias_id ) ) {
+            $msg .= "Domain-Alias #$domain_alias_id $status_str. ";
         }
         else {
-
-            # log
-            $self->log( "Failed to set Domain-Alias #$domain_id $status_str by " . $self->authen->username );
-
-            # TODO show error
+            $msg .= "Failed to set Domain-Alias #$domain_alias_id $status_str. ";
         }
     }
-    if ( $domain_id && $target ) {
+
+    # TODO if domainadmin, verify that its his domain
+    if ( $domain_alias_id && $target ) {
         my $query = "UPDATE domain_aliases SET domain_id = ? WHERE id = ?";
         my $sth   = $dbh->prepare($query);
-        if ( $sth->execute( $target, $domain_id ) ) {
-
-            # log
-            $self->log( "Domain-Alias #$domain_id redirected to Domain #$target by " . $self->authen->username );
-
-            # TODO show success and redirect to domain list
+        if ( $sth->execute( $target, $domain_alias_id ) ) {
+            $msg .= "Domain-Alias #$domain_alias_id redirected to Domain #$target";
         }
         else {
-
-            # log
-            $self->log( "Failed to redirect Domain-Alias #$domain_id to #$target by " . $self->authen->username );
-
-            # TODO show error
+            $msg .= "Failed to redirect Domain-Alias #$domain_alias_id to #$target";
         }
     }
     $self->log( $msg . ". User: " . $self->authen->username );
@@ -841,6 +909,11 @@ sub show_aliases {
     # Get our database connection
     my $dbh = $self->dbh();
 
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $search = $q->param('search') || undef;
+
     my $query = "SELECT a.id,a.local_part,a.is_active,a.goto,d.name FROM ";
     $query .= "aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id ORDER BY a.local_part,d.name";
     my $sth = $dbh->prepare($query);
@@ -854,7 +927,10 @@ sub show_aliases {
     my %params = (
         'title'   => 'VBoxAdm Aliases',
         'aliases' => \@aliases,
+        'search'  => $search,
     );
+
+    # TODO add search option
 
     return $self->tt_process( 'aliases.tpl', \%params );
 }
@@ -913,6 +989,8 @@ sub show_add_alias {
     my $goto       = $q->param('goto');
 
     my $msg = '';
+
+    # TODO if domainadmin, verify that its his domain
     if ( $local_part && $domain_id && $goto ) {
         my $query = "INSERT INTO aliases (domain_id,local_part,goto,is_active) VALUES(?,?,?,1)";
         my $sth   = $dbh->prepare($query);
@@ -953,6 +1031,8 @@ sub show_remove_alias {
     my $alias_id = $q->param('alias_id');
 
     my $msg = '';
+
+    # TODO if domainadmin, verify that its his domain
     if ($alias_id) {
         my $query = "DELETE FROM aliases WHERE id = ?";
         my $sth   = $dbh->prepare($query);
@@ -975,7 +1055,7 @@ sub show_remove_alias {
 sub show_edit_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_shell() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -991,15 +1071,19 @@ sub show_edit_alias {
 
     my $alias_id = $q->param('alias_id');
 
-    my $query = "SELECT a.local_part,d.name,a.goto,a.is_active FROM aliases WHERE id = ?";
+    # TODO if domainadmin, verify that its his domain
+    my $query = "SELECT a.local_part,d.name,a.goto,a.is_active FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
     my $sth   = $dbh->prepare($query);
     $sth->execute($alias_id);
     my @row = $sth->fetchrow_array();
 
     my %params = (
-        title     => 'Edit Alias',
-        alias_id  => $row[0],
-        is_active => $row[1],
+        title      => 'Edit Alias',
+        alias_id   => $alias_id,
+        local_part => $row[0],
+        domain     => $row[1],
+        'goto'     => $row[2],
+        is_active  => $row[3],
     );
 
     return $self->tt_process( 'alias-edit.tpl', \%params );
@@ -1024,9 +1108,11 @@ sub show_update_alias {
 
     my $alias_id  = $q->param('alias_id');
     my $is_active = $q->param('is_active');
-    my $target    = $q->param('target');
+    my $target    = $q->param('goto');
 
     my $msg = '';
+
+    # TODO if domainadmin, verify that its his domain
     if ( $alias_id && defined($is_active) ) {
         my $query      = "UPDATE aliases SET is_active = ? WHERE id = ?";
         my $sth        = $dbh->prepare($query);
@@ -1075,31 +1161,52 @@ sub show_mailboxes {
     # Get our database connection
     my $dbh = $self->dbh();
 
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $search = $q->param('search') || undef;
+
     my $query = "SELECT m.id,m.local_part,m.is_active,d.name,m.max_msg_size,m.is_on_vacation,m.quota,m.name ";
-    $query .= "FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id ORDER BY m.local_part,d.name";
+    $query .= "FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE 1";
+    my @args = ();
+    if ($search) {
+        $query .= " AND (m.local_part LIKE ? OR d.name LIKE ? OR m.name LIKE ?) ";
+        $search =~ s/%//g;
+        my $search_arg = "%" . $search . "%";
+        push( @args, $search_arg );
+        push( @args, $search_arg );
+        push( @args, $search_arg );
+    }
+    $query .= " ORDER BY m.local_part,d.name";
     my $sth = $dbh->prepare($query);
-    $sth->execute() or print "DBI-Error: " . $sth->errstr . "\n";
+    $sth->execute(@args);
 
     my @mailboxes = ();
     while ( my @row = $sth->fetchrow_array() ) {
+        my $msg_msg_size_mb = $row[4];
+        if ( $msg_msg_size_mb > 0 ) {
+            $msg_msg_size_mb /= 1024;
+        }
         push(
             @mailboxes,
             {
-                id             => $row[0],
-                local_part     => $row[1],
-                is_active      => $row[2],
-                domain         => $row[3],
-                max_msg_size   => $row[4],
-                is_on_vacation => $row[5],
-                quota          => $row[6],
-                name           => $row[7],
+                id              => $row[0],
+                local_part      => $row[1],
+                is_active       => $row[2],
+                domain          => $row[3],
+                max_msg_size_mb => $msg_msg_size_mb,
+                is_on_vacation  => $row[5],
+                quota           => $row[6],
+                name            => $row[7],
             }
         );
     }
+    $sth->finish();
 
     my %params = (
-        'title'     => 'VBoxAdm Aliases',
+        'title'     => 'VBoxAdm Mailboxes',
         'mailboxes' => \@mailboxes,
+        'search'    => $search,
     );
 
     return $self->tt_process( 'mailboxes.tpl', \%params );
@@ -1163,6 +1270,8 @@ sub show_add_mailbox {
     my $send_welcome_mail = $q->param('send_welcome_mail');
 
     my $msg = '';
+
+    # TODO if domainadmin, verify that its his domain
     if ( $domain_id && $username && $password && $name && $password eq $password_2 ) {
         my $query = "INSERT INTO mailboxes (domain_id,local_part,password,is_active) VALUES(?,?,?,?)";
         my $sth   = $dbh->prepare($query);
@@ -1204,6 +1313,8 @@ sub show_remove_mailbox {
     my $mailbox_id = $q->param('mailbox_id');
 
     my $msg = '';
+
+    # TODO if domainadmin, verify that its his domain
     if ($mailbox_id) {
         my $query = "DELETE FROM mailboxes WHERE id = ?";
         my $sth   = $dbh->prepare($query);
@@ -1243,11 +1354,47 @@ sub show_edit_mailbox {
 
     my $mailbox_id = $q->param('mailbox_id');
 
-    my $query = "SELECT ... FROM mailboxes WHERE id = ?";
+    # TODO if domainadmin, verify that its his domain
+    my $query = "SELECT m.local_part,d.name,m.name,m.is_active,m.max_msg_size,";
+    $query .= "m.is_on_vacation,m.vacation_msg,m.quota,m.is_domainadmin,";
+    $query .= "m.is_superadmin,d.id FROM mailboxes AS m LEFT JOIN domains AS d ";
+    $query .= "ON m.domain_id = d.id WHERE m.id = ?";
+    my $sth = $dbh->prepare($query);
+    $sth->execute($mailbox_id);
+    my @row = $sth->fetchrow_array();
+    $sth->finish();
 
-    # TODO get data
+    my $max_msg_size_mb = $row[4];
+    if ( $max_msg_size_mb > 0 ) {
+        $max_msg_size_mb /= 1024;
+    }
 
-    # TODO show form
+    my $domain_id = $row[10];
+
+    # TODO show aliases pointing to this mbox, don't forget domain aliases!
+    # show cc (aliases w/ the same name as this mailbox)
+    $query = "SELECT id,goto FROM aliases WHERE local_part = (SELECT local_part FROM mailboxes WHERE id = ?) AND domain_id = ?";
+    $sth   = $dbh->prepare($query);
+    $sth->execute( $mailbox_id, $domain_id );
+    my ( $cc_id, $cc_goto ) = $sth->fetchrow_array();
+    $sth->finish();
+
+    my %params = (
+        title           => 'Edit Alias',
+        mailbox_id      => $mailbox_id,
+        local_part      => $row[0],
+        domain          => $row[1],
+        name            => $row[2],
+        is_active       => $row[3],
+        max_msg_size_mb => $max_msg_size_mb,
+        is_on_vacation  => $row[5],
+        vacation_msg    => $row[6],
+        quota           => $row[7],
+        cc_goto         => $cc_goto,
+        cc_id           => $cc_id,
+    );
+
+    return $self->tt_process( 'mailbox-edit.tpl', \%params );
 }
 
 sub show_update_mailbox {
@@ -1267,30 +1414,96 @@ sub show_update_mailbox {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $mailbox_id = $q->param('mailbox_id');
-    my $is_active  = $q->param('is_active');
-
-    # TODO get the other options
+    my $mailbox_id      = $q->param('mailbox_id');
+    my $password        = $q->param('password');
+    my $password_2      = $q->param('password_2');
+    my $name            = $q->param('name');
+    my $is_active       = $q->param('is_active');
+    my $msg_max_size_mb = $q->param('max_msg_size_mb');
+    $msg_max_size_mb ||= 15;    # default to 15 MB
+    my $max_msg_size   = $msg_max_size_mb * 1024;
+    my $is_on_vacation = $q->param('is_on_vacation');
+    my $vacation_msg   = $q->param('vacation_msg');
 
     my $msg = '';
-    if ( $mailbox_id && defined($is_active) ) {
-        my $query      = "UPDATE mailboxes SET is_active = ? WHERE id = ?";
-        my $sth        = $dbh->prepare($query);
+
+    # TODO if domainadmin, verify that its his domain
+    if ($mailbox_id) {
+        my $query = "UPDATE mailboxes SET ";
+
+        # only execute query if scalar(@params) > 0, i.e. at least on valid option
+        my @params = ();
+
+        # Password
+        if ( $password && $password_2 ) {
+
+            # passwords must be equal and at least 8 chars long
+            if ( $password eq $password_2 && length($password) > 7 ) {
+                $query .= "password = ?, ";
+                push( @params, $password );
+            }
+
+            # TODO LOW use cracklib, etc. to check pw strength!
+        }
+
+        # Name
+        if ($name) {
+            $query .= "name = ?, ";
+            push( @params, $name );
+        }
+
+        # Is_Active
+        # checkboxes are undefined if they are false!
         my $status_str = 'disabled';
         if ($is_active) {
             $status_str = 'enabled';
-        }
-        if ( $sth->execute( $is_active, $mailbox_id ) ) {
-            $msg .= "Mailbox #$mailbox_id $status_str";
+            $is_active  = 1;
         }
         else {
-            $msg .= "Failed to set Mailbox #$mailbox_id $status_str";
+            $is_active = 0;
+        }
+        $query .= "is_active = ?, ";
+        push( @params, $is_active );
+
+        # Max Msg Size
+        if ( defined($max_msg_size) ) {
+            $query .= "max_msg_size = ?, ";
+            push( @params, $max_msg_size );
+        }
+
+        # Is_On_Vacation / Vacation Msg
+        if ( defined($is_on_vacation) && $is_on_vacation eq 'on' && $vacation_msg && length($vacation_msg) > 1 ) {
+            $is_on_vacation = 1;
+        }
+        else {
+            $is_on_vacation = 0;
+            $vacation_msg   = '';
+        }
+        $query .= "is_on_vacation = ?, vacation_msg = ? ";
+        push( @params, $is_on_vacation );
+        push( @params, $vacation_msg );
+
+        # finialize query
+        $query .= " WHERE id = ?";
+        push( @params, $mailbox_id );
+
+        # at least on option has changed
+        if ( scalar(@params) > 1 ) {
+            my $sth = $dbh->prepare($query);
+
+            if ( $sth->execute(@params) ) {
+                $msg .= "Updated Mailbox #$mailbox_id. ";
+            }
+            else {
+                $msg .= "Failed to update Mailbox #$mailbox_id. Query: $query, Params: '" . join( "-", @params ) . "', DBI Error: " . $sth->errstr;
+            }
+        }
+        else {
+            $msg .= "No Parameter changed. ";
         }
     }
-
-    if ($mailbox_id) {
-
-        # TODO high update the other options
+    else {
+        $msg .= "Failed to update Mailbox. No Mailbox-ID given. ";
     }
 
     $self->log( $msg . ". User: " . $self->authen->username );
@@ -1306,7 +1519,7 @@ sub show_update_mailbox {
 sub show_log {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_shell() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -1314,12 +1527,25 @@ sub show_log {
         return;
     }
 
+    # Get CGI Query object
+    my $q = $self->query();
+
     # Get our database connection
     my $dbh = $self->dbh();
 
-    my $query = "SELECT * FROM log ORDER BY ts DESC LIMIT 30";
-    my $sth   = $dbh->prepare($query);
-    $sth->execute();
+    my $search = $q->param('search') || undef;
+
+    my @args  = ();
+    my $query = "SELECT * FROM log ";
+    if ($search) {
+        $query .= "WHERE msg LIKE ? ";
+        $search =~ s/%//g;
+        my $search_arg = "%" . $search . "%";
+        push( @args, $search_arg );
+    }
+    $query .= "ORDER BY ts DESC LIMIT 30";
+    my $sth = $dbh->prepare($query);
+    $sth->execute(@args);
 
     my @log = ();
     while ( my @row = $sth->fetchrow_array() ) {
@@ -1327,8 +1553,9 @@ sub show_log {
     }
 
     my %params = (
-        'title' => 'VBoxAdm Log',
-        'log'   => \@log,
+        'title'  => 'VBoxAdm Log',
+        'log'    => \@log,
+        'search' => $search,
     );
 
     # TODO add pagination
@@ -1354,6 +1581,11 @@ sub show_admins {
     # Get our database connection
     my $dbh = $self->dbh();
 
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $search = $q->param('search') || undef;
+
     my $query = "SELECT m.id,m.local_part,m.is_active,d.name,m.is_domainadmin,m.is_superadmin ";
     $query .= "FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.is_superadmin ";
     $query .= "OR m.is_domainadmin ORDER BY m.is_superadmin,m.is_domainadmin,m.local_part,d.name";
@@ -1378,6 +1610,7 @@ sub show_admins {
     my %params = (
         'title'  => 'VBoxAdm Admins',
         'admins' => \@admins,
+        'search' => $search,
     );
 
     return $self->tt_process( 'admins.tpl', \%params );
