@@ -1,5 +1,12 @@
 [% INCLUDE header.tpl %]
     <div id="main">
+	    <div id="overview">
+			Search:
+			<form name="search" method="GET" action="vboxadm.pl">
+			<input type="hidden" name="rm" value="aliases" />
+			<input type="textbox" name="search" size="10" value="[% search %]" />
+			</form>
+		</div>
 		[% FOREACH line IN aliases %]
 		[% IF loop.first %]
 		<table class="sortable hilight">
@@ -16,10 +23,10 @@
 		[% END %]
 			<tr>
 				<td>
-					[% line.local_part %]@[% line.domain %]
+					[% line.local_part | highlight(search) %]@[% line.domain | highlight(search) %]
 				</td>
 				<td>
-					[% line.target.substr(0,60) %]
+					[% line.target.substr(0,60) | highlight(search) %]
 				</td>
 				<td>
 					[% IF line.is_active == 1 %]

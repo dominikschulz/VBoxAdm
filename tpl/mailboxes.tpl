@@ -1,5 +1,12 @@
 [% INCLUDE header.tpl %]
     <div id="main">
+	    <div id="overview">
+			Search:
+			<form name="search" method="GET" action="vboxadm.pl">
+			<input type="hidden" name="rm" value="mailboxes" />
+			<input type="textbox" name="search" size="10" value="[% search %]" />
+			</form>
+		</div>
 		[% FOREACH line IN mailboxes %]
 		[% IF loop.first %]
 		<table class="sortable hilight">
@@ -19,10 +26,10 @@
 		[% END %]
 			<tr>
 				<td>
-					<a href="vboxadm.pl?rm=edit_mailbox&mailbox_id=[% line.id %]">[% line.local_part %]@[% line.domain %]</a>
+					<a href="vboxadm.pl?rm=edit_mailbox&mailbox_id=[% line.id %]">[% line.local_part | highlight(search) %]@[% line.domain | highlight(search) %]</a>
 				</td>
 				<td>
-					[% line.name %]
+					[% line.name | highlight(search) %]
 				</td>
 				<td>
 					[% IF line.is_active == 1 %]
@@ -32,10 +39,10 @@
 					[% END %]
 				</td>
 				<td>
-					[% line.max_msg_size %]
+					[% FILTER currency %][% line.max_msg_size_mb %][% END %] MB
 				</td>
 				<td>
-					[% IF line.is_on_vacatione == 1 %]
+					[% IF line.is_on_vacation == 1 %]
 					Yes
 					[% ELSE %]
 					No
