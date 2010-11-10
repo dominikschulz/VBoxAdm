@@ -39,7 +39,7 @@
 					<a href="vboxadm.pl?rm=edit_alias&alias_id=[% line.id %]">edit</a>
 				</td>
 				<td>
-					<a href="vboxadm.pl?rm=remote_alias&alias_id=[% line.id %]">del</a>
+					<a href="vboxadm.pl?rm=remove_alias&alias_id=[% line.id %]">del</a>
 				</td>
 			</tr>
 		[% IF loop.last %]

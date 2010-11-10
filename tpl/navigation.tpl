@@ -1,11 +1,16 @@
 <nav>
 	<ul>
+		<li><a href="vboxadm.pl?rm=welcome">Overview</a></li>
+		[% IF is_superadmin %]
 		<li><a href="vboxadm.pl?rm=admins">Admin List</a></li>
 		<li><a href="vboxadm.pl?rm=domains">Domain List</a></li>
+		[% END %]
 		<li><a href="vboxadm.pl?rm=domain_aliases">Domain Aliases</a></li>
 		<li><a href="vboxadm.pl?rm=aliases">Aliases</a></li>
 		<li><a href="vboxadm.pl?rm=mailboxes">Mailboxes</a></li>
+		[% IF is_superadmin %]
 		<li><a href="vboxadm.pl?rm=log">View Log</a></li>
+		[% END %]
 		<li><a href="vboxadm.pl?rm=login&authen_logout=1">Logout</a></li>
 	</ul>
 </nav>
