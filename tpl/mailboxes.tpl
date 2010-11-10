@@ -55,7 +55,7 @@
 					<a href="vboxadm.pl?rm=edit_mailbox&mailbox_id=[% line.id %]">edit</a>
 				</td>
 				<td>
-					<a href="vboxadm.pl?rm=remove_mailbox&mailbox_id=[% line.id %]">del</a>
+					<a onClick="if(confirm('Do you really want to delete the Account [% line.local_part %]@[% line.domain %]?')) return true; else return false;" href="vboxadm.pl?rm=remove_mailbox&mailbox_id=[% line.id %]">del</a>
 				</td>
 			</tr>
 		[% IF loop.last %]
