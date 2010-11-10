@@ -27,7 +27,12 @@
 	    		<td></td>
 	    	</tr>
     	</table>
-    	Status: [% status %]<br />
+    	[% IF is_superadmin %]
+    	Welcome Superadmin!<br />
+    	[% END %]
+    	[% IF is_domainadmin %]
+    	Welcome Domainadmin!<br />
+    	[% END %]
     	</div>
     </div>
 [% INCLUDE footer.tpl %]
