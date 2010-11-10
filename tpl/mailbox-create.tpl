@@ -27,7 +27,7 @@
 			<tr>
 				<td>Password:</td>
 				<td><input class="flat" type="password" name="password" /></td>
-				<td>Leave both password fields empty to autogenerate a password.</td>
+				<td>Leave both password fields empty<br />to autogenerate a password.</td>
 			</tr>
 			<tr>
 				<td>Password (again):</td>

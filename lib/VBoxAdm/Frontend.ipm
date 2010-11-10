@@ -388,6 +388,37 @@ sub is_superadmin {
     }
 }
 
+sub trim {
+    my $string = shift;
+    if ($string) {
+        $string =~ s/^\s+//;
+        $string =~ s/\s+$//;
+    }
+    return $string;
+}
+
+{
+
+    # RFC2822 email syntax
+    my $local_part = qr"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*"i;
+    my $domain     = qr"(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:[A-Z]{2}|com|org|net|gov|mil|biz|info|mobi|name|aero|jobs|museum)"i;
+
+    sub is_valid_address_rfc822 {
+        my $addy = shift;
+        return $addy =~ m/^$local_part\@$domain$/;
+    }
+
+    sub is_valid_localpart_rfc822 {
+        my $addy = shift;
+        return $addy =~ m/^$local_part$/;
+    }
+
+    sub is_valid_domain_rfc822 {
+        my $addy = shift;
+        return $addy =~ m/^$domain$/;
+    }
+}
+
 sub get_user_details {
     my $self = shift;
 
@@ -553,11 +584,14 @@ sub show_add_domain {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $domain             = lc( $q->param('domain') );
+    my $domain             = trim( lc( $q->param('domain') ) );
     my $create_domainadmin = $q->param('create_domainadmin');
 
     my $msg = '';
-    if ( $domain && $create_domainadmin ) {
+    if ( $domain && !$self->is_valid_domain_rfc822($domain) ) {
+        $msg = "Invalid syntax. Domain is not RFC822 compliant!";
+    }
+    elsif ( $domain && $create_domainadmin ) {
         my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
         my $sth   = $dbh->prepare($query);
 
@@ -683,7 +717,7 @@ sub show_update_domain {
 sub show_domain_aliases {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -702,12 +736,20 @@ sub show_domain_aliases {
     my $query = "SELECT da.id,da.name,da.is_active,d.name FROM ";
     $query .= "domain_aliases AS da LEFT JOIN domains AS d ON da.domain_id = d.id WHERE 1 ";
     my @args = ();
+
+    # Search
     if ($search) {
         $query .= "AND (da.name LIKE ? OR d.name LIKE ?) ";
         $search =~ s/%//g;
         my $search_arg = "%" . $search . "%";
         push( @args, $search_arg );
         push( @args, $search_arg );
+    }
+
+    # Authorization
+    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        $query .= "AND da.domain_id = ? ";
+        push( @args, $self->get_users_domainid() );
     }
     $query .= "ORDER BY da.name";
     my $sth = $dbh->prepare($query);
@@ -717,6 +759,7 @@ sub show_domain_aliases {
     while ( my @row = $sth->fetchrow_array() ) {
         push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], target => $row[3], } );
     }
+    $sth->finish();
 
     my %params = (
         'title'   => 'VBoxAdm Domain-Aliases',
@@ -744,12 +787,12 @@ sub show_create_domain_alias {
     my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
     my @args  = ();
     if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
-        $query .= "AND id = ?";
+        $query .= "AND id = ? ";
         push( @args, $self->get_users_domainid() );
     }
     $query .= "ORDER BY name";
     my $sth = $dbh->prepare($query);
-    $sth->execute();
+    $sth->execute(@args);
 
     my @domains = ();
     while ( my @row = $sth->fetchrow_array() ) {
@@ -767,7 +810,7 @@ sub show_create_domain_alias {
 sub show_add_domain_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -781,11 +824,14 @@ sub show_add_domain_alias {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $domain_alias = lc( $q->param('domain_alias') );
+    my $domain_alias = trim( lc( $q->param('domain_alias') ) );
     my $domain_id    = $q->param('domain');
 
     my $msg = '';
-    if ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
+    if ( $domain_alias && !$self->is_valid_domain_rfc822($domain_alias) ) {
+        $msg = "Invalid syntax. Domain is not RFC822 compliant!";
+    }
+    elsif ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
 
         # if domainadmin, verify that its his domain
         $msg = "You are not authorized to modify this domain!";
@@ -859,7 +905,7 @@ sub show_remove_domain_alias {
 sub show_edit_domain_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_shell() ) {
+    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -875,9 +921,10 @@ sub show_edit_domain_alias {
 
     my $domain_alias_id = $q->param('domain_alias_id');
 
-    # TODO HIGH if domainadmin only one domain here
     my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
     my @args  = ();
+
+    # Authorization
     if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
         $query .= "AND id = ?";
         push( @args, $self->get_users_domainid() );
@@ -920,7 +967,7 @@ sub show_edit_domain_alias {
 sub show_update_domain_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -991,7 +1038,7 @@ sub show_update_domain_alias {
 sub show_aliases {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -1057,12 +1104,12 @@ sub show_create_alias {
     my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
     my @args  = ();
     if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
-        $query .= "AND id = ?";
+        $query .= "AND id = ? ";
         push( @args, $self->get_users_domainid() );
     }
     $query .= "ORDER BY name";
     my $sth = $dbh->prepare($query);
-    $sth->execute();
+    $sth->execute(@args);
 
     my @domains = ();
     while ( my @row = $sth->fetchrow_array() ) {
@@ -1094,7 +1141,7 @@ sub show_add_alias {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $local_part = lc( $q->param('local_part') );
+    my $local_part = trim( lc( $q->param('local_part') ) );
     my $domain_id  = $q->param('domain');
     my $goto       = $q->param('goto');
 
@@ -1104,6 +1151,9 @@ sub show_add_alias {
 
         # if domainadmin, verify that its his domain
         $msg = "You are not authorized to modify this domain!";
+    }
+    elsif ( $local_part && !$self->is_valid_localpart_rfc822($local_part) ) {
+        $msg = "Invalid local part. This address is not RFC822 compliant!";
     }
     elsif ( $local_part && $domain_id && $goto ) {
         my $query = "INSERT INTO aliases (domain_id,local_part,goto,is_active) VALUES(?,?,?,1)";
@@ -1174,7 +1224,7 @@ sub show_remove_alias {
 sub show_edit_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_shell() ) {
+    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -1232,16 +1282,17 @@ sub show_update_alias {
 
     my $alias_id  = $q->param('alias_id');
     my $is_active = $q->param('is_active');
-    my $target    = $q->param('goto');
+    my $target    = trim( $q->param('goto') );
 
     my $msg = '';
 
-    # TODO if domainadmin, verify that its his domain
     if ( $alias_id && defined($is_active) ) {
         my $query = "UPDATE aliases SET is_active = ? WHERE id = ?";
         my @args  = ();
         push( @args, $is_active );
         push( @args, $alias_id );
+
+        # Authorization
         if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
             $query .= "AND domain_id = ?";
             push( @args, $self->get_users_domainid() );
@@ -1281,7 +1332,7 @@ sub show_update_alias {
 sub show_mailboxes {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -1298,20 +1349,26 @@ sub show_mailboxes {
     my $search = $q->param('search') || undef;
 
     my $query = "SELECT m.id,m.local_part,m.is_active,d.name,m.max_msg_size,m.is_on_vacation,m.quota,m.name ";
-    $query .= "FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE 1";
+    $query .= "FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE 1 ";
     my @args = ();
+
+    # Search
     if ($search) {
-        $query .= " AND (m.local_part LIKE ? OR d.name LIKE ? OR m.name LIKE ?) ";
+        $query .= "AND (m.local_part LIKE ? OR d.name LIKE ? OR m.name LIKE ?) ";
         $search =~ s/%//g;
         my $search_arg = "%" . $search . "%";
         push( @args, $search_arg );
         push( @args, $search_arg );
         push( @args, $search_arg );
     }
+
+    # Authorization
     if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
-        $query .= "AND a.domain_id = ?";
+        $query .= "AND m.domain_id = ? ";
         push( @args, $self->get_users_domainid() );
     }
+
+    # finalize query
     $query .= " ORDER BY m.local_part,d.name";
     my $sth = $dbh->prepare($query);
     $sth->execute(@args);
@@ -1363,13 +1420,15 @@ sub show_create_mailbox {
 
     my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
     my @args  = ();
+
+    # Authorization
     if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
-        $query .= "AND id = ?";
+        $query .= "AND id = ? ";
         push( @args, $self->get_users_domainid() );
     }
-    $query .= " ORDER BY name";
+    $query .= "ORDER BY name";
     my $sth = $dbh->prepare($query);
-    $sth->execute();
+    $sth->execute(@args);
 
     my @domains = ();
     while ( my @row = $sth->fetchrow_array() ) {
@@ -1387,7 +1446,7 @@ sub show_create_mailbox {
 sub show_add_mailbox {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -1402,7 +1461,7 @@ sub show_add_mailbox {
     my $q = $self->query();
 
     my $domain_id         = $q->param('domain');
-    my $username          = lc( $q->param('username') );
+    my $username          = trim( lc( $q->param('username') ) );
     my $password          = $q->param('password');
     my $password_2        = $q->param('password_2');
     my $name              = lc( $q->param('name') );
@@ -1416,11 +1475,16 @@ sub show_add_mailbox {
         # if domainadmin, verify that its his domain
         $msg = "You are not authorized to modify this domain!";
     }
+    elsif ( $username && !$self->is_valid_localpart_rfc822($username) ) {
+        $msg = "Invalid local part. This address is not RFC822 compliant!";
+    }
     elsif ( $domain_id && $username && $password && $name && $password eq $password_2 ) {
         my $query = "INSERT INTO mailboxes (domain_id,local_part,password,is_active) VALUES(?,?,?,?)";
         my $sth   = $dbh->prepare($query);
         if ( $sth->execute( $domain_id, $username, $password, $is_active ) ) {
             $msg = "Added Mailbox $username @ #$domain_id for $name";
+
+            # TODO HIGH handle send_welcome_mail
         }
         else {
             $msg = "Failed to add Mailbox $username @ #$domain_id for $name. DBI Error: " . $sth->errstr;
@@ -1564,7 +1628,7 @@ sub show_edit_mailbox {
 sub show_update_mailbox {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -1616,6 +1680,8 @@ sub show_update_mailbox {
             $query .= "name = ?, ";
             push( @params, $name );
         }
+
+        # TODO HIGH don't let a domainadmin disable an superadmin!
 
         # Is_Active
         # checkboxes are undefined if they are false!
@@ -1708,7 +1774,7 @@ sub show_update_mailbox {
 sub show_log {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_shell() ) {
+    if ( !$self->is_superadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
