@@ -2,7 +2,7 @@
     <div id="main">
     	<div id="edit_form">
     	<form name="create_domain" method="POST">
-    	<input type="hidden" name="rm" value="add_domain" />
+    	<input type="hidden" name="rm" value="add_mailbox" />
     	<table>
     		<tr>
     			<td colspan="3">
@@ -26,12 +26,12 @@
 			</tr>
 			<tr>
 				<td>Password:</td>
-				<td><input class="flat" type="text" name="password" /></td>
+				<td><input class="flat" type="password" name="password" /></td>
 				<td>Leave both password fields empty to autogenerate a password.</td>
 			</tr>
 			<tr>
 				<td>Password (again):</td>
-				<td><input class="flat" type="text" name="password_2" /></td>
+				<td><input class="flat" type="password" name="password_2" /></td>
 				<td></td>
 			</tr>
 			<tr>

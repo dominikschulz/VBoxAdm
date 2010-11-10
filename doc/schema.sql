@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS `domain_aliases` (
   `domain_id` int(16) NOT NULL,
   `is_active` tinyint(1) NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `name` (`name`,`domain_id`),
+  UNIQUE KEY `name` (`name`),
   KEY `active` (`is_active`),
   KEY `domain_id` (`domain_id`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=latin1;

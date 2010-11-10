@@ -58,7 +58,18 @@
 				<td><a href="vboxadm.pl?rm=edit_alias&alias_id=[% cc_id %]">[% cc_goto %]</a></td>
 				<td></td>
 			</tr>
-			
+			[% IF user_is_superadmin %]
+			<tr>
+				<td>Domainadmin:</td>
+				<td><input class="flat" type="checkbox" name="is_domainadmin"[% IF is_domainadmin %] checked[% END %] /></td>
+				<td></td>
+			</tr>
+			<tr>
+				<td>Superadmin:</td>
+				<td><input class="flat" type="checkbox" name="is_superadmin"[% IF is_superadmin %] checked[% END %] /></td>
+				<td></td>
+			</tr>
+			[% END %]
 			<tr>
 				<td colspan="3" align="center">
 					<input class="button" type="submit" name="submit" value="Modify Mailbox" />

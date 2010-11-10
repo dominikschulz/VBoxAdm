@@ -117,7 +117,7 @@ sub setup {
             TABLES      => [ 'mailboxes', 'domains' ],
             CONSTRAINTS => {
                 "CONCAT(mailboxes.local_part,'\@',domains.name)" => '__CREDENTIAL_1__',
-                'mailboxes.password'                             => '__CREDENTIAL_2__',    # TODO passwords should be 'encrypted' MD5:
+                'mailboxes.password'                             => '__CREDENTIAL_2__',
                 'mailboxes.is_active'                            => '1',
                 'domains.is_active'                              => '1',
 
@@ -128,7 +128,7 @@ sub setup {
         ],
         LOGOUT_RUNMODE      => 'public_login',
         LOGIN_RUNMODE       => 'public_login',
-        POST_LOGIN_CALLBACK => \&log_login,
+        POST_LOGIN_CALLBACK => \&post_login_callback,
     );
 
     # only enable authen if called as CGI
@@ -257,20 +257,11 @@ sub tt_post_process {
 
 sub tt_pre_process {
     my ( $self, $file, $vars ) = @_;
-    $vars->{username} = $self->authen->username;
-    $vars->{version}  = $VERSION;
-    $vars->{notify}   = $self->get_notify();
-    my $status = 'user';
-    if ( $self->is_superadmin() ) {
-        $status = 'Superadmin';
-    }
-    elsif ( $self->is_domainadmin() ) {
-        $status = 'Domainadmin';
-    }
-    else {
-        $status = 'User';
-    }
-    $vars->{status} = $status;
+    $vars->{username}       = $self->authen->username;
+    $vars->{version}        = $VERSION;
+    $vars->{notify}         = $self->get_notify();
+    $vars->{is_superadmin}  = $self->is_superadmin();
+    $vars->{is_domainadmin} = $self->is_domainadmin();
     return;
 }
 
@@ -299,6 +290,14 @@ sub log {
     else {
         return;
     }
+}
+
+sub post_login_callback {
+    my $self = shift;
+
+    # TODO setup users session, i.e. is he superadmin, domainadmin,
+    # get domain id, mailbox id, ip, ...
+    $self->log_login();
 }
 
 sub log_login {
@@ -358,15 +357,13 @@ sub is_shell {
 sub is_domainadmin {
     my $self = shift;
 
-    # Get our database connection
-    my $dbh = $self->dbh();
+    if ( defined( $self->session->param('user_is_domainadmin') ) ) {
+        return $self->session->param('user_is_domainadmin');
+    }
 
-    my $query =
-      "SELECT COUNT(*) from mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,'\@',d.name) = ? AND is_domainadmin";
-    my $sth = $dbh->prepare($query);
-    $sth->execute( $self->authen->username );
-    my $num = $sth->fetchrow_array();
-    if ( $num > 0 ) {
+    my ( undef, undef, undef, $is_domainadmin ) = $self->get_user_details();
+
+    if ($is_domainadmin) {
         return 1;
     }
     else {
@@ -377,19 +374,63 @@ sub is_domainadmin {
 sub is_superadmin {
     my $self = shift;
 
-    # Get our database connection
-    my $dbh = $self->dbh();
+    if ( defined( $self->session->param('user_is_superadmin') ) ) {
+        return $self->session->param('user_is_superadmin');
+    }
 
-    my $query = "SELECT COUNT(*) from mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,'\@',d.name) = ? AND is_superadmin";
-    my $sth   = $dbh->prepare($query);
-    $sth->execute( $self->authen->username );
-    my $num = $sth->fetchrow_array();
-    if ( $num > 0 ) {
+    my ( undef, undef, $is_superadmin, undef ) = $self->get_user_details();
+
+    if ($is_superadmin) {
         return 1;
     }
     else {
         return;
     }
+}
+
+sub get_user_details {
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    my $query = "SELECT m.id,m.domain_id,m.is_superadmin,m.is_domainadmin FROM ";
+    $query .= "mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,'\@',d.name) = ?";
+    my $sth = $dbh->prepare($query);
+    $sth->execute( $self->authen->username );
+    my ( $mailbox_id, $domain_id, $is_superadmin, $is_domainadmin ) = $sth->fetchrow_array();
+    $sth->finish();
+
+    $self->session->param( 'user_mailbox_id',     $mailbox_id );
+    $self->session->param( 'user_domain_id',      $domain_id );
+    $self->session->param( 'user_is_superadmin',  $is_superadmin );
+    $self->session->param( 'user_is_domainadmin', $is_domainadmin );
+
+    return ( $mailbox_id, $domain_id, $is_superadmin, $is_domainadmin );
+}
+
+sub get_users_domainid {
+    my $self = shift;
+
+    if ( defined( $self->session->param('user_domain_id') ) ) {
+        return $self->session->param('user_domain_id');
+    }
+
+    my ( undef, $domain_id, undef, undef ) = $self->get_user_details();
+
+    return $domain_id;
+}
+
+sub get_users_mailboxid {
+    my $self = shift;
+
+    if ( defined( $self->session->param('user_mailbox_id') ) ) {
+        return $self->session->param('user_mailbox_id');
+    }
+
+    my ( $mailbox_id, undef, undef, undef ) = $self->get_user_details();
+
+    return $mailbox_id;
 }
 
 #
@@ -398,6 +439,8 @@ sub is_superadmin {
 
 sub show_login {
     my $self = shift;
+
+    $self->session_delete();
 
     my %params = ( title => 'VBoxAdm Login', nonavigation => 1, );
 
@@ -414,22 +457,7 @@ sub show_login {
 sub show_welcome {
     my $self = shift;
 
-    my $status = 'user';
-    if ( $self->is_domainadmin() ) {
-        $status = 'domainadmin';
-    }
-    if ( $self->is_superadmin() ) {
-        $status = 'superadmin';
-    }
-
-    #my @env = map("$_ => $ENV{$_}", sort keys %ENV);
-
-    my %params = (
-        'title'  => 'VBoxAdm Overview',
-        'status' => $status,
-
-        #'env'		 => \@env,
-    );
+    my %params = ( 'title' => 'VBoxAdm Overview', );
 
     return $self->tt_process( 'welcome.tpl', \%params );
 }
@@ -461,9 +489,21 @@ sub show_domains {
     $query .= "(SELECT COUNT(*) FROM aliases WHERE domain_id = domains.id) AS num_aliases,";
     $query .= "(SELECT COUNT(*) FROM mailboxes WHERE domain_id = domains.id) AS num_mailboxes,";
     $query .= "(SELECT COUNT(*) FROM domain_aliases WHERE domain_id = domains.id) AS num_domainaliases";
-    $query .= " FROM domains ORDER BY name";
+    $query .= " FROM domains WHERE 1 ";
+    my @args = ();
+    if ($search) {
+        $query .= "AND (name LIKE ?) ";
+        $search =~ s/%//g;
+        my $search_arg = "%" . $search . "%";
+        push( @args, $search_arg );
+    }
+    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        $query .= "AND a.domain_id = ?";
+        push( @args, $self->get_users_domainid() );
+    }
+    $query .= "ORDER BY name";
     my $sth = $dbh->prepare($query);
-    $sth->execute();
+    $sth->execute(@args);
 
     my @domains = ();
     while ( my @row = $sth->fetchrow_array() ) {
@@ -476,8 +516,6 @@ sub show_domains {
         'domains' => \@domains,
         'search'  => $search,
     );
-
-    # TODO add search option
 
     return $self->tt_process( 'domains.tpl', \%params );
 }
@@ -606,13 +644,20 @@ sub show_update_domain {
 
     my $msg = '';
     if ( $domain_id && defined($is_active) ) {
-        my $query      = "UPDATE domains SET is_active = ? WHERE id = ?";
+        my $query = "UPDATE domains SET is_active = ? WHERE id = ?";
+        my @args  = ();
+        push( @args, $is_active );
+        push( @args, $domain_id );
+        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+            $query .= "AND id = ?";
+            push( @args, $self->get_users_domainid() );
+        }
         my $sth        = $dbh->prepare($query);
         my $status_str = 'disabled';
         if ($is_active) {
             $status_str = 'enabled';
         }
-        if ( $sth->execute( $is_active, $domain_id ) ) {
+        if ( $sth->execute(@args) ) {
             $msg = "Domain #$domain_id $status_str";
         }
         else {
@@ -655,9 +700,18 @@ sub show_domain_aliases {
     my $search = $q->param('search') || undef;
 
     my $query = "SELECT da.id,da.name,da.is_active,d.name FROM ";
-    $query .= "domain_aliases AS da LEFT JOIN domains AS d ON da.domain_id = d.id ORDER BY da.name";
+    $query .= "domain_aliases AS da LEFT JOIN domains AS d ON da.domain_id = d.id WHERE 1 ";
+    my @args = ();
+    if ($search) {
+        $query .= "AND (da.name LIKE ? OR d.name LIKE ?) ";
+        $search =~ s/%//g;
+        my $search_arg = "%" . $search . "%";
+        push( @args, $search_arg );
+        push( @args, $search_arg );
+    }
+    $query .= "ORDER BY da.name";
     my $sth = $dbh->prepare($query);
-    $sth->execute();
+    $sth->execute(@args);
 
     my @domains = ();
     while ( my @row = $sth->fetchrow_array() ) {
@@ -667,6 +721,7 @@ sub show_domain_aliases {
     my %params = (
         'title'   => 'VBoxAdm Domain-Aliases',
         'domains' => \@domains,
+        'search'  => $search,
     );
 
     return $self->tt_process( 'domain-aliases.tpl', \%params );
@@ -675,7 +730,7 @@ sub show_domain_aliases {
 sub show_create_domain_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -686,9 +741,14 @@ sub show_create_domain_alias {
     # Get our database connection
     my $dbh = $self->dbh();
 
-    # TODO HIGH if domainadmin only one domain here
-    my $query = "SELECT id,name,is_active FROM domains ORDER BY name";
-    my $sth   = $dbh->prepare($query);
+    my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
+    my @args  = ();
+    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        $query .= "AND id = ?";
+        push( @args, $self->get_users_domainid() );
+    }
+    $query .= "ORDER BY name";
+    my $sth = $dbh->prepare($query);
     $sth->execute();
 
     my @domains = ();
@@ -725,7 +785,12 @@ sub show_add_domain_alias {
     my $domain_id    = $q->param('domain');
 
     my $msg = '';
-    if ( $domain_alias && $domain_id ) {
+    if ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
+
+        # if domainadmin, verify that its his domain
+        $msg = "You are not authorized to modify this domain!";
+    }
+    elsif ( $domain_alias && $domain_id ) {
         my $query = "INSERT INTO domain_aliases (name,domain_id,is_active) VALUES(?,?,1)";
         my $sth   = $dbh->prepare($query);
 
@@ -749,7 +814,7 @@ sub show_add_domain_alias {
 sub show_remove_domain_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -768,8 +833,14 @@ sub show_remove_domain_alias {
     my $msg = '';
     if ($domain_alias_id) {
         my $query = "DELETE FROM domain_aliases WHERE id = ?";
-        my $sth   = $dbh->prepare($query);
-        if ( $sth->execute($domain_alias_id) ) {
+        my @args  = ();
+        push( @args, $domain_alias_id );
+        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+            $query .= "AND domain_id = ?";
+            push( @args, $self->get_users_domainid() );
+        }
+        my $sth = $dbh->prepare($query);
+        if ( $sth->execute(@args) ) {
             $msg = "Domain-Alias #$domain_alias_id removed";
         }
         else {
@@ -805,9 +876,15 @@ sub show_edit_domain_alias {
     my $domain_alias_id = $q->param('domain_alias_id');
 
     # TODO HIGH if domainadmin only one domain here
-    my $query = "SELECT id,name,is_active FROM domains ORDER BY name";
-    my $sth   = $dbh->prepare($query);
-    $sth->execute();
+    my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
+    my @args  = ();
+    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        $query .= "AND id = ?";
+        push( @args, $self->get_users_domainid() );
+    }
+    $query .= " ORDER BY name";
+    my $sth = $dbh->prepare($query);
+    $sth->execute(@args);
 
     my @domains = ();
     while ( my @row = $sth->fetchrow_array() ) {
@@ -815,10 +892,16 @@ sub show_edit_domain_alias {
     }
     $sth->finish();
 
-    $query =
-      "SELECT da.id, da.name, da.domain_id, da.is_active, d.name FROM domain_aliases AS da LEFT JOIN domains AS d ON da.domain_id = d.id WHERE da.id = ?";
+    $query = "SELECT da.id, da.name, da.domain_id, da.is_active, d.name FROM domain_aliases AS da ";
+    $query .= "LEFT JOIN domains AS d ON da.domain_id = d.id WHERE da.id = ?";
+    @args = ();
+    push( @args, $domain_alias_id );
+    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        $query .= "AND da.domain_id = ?";
+        push( @args, $self->get_users_domainid() );
+    }
     $sth = $dbh->prepare($query);
-    $sth->execute($domain_alias_id);
+    $sth->execute(@args);
     my @row = $sth->fetchrow_array();
     $sth->finish();
 
@@ -857,16 +940,22 @@ sub show_update_domain_alias {
 
     my $msg = '';
 
-    # TODO if domainadmin, verify that its his domain
     if ( $domain_alias_id && defined($is_active) ) {
-        my $query      = "UPDATE domain_aliases SET is_active = ? WHERE id = ?";
+        my $query = "UPDATE domain_aliases SET is_active = ? WHERE id = ?";
+        my @args  = ();
+        push( @args, $is_active );
+        push( @args, $domain_alias_id );
+        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+            $query .= "AND domain_id = ?";
+            push( @args, $self->get_users_domainid() );
+        }
         my $sth        = $dbh->prepare($query);
         my $status_str = 'disabled';
         if ( $is_active eq 'on' || $is_active eq 'true' ) {
             $status_str = 'enabled';
             $is_active  = 1;
         }
-        if ( $sth->execute( $is_active, $domain_alias_id ) ) {
+        if ( $sth->execute(@args) ) {
             $msg .= "Domain-Alias #$domain_alias_id $status_str. ";
         }
         else {
@@ -874,8 +963,12 @@ sub show_update_domain_alias {
         }
     }
 
-    # TODO if domainadmin, verify that its his domain
-    if ( $domain_alias_id && $target ) {
+    if ( $target && !$self->is_superadmin() && $self->is_domainadmin() && $target != $self->get_users_domainid() ) {
+
+        # if domainadmin, verify that its his domain
+        $msg = "You are not authorized to modify this domain!";
+    }
+    elsif ( $domain_alias_id && $target ) {
         my $query = "UPDATE domain_aliases SET domain_id = ? WHERE id = ?";
         my $sth   = $dbh->prepare($query);
         if ( $sth->execute( $target, $domain_alias_id ) ) {
@@ -915,9 +1008,23 @@ sub show_aliases {
     my $search = $q->param('search') || undef;
 
     my $query = "SELECT a.id,a.local_part,a.is_active,a.goto,d.name FROM ";
-    $query .= "aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id ORDER BY a.local_part,d.name";
+    $query .= "aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE 1 ";
+    my @args = ();
+    if ($search) {
+        $query .= "AND (a.local_part LIKE ? OR d.name LIKE ? OR a.goto LIKE ?) ";
+        $search =~ s/%//g;
+        my $search_arg = "%" . $search . "%";
+        push( @args, $search_arg );
+        push( @args, $search_arg );
+        push( @args, $search_arg );
+    }
+    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        $query .= "AND a.domain_id = ?";
+        push( @args, $self->get_users_domainid() );
+    }
+    $query .= "ORDER BY a.local_part,d.name";
     my $sth = $dbh->prepare($query);
-    $sth->execute();
+    $sth->execute(@args);
 
     my @aliases = ();
     while ( my @row = $sth->fetchrow_array() ) {
@@ -930,15 +1037,13 @@ sub show_aliases {
         'search'  => $search,
     );
 
-    # TODO add search option
-
     return $self->tt_process( 'aliases.tpl', \%params );
 }
 
 sub show_create_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -949,9 +1054,14 @@ sub show_create_alias {
     # Get our database connection
     my $dbh = $self->dbh();
 
-    # TODO HIGH if domainadmin only one domain here
-    my $query = "SELECT id,name,is_active FROM domains ORDER BY name";
-    my $sth   = $dbh->prepare($query);
+    my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
+    my @args  = ();
+    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        $query .= "AND id = ?";
+        push( @args, $self->get_users_domainid() );
+    }
+    $query .= "ORDER BY name";
+    my $sth = $dbh->prepare($query);
     $sth->execute();
 
     my @domains = ();
@@ -970,7 +1080,7 @@ sub show_create_alias {
 sub show_add_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -990,8 +1100,12 @@ sub show_add_alias {
 
     my $msg = '';
 
-    # TODO if domainadmin, verify that its his domain
-    if ( $local_part && $domain_id && $goto ) {
+    if ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
+
+        # if domainadmin, verify that its his domain
+        $msg = "You are not authorized to modify this domain!";
+    }
+    elsif ( $local_part && $domain_id && $goto ) {
         my $query = "INSERT INTO aliases (domain_id,local_part,goto,is_active) VALUES(?,?,?,1)";
         my $sth   = $dbh->prepare($query);
         if ( $sth->execute( $domain_id, $local_part, $goto ) ) {
@@ -1014,7 +1128,7 @@ sub show_add_alias {
 sub show_remove_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -1032,11 +1146,16 @@ sub show_remove_alias {
 
     my $msg = '';
 
-    # TODO if domainadmin, verify that its his domain
     if ($alias_id) {
         my $query = "DELETE FROM aliases WHERE id = ?";
-        my $sth   = $dbh->prepare($query);
-        if ( $sth->execute($alias_id) ) {
+        my @args  = ();
+        push( @args, $alias_id );
+        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+            $query .= "AND domain_id = ?";
+            push( @args, $self->get_users_domainid() );
+        }
+        my $sth = $dbh->prepare($query);
+        if ( $sth->execute(@args) ) {
             $msg = "Alias #$alias_id removed";
         }
         else {
@@ -1071,10 +1190,15 @@ sub show_edit_alias {
 
     my $alias_id = $q->param('alias_id');
 
-    # TODO if domainadmin, verify that its his domain
     my $query = "SELECT a.local_part,d.name,a.goto,a.is_active FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
-    my $sth   = $dbh->prepare($query);
-    $sth->execute($alias_id);
+    my @args  = ();
+    push( @args, $alias_id );
+    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        $query .= "AND a.domain_id = ?";
+        push( @args, $self->get_users_domainid() );
+    }
+    my $sth = $dbh->prepare($query);
+    $sth->execute(@args);
     my @row = $sth->fetchrow_array();
 
     my %params = (
@@ -1092,7 +1216,7 @@ sub show_edit_alias {
 sub show_update_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -1114,13 +1238,20 @@ sub show_update_alias {
 
     # TODO if domainadmin, verify that its his domain
     if ( $alias_id && defined($is_active) ) {
-        my $query      = "UPDATE aliases SET is_active = ? WHERE id = ?";
+        my $query = "UPDATE aliases SET is_active = ? WHERE id = ?";
+        my @args  = ();
+        push( @args, $is_active );
+        push( @args, $alias_id );
+        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+            $query .= "AND domain_id = ?";
+            push( @args, $self->get_users_domainid() );
+        }
         my $sth        = $dbh->prepare($query);
         my $status_str = 'disabled';
         if ($is_active) {
             $status_str = 'enabled';
         }
-        if ( $sth->execute( $is_active, $alias_id ) ) {
+        if ( $sth->execute(@args) ) {
             $msg .= "Alias #$alias_id $status_str.";
         }
         else {
@@ -1177,6 +1308,10 @@ sub show_mailboxes {
         push( @args, $search_arg );
         push( @args, $search_arg );
     }
+    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        $query .= "AND a.domain_id = ?";
+        push( @args, $self->get_users_domainid() );
+    }
     $query .= " ORDER BY m.local_part,d.name";
     my $sth = $dbh->prepare($query);
     $sth->execute(@args);
@@ -1215,7 +1350,7 @@ sub show_mailboxes {
 sub show_create_mailbox {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -1226,9 +1361,14 @@ sub show_create_mailbox {
     # Get our database connection
     my $dbh = $self->dbh();
 
-    # TODO HIGH if domainadmin only one domain here
-    my $query = "SELECT id,name,is_active FROM domains ORDER BY name";
-    my $sth   = $dbh->prepare($query);
+    my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
+    my @args  = ();
+    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        $query .= "AND id = ?";
+        push( @args, $self->get_users_domainid() );
+    }
+    $query .= " ORDER BY name";
+    my $sth = $dbh->prepare($query);
     $sth->execute();
 
     my @domains = ();
@@ -1271,8 +1411,12 @@ sub show_add_mailbox {
 
     my $msg = '';
 
-    # TODO if domainadmin, verify that its his domain
-    if ( $domain_id && $username && $password && $name && $password eq $password_2 ) {
+    if ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
+
+        # if domainadmin, verify that its his domain
+        $msg = "You are not authorized to modify this domain!";
+    }
+    elsif ( $domain_id && $username && $password && $name && $password eq $password_2 ) {
         my $query = "INSERT INTO mailboxes (domain_id,local_part,password,is_active) VALUES(?,?,?,?)";
         my $sth   = $dbh->prepare($query);
         if ( $sth->execute( $domain_id, $username, $password, $is_active ) ) {
@@ -1296,7 +1440,7 @@ sub show_add_mailbox {
 sub show_remove_mailbox {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -1314,11 +1458,16 @@ sub show_remove_mailbox {
 
     my $msg = '';
 
-    # TODO if domainadmin, verify that its his domain
     if ($mailbox_id) {
         my $query = "DELETE FROM mailboxes WHERE id = ?";
-        my $sth   = $dbh->prepare($query);
-        if ( $sth->execute($mailbox_id) ) {
+        my @args  = ();
+        push( @args, $mailbox_id );
+        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+            $query .= "AND domain_id = ?";
+            push( @args, $self->get_users_domainid() );
+        }
+        my $sth = $dbh->prepare($query);
+        if ( $sth->execute(@args) ) {
             $msg = "Mailbox #$mailbox_id removed";
         }
         else {
@@ -1338,7 +1487,7 @@ sub show_remove_mailbox {
 sub show_edit_mailbox {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_notify($msg);
@@ -1354,13 +1503,18 @@ sub show_edit_mailbox {
 
     my $mailbox_id = $q->param('mailbox_id');
 
-    # TODO if domainadmin, verify that its his domain
     my $query = "SELECT m.local_part,d.name,m.name,m.is_active,m.max_msg_size,";
     $query .= "m.is_on_vacation,m.vacation_msg,m.quota,m.is_domainadmin,";
     $query .= "m.is_superadmin,d.id FROM mailboxes AS m LEFT JOIN domains AS d ";
-    $query .= "ON m.domain_id = d.id WHERE m.id = ?";
+    $query .= "ON m.domain_id = d.id WHERE m.id = ? ";
+    my @args = ();
+    push( @args, $mailbox_id );
+    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        $query .= "AND m.domain_id = ?";
+        push( @args, $self->get_users_domainid() );
+    }
     my $sth = $dbh->prepare($query);
-    $sth->execute($mailbox_id);
+    $sth->execute(@args);
     my @row = $sth->fetchrow_array();
     $sth->finish();
 
@@ -1373,25 +1527,35 @@ sub show_edit_mailbox {
 
     # TODO show aliases pointing to this mbox, don't forget domain aliases!
     # show cc (aliases w/ the same name as this mailbox)
-    $query = "SELECT id,goto FROM aliases WHERE local_part = (SELECT local_part FROM mailboxes WHERE id = ?) AND domain_id = ?";
-    $sth   = $dbh->prepare($query);
-    $sth->execute( $mailbox_id, $domain_id );
+    $query = "SELECT id,goto FROM aliases WHERE local_part = (SELECT local_part FROM mailboxes WHERE id = ?) AND domain_id = ? ";
+    @args  = ();
+    push( @args, $mailbox_id );
+    push( @args, $domain_id );
+    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        $query .= "AND domain_id = ?";
+        push( @args, $self->get_users_domainid() );
+    }
+    $sth = $dbh->prepare($query);
+    $sth->execute(@args);
     my ( $cc_id, $cc_goto ) = $sth->fetchrow_array();
     $sth->finish();
 
     my %params = (
-        title           => 'Edit Alias',
-        mailbox_id      => $mailbox_id,
-        local_part      => $row[0],
-        domain          => $row[1],
-        name            => $row[2],
-        is_active       => $row[3],
-        max_msg_size_mb => $max_msg_size_mb,
-        is_on_vacation  => $row[5],
-        vacation_msg    => $row[6],
-        quota           => $row[7],
-        cc_goto         => $cc_goto,
-        cc_id           => $cc_id,
+        title              => 'Edit Alias',
+        mailbox_id         => $mailbox_id,
+        local_part         => $row[0],
+        domain             => $row[1],
+        name               => $row[2],
+        is_active          => $row[3],
+        max_msg_size_mb    => $max_msg_size_mb,
+        is_on_vacation     => $row[5],
+        vacation_msg       => $row[6],
+        quota              => $row[7],
+        cc_goto            => $cc_goto,
+        cc_id              => $cc_id,
+        is_domainadmin     => $row[8],
+        is_superadmin      => $row[9],
+        user_is_superadmin => $self->is_superadmin(),
     );
 
     return $self->tt_process( 'mailbox-edit.tpl', \%params );
@@ -1424,10 +1588,11 @@ sub show_update_mailbox {
     my $max_msg_size   = $msg_max_size_mb * 1024;
     my $is_on_vacation = $q->param('is_on_vacation');
     my $vacation_msg   = $q->param('vacation_msg');
+    my $is_domainadmin = $q->param('is_domainadmin');
+    my $is_superadmin  = $q->param('is_superadmin');
 
     my $msg = '';
 
-    # TODO if domainadmin, verify that its his domain
     if ($mailbox_id) {
         my $query = "UPDATE mailboxes SET ";
 
@@ -1471,6 +1636,24 @@ sub show_update_mailbox {
             push( @params, $max_msg_size );
         }
 
+        # Is Superadmin / Is Domainadmin
+        if ( $self->is_superadmin() ) {
+            $query .= "is_superadmin = ?, ";
+            if ( defined($is_superadmin) && $is_superadmin eq 'on' ) {
+                push( @params, 1 );
+            }
+            else {
+                push( @params, 0 );
+            }
+            $query .= "is_domainadmin = ?, ";
+            if ( defined($is_domainadmin) && $is_domainadmin eq 'on' ) {
+                push( @params, 1 );
+            }
+            else {
+                push( @params, 0 );
+            }
+        }
+
         # Is_On_Vacation / Vacation Msg
         if ( defined($is_on_vacation) && $is_on_vacation eq 'on' && $vacation_msg && length($vacation_msg) > 1 ) {
             $is_on_vacation = 1;
@@ -1486,6 +1669,12 @@ sub show_update_mailbox {
         # finialize query
         $query .= " WHERE id = ?";
         push( @params, $mailbox_id );
+
+        # if domainadmin, verify that its his domain
+        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+            $query .= "AND domain_id = ?";
+            push( @params, $self->get_users_domainid() );
+        }
 
         # at least on option has changed
         if ( scalar(@params) > 1 ) {
