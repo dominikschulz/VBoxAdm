@@ -1,0 +1,53 @@
+How to Install VBoxAdm
+======================
+
+* Install MySQL
+In the default setup we need InnoDB. If you want to avoid InnoDB you can change the schema,
+but beware: This application relies on working foreign key contraints. So embrace errors if you
+skip InnoDB.
+
+* Create the Databases
+mysql> CREATE DATABASE vboxadm;
+mysql> CREATE DATABASE roundcube;
+
+* Create Database Accounts
+- vboxadm
+GRANT ALL ON vboxadm.* TO 'vboxadm'@'localhost' IDENTIFIED BY '';
+- postfix
+GRANT SELECT ON vboxadm.* TO 'vboxadm'@'localhost' IDENTIFIED BY '';
+- dovecot
+GRANT SELECT ON vboxadm.mailboxes TO 'vboxadm'@'localhost' IDENTIFIED BY '';
+GRANT SELECT ON vboxadm.domains TO 'vboxadm'@'localhost' IDENTIFIED BY '';
+- roundcube
+GRANT ALL ON roundcube.* TO 'roundcube'@'localhost' IDENTIFIED BY '';
+- vboxadm_user (for vacation and pw change)
+GRANT SELECT,UPDATE ON vboxadm.mailboxes TO 'vboxadm_user'@'localhost' IDENTIFIED BY '';
+GRANT SELECT ON vboxadm.domains TO 'vboxadm'@'localhost' IDENTIFIED BY '';
+
+* Load Schema
+$> mysql -uvboxadm -p vboxadm < doc/schema.sql
+
+* Install Lighttpd
+Enable cgi (or fastcgi) and create a vhost, like this:
+
+TODO lighty vhost sample!
+
+* Install Roundcube
+
+Unpack Roundcube to your webroot and follow the instructions of the installer. Use the database
+and user created above. 
+
+* Active Roundcube Plugins: managesieve and password
+
+Edit the file TODO ...
+
+* Install and active Roundcube Plugin: vacation
+
+TODO
+
+* Configure Postfix
+Copy the directory maps to /etc/postfix and make the following adjustments to your main.cf:
+
+Apply these changes to your master.cf:
+
+* Configure Dovecot
