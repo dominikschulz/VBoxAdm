@@ -121,6 +121,7 @@ CREATE TABLE IF NOT EXISTS `mailboxes` (
   `is_active` tinyint(1) NOT NULL,
   `max_msg_size` int(16) NOT NULL,
   `is_on_vacation` tinyint(1) NOT NULL,
+  `vacation_subj` varchar(255) NOT NULL,
   `vacation_msg` text NOT NULL,
   `quota` int(16) NOT NULL,
   `is_domainadmin` tinyint(1) NOT NULL,

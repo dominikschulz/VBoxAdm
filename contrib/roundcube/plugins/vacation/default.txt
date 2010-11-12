@@ -1,0 +1,8 @@
+Hi,
+
+Please ask your system administrator to translate this file (default.txt).
+
+He can set a better default text for out of office replies.
+
+Feel free to edit this text.
+
