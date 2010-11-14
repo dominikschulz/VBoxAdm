@@ -1,1 +1,15 @@
 #!/usr/bin/perl
+use strict;
+use warnings;
+
+use DBI;
+use Getopt::Long;
+use Config::Std;
+
+my $db_host = 'localhost';
+my $db_user = 'vacation';
+my $db_pass = '';
+my $db_port = 3306;
+my $db_db = 'vboxadm';
+
+my $vacation_domain = 'autoreply.domain.tld';

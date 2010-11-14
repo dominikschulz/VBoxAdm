@@ -1,0 +1,3 @@
+### transport ###
+# content of /etc/postfix/maps/transport
+autoreply.domain.tld	vacation:

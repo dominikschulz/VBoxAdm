@@ -1,0 +1,5 @@
+### access_recipient ###
+# Block or allow Recipient access based on host, IP (NO CIDR!) or address
+# use OK to allow (Whitelist) and REJEXT <TEXT> to block
+# 127.0.0.1     OK
+# 127.0.0.2     REJECT Go away

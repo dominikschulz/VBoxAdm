@@ -1,0 +1,5 @@
+user = postfix
+password = PASSWORD
+hosts = localhost
+dbname = vboxadm
+query = SELECT goto FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id LEFT JOIN domain_aliases AS da ON da.domain_id = d.id WHERE da.name = '%d' AND a.local_part = '%u' AND a.is_active AND d.is_active AND da.is_active

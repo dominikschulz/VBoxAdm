@@ -1,0 +1,4 @@
+### access_recipient-rfc ###
+# Allow RFC2142 Accounts                                                                                                                                                
+postmaster@             OK                                                                                                                                              
+abuse@                  OK

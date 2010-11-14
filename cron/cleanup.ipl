@@ -2,3 +2,4 @@
 # - create uncreated mailboxes
 # - remove deleted mailboxes
 # - remove expired vacation_notify entries
+# - remove mails marked as deleted

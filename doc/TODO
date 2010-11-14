@@ -7,9 +7,10 @@ no user logins to vboxadm, only domainadmins and superadmins.
 the user part is handled by a roundcube plugin
 http://trac.roundcube.net/wiki/Doc_Plugins
 http://trac.roundcube.net/browser/trunk/plugins/password
+-> DONE, see INSTALL and contrib
 
 - Password Schemes
-Select correct password scheme
+Select correct password scheme -> DONE: Plaintext, blame M$
 
 - Max_msg_size
 implement Policy-Daemon based on http://www.corpit.ru/mjt/smtpd-policy-template.pl
@@ -42,7 +43,7 @@ virtual_alias_domain_mailbox_maps (Domain-Alias-Mailboxen):
 SELECT CONCAT(d.name, '/', m.local_part) AS maildir FROM domains AS d LEFT JOIN mailboxes AS m ON m.domain_id = d.id LEFT JOIN domain_aliases AS da ON da.domain_id = d.id WHERE da.name = '%d' AND m.local_part = '%u' AND d.is_active AND m.is_active
 
 virtual_vacation_alias_maps (Vacation Mailbox Aliases):
-SELECT CONCAT(ma.local_part,'#',d.name,'@autoreply.planet49.com') AS goto FROM mailboxes AS ma LEFT JOIN domains AS d ON ma.domain_id = d.id WHERE is_on_vacation AND d.name = '%d' AND ma.local_part = '%u'
+SELECT CONCAT(ma.local_part,'#',d.name,'@autoreply.domain.tld') AS goto FROM mailboxes AS ma LEFT JOIN domains AS d ON ma.domain_id = d.id WHERE is_on_vacation AND d.name = '%d' AND ma.local_part = '%u'
 
 ### main.cf ###
 # See /usr/share/postfix/main.cf.dist for a commented, more complete version
@@ -322,11 +323,11 @@ dovecot   unix  -       n       n       -       -       pipe
 ###########################################################################
 Dovecot:
 ###########################################################################
-default_pass_scheme = MD5-CRYPT
+default_pass_scheme = PLAIN
 password_query = SELECT CONCAT(m.local_part, '@', d.name) AS user, m.password AS password FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = '%n' AND d.name = '%d' AND m.is_active AND d.is_active
 
 ### dovecot.conf ###
-/etc/dovecot# egrep -v '^\s*#' dovecot.conf | egrep -v '^$'
+# /etc/dovecot# egrep -v '^\s*#' dovecot.conf | egrep -v '^$'
 protocols = imap imaps pop3 pop3s managesieve
 listen=[::]
 disable_plaintext_auth = no
