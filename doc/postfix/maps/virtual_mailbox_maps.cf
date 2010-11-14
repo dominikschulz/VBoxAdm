@@ -1,0 +1,5 @@
+user = postfix
+password = PASSWORD
+hosts = localhost
+dbname = vboxadm
+query = SELECT CONCAT(d.name, '/', m.local_part) AS maildir FROM domains AS d LEFT JOIN mailboxes AS m ON m.domain_id = d.id WHERE d.name = '%d' AND m.local_part = '%d' AND d.is_active AND m.is_active

@@ -1,0 +1,5 @@
+user = postfix
+password = PASSWORD
+hosts = localhost
+dbname = vboxadm
+query = SELECT name FROM domains WHERE name = '%s' AND is_active

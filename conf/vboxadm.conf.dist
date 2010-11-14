@@ -3,3 +3,13 @@ dbuser=vboxadm
 dbpass=vboxadm
 dbdb=vboxadm
 dbhost=localhost
+
+[vacation]
+# config for vacation autoresonder
+dbuser=vacation
+dbpass=vacation
+dbdb=vboxadm
+dbhost=localhost
+
+[policyd]
+# config for policyd

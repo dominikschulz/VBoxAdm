@@ -40,21 +40,11 @@ GRANT SELECT,UPDATE ON vboxadm.mailboxes TO 'vboxadm_user'@'localhost' IDENTIFIE
 GRANT SELECT ON vboxadm.domains TO 'vboxadm'@'localhost' IDENTIFIED BY '';
 
 * Load Schema
-$> mysql -uvboxadm -p vboxadm < doc/schema.sql
+$> mysql -uvboxadm -p vboxadm < doc/mysql/schema.sql
 
 * Install Lighttpd
-Enable cgi (or fastcgi) and create a vhost, like this:
-
-$HTTP["host"] =~ "vboxadm\.domain\.tld" {
-        var.basedir = "/var/www/vboxadm/"
-        server.document-root = basedir
-        alias.url += (
-                "/css/" => basedir + "res/css/",
-                "/images/" => basedir + "res/images/",
-                "/js/" => basedir + "res/js/",
-                "/icons/fffsilk/" => "/usr/share/icons/famfamfam/silk/",
-        )
-}
+Enable cgi (or fastcgi) and symlink the lighttpd/12-vboxadm.conf to /etc/lighttpd/conf-enabled/12-vboxadm.conf.
+Restart lighttpd.
 
 * Install Roundcube
 
@@ -86,8 +76,8 @@ Edit the file config/main.inc.php and add the plugins 'password', 'managesieve' 
 $rcmail_config['plugins'] = array('password','managesieve', 'vacation');
 
 * Configure Postfix
-Copy the directory maps to /etc/postfix and make the following adjustments to your main.cf:
-
-Apply these changes to your master.cf:
+Copy all files and subdirs of doc/postfix to /etc/postfix.
 
 * Configure Dovecot
+Copy all files of doc/dovecot to /etc/dovecot.
+

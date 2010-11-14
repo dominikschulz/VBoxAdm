@@ -1,0 +1,119 @@
+### main.cf ###
+# See /usr/share/postfix/main.cf.dist for a commented, more complete version
+
+
+# Debian specific:  Specifying a file name will cause the first
+# line of that file to be used as the name.  The Debian default
+# is /etc/mailname.
+#myorigin = /etc/mailname
+
+smtpd_banner = $myhostname ESMTP $mail_name (Debian/GNU)
+biff = no
+
+# appending .domain is the MUA's job.
+append_dot_mydomain = no
+
+# Uncomment the next line to generate "delayed mail" warnings
+#delay_warning_time = 4h
+
+readme_directory = no
+
+# TLS parameters
+smtpd_tls_cert_file = /etc/ssl/certs/vs-mail-pf.pem
+smtpd_tls_key_file = /etc/ssl/private/vs-mail-pf.key
+smtpd_use_tls = yes
+smtp_use_tls = yes
+smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
+smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
+
+# See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for
+# information on enabling SSL in the smtp client.
+
+myhostname = host.domain.tld
+alias_maps = hash:/etc/aliases
+alias_database = hash:/etc/aliases
+myorigin = /etc/mailname
+mydestination = host.domain.tld, localhost
+relayhost = 
+mynetworks = 192.168.XX.0/24 10.8.0.0/16 [::1]/128
+mailbox_size_limit = 0
+recipient_delimiter = +
+inet_interfaces = all
+inet_protocols = all
+#inet_protocols = ipv4
+virtual_mailbox_domains =
+	proxy:mysql:/etc/postfix/maps/virtual_domain_maps.cf,
+	proxy:mysql:/etc/postfix/maps/virtual_domain_alias_maps.cf
+virtual_mailbox_maps =
+	proxy:mysql:/etc/postfix/maps/virtual_mailbox_maps.cf,
+	proxy:mysql:/etc/postfix/maps/virtual_alias_domain_mailbox_maps.cf
+virtual_alias_maps =
+	proxy:mysql:/etc/postfix/maps/virtual_alias_maps.cf,
+	proxy:mysql:/etc/postfix/maps/virtual_alias_domain_maps.cf
+virtual_transport = dovecot
+dovecot_destination_recipient_limit = 1
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = private/auth
+smtpd_sasl_auth_enable = yes
+smtpd_recipient_restrictions =
+# Postmaster, abuse und andere role-accounts
+        check_recipient_access btree:/etc/postfix/maps/access_recipient-rfc,
+# White- und Blacklisting
+        check_client_access btree:/etc/postfix/maps/access_client,
+        check_helo_access btree:/etc/postfix/maps/access_helo,
+        check_sender_access btree:/etc/postfix/maps/access_sender,
+        check_recipient_access btree:/etc/postfix/maps/access_recipient,
+# Keine unsauberen Mails annehmen!
+        reject_non_fqdn_sender,
+        reject_non_fqdn_recipient,
+        reject_unknown_sender_domain,
+        reject_unknown_recipient_domain,
+# Unsere Nutzer erlauben!
+        permit_sasl_authenticated,
+        permit_mynetworks,
+# Testweise folgende rejects:
+        reject_invalid_helo_hostname,
+        reject_unknown_helo_hostname,
+        reject_non_fqdn_helo_hostname,
+        reject_unknown_client_hostname,
+        reject_unknown_reverse_client_hostname,
+# RBL checken
+        reject_rbl_client ix.dnsbl.manitu.net,
+        reject_rbl_client zen.spamhaus.org,
+#       reject_rbl_client bl.spamcop.net,
+#       reject_rbl_client dnsbl.njabl.org,
+#       reject_rbl_client list.dsbl.org,
+#       reject_rhsbl_client blackhole.securitysage.com,
+#       reject_rhsbl_sender dsn.rfc-ignorant.org
+# Greylisting
+        check_policy_service inet:127.0.0.1:60000,
+# TODO policy service to check msg size!
+#		check_policy_service inet:127.0.0.1:60010,
+# Backup-MX: existierende Relay-Empfänger dyn. prüfen
+#       reject_unverified_recipient,
+# Backup-MX: erlauben
+#       permit_mx_backup,
+# Restliches Relaying verbieten,
+        reject_unauth_destination,
+# Policyd-Weight
+        check_policy_service inet:127.0.0.1:12525,
+# Rest erlauben
+        permit
+smtpd_tls_auth_only = no
+#content_filter = smtp-amavis:[127.0.0.1]:10024
+receive_override_options = no_address_mappings
+milter_default_action = accept
+milter_protocol = 2
+anvil_status_update_time = 600s
+anvil_rate_time_unit = 60s
+smtpd_client_connection_rate_limit = 60
+smtpd_client_connection_count_limit = 25
+smtpd_client_message_rate_limit = 1000
+smtpd_client_recipient_rate_limit = 1000
+maximal_queue_lifetime = 3d
+bounce_queue_lifetime = 2d
+default_database_type = btree
+message_size_limit = 26214400
+2bounce_notice_recipient = postmaster
+# Vacation
+transport_maps = btree:/etc/postfix/maps/transport

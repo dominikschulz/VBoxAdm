@@ -1,0 +1,5 @@
+### access_client ###
+# Block or allow Client access based on IP (NO CIDR!)
+# use OK to allow (Whitelist) and REJEXT <TEXT> to block
+# 127.0.0.1     OK
+# 127.0.0.2     REJECT Go away
