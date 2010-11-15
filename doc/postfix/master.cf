@@ -118,4 +118,4 @@ mailman   unix  -       n       n       -       -       pipe
 dovecot   unix  -       n       n       -       -       pipe
   flags=DRhu user=vmail:vmail argv=/usr/lib/dovecot/deliver -d ${user}@${domain}
 #vacation  unix	-		n		n		-		-		pipe
-#  flags=Rq user=vacation argv=/usr/bin/vacation -f ${sender} -- ${recipient}
+#  flags=Rq user=vacation argv=/usr/bin/vacation -s ${sender} -r ${recipient}

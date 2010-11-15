@@ -20,7 +20,7 @@
 			<tr>
 				<td>Target:</td>
 				<td>
-					<input class="flat" type="text" name="goto" size="20" value="[% goto %]" />
+					<input class="flat" type="text" name="goto" size="80" value="[% goto %]" />
 				</td>
 				<td></td>
 			</tr>

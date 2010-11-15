@@ -2,6 +2,8 @@
 use strict;
 use warnings;
 
+# See http://tools.ietf.org/html/rfc3834
+
 use DBI;
 use Getopt::Long;
 use Config::Std;
@@ -10,6 +12,170 @@ my $db_host = 'localhost';
 my $db_user = 'vacation';
 my $db_pass = '';
 my $db_port = 3306;
-my $db_db = 'vboxadm';
+my $db_db   = 'vboxadm';
 
 my $vacation_domain = 'autoreply.domain.tld';
+
+my $logfile = '/var/log/vacation.log';
+
+# notification interval, in seconds
+# default to 7 days
+my $notify_interval = 7 * 60 * 60 * 24;
+
+my ( $conffile_used, @hooks, %hook, %config, );
+
+# Valid config file locations to try
+my @conffile_locations = qw(
+  vacation.conf
+  conf/vacation.conf
+  /etc/postfix/vacation.conf
+);
+
+GetOptions(
+    'sender|s=s'    => \$config{'sender'},
+    'recipient|r=s' => \$config{'recipient'},
+    'verbose|v+'    => \$config{'verbose'},
+
+    # shift removes name of the option (config) and leaves the value for unshift
+    # unshift prepends to the list of valid config files so it is tried first
+    'config=s' => sub { shift; unshift( @conffile_locations, @_ ); },
+) or &usage();
+
+# Try all config file locations
+foreach my $loc (@conffile_locations) {
+    if ( -r $loc ) {
+        $conffile_used = $loc;
+        read_config $loc => %config;
+        last;
+    }
+}
+
+$db_host = $config{'default'}{'dbhost'} || $db_host;
+$db_user = $config{'default'}{'dbuser'} || $db_user;
+$db_pass = $config{'default'}{'dbpass'} || $db_pass;
+$db_port = $config{'default'}{'dbport'} || $db_port;
+$db_db   = $config{'default'}{'dbdb'}   || $db_db;
+
+# Check options
+die("No sender given on command line!")    if !$config{'sender'};
+die("No recipient given on command line!") if !$config{'recipient'};
+
+binmode( STDIN, ':utf8' );
+
+# detect infinite lookup loops
+#my $loopcount = 0;
+
+###
+# Parse incoming mail
+###
+my %header = ();
+my %status = ();
+
+while (<STDIN>) {
+    last if (/^$/);
+    /^From:\s+(.*)$/i                  and $header{'from'}              = $1;
+    /^To:\s+(.*)$/i                    and $header{'to'}                = $1;
+    /^CC:\s+(.*)$/i                    and $header{'cc'}                = $1;
+    /^Bcc:\s+(.*)$/i                   and $header{'bcc'}               = $1;
+    /^Resent-To:\s+(.*)$/i             and $header{'resent-to'}         = $1;
+    /^Resent-CC:\s+(.*)$/i             and $header{'resent-cc'}         = $1;
+    /^Resent-Bcc:\s+(.*)$/i            and $header{'resent-bcc'}        = $1;
+    /^Reply-to:\s+(.*)$/i              and $header{'reply-to'}          = $1;
+    /^Subject:\s+(.*)$/i               and $header{'subject'}           = $1;
+    /^Return-Path:\s+(.*)$/i           and $header{'return-path'}       = $1;
+    /^Auto-Submitted:\s+(.*)$/i        and $header{'auto-submitted'}    = lc($1);
+    /^X-Loop:\s+VBoxAdm-Vacation\s+$/i and $status{'is-loop'}           = 1;
+    /^List-.*:/i                       and $status{'is-list'}           = 1;
+    /^Message-Id:\s+<([^>]+)>/i        and $header{'msg-id'}            = $1;
+    /^X-Spam-(Flag|Status):\s+YES/i    and $header{'x-spam-status'}     = 1 and $status{'is-spam'} = 1;
+    /^X-Facebook-Notify:/i             and $header{'x-facebook-notify'} = 1;
+    /^Precedence:\s+(bulk|list|junk)/i and $header{'precedence'}        = $1;
+    /^(X-(Barracuda-)?Spam-Status):\s+(Yes)/i                        and $header{$1} = $3 and $status{'is-spam'} = 1;
+    /^(X-Dspam-Result):\s+(spam|bl[ao]cklisted)/i                    and $header{$1} = $3 and $status{'is-spam'} = 1;
+    /^(X-(Anti|Avas-)?virus-status):\s+(infected)/i                  and $header{$1} = $3 and $status{'is-spam'} = 1;
+    /^(X-(Avas-spam|Spamtest|CRM114|Razor|Pyzor)-status):\s+(Spam)/i and $header{$1} = $3 and $status{'is-spam'} = 1;
+    /^(X-OSBF-LUA-Score):\s+[0-9\/\.\-\+]+\s+\[([-S])\]/i            and $header{$1} = $3 and $status{'is-spam'} = 1;
+}
+
+###
+# DO NOT RESPOND IF:
+###
+
+=begin conds
+Loops:
+$is_loop
+
+Bounces:
+$from =~ /(MAILER-DAEMON|postmaster|Mail Delivery System|E-postsystemet|Delivery Subsystem|Mailer_Daemon)/i
+$subject =~ /(Undeliver|Returned|returning|failure|failed|Delivery (Status )?Notification|fehlgeschlagen|remise|rejected|nicht zustellbar|Unzustellbar|Unbekannt|DSN|Benachrichtung|problem|falla|Zurückgeschickte Mail|Nondeliverable mail|Kan ikke leveres)/i
+
+Vacation:
+$subject =~
+/(abwesen|vacation|Out of Office|reply|ist au.er Haus|Vielen Dank für Ihre E-Mail|Out-of-office|Deine E-Mail|Ihre Nachricht|Semestersvar|Feriesvar|R.ponse en cas d.absence|Risposta di assenza)/i
+
+Delays:
+$from && $subject && $from =~ /(mailer|Mail Delivery System)/i && $subject =~ /(delay|warning)/i
+
+Auto-Generated Messages:
+$is_list || ( $auto_submitted && $auto_submitted ne "no" ) || ( $from && $from eq "<>" )
+
+Spam:
+$from && $subject && $subject =~ m/(\*\*\*SPAM\*\*\*|WW Spam: high)
+$status{'is-spam'}
+
+Facebook:
+$header{'x-facebook-notify'}
+
+Precedence:
+$header{'precedence'}
+
+No-Return-Path:
+!$header{'return-path'}
+
+Notification sent within $notify_interval seconds
+SQL: SELECT COUNT(*) FROM vacation_notify WHERE on_vacation = recipient AND notified = sender AND notified_at <= NOW() - $notify_interval;
+=cut
+
+# TODO recipient address must be contained in either: to, cc, bcc, resent-to, resent-cc or resent-bcc
+# TODO sent respone to Return-Path if set, of Reply-To if set or From as last resort
+# TODO set sender to (local) recipient, recipient must be "unrolled", it's smth. like "user#domain.tld@vacation.domain.tld" -> "user@domain.tld"
+# TODO set X-Loop: VBoxAdmVacation
+# TODO set Auto-Submitted: auto-replied
+
+# if all these preconditions succeed:
+my $dsn = "DBI:mysql:host=$db_host;database=$db_db;port=$db_port;user=$db_user;password=$db_pass";
+my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 1, } );
+
+if ( !$dbh ) {
+    die("Could not connect to database with DSN $dsn");
+}
+
+# Talk UTF-8 to the database
+# Prepare DB connection for utf8
+$dbh->do("SET NAMES utf8");
+
+# TODO check notification set within ... (see above)
+# TODO get vacation subj and vacation msg
+# TODO send msg
+
+###########################################################################
+# Subs
+###########################################################################
+sub already_notified {
+    my $to   = shift;
+    my $from = shift;
+
+    # TODO implement
+}
+
+# sub find_real_address
+
+sub send_vacation_mail {
+
+    # TODO implement
+}
+
+sub strip_address {
+
+    # TODO implement
+}
