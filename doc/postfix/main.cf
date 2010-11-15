@@ -49,7 +49,8 @@ virtual_mailbox_maps =
 	proxy:mysql:/etc/postfix/maps/virtual_alias_domain_mailbox_maps.cf
 virtual_alias_maps =
 	proxy:mysql:/etc/postfix/maps/virtual_alias_maps.cf,
-	proxy:mysql:/etc/postfix/maps/virtual_alias_domain_maps.cf
+	proxy:mysql:/etc/postfix/maps/virtual_alias_domain_maps.cf,
+	proxy:mysql:/etc/postfix/maps/virtual_vacation_alias_maps.cf
 virtual_transport = dovecot
 dovecot_destination_recipient_limit = 1
 smtpd_sasl_type = dovecot
