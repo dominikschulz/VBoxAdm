@@ -37,7 +37,7 @@ GRANT SELECT ON vboxadm.domains TO 'vboxadm'@'localhost' IDENTIFIED BY '';
 GRANT ALL ON roundcube.* TO 'roundcube'@'localhost' IDENTIFIED BY '';
 - vboxadm_user (for vacation and pw change)
 GRANT SELECT,UPDATE ON vboxadm.mailboxes TO 'vboxadm_user'@'localhost' IDENTIFIED BY '';
-GRANT SELECT ON vboxadm.domains TO 'vboxadm'@'localhost' IDENTIFIED BY '';
+GRANT SELECT ON vboxadm.domains TO 'vboxadm_user'@'localhost' IDENTIFIED BY '';
 
 * Load Schema
 $> mysql -uvboxadm -p vboxadm < doc/mysql/schema.sql
@@ -48,8 +48,13 @@ Restart lighttpd.
 
 * Install Roundcube
 
-Unpack Roundcube to your webroot and follow the instructions of the installer. Use the database
-and user created above. 
+Unpack Roundcube to /opt/roundcube, create a symlink from /opt/roundcube/roundcube-0.x.y/
+/opt/roundcube/current.
+The use the installer and follow the instructions of the installer. Use the database
+and user created above.
+
+When the installer has created the config for you place them in /opt/roundcube/config/main.inc.php and db.inc.php
+and symlink from /opt/roundcube/config/{db,main}.inc.php to /opt/roundcube/current/config/. 
 
 * Install Roundcube Plugin: vacation
 
@@ -62,7 +67,7 @@ Edit plugins/vacation/config.ini and set a dsn in the default section:
 dsn = "mysql://vboxadm_user:password@localhost"
 
 Copy the config.inc.php.dist in plugins/password to config.inc.php and set the dsn
-$rcmail_config['password_db_dsn'] = 'mysql://vboxadm_user:password@localhost';
+$rcmail_config['password_db_dsn'] = 'mysql://vboxadm_user:password@localhost/vboxadm';
 
 and the password query:
 $rcmail_config['password_query'] = "UPDATE vboxadm.mailboxes SET password = %p WHERE local_part = %l AND password = %o AND domain_id = (SELECT id FROM vboxadm.domains WHERE name = %d)";

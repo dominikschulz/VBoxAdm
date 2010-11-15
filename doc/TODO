@@ -20,6 +20,8 @@ Create debian package
 
 - Amavis Konfiguration
 
+- Allow dynamic mysql lookup tables in recipient checks?
+
 ###########################################################################
 Postfix:
 ###########################################################################
