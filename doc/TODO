@@ -44,6 +44,10 @@ $sql_select_white_black_list = 'SELECT w.wb FROM wblist AS w LEFT JOIN
 mailboxes AS m ON w.mailbox_id = m.id LEFT JOIN domains AS d ON m.domain_id = d.id
 WHERE w.sender = ? AND CONCAT(m.local_part,'@',d.name) IN (%k);
 
+- Evaluate alternatives to Amavis:
+http://wiki.apache.org/spamassassin/MailProxy
+http://www.worlddesign.com/index.cfm/rd/mta/spampd.htm#download
+
 - Allow dynamic mysql lookup tables in recipient checks?
 
 ###########################################################################
