@@ -48,7 +48,48 @@ WHERE w.sender = ? AND CONCAT(m.local_part,'@',d.name) IN (%k);
 http://wiki.apache.org/spamassassin/MailProxy
 http://www.worlddesign.com/index.cfm/rd/mta/spampd.htm#download
 
+- Evaluate alternatives to postgrey
+Make sure class-C ip subnet auto-whitelists are supported
+
 - Allow dynamic mysql lookup tables in recipient checks?
+
+- Templates:
+-- Add XML templates
+-- Add CSV templates
+-- Add alternate styles
+-- Add plaintext templates
+
+###########################################################################
+Content Scanning
+###########################################################################
+What we got:
+- Amavis (SMTP-Proxy)
+-- SpamAssassin
+-- Tagging
+-- AV Scanner
+-- Header Checks (Postfix does that)
+-- Black/White listing
+- Policyd-Weight (Policy-Service)
+-- RBL Checks (Postfix does that partly)
+- Postgrey (Policy Service)
+-- Greylisting
+
+What we want:
+- SpamAssassin (per User, optional tagging)
+- Max_msg_size
+- Whitelisting
+- Blacklisting
+- Greylisting
+-- intelligent greylisting with enhanced growing-subnet AWL
+- Weighted RBLs
+
+Adopt SpamPD for SMTP-Proxy, enhance with SQL queries to do:
+- whitelisting
+- blacklisting
+- max_msg_size checks
+
+Adopt e.g. Postgrey, enhance with smart AWL (e.g. from SQLgrey)
+and weighted policy checks.
 
 ###########################################################################
 Postfix:
