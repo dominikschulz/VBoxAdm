@@ -2,4 +2,340 @@
 use strict;
 use warnings;
 
-# TODO Implement a smtp-proxy here
+#
+#   This code is Copyright (C) 2001 Morgan Stanley Dean Witter, and
+#   is distributed according to the terms of the GNU Public License
+#   as found at <URL:http://www.fsf.org/copyleft/gpl.html>.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+# Written by Bennett Todd <bet@rahul.net>
+#
+# Modified by Dominik Schulz <dominik.schulz@gauner.org>
+#
+
+use Getopt::Long;
+use IO::File;
+use DBI;
+
+use MSDW::SMTP::Server;
+use MSDW::SMTP::Client;
+
+=head1 NAME
+
+  smtprox -- Transparent SMTP proxy
+
+=head1 SYNOPSIS
+
+  smtpprox [options] listen.addr:port talk.addr:port
+    options:
+      --children=16
+      --minperchild=100
+      --maxperchild=200
+      --debugtrace=filename_prefix
+
+=head1 DESCRIPTION
+
+smtpprox listens on the addr and port specified by its first arg,
+and sends the traffic unmodified to the SMTP server whose addr and
+port are listed as its second arg. The SMTP dialogue is propogated
+literally, all commands from the client are copied to the server and
+the responses from the server are copied back from to the client,
+but the envelope info and message bodies are captured for analysis,
+and code has the option of modifying the body before sending it on,
+manipulating the envelope, or intervening in the SMTP dialogue to
+reject senders, recipients, or content at the SMTP level. The
+children option, defaulting to 16, allows adjusting how many child
+processes will be maintained in the service pool. Each child will
+kill itself after servicing some random number of messages between
+minperchild and maxperchild (100-200 default), after which the
+parent will immediately fork another child to pick up its share of
+the load. If debugtrace is specified, the prefix will have the PID
+appended to it for a separate logfile for each child, which will
+capture all the SMTP dialogues that child services. It looks like a
+snooper on the client side of the proxy. And if debugtracefile is
+defined, it returns its own banner including its PID for debugging
+at startup, otherwise it copies the server's banner back to the
+client transparently.
+
+=head1 EXAMPLE
+
+	smtpprox 127.0.0.1:10025 127.0.0.1:10026
+
+=head1 WARNING
+
+While the richness or lack thereof in the SMTP dialect spoken lies
+in the hands of the next SMTP server down the chain, this proxy was
+not designed to run on the front lines listening for traffic from
+the internet; neither its performance characteristics nor its
+paranoia were tuned for that role. Rather, it's designed as an
+intermediate component, suitable for use as the framework for a
+content-scanning proxy for use with Postfix's content-filtering
+hooks.
+
+=head1 PERFORMANCE NOTES
+
+This proxy is tuned to some specific assumptions: execing perl is
+wickedly expensive, forking perl is fairly expensive, messages will
+vary rather widely in size, and memory footprint efficiency is
+somewhat more important than CPU utilization. It uses Apache-style
+preforking to almost entirely eliminate the need to fork perls,
+with controlled child restart to defend against resource leaks in
+children; it stores the body of the message in an unlinked file
+under /tmp, which should be a tmpfs; this prevents the allocation
+overhead associated with large strings (often 2-3x) and ensures that
+space will be returned to the OS as soon as it's not needed.
+
+=cut
+
+my $syntax = "syntax: $0 [--children=16] [--minperchild=100] " . "[--maxperchild=200] [--debugtrace=undef] " . "listen.addr:port talk.addr:port\n";
+
+my $children     = 16;
+my $minperchild  = 100;
+my $maxperchild  = 200;
+my $debugtrace   = undef;
+my $max_msg_size = 16;      # MB
+my $sa_timeout   = 30;      # seconds
+GetOptions(
+    "children=n"    => \$children,
+    "minperchild=n" => \$minperchild,
+    "maxperchild=n" => \$maxperchild,
+    "debugtrace=s"  => \$debugtrace,
+    'maxmsgsize=n'  => \$max_msg_size,
+) or die $syntax;
+
+# TODO read config
+
+die $syntax unless @ARGV == 2;
+my ( $srcaddr, $srcport ) = split /:/, $ARGV[0];
+my ( $dstaddr, $dstport ) = split /:/, $ARGV[1];
+die $syntax unless defined($srcport) and defined($dstport);
+
+my $server = MSDW::SMTP::Server->new( interface => $srcaddr, port => $srcport );
+
+my $sa = Mail::SpamAssassin->new(
+    {
+        'dont_copy_prefs' => 1,
+
+        # TODO further options
+    }
+);
+$sa->compile_now();
+
+# This should allow a kill on the parent to also blow away the
+# children, I hope
+my %children;
+use vars qw($please_die);
+$please_die = 0;
+$SIG{TERM} = sub { $please_die = 1; };
+
+# This block is the parent daemon, never does an accept, just herds
+# a pool of children who accept and service connections, and
+# occasionally kill themselves off
+PARENT: while (1) {
+    while ( scalar( keys %children ) >= $children ) {
+        my $child = wait;
+        delete $children{$child} if exists $children{$child};
+        if ($please_die) { kill 15, keys %children; exit 0; }
+    }
+    ##########################
+    # FORK
+    ##########################
+    # TODO improve fork code
+    my $pid = fork;
+    die "$0: fork failed: $!\n" unless defined $pid;
+    last PARENT if $pid == 0;
+    $children{$pid} = 1;
+    select( undef, undef, undef, 0.1 );
+    if ($please_die) { kill 15, keys %children; exit 0; }
+}
+
+# Parent loops
+# Child continues below
+
+# This block is a child service daemon. It inherited the bound
+# socket created by SMTP::Server->new, it will service a random
+# number of connection requests in [minperchild..maxperchild] then
+# exit
+
+my $lives = $minperchild + ( rand( $maxperchild - $minperchild ) );
+my %opts;
+if ( defined $debugtrace ) {
+    $opts{debug} = IO::File->new(">$debugtrace.$$");
+    $opts{debug}->autoflush(1);
+}
+
+my $dbh;
+
+while (1) {
+    if ( !$dbh || !$dbh->ping ) {
+
+        # TODO connect to DB and prepare statements
+    }
+    $server->accept(%opts);
+    my $client = MSDW::SMTP::Client->new( interface => $dstaddr, port => $dstport );
+    my $banner = $client->hear;
+    $banner = "220 $debugtrace.$$" if defined $debugtrace;
+    $server->ok($banner);
+
+    my $state_data   = 0;
+    my $do_spamcheck = 1;
+    my %recipients   = ();
+
+  LINE: while ( my $what = $server->chat ) {
+        if ( $what ne '.' ) {
+
+            # Do nothing.
+            # MSDW::SMTP::Server will cache all interesting data for us
+        }
+        else {
+
+            # Message sent completely, now do our checks
+            # CHECK: Max_msg_size
+            my $msg_size = ( $server->{data}->stat )[7];
+            foreach my $recipient ( @{ $server->{recipients} } ) {
+                if ( $msg_size > &max_msg_size( $dbh, $recipient ) ) {
+                    $server->fail("Message to big for $recipient");
+                    last LINE;
+                }
+            }
+
+            # CHECK: SpamAssassin
+            if ( &is_spam( $dbh, $sa, $server ) ) {
+                $server->fail("Your message appears to be SPAM");
+                last LINE;
+            }
+
+            # further checks if necessary ...
+            # DONE, send the whole message to the destination
+            $client->say( $server->{helo} );
+            $client->say( $server->{from} );
+            foreach my $recipient ( @{ $server->{recipients} } ) {
+                $client->say($recipient);
+            }
+
+            # client needs a rewound file
+            $server->{data}->seek( 0, 0 );
+            $client->yammer( $server->{data} );
+        }
+        $server->print( $client->hear );
+    }
+    $client = undef;
+    delete $server->{"s"};
+    if ( $lives-- <= 0 ) {
+        $dbh->disconnect();
+        exit 0;
+    }
+}
+
+###########################################################################
+# Subs
+###########################################################################
+sub max_msg_size {
+    my $dbh       = shift;
+    my $recipient = shift;
+
+    # TODO check the max msg size for this recipient
+    # TODO REMEMBER: must clean recipient, right now its smth. like this:
+    # RCPT TO:<user@domain.tld>
+    return 0;
+}
+
+sub is_spam {
+    my $dbh    = shift;
+    my $sa     = shift;
+    my $server = shift;
+
+    my $t0 = time;
+
+    my $msg_size = ( $server->{data}->stat )[7];
+    if ( $msg_size > $max_msg_size ) {
+
+        # we wont check messages which are to big, so we can't assume
+        # that they are spam
+        return;
+    }
+    
+    # TODO check if at least one recipient requests spam scanning (check DB)
+
+    # TODO add x-envelope-to and x-envelope-from if not present
+    # TODO and retrieve message-id for logging
+    my @msglines   = ();
+    my $msgid      = '(unknown)';
+    my $sender     = '(unknown)';
+    my $recipients = '(unknown)';
+    if ( $server->{recipients} && ref( $server->{recipients} ) eq 'ARRAY' ) {
+        $recipients = join( ", ", @{ $server->{recipients} } );
+    }
+    if ( $server->{from} && $server->{from} =~ m/(\<[^>]*\>)/ ) {
+        $sender = $1;
+    }
+
+    my $fh = $server->{data};
+    $fh->seek( 0, 0 ) or die "Can't rewind message file: $!";
+
+    my $envto     = 0;
+    my $envfrom   = 0;
+    my $in_header = 1;
+    while ( my $line = <$fh> ) {
+        if ( $line =~ m/^(?:X-)?Envelope-To:/i ) {
+            $envto = 1;
+        }
+        elsif ( $line =~ m/^(?:X-)?Envelope-From:/i ) {
+            $envfrom = 1;
+        }
+        elsif ( $in_header && $line =~ m/^\r?\n$/ ) {
+
+            # first blank line end header as per RFC822
+            $in_header = 0;
+            if ( !$envfrom ) {
+                push( @msglines, "X-Envelope-From: $sender\r\n" );
+
+                # TODO log
+            }
+            if ( !$envto ) {
+                push( @msglines, "X-Envelope-To: $recipients\r\n" );
+
+                # TODO log
+            }
+        }
+        elsif ( $in_header && $line =~ m/^Message-Id:\s+(.*)\s*$/i ) {
+        	# Extracte Message-ID
+            $msgid = $1;
+            while ( $msgid =~ s/\([^\(\)]*\)// ) { }    # remove comments and
+            $msgid =~ s/^\s+|\s+$//g;                   # leading and trailing spaces
+            $msgid =~ s/\s+/ /g;                        # collapse whitespaces
+            $msgid =~ s/^.*?<(.*?)>.*$/$1/;             # keep only the id itself
+            $msgid =~ s/[^\x21-\x7e]/?/g;               # replace all weird chars
+            $msgid =~ s/[<>]/?/g;                       # plus all dangling angle brackets
+            $msgid =~ s/^(.+)$/<$1>/;                   # re-bracket the id (if not empty)
+        }
+        push( @msglines, $line );
+    }
+
+    # TODO check if this message is spam
+    eval {
+        local $SIG{ALRM} = sub { die "Timed out!\n"; };
+
+        # save prev. setting of time and start our own
+        my $prev_alarm = alarm($sa_timeout);
+
+        # Audit the message
+        my $mail   = $sa->parse( \@msglines );
+        undef(@msglines);
+        # Check spaminess (returns a Mail::SpamAssassin::PerMsgStatus object)
+        my $status = $sa->check($mail);
+        
+        # TODO finish this code, see spampd.pl
+        
+        # ... later ...
+        # TODO check if at least one recipient request spam tagging,
+        # we can only tag the message for all recipients or for none
+        
+        # TODO check if the reported score is higher than the highest score
+        # of all recipients. return true (=> this message is spam) if so.
+    };
+}

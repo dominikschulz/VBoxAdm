@@ -4,11 +4,38 @@ but incorporates code and ideas of others.
 This file gives an overview over foreign code,
 the authors and the licensing status of this code.
 
-The design (some CSS and some HTML snipptes) is
+=== Webinterface ===
+VBoxAdm::Frontend was entirely written by
+  Dominik Schulz <dominik.schulz@gauner.org>
+whith minor snippets of code taken from the
+documentation of the modules used. This code is
+  Copyright (c) 2010 Dominik Schulz <dominik.schulz@gauner.org>
+and licensed under the terms of the
+  GNU GPL Version 2.
+
+=== Design ===
+The design (some CSS and some HTML snippets) is
 taken from
   Postfix Admin <URL>
 which is written by <NAME> and 
   Copyright (c) 20XX-20XX <NAME> <Email>
 It was licensed under the terms
   <LICENSE>.
-  
+
+=== Icons ===
+Credit Famfamfam Silk icons.
+
+=== SMTP-Proxy ===
+The base for the smtp proxy code is taken from
+  smtpprox <URL>
+which was written by Bennett Todd <bet@rahul.net> and is
+  Copyright (C) 2001 Morgan Stanley Dean Witter
+It was licensed under the terms of the
+  GNU GPL.
+
+Additional code and inspiration was taken from
+  SpamPD <URL>
+which was written by <NAME> <EMAIL> and is
+  Copyright XXX
+It was licensed under the terms of the
+  GNU GPL.
