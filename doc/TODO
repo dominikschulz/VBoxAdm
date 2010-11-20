@@ -91,6 +91,16 @@ Adopt SpamPD for SMTP-Proxy, enhance with SQL queries to do:
 Adopt e.g. Postgrey, enhance with smart AWL (e.g. from SQLgrey)
 and weighted policy checks.
 
+Brainstorming:
+- Use policyd-weight (RBL checks) + custom policyd (max_msg_size, greylisting)
+- Custom Policyd must be invoked twice: In stage RCPT (greylisting) and stage DATA (max_msg_size)
+
+It looks like size is undef for bigger messages. Perhaps the max_msg_size check must be done
+in the smtp proxy ... size is availabe in end_of_data restrictions, but recipient
+information is lost if more the one is specified, so we need to move this to the spam-proxy.
+
+- Use Custom SMTP-Proxy or smtppd for SA
+
 ###########################################################################
 Postfix:
 ###########################################################################

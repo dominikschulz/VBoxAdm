@@ -40,11 +40,14 @@ VHDIR=$(DESTDIR)/var/lib/vboxadm
 # Files
 BINFILES = \
 	bin/vacation.pl \
+	bin/smtpproxy.pl \
 	cgi-bin/vboxadm.pl \
 	cron/cleanup.pl
 
 LIBFILES = \
-	lib/VBoxAdm/Frontend.pm
+	lib/VBoxAdm/Frontend.pm \
+	lib/MSDW/SMTP/Client.pm \
+	lib/MSDW/SMTP/Server.pm
 
 .PHONY: install tidy critic test
 
@@ -106,6 +109,7 @@ real-install: all test man
 
 tidy:
 	$(PERLTIDY) lib/VBoxAdm/*.ipm
+	$(PERLTIDY) lib/MSDW/SMTP/*.ipm
 	$(PERLTIDY) bin/*.ipl
 	$(PERLTIDY) cgi-bin/*.ipl
 	$(PERLTIDY) cron/*.ipl
