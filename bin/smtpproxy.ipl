@@ -21,6 +21,8 @@ use Getopt::Long;
 use IO::File;
 use DBI;
 
+use Mail::SpamAssassin;
+
 use MSDW::SMTP::Server;
 use MSDW::SMTP::Client;
 
