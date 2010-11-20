@@ -8,6 +8,8 @@ use DBI;
 use Getopt::Long;
 use Config::Std;
 
+# TODO use Sys::Syslog
+
 my $db_host = 'localhost';
 my $db_user = 'vacation';
 my $db_pass = '';
@@ -101,44 +103,63 @@ while (<STDIN>) {
 # DO NOT RESPOND IF:
 ###
 
-=begin conds
-Loops:
-$is_loop
+# Loops:
+# $is_loop
+if ( $status{'is-loop'} ) {
 
-Bounces:
-$from =~ /(MAILER-DAEMON|postmaster|Mail Delivery System|E-postsystemet|Delivery Subsystem|Mailer_Daemon)/i
-$subject =~ /(Undeliver|Returned|returning|failure|failed|Delivery (Status )?Notification|fehlgeschlagen|remise|rejected|nicht zustellbar|Unzustellbar|Unbekannt|DSN|Benachrichtung|problem|falla|Zurückgeschickte Mail|Nondeliverable mail|Kan ikke leveres)/i
+    # TODO LOG it
+    exit 0;
+}
 
-Vacation:
-$subject =~
+# Bounces:
+# $from =~ /(MAILER-DAEMON|postmaster|Mail Delivery System|E-postsystemet|Delivery Subsystem|Mailer_Daemon)/i
+# $subject =~ /(Undeliver|Returned|returning|failure|failed|Delivery (Status )?Notification|fehlgeschlagen|remise|rejected|nicht zustellbar|Unzustellbar|Unbekannt|DSN|Benachrichtung|problem|falla|Zurückgeschickte Mail|Nondeliverable mail|Kan ikke leveres)/i
+if ( $header{'from'} =~ /(MAILER-DAEMON|postmaster|Mail Delivery System|E-postsystemet|Delivery Subsystem|Mailer_Daemon)/i ) {
+
+    # TODO LOG it
+    exit 0;
+}
+
+# Vacation:
+# $subject =~
+# /(abwesen|vacation|Out of Office|reply|ist au.er Haus|Vielen Dank für Ihre E-Mail|Out-of-office|Deine E-Mail|Ihre Nachricht|Semestersvar|Feriesvar|R.ponse en cas d.absence|Risposta di assenza)/i
+if ( $header{'subject'} =~
 /(abwesen|vacation|Out of Office|reply|ist au.er Haus|Vielen Dank für Ihre E-Mail|Out-of-office|Deine E-Mail|Ihre Nachricht|Semestersvar|Feriesvar|R.ponse en cas d.absence|Risposta di assenza)/i
+  )
+{
 
-Delays:
-$from && $subject && $from =~ /(mailer|Mail Delivery System)/i && $subject =~ /(delay|warning)/i
+    # TODO LOG it
+    exit 0;
+}
 
-Auto-Generated Messages:
-$is_list || ( $auto_submitted && $auto_submitted ne "no" ) || ( $from && $from eq "<>" )
+# Delays:
+# $from && $subject && $from =~ /(mailer|Mail Delivery System)/i && $subject =~ /(delay|warning)/i
 
-Spam:
-$from && $subject && $subject =~ m/(\*\*\*SPAM\*\*\*|WW Spam: high)
-$status{'is-spam'}
+# Auto-Generated Messages:
+# $is_list || ( $auto_submitted && $auto_submitted ne "no" ) || ( $from && $from eq "<>" )
 
-Facebook:
-$header{'x-facebook-notify'}
+# Spam:
+# $from && $subject && $subject =~ m/(\*\*\*SPAM\*\*\*|WW Spam: high)
+# $status{'is-spam'}
 
-Precedence:
-$header{'precedence'}
+# Facebook:
+# $header{'x-facebook-notify'}
 
-No-Return-Path:
-!$header{'return-path'}
+# Precedence:
+# $header{'precedence'}
 
-Notification sent within $notify_interval seconds
-SQL: SELECT COUNT(*) FROM vacation_notify WHERE on_vacation = recipient AND notified = sender AND notified_at <= NOW() - $notify_interval;
-=cut
+# No-Return-Path:
+# !$header{'return-path'}
+
+# Notification sent within $notify_interval seconds
+# SQL: SELECT COUNT(*) FROM vacation_notify WHERE on_vacation = recipient AND notified = sender AND notified_at <= NOW() - $notify_interval;
 
 # TODO recipient address must be contained in either: to, cc, bcc, resent-to, resent-cc or resent-bcc
 # TODO sent respone to Return-Path if set, of Reply-To if set or From as last resort
 # TODO set sender to (local) recipient, recipient must be "unrolled", it's smth. like "user#domain.tld@vacation.domain.tld" -> "user@domain.tld"
+my $from = '';
+my $to   = '';
+
 # TODO set X-Loop: VBoxAdmVacation
 # TODO set Auto-Submitted: auto-replied
 
@@ -154,7 +175,13 @@ if ( !$dbh ) {
 # Prepare DB connection for utf8
 $dbh->do("SET NAMES utf8");
 
-# TODO check notification set within ... (see above)
+# TODO check notification sent within ... (see above)
+if ( already_notified( $dbh, $to, $from ) ) {
+
+    # TODO LOG
+    exit 0;
+}
+
 # TODO get vacation subj and vacation msg
 # TODO send msg
 
@@ -162,6 +189,7 @@ $dbh->do("SET NAMES utf8");
 # Subs
 ###########################################################################
 sub already_notified {
+    my $dbh  = shift;
     my $to   = shift;
     my $from = shift;
 
