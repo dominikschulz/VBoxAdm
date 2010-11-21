@@ -246,10 +246,26 @@ sub max_msg_size {
     return 0;
 }
 
+sub sa_block_score {
+    my $dbh        = shift;
+    my $recipients = shift;
+
+    # TODO get lowest SA tag/reject score of all recipients
+}
+
+sub want_sa {
+    my $dbh        = shift;
+    my $recipients = shift;
+
+    # TODO return true if at least on recipient wants spam scanning
+}
+
 sub is_spam {
     my $dbh    = shift;
     my $sa     = shift;
     my $server = shift;
+
+    my $is_spam = 0;
 
     my $t0 = time;
 
@@ -260,11 +276,9 @@ sub is_spam {
         # that they are spam
         return;
     }
-    
-    # TODO check if at least one recipient requests spam scanning (check DB)
 
-    # TODO add x-envelope-to and x-envelope-from if not present
-    # TODO and retrieve message-id for logging
+    # add x-envelope-to and x-envelope-from if not present
+    # and retrieve message-id for logging
     my @msglines   = ();
     my $msgid      = '(unknown)';
     my $sender     = '(unknown)';
@@ -276,12 +290,21 @@ sub is_spam {
         $sender = $1;
     }
 
+    # check if at least one recipient requests spam scanning (check DB)
+    if ( !want_sa( $dbh, $recipients ) ) {
+
+        # we wont check messages if no user wants it, so we can't assume
+        # that they are spam either
+        return;
+    }
+
     my $fh = $server->{data};
     $fh->seek( 0, 0 ) or die "Can't rewind message file: $!";
 
-    my $envto     = 0;
-    my $envfrom   = 0;
-    my $in_header = 1;
+    my $envto       = 0;
+    my $envfrom     = 0;
+    my $in_header   = 1;
+    my $added_envto = 0;
     while ( my $line = <$fh> ) {
         if ( $line =~ m/^(?:X-)?Envelope-To:/i ) {
             $envto = 1;
@@ -300,12 +323,14 @@ sub is_spam {
             }
             if ( !$envto ) {
                 push( @msglines, "X-Envelope-To: $recipients\r\n" );
+                $added_envto = 1;
 
                 # TODO log
             }
         }
         elsif ( $in_header && $line =~ m/^Message-Id:\s+(.*)\s*$/i ) {
-        	# Extracte Message-ID
+
+            # Extracte Message-ID
             $msgid = $1;
             while ( $msgid =~ s/\([^\(\)]*\)// ) { }    # remove comments and
             $msgid =~ s/^\s+|\s+$//g;                   # leading and trailing spaces
@@ -318,7 +343,7 @@ sub is_spam {
         push( @msglines, $line );
     }
 
-    # TODO check if this message is spam
+    # check if this message is spam
     eval {
         local $SIG{ALRM} = sub { die "Timed out!\n"; };
 
@@ -326,18 +351,91 @@ sub is_spam {
         my $prev_alarm = alarm($sa_timeout);
 
         # Audit the message
-        my $mail   = $sa->parse( \@msglines );
+        my $mail = $sa->parse( \@msglines );
         undef(@msglines);
+
         # Check spaminess (returns a Mail::SpamAssassin::PerMsgStatus object)
         my $status = $sa->check($mail);
-        
-        # TODO finish this code, see spampd.pl
-        
-        # ... later ...
-        # TODO check if at least one recipient request spam tagging,
-        # we can only tag the message for all recipients or for none
-        
-        # TODO check if the reported score is higher than the highest score
+
+        # check if the reported score is higher than the lowest score
         # of all recipients. return true (=> this message is spam) if so.
+        my $sa_threshold = &sa_block_score( $dbh, $recipients );
+        my $was_it_spam = 'unknown';
+        if ( $status->get_score() >= $sa_threshold ) {
+
+            # TODO log that we found a spam
+            $is_spam     = 1;
+            $was_it_spam = 'identified spam';
+        }
+        else {
+            $is_spam     = 0;
+            $was_it_spam = 'clean message';
+
+            # No spam, only add header to inform the user
+            # what checks were performed and what the spam rating is
+            my $msg_response = $status->rewrite_mail();
+
+            # TODO only add X-Spam-Status, X-Spam-Flag and X-Spam-Score headers, do not rewrite the whole mail!!!
+
+            # Build the rewritten message
+            # pause the timeout while doing so
+            my $pause_alarm = alarm(0);
+            my $in_header   = 1;
+            my $skipline    = 0;
+            $fh->seek( 0, 0 )
+              or die("Can't rewind message file: $!");
+            $fh->truncate(0)
+              or die("Can't truncate message file: $!");
+            foreach my $line ( split( /\r?\n/, $msg_response ) ) {
+                if ( $line =~ m/^\r?\n$/ ) {
+                    $in_header = 0;
+                }
+
+                # while in header skip over any X-Envelope-To we have added
+                if ( $in_header && $added_envto && $line =~ m/^X-Envelope-To:/i ) {
+                    $skipline = 1;
+
+                    # TODO log
+                }
+
+                if ( !$skipline ) {
+                    $fh->print( $line . "\r\n" )
+                      or die("Can't print to message file: $!");
+                }
+                else {
+                    $skipline = 0;
+                }
+            }    # end of foreach-split-msg_response
+                 # restart the alarm
+            alarm($pause_alarm);
+        }
+
+        # Log what was done
+        # TODO log ...
+        my $msg_score = sprintf( "%.2f", $status->get_score() );
+        my $proc_time = sprintf( "%.2f", time - $t0 );
+
+        # TODO log: "$was_it_spam $msgid ($msg_score/$sa_threshold) from $sender for $recipients in $proc_time s, $size bytes."
+
+        # Cleanup the SA analysis object
+        $status->finish();
+
+        # Set the timeout to whichever value is was before
+        alarm($prev_alarm);
+
+        # TODO finish this code, see spampd.pl
     };
+
+    if ($@) {
+
+        # TODO log error
+        return;
+    }
+
+    if ($is_spam) {
+        return 1;
+    }
+    else {
+        return;
+    }
 }
