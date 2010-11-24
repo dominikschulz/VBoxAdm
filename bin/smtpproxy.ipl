@@ -80,7 +80,11 @@ my $server = bless {
         #dbhost => $dbhost,
         #dbport => $dbport,
         #dbuser => $dbuser,
+        dbuser => 'root',
+
         #dbpass => $dbpass,
+        dbpass => 'root',
+
         #dbdb => $dbdb,
         # TODO more options
     },
@@ -102,17 +106,27 @@ sub child_init_hook {
     my $port = $self->{vbox}->{dbport} || 3306;
     my $db   = $self->{vbox}->{dbdb}   || 'vboxadm';
     my $dsn  = "DBI:mysql:database=$db;user=$user;password=$pass;host=$host;port=$port";
-    $self->{vbox}->{dbh} = DBI->connect($dsn)
+    $self->{vbox}->{dbh} = DBI->connect( $dsn, { RaiseError => 0, PrintError => 0, } )
       or die "Coult not connect to DB with DSN $dsn: " . DBI->errstr;
 
     # TODO prepare statements
+    # TODO this will only work if postfix does proper
+    # address expansion before ... check that!
+    my $sql_userinfo =
+q{SELECT m.id,d.id,m.max_msg_size,m.sa_active,m.sa_kill_score FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,'@',d.name) = ?};
+    $self->{vbox}->{sth}->{userinfo} = $self->{vbox}->{dbh}->prepare($sql_userinfo);
 }
 
 sub child_finish_hook {
     my $self = shift;
 
-    # TODO finish statements
-    $self->{vbox}->{dbh}->disconnect();
+    # TODO finish prepared statements
+    $self->{vbox}->{sth}->{userinfo}->finish();
+
+    # Disconnect from DB
+    if ( $self->{vbox}->{dbh} ) {
+        $self->{vbox}->{dbh}->disconnect();
+    }
 }
 
 sub process_request {
@@ -127,7 +141,7 @@ sub process_request {
 
         # Start the SMTP-Server part which listens to the incoming
         # transaction
-        my $smtp_server = MSDW::Server->new( sock => $self->{server}->{client} )
+        my $smtp_server = MSDW::SMTP::Server->new( sock => $self->{server}->{client} )
           or die "Failed to create a listening server: $!\n";
 
         # Start the SMTP-Client part which talks to the internal
