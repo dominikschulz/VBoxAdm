@@ -170,18 +170,34 @@ sub new {
             Listen    => 65536,
             Reuse     => 1,
         );
+        $self->{sockmode} = 'accept';
+    }
+    else {
+        $self->{sockmode} = 'direct';
+        $self->{"s"} = $self->{sock};
     }
     die "$0: socket bind failure: $!\n" unless defined $self->{sock};
-    $self->{state} = 'just bound';
+    if ( $self->{sockmode} eq 'accept' ) {
+        $self->{state} = 'just bound';
+    }
+    else {
+        $self->{state} = 'accepted';
+    }
     return $self;
 }
 
 sub accept {
     my ( $self, @opts ) = @_;
+
+    if ( $self->{sockmode} ne 'accept' ) {
+        warn "Accept not available in this mode!\n";
+        return;
+    }
+
     %$self = ( %$self, @opts );
     ( $self->{"s"}, $self->{peeraddr} ) = $self->{sock}->accept
       or die "$0: accept failure: $!\n";
-    $self->{state} = ' accepted';
+    $self->{state} = 'accepted';
 }
 
 sub chat {
