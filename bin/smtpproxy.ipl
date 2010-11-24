@@ -37,8 +37,8 @@ my $children     = 16;
 my $minperchild  = 100;
 my $maxperchild  = 200;
 my $debugtrace   = undef;
-my $max_msg_size = 16;      # MB
-my $sa_timeout   = 30;      # seconds
+my $max_msg_size = 16 * 1024 * 1024;    # bytes
+my $sa_timeout   = 30;                  # seconds
 GetOptions(
     "children=n"    => \$children,
     "minperchild=n" => \$minperchild,
@@ -75,7 +75,7 @@ my $server = bless {
         relayhost    => $dstaddr,
         relayport    => $dstport,
         dbh          => undef,
-        childtimeout => 30,
+        childtimeout => 60,
 
         #dbhost => $dbhost,
         #dbport => $dbport,
@@ -152,47 +152,46 @@ sub process_request {
         ) or die "Failed to create a sending client: $!\n";
 
         # Pass the inital welcome
-        $smtp_server->ok( $client->hear );
+        $smtp_server->print( $client->hear() . "\r\n" );
 
-        my $dbh = $self->{vbox}->{dbh};
-
-      LINE: while ( my $what = $server->chat ) {
+      LINE: while ( my $what = $smtp_server->chat() ) {
             if ( $what ne '.' ) {
 
-                # Do nothing.
+                # Do nothing but pass on the output from the server
                 # MSDW::SMTP::Server will cache all interesting data for us
+                $client->say($what);
+
+                if ( lc($what) eq 'quit' ) {
+                    last LINE;
+                }
             }
             else {
 
                 # Message sent completely, now do our checks
                 # CHECK: Max_msg_size
-                my $msg_size = ( $server->{data}->stat )[7];
-                foreach my $recipient ( @{ $server->{recipients} } ) {
-                    if ( $msg_size > &max_msg_size( $dbh, $recipient ) ) {
-                        $server->fail("Message to big for $recipient");
+                my $msg_size = ( $smtp_server->{data}->stat )[7];
+                foreach my $recipient ( @{ $smtp_server->{recipients} } ) {
+                    if ( $msg_size > $self->max_msg_size($recipient) ) {
+                        $smtp_server->fail( "Message to big ($msg_size/" . $self->max_msg_size($recipient) . ") for $recipient" );
                         last LINE;
                     }
                 }
 
                 # CHECK: SpamAssassin
-                if ( &is_spam( $dbh, $sa, $server ) ) {
-                    $server->fail("Your message appears to be SPAM");
+                if ( $self->is_spam( $sa, $smtp_server ) ) {
+                    $smtp_server->fail("Your message appears to be SPAM");
                     last LINE;
                 }
 
                 # further checks if necessary ...
-                # DONE, send the whole message to the destination
-                $client->say( $server->{helo} );
-                $client->say( $server->{from} );
-                foreach my $recipient ( @{ $server->{recipients} } ) {
-                    $client->say($recipient);
-                }
+
+                # done, send the whole DATA part to the destination
 
                 # client needs a rewound file
-                $server->{data}->seek( 0, 0 );
-                $client->yammer( $server->{data} );
+                $smtp_server->{data}->seek( 0, 0 );
+                $client->yammer( $smtp_server->{data} );
             }
-            $server->print( $client->hear );
+            $smtp_server->print( $client->hear() . "\r\n" );
         }
 
         # Close open connections
@@ -213,31 +212,73 @@ sub process_request {
 }
 
 sub max_msg_size {
-    my $dbh       = shift;
+    my $self      = shift;
     my $recipient = shift;
+
+    print "max_msg_size - got recipient: $recipient\n";
+
+    my $email = extract_recipients($recipient);
 
     # TODO check the max msg size for this recipient
     # TODO REMEMBER: must clean recipient, right now its smth. like this:
     # RCPT TO:<user@domain.tld>
-    return 0;
+    my @userinfo = $self->{vbox}->{sth}->{userinfo}->execute($email);
+
+    return 1000;
 }
 
 sub sa_block_score {
-    my $dbh        = shift;
+    my $self       = shift;
     my $recipients = shift;
+    print "sa_block_score -  got recipients: $recipients\n";
+
+    # set arbitrarily high limit
+    my $lowest_kill_score = 9999;
+
+    foreach my $email ( extract_recipients($recipients) ) {
+        print "sa_block_score -  got recipient: $email\n";
+
+        # TODO get his/her kill score
+    }
 
     # TODO get lowest SA tag/reject score of all recipients
+    return 1;
+}
+
+sub extract_recipients {
+    my $recipients = shift;
+
+    my @emails = ();
+
+    my @recps = split( /\s*,\s*/, $recipients );
+    foreach my $recp (@recps) {
+        if ( $recp =~ m/^\s*<?\s*([^>@]+@[^>]+)\s*>?\s*/ ) {
+            my $email = $1;
+            print "extract_recipients - got recipient: $email\n";
+            push( @emails, $email );
+        }
+    }
+    return @emails;
 }
 
 sub want_sa {
-    my $dbh        = shift;
+    my $self       = shift;
     my $recipients = shift;
 
+    print "want_sa - got recipients: $recipients\n";
+
+    foreach my $email ( extract_recipients($recipients) ) {
+        print "want_sa -  got recipient: $email\n";
+
+        # TODO return true if at least on recipient wants spam scanning
+    }
+
     # TODO return true if at least on recipient wants spam scanning
+    return 1;
 }
 
 sub is_spam {
-    my $dbh    = shift;
+    my $self   = shift;
     my $sa     = shift;
     my $server = shift;
 
@@ -251,6 +292,7 @@ sub is_spam {
         # we wont check messages which are to big, so we can't assume
         # that they are spam
         # TODO Log: Skipped large message ($size/1024 kB)
+        print "is_spam - Skipped too large msg ($msg_size > $max_msg_size)\n";
         return;
     }
 
@@ -268,7 +310,7 @@ sub is_spam {
     }
 
     # check if at least one recipient requests spam scanning (check DB)
-    if ( !want_sa( $dbh, $recipients ) ) {
+    if ( !$self->want_sa($recipients) ) {
 
         # we wont check messages if no user wants it, so we can't assume
         # that they are spam either
@@ -297,12 +339,14 @@ sub is_spam {
                 push( @msglines, "X-Envelope-From: $sender\r\n" );
 
                 # TODO log
+                print "Added X-Envelope-From: $sender\n";
             }
             if ( !$envto ) {
                 push( @msglines, "X-Envelope-To: $recipients\r\n" );
                 $added_envto = 1;
 
                 # TODO log
+                print "Added X-Envelope-To: $recipients\n";
             }
         }
         elsif ( $in_header && $line =~ m/^Message-Id:\s+(.*)\s*$/i ) {
@@ -336,17 +380,20 @@ sub is_spam {
 
         # check if the reported score is higher than the lowest score
         # of all recipients. return true (=> this message is spam) if so.
-        my $sa_threshold = &sa_block_score( $dbh, $recipients );
-        my $was_it_spam = 'unknown';
+        my $sa_threshold = $self->sa_block_score($recipients);
+        my $was_it_spam  = 'unknown';
         if ( $status->get_score() >= $sa_threshold ) {
-
-            # TODO log that we found a spam
             $is_spam     = 1;
             $was_it_spam = 'identified spam';
+
+            # TODO log that we found a spam
+            print "is_spam - $was_it_spam\n";
         }
         else {
             $is_spam     = 0;
             $was_it_spam = 'clean message';
+
+            print "is_spam - $was_it_spam\n";
 
             # No spam, only add header to inform the user
             # what checks were performed and what the spam rating is
@@ -393,7 +440,10 @@ sub is_spam {
         my $proc_time = sprintf( "%.2f", time - $t0 );
 
         # TODO log: "$was_it_spam $msgid ($msg_score/$sa_threshold) from $sender for $recipients in $proc_time s, $size bytes."
+        print "$was_it_spam $msgid ($msg_score/$sa_threshold) from $sender for $recipients in $proc_time s, $msg_size bytes.\n";
+
         # TODO log: rules hit for $msgid: ".$status->get_names_of_tests_hit()
+        print "rules hit for $msgid: " . $status->get_names_of_tests_hit() . "\n";
 
         # Cleanup the SA analysis object
         $status->finish();
@@ -406,8 +456,12 @@ sub is_spam {
     if ($@) {
 
         # TODO log error
+        print "is_spam - eval error: $@\n";
         return;
     }
+
+    # TODO HIGH FIXME debug, remove this or everything is spam!
+    return 1;
 
     if ($is_spam) {
         return 1;
