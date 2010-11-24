@@ -1,4 +1,6 @@
 #!/usr/bin/perl
+package VboxSmtpProxy;
+
 use strict;
 use warnings;
 
@@ -20,78 +22,14 @@ use warnings;
 use Getopt::Long;
 use IO::File;
 use DBI;
+use Time::HiRes qw(time);
 
 use Mail::SpamAssassin;
 
 use MSDW::SMTP::Server;
 use MSDW::SMTP::Client;
 
-=head1 NAME
-
-  smtprox -- Transparent SMTP proxy
-
-=head1 SYNOPSIS
-
-  smtpprox [options] listen.addr:port talk.addr:port
-    options:
-      --children=16
-      --minperchild=100
-      --maxperchild=200
-      --debugtrace=filename_prefix
-
-=head1 DESCRIPTION
-
-smtpprox listens on the addr and port specified by its first arg,
-and sends the traffic unmodified to the SMTP server whose addr and
-port are listed as its second arg. The SMTP dialogue is propogated
-literally, all commands from the client are copied to the server and
-the responses from the server are copied back from to the client,
-but the envelope info and message bodies are captured for analysis,
-and code has the option of modifying the body before sending it on,
-manipulating the envelope, or intervening in the SMTP dialogue to
-reject senders, recipients, or content at the SMTP level. The
-children option, defaulting to 16, allows adjusting how many child
-processes will be maintained in the service pool. Each child will
-kill itself after servicing some random number of messages between
-minperchild and maxperchild (100-200 default), after which the
-parent will immediately fork another child to pick up its share of
-the load. If debugtrace is specified, the prefix will have the PID
-appended to it for a separate logfile for each child, which will
-capture all the SMTP dialogues that child services. It looks like a
-snooper on the client side of the proxy. And if debugtracefile is
-defined, it returns its own banner including its PID for debugging
-at startup, otherwise it copies the server's banner back to the
-client transparently.
-
-=head1 EXAMPLE
-
-	smtpprox 127.0.0.1:10025 127.0.0.1:10026
-
-=head1 WARNING
-
-While the richness or lack thereof in the SMTP dialect spoken lies
-in the hands of the next SMTP server down the chain, this proxy was
-not designed to run on the front lines listening for traffic from
-the internet; neither its performance characteristics nor its
-paranoia were tuned for that role. Rather, it's designed as an
-intermediate component, suitable for use as the framework for a
-content-scanning proxy for use with Postfix's content-filtering
-hooks.
-
-=head1 PERFORMANCE NOTES
-
-This proxy is tuned to some specific assumptions: execing perl is
-wickedly expensive, forking perl is fairly expensive, messages will
-vary rather widely in size, and memory footprint efficiency is
-somewhat more important than CPU utilization. It uses Apache-style
-preforking to almost entirely eliminate the need to fork perls,
-with controlled child restart to defend against resource leaks in
-children; it stores the body of the message in an unlinked file
-under /tmp, which should be a tmpfs; this prevents the allocation
-overhead associated with large strings (often 2-3x) and ensures that
-space will be returned to the OS as soon as it's not needed.
-
-=cut
+use base qw(Net::Server::PreFork);
 
 my $syntax = "syntax: $0 [--children=16] [--minperchild=100] " . "[--maxperchild=200] [--debugtrace=undef] " . "listen.addr:port talk.addr:port\n";
 
@@ -116,7 +54,7 @@ my ( $srcaddr, $srcport ) = split /:/, $ARGV[0];
 my ( $dstaddr, $dstport ) = split /:/, $ARGV[1];
 die $syntax unless defined($srcport) and defined($dstport);
 
-my $server = MSDW::SMTP::Server->new( interface => $srcaddr, port => $srcport );
+#my $server = MSDW::SMTP::Server->new( interface => $srcaddr, port => $srcport );
 
 my $sa = Mail::SpamAssassin->new(
     {
@@ -127,115 +65,139 @@ my $sa = Mail::SpamAssassin->new(
 );
 $sa->compile_now();
 
-# This should allow a kill on the parent to also blow away the
-# children, I hope
-my %children;
-use vars qw($please_die);
-$please_die = 0;
-$SIG{TERM} = sub { $please_die = 1; };
+# TODO specify hosts and ports
+my $server = bless {
+    server => {
 
-# This block is the parent daemon, never does an accept, just herds
-# a pool of children who accept and service connections, and
-# occasionally kill themselves off
-PARENT: while (1) {
-    while ( scalar( keys %children ) >= $children ) {
-        my $child = wait;
-        delete $children{$child} if exists $children{$child};
-        if ($please_die) { kill 15, keys %children; exit 0; }
-    }
-    ##########################
-    # FORK
-    ##########################
-    # TODO improve fork code
-    my $pid = fork;
-    die "$0: fork failed: $!\n" unless defined $pid;
-    last PARENT if $pid == 0;
-    $children{$pid} = 1;
-    select( undef, undef, undef, 0.1 );
-    if ($please_die) { kill 15, keys %children; exit 0; }
-}
+        # TODO server options
+    },
+    vbox => {
+        relayhost    => $dstaddr,
+        relayport    => $dstport,
+        dbh          => undef,
+        childtimeout => 30,
 
-# Parent loops
-# Child continues below
+        #dbhost => $dbhost,
+        #dbport => $dbport,
+        #dbuser => $dbuser,
+        #dbpass => $dbpass,
+        #dbdb => $dbdb,
+        # TODO more options
+    },
+  },
+  'VboxSmtpProxy';
+$server->run();
 
-# This block is a child service daemon. It inherited the bound
-# socket created by SMTP::Server->new, it will service a random
-# number of connection requests in [minperchild..maxperchild] then
-# exit
-
-my $lives = $minperchild + ( rand( $maxperchild - $minperchild ) );
-my %opts;
-if ( defined $debugtrace ) {
-    $opts{debug} = IO::File->new(">$debugtrace.$$");
-    $opts{debug}->autoflush(1);
-}
-
-my $dbh;
-
-while (1) {
-    if ( !$dbh || !$dbh->ping ) {
-
-        # TODO connect to DB and prepare statements
-    }
-    $server->accept(%opts);
-    my $client = MSDW::SMTP::Client->new( interface => $dstaddr, port => $dstport );
-    my $banner = $client->hear;
-    $banner = "220 $debugtrace.$$" if defined $debugtrace;
-    $server->ok($banner);
-
-    my $state_data   = 0;
-    my $do_spamcheck = 1;
-    my %recipients   = ();
-
-  LINE: while ( my $what = $server->chat ) {
-        if ( $what ne '.' ) {
-
-            # Do nothing.
-            # MSDW::SMTP::Server will cache all interesting data for us
-        }
-        else {
-
-            # Message sent completely, now do our checks
-            # CHECK: Max_msg_size
-            my $msg_size = ( $server->{data}->stat )[7];
-            foreach my $recipient ( @{ $server->{recipients} } ) {
-                if ( $msg_size > &max_msg_size( $dbh, $recipient ) ) {
-                    $server->fail("Message to big for $recipient");
-                    last LINE;
-                }
-            }
-
-            # CHECK: SpamAssassin
-            if ( &is_spam( $dbh, $sa, $server ) ) {
-                $server->fail("Your message appears to be SPAM");
-                last LINE;
-            }
-
-            # further checks if necessary ...
-            # DONE, send the whole message to the destination
-            $client->say( $server->{helo} );
-            $client->say( $server->{from} );
-            foreach my $recipient ( @{ $server->{recipients} } ) {
-                $client->say($recipient);
-            }
-
-            # client needs a rewound file
-            $server->{data}->seek( 0, 0 );
-            $client->yammer( $server->{data} );
-        }
-        $server->print( $client->hear );
-    }
-    $client = undef;
-    delete $server->{"s"};
-    if ( $lives-- <= 0 ) {
-        $dbh->disconnect();
-        exit 0;
-    }
-}
+exit 1;
 
 ###########################################################################
 # Subs
 ###########################################################################
+sub child_init_hook {
+    my $self = shift;
+
+    my $user = $self->{vbox}->{dbuser} || 'vboxadm';
+    my $pass = $self->{vbox}->{dbpass} || 'vboxadm';
+    my $host = $self->{vbox}->{dbhost} || 'localhost';
+    my $port = $self->{vbox}->{dbport} || 3306;
+    my $db   = $self->{vbox}->{dbdb}   || 'vboxadm';
+    my $dsn  = "DBI:mysql:database=$db;user=$user;password=$pass;host=$host;port=$port";
+    $self->{vbox}->{dbh} = DBI->connect($dsn)
+      or die "Coult not connect to DB with DSN $dsn: " . DBI->errstr;
+
+    # TODO prepare statements
+}
+
+sub child_finish_hook {
+    my $self = shift;
+
+    # TODO finish statements
+    $self->{vbox}->{dbh}->disconnect();
+}
+
+sub process_request {
+    my $self = shift;
+
+    eval {
+        local $SIG{ALRM} = sub { die "Child server process timed out!\n" };
+        my $timeout = $self->{vbox}->{childtimeout} || 30;
+
+        # start a timer
+        alarm($timeout);
+
+        # Start the SMTP-Server part which listens to the incoming
+        # transaction
+        my $smtp_server = MSDW::Server->new( sock => $self->{server}->{client} )
+          or die "Failed to create a listening server: $!\n";
+
+        # Start the SMTP-Client part which talks to the internal
+        # mta (postfix) instance
+        my $client = MSDW::SMTP::Client->new(
+            interface => $self->{vbox}->{relayhost},
+            port      => $self->{vbox}->{relayport},
+        ) or die "Failed to create a sending client: $!\n";
+
+        # Pass the inital welcome
+        $smtp_server->ok( $client->hear );
+
+        my $dbh = $self->{vbox}->{dbh};
+
+      LINE: while ( my $what = $server->chat ) {
+            if ( $what ne '.' ) {
+
+                # Do nothing.
+                # MSDW::SMTP::Server will cache all interesting data for us
+            }
+            else {
+
+                # Message sent completely, now do our checks
+                # CHECK: Max_msg_size
+                my $msg_size = ( $server->{data}->stat )[7];
+                foreach my $recipient ( @{ $server->{recipients} } ) {
+                    if ( $msg_size > &max_msg_size( $dbh, $recipient ) ) {
+                        $server->fail("Message to big for $recipient");
+                        last LINE;
+                    }
+                }
+
+                # CHECK: SpamAssassin
+                if ( &is_spam( $dbh, $sa, $server ) ) {
+                    $server->fail("Your message appears to be SPAM");
+                    last LINE;
+                }
+
+                # further checks if necessary ...
+                # DONE, send the whole message to the destination
+                $client->say( $server->{helo} );
+                $client->say( $server->{from} );
+                foreach my $recipient ( @{ $server->{recipients} } ) {
+                    $client->say($recipient);
+                }
+
+                # client needs a rewound file
+                $server->{data}->seek( 0, 0 );
+                $client->yammer( $server->{data} );
+            }
+            $server->print( $client->hear );
+        }
+
+        # Close open connections
+        $client->{sock}->close()
+          or warn "Could not close client socket: $!\n";
+        $smtp_server->{sock}->close()
+          or warn "Could not close server socket: $!\n";
+    };    # end of eval block
+
+    if ($@) {
+        chomp($@);
+        my $msg = "WARNING: Error in process_request eval: $@";
+
+        # TODO log msg
+        die( $msg . "\n" );
+    }
+    $self->{vbox}->{instance}++;
+}
+
 sub max_msg_size {
     my $dbh       = shift;
     my $recipient = shift;
@@ -274,6 +236,7 @@ sub is_spam {
 
         # we wont check messages which are to big, so we can't assume
         # that they are spam
+        # TODO Log: Skipped large message ($size/1024 kB)
         return;
     }
 
@@ -416,6 +379,7 @@ sub is_spam {
         my $proc_time = sprintf( "%.2f", time - $t0 );
 
         # TODO log: "$was_it_spam $msgid ($msg_score/$sa_threshold) from $sender for $recipients in $proc_time s, $size bytes."
+        # TODO log: rules hit for $msgid: ".$status->get_names_of_tests_hit()
 
         # Cleanup the SA analysis object
         $status->finish();
@@ -423,7 +387,6 @@ sub is_spam {
         # Set the timeout to whichever value is was before
         alarm($prev_alarm);
 
-        # TODO finish this code, see spampd.pl
     };
 
     if ($@) {
@@ -439,3 +402,71 @@ sub is_spam {
         return;
     }
 }
+__END__
+
+=head1 NAME
+
+  smtprox -- Transparent SMTP proxy
+
+=head1 SYNOPSIS
+
+  smtpprox [options] listen.addr:port talk.addr:port
+    options:
+      --children=16
+      --minperchild=100
+      --maxperchild=200
+      --debugtrace=filename_prefix
+
+=head1 DESCRIPTION
+
+smtpprox listens on the addr and port specified by its first arg,
+and sends the traffic unmodified to the SMTP server whose addr and
+port are listed as its second arg. The SMTP dialogue is propogated
+literally, all commands from the client are copied to the server and
+the responses from the server are copied back from to the client,
+but the envelope info and message bodies are captured for analysis,
+and code has the option of modifying the body before sending it on,
+manipulating the envelope, or intervening in the SMTP dialogue to
+reject senders, recipients, or content at the SMTP level. The
+children option, defaulting to 16, allows adjusting how many child
+processes will be maintained in the service pool. Each child will
+kill itself after servicing some random number of messages between
+minperchild and maxperchild (100-200 default), after which the
+parent will immediately fork another child to pick up its share of
+the load. If debugtrace is specified, the prefix will have the PID
+appended to it for a separate logfile for each child, which will
+capture all the SMTP dialogues that child services. It looks like a
+snooper on the client side of the proxy. And if debugtracefile is
+defined, it returns its own banner including its PID for debugging
+at startup, otherwise it copies the server's banner back to the
+client transparently.
+
+=head1 EXAMPLE
+
+	smtpprox 127.0.0.1:10025 127.0.0.1:10026
+
+=head1 WARNING
+
+While the richness or lack thereof in the SMTP dialect spoken lies
+in the hands of the next SMTP server down the chain, this proxy was
+not designed to run on the front lines listening for traffic from
+the internet; neither its performance characteristics nor its
+paranoia were tuned for that role. Rather, it's designed as an
+intermediate component, suitable for use as the framework for a
+content-scanning proxy for use with Postfix's content-filtering
+hooks.
+
+=head1 PERFORMANCE NOTES
+
+This proxy is tuned to some specific assumptions: execing perl is
+wickedly expensive, forking perl is fairly expensive, messages will
+vary rather widely in size, and memory footprint efficiency is
+somewhat more important than CPU utilization. It uses Apache-style
+preforking to almost entirely eliminate the need to fork perls,
+with controlled child restart to defend against resource leaks in
+children; it stores the body of the message in an unlinked file
+under /tmp, which should be a tmpfs; this prevents the allocation
+overhead associated with large strings (often 2-3x) and ensures that
+space will be returned to the OS as soon as it's not needed.
+
+=cut

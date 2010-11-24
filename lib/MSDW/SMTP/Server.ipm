@@ -97,6 +97,11 @@ message, wrap the constructor call in an eval block and pull the
 error out of $@ as usual. This is also the case for all other
 methods; they succeed or they die.
 
+=item new(sock => $socket);
+
+If a valid socket is given no new socket is created. Use this for
+e.g. Net::Server.
+
 =item accept([debug => FD]);
 
 accept takes optional args and returns nothing. If an error occurs
@@ -152,18 +157,23 @@ exact same thing as "ok" --- simply send that message to the sender.
 
 sub new {
     my ( $this, @opts ) = @_;
+
     my $class = ref($this) || $this;
     my $self = bless {@opts}, $class;
-    $self->{sock} = IO::Socket::INET->new(
-        LocalAddr => $self->{interface},
-        LocalPort => $self->{port},
-        Proto     => 'tcp',
-        Type      => SOCK_STREAM,
-        Listen    => 65536,
-        Reuse     => 1,
-    );
+
+    if ( !$self->{sock} ) {
+        $self->{sock} = IO::Socket::INET->new(
+            LocalAddr => $self->{interface},
+            LocalPort => $self->{port},
+            Proto     => 'tcp',
+            Type      => SOCK_STREAM,
+            Listen    => 65536,
+            Reuse     => 1,
+        );
+    }
     die "$0: socket bind failure: $!\n" unless defined $self->{sock};
-    $self->{state} = 'just bound', return $self;
+    $self->{state} = 'just bound';
+    return $self;
 }
 
 sub accept {
