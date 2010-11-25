@@ -19,6 +19,7 @@ pidfile=/var/run/vboxadm-smtpproxy.pid
 user=vboxadm
 group=vboxadm
 max_msg_size=25
+childtimeout=60
 
 # SpamAssassin
 # max. msg size for scanning in MB
