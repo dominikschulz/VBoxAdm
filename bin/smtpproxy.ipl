@@ -285,12 +285,16 @@ sub sa_block_score {
     my $lowest_kill_score = 9999;
 
     foreach my $email ( extract_recipients($recipients) ) {
-        my @userinfo      = $self->{vbox}->{sth}->{userinfo}->execute($email);
-        my $sa_kill_score = $userinfo[4];
+        if ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
+            my @userinfo      = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
+            my $sa_kill_score = $userinfo[4];
 
-        #print "sa_block_score -  got recipient: $email - kill score: $sa_kill_score\n";
-        if ( $sa_kill_score < $lowest_kill_score ) {
-            $lowest_kill_score = $sa_kill_score;
+            if ( $sa_kill_score < $lowest_kill_score ) {
+                $lowest_kill_score = $sa_kill_score;
+            }
+        }
+        else {
+            $self->log( 2, "sa_block_score - Excuting userinfo query failed: " . DBI->errstr );
         }
     }
 
@@ -319,8 +323,14 @@ sub want_sa {
 
     my $want_sa = 0;
     foreach my $email ( extract_recipients($recipients) ) {
-        my @userinfo = $self->{vbox}->{sth}->{userinfo}->execute($email);
-        $want_sa = $want_sa || $userinfo[3] || 0;
+        if ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
+            my @userinfo = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
+            $want_sa = $want_sa || $userinfo[3] || 0;
+        }
+        else {
+            $self->log( 2, "want_sa - Excuting userinfo query failed: " . DBI->errstr );
+        }
+
     }
 
     # return true if at least on recipient wants spam scanning
@@ -390,11 +400,11 @@ sub is_spam {
             # first blank line end header as per RFC822
             $in_header = 0;
             if ( !$envfrom ) {
-                push( @msglines, "X-Envelope-From: $sender\r\n" );
+                push( @msglines, "X-Envelope-From: " . lc($sender) . "\r\n" );
                 $self->log( 2, "Added X-Envelope-From: $sender" );
             }
             if ( !$envto ) {
-                push( @msglines, "X-Envelope-To: $recipients\r\n" );
+                push( @msglines, "X-Envelope-To: " . lc($recipients) . "\r\n" );
                 $added_envto = 1;
                 $self->log( 2, "Added X-Envelope-To: $recipients" );
             }
@@ -430,9 +440,10 @@ sub is_spam {
 
         # check if the reported score is higher than the lowest score
         # of all recipients. return true (=> this message is spam) if so.
-        my $sa_threshold = $self->sa_block_score($recipients);
-        my $was_it_spam  = 'unknown';
-        if ( $status->get_score() >= $sa_threshold ) {
+        $status->{conf}->{required_score} = $self->sa_block_score($recipients);
+        $status->{conf}->{report_safe}    = 0;
+        my $was_it_spam = 'unknown';
+        if ( $status->is_spam() ) {
             $is_spam     = 1;
             $was_it_spam = 'identified spam';
         }
@@ -443,10 +454,6 @@ sub is_spam {
             # No spam, only add header to inform the user
             # what checks were performed and what the spam rating is
             my $msg_response = $status->rewrite_mail();
-
-            # TODO only add X-Spam-Status, X-Spam-Flag and X-Spam-Score headers, do not rewrite the whole mail!!!
-            # it'd be the best to configure out sa_threshould to SA and use its
-            # own rewriting to do this
 
             # Build the rewritten message
             # pause the timeout while doing so
@@ -480,10 +487,11 @@ sub is_spam {
         }
 
         # Log what was done
-        my $msg_score = sprintf( "%.2f", $status->get_score() );
-        my $proc_time = sprintf( "%.2f", time - $t0 );
+        my $msg_score   = sprintf( "%.2f", $status->get_score() );
+        my $block_score = sprintf( "%.2f", $status->get_required_score() );
+        my $proc_time   = sprintf( "%.2f", time - $t0 );
 
-        $self->log( 2, "$was_it_spam $msgid ($msg_score/$sa_threshold) from $sender for $recipients in $proc_time s, $msg_size bytes." );
+        $self->log( 2, "$was_it_spam $msgid ($msg_score/$block_score) from $sender for $recipients in $proc_time s, $msg_size bytes." );
 
         $self->log( 2, "rules hit for $msgid: " . $status->get_names_of_tests_hit() );
 
@@ -509,6 +517,7 @@ sub is_spam {
 }
 
 # TODO HIGH adjust copyright and docs, thats a mess right now.
+# TODO LOW testcases
 __END__
 
 #
