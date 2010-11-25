@@ -8,7 +8,9 @@ use DBI;
 use Getopt::Long;
 use Config::Std;
 
-# TODO use Sys::Syslog
+use Sys::Syslog;
+
+# TODO configure Sys::Syslog
 
 my $db_host = 'localhost';
 my $db_user = 'vacation';

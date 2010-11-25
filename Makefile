@@ -46,6 +46,7 @@ BINFILES = \
 
 LIBFILES = \
 	lib/VBoxAdm/Frontend.pm \
+	lib/VBoxAdm/SmtpProxy.pm \
 	lib/MSDW/SMTP/Client.pm \
 	lib/MSDW/SMTP/Server.pm
 
