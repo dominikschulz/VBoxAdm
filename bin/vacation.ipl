@@ -28,9 +28,10 @@ my ( $conffile_used, @hooks, %hook, %config, );
 
 # Valid config file locations to try
 my @conffile_locations = qw(
-  vacation.conf
-  conf/vacation.conf
-  /etc/postfix/vacation.conf
+  vboxadm.conf
+  conf/vboxadm.conf
+  /etc/vboxadm.conf
+  /etc/postfix/vboxadm.conf
 );
 
 GetOptions(

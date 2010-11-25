@@ -18,10 +18,11 @@ connect=localhost:10026
 pidfile=/var/run/vboxadm-smtpproxy.pid
 user=vboxadm
 group=vboxadm
+max_msg_size=25
 
 # SpamAssassin
 # max. msg size for scanning in MB
-sa_max_msg_size=16
+sa_max_msg_size=10
 # timeout for scanning
 sa_timeout=30
 
