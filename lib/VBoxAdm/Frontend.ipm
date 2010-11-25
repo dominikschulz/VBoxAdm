@@ -1490,6 +1490,8 @@ sub show_add_mailbox {
     my $send_welcome_mail = $q->param('send_welcome_mail');
 
     # TODO set default for max_msg_size
+    # TODO set default for sa_active and sa_kill_score
+    # TODO set default for is_domainadmin, is_superadmin
 
     my $msg = '';
 
