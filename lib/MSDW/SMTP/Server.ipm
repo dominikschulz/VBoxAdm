@@ -207,7 +207,7 @@ sub chat {
         return 0 unless defined( $_ = $self->getline );
         s/[\r\n]*$//;
         $self->{state} = $_;
-        if (s/^helo\s+//i) {
+        if (s/^(he|eh|lh)lo\s+//i) {
             s/\s*$//;
             s/\s+/ /g;
             $self->{helo} = $_;

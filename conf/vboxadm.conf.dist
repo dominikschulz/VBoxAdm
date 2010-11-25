@@ -11,5 +11,31 @@ dbpass=vacation
 dbdb=vboxadm
 dbhost=localhost
 
-[policyd]
-# config for policyd
+[smtpproxy]
+# config for smtpproxy
+listen=localhost:10025
+connect=localhost:10026
+pidfile=/var/run/vboxadm-smtpproxy.pid
+user=vboxadm
+group=vboxadm
+
+# SpamAssassin
+# max. msg size for scanning in MB
+sa_max_msg_size=16
+# timeout for scanning
+sa_timeout=30
+
+# db
+dbuser=vboxadm
+dbpass=vboxadm
+dbdb=vboxadm
+dbhost=localhost
+
+# server information
+min_servers=20
+max_servers=80
+min_spare_servers=10
+max_spare_servers=20
+max_requests=250
+nsloglevel=2
+logsock=unix

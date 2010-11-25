@@ -126,6 +126,8 @@ CREATE TABLE IF NOT EXISTS `mailboxes` (
   `quota` int(16) NOT NULL,
   `is_domainadmin` tinyint(1) NOT NULL,
   `is_superadmin` tinyint(1) NOT NULL,
+  `sa_active` tinyint(1) NOT NULL,
+  `sa_kill_score` decimal(5,2) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `domain_id` (`domain_id`,`local_part`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=latin1;
