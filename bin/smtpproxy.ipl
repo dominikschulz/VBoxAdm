@@ -23,12 +23,14 @@ my ( $conffile_used, @hooks, %hook, %config, );
 
 # Valid config file locations to try
 my @conffile_locations = qw(
-  vacation.conf
-  conf/vacation.conf
-  /etc/postfix/vacation.conf
+  vboxadm.conf
+  conf/vboxadm.conf
+  /etc/vboxadm.conf
+  /etc/postfix/vboxadm.conf
 );
 GetOptions(
     'verbose|v+' => \$config{'verbose'},
+    'no-fork!'   => \$config{'no-fork'},
 
     # shift removes name of the option (config) and leaves the value for unshift
     # unshift prepends to the list of valid config files so it is tried first
@@ -53,19 +55,21 @@ my $dbdb   = $config{'smtpproxy'}{'dbdb'}   || $config{'default'}{'dbdb'}   || '
 my $listen = $config{'smtpproxy'}{'listen'} || 'localhost:10025';
 my $connect = $config{'smtpproxy'}{'connect'} || 'localhost:10026';
 my $nsloglevel = $config{'smtpproxy'}{'nsloglevel'} // 2;
-my $logsock           = $config{'smtpproxy'}{'logsock'} || 'unix';
-my $background        = 1;
-my $pidfile           = $config{'smtpproxy'}{'pidfile'} || '/var/run/vboxadm-smtpproxy.pid';
-my $user              = $config{'smtpproxy'}{'user'} || 'vboxadm';
-my $group             = $config{'smtpproxy'}{'group'} || 'vboxadm';
-my $min_servers       = $config{'smtpproxy'}{'min_servers'} || 20;
+my $logsock = $config{'smtpproxy'}{'logsock'} || 'unix';
+my $background = $config{'no-fork'} ? 0 : 1;
+my $pidfile           = $config{'smtpproxy'}{'pidfile'}           || '/var/run/vboxadm-smtpproxy.pid';
+my $user              = $config{'smtpproxy'}{'user'}              || 'vboxadm';
+my $group             = $config{'smtpproxy'}{'group'}             || 'vboxadm';
+my $min_servers       = $config{'smtpproxy'}{'min_servers'}       || 20;
 my $min_spare_servers = $config{'smtpproxy'}{'min_spare_servers'} || 10;
-my $max_servers       = $config{'smtpproxy'}{'max_servers'} || 80;
+my $max_servers       = $config{'smtpproxy'}{'max_servers'}       || 80;
 my $max_spare_servers = $config{'smtpproxy'}{'max_spare_servers'} || 20;
-my $max_requests      = $config{'smtpproxy'}{'max_requests'} || 250;
-my $sa_max_msg_size   = $config{'smtpproxy'}{'sa_max_msg_size'} || 16;                         # MB
-$sa_max_msg_size *= ( 1024 * 1024 );                                                           # convert to bytes
-my $sa_timeout          = $config{'smtpproxy'}{'sa_timeout'}          || 30;                   # seconds
+my $max_requests      = $config{'smtpproxy'}{'max_requests'}      || 250;
+my $max_msg_size      = $config{'smtpproxy'}{'max_msg_size'}      || 25;                                 # MB
+$max_msg_size *= ( 1024 * 1024 );
+my $sa_max_msg_size = $config{'smtpproxy'}{'sa_max_msg_size'} || 10;                                     # MB
+$sa_max_msg_size *= ( 1024 * 1024 );                                                                     # convert to bytes
+my $sa_timeout          = $config{'smtpproxy'}{'sa_timeout'}          || 30;                             # seconds
 my $sa_local_tests_only = $config{'smtpproxy'}{'sa_local_tests_only'} || 0;
 
 # Parse listen and connect options
@@ -128,6 +132,14 @@ my $server = bless {
     },
   },
   'VboxSmtpProxy';
+
+# Test DB connection before starting server
+if ( $server->db_connect() ) {
+    $server->{vbox}->{dbh}->disconnect();
+}
+else {
+    die("Could not connect to database!");
+}
 $server->run();
 
 exit 1;
@@ -135,17 +147,23 @@ exit 1;
 ###########################################################################
 # Subs
 ###########################################################################
-sub child_init_hook {
+sub db_connect {
     my $self = shift;
-
     my $user = $self->{vbox}->{dbuser} || 'vboxadm';
     my $pass = $self->{vbox}->{dbpass} || 'vboxadm';
     my $host = $self->{vbox}->{dbhost} || 'localhost';
     my $port = $self->{vbox}->{dbport} || 3306;
-    my $db   = $self->{vbox}->{dbdb}   || 'vboxadm';
+    my $db   = $self->{vbox}->{dbdb} || 'vboxadm';
     my $dsn  = "DBI:mysql:database=$db;user=$user;password=$pass;host=$host;port=$port";
     $self->{vbox}->{dbh} = DBI->connect( $dsn, { RaiseError => 0, PrintError => 0, } )
-      or die "Coult not connect to DB with DSN $dsn: " . DBI->errstr;
+      or die "Could not connect to DB with DSN $dsn: " . DBI->errstr;
+    return 1;
+}
+
+sub child_init_hook {
+    my $self = shift;
+
+    $self->db_connect();
 
     # prepare statements
     # TODO this will only work if postfix does proper
@@ -256,7 +274,7 @@ sub max_msg_size {
     # check the max msg size for this recipient
     my @userinfo = $self->{vbox}->{sth}->{userinfo}->execute($email);
 
-    return $userinfo[2];
+    return $userinfo[2] || $max_msg_size;
 }
 
 sub sa_block_score {
@@ -289,8 +307,6 @@ sub extract_recipients {
     foreach my $recp (@recps) {
         if ( $recp =~ m/^\s*<?\s*([^>@]+@[^>]+)\s*>?\s*/ ) {
             my $email = lc($1);
-
-            #print "extract_recipients - got recipient: $email\n";
             push( @emails, $email );
         }
     }
@@ -304,12 +320,16 @@ sub want_sa {
     my $want_sa = 0;
     foreach my $email ( extract_recipients($recipients) ) {
         my @userinfo = $self->{vbox}->{sth}->{userinfo}->execute($email);
-        print "want_sa -  got recipient: $email - want_sa: $userinfo[3]\n";
-        $want_sa ||= $userinfo[3];
+        $want_sa = $want_sa || $userinfo[3] || 0;
     }
 
     # return true if at least on recipient wants spam scanning
-    return $want_sa;
+    if ($want_sa) {
+        return 1;
+    }
+    else {
+        return;
+    }
 }
 
 sub is_spam {
