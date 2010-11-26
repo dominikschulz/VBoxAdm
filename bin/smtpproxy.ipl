@@ -141,88 +141,137 @@ $server->run();
 
 exit 1;
 
-# TODO HIGH adjust copyright and docs, thats a mess right now.
-# TODO LOW testcases
 __END__
-
-#
-#   This code is Copyright (C) 2001 Morgan Stanley Dean Witter, and
-#   is distributed according to the terms of the GNU Public License
-#   as found at <URL:http://www.fsf.org/copyleft/gpl.html>.
-#
-#   This program is distributed in the hope that it will be useful,
-#   but WITHOUT ANY WARRANTY; without even the implied warranty of
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#   GNU General Public License for more details.
-#
-# Written by Bennett Todd <bet@rahul.net>
-#
-# Modified by Dominik Schulz <dominik.schulz@gauner.org>
-#
 
 =head1 NAME
 
-  smtprox -- Transparent SMTP proxy
+smtpproxy - Spam Filtering SMTP-Proxy for VBoxAdm
+
+=head1 VERSION
+
+This documentation refers to VBoxAdm smtp-proxy version @VERSION@
+built on @BUILDDATE@.
 
 =head1 SYNOPSIS
 
-  smtpprox [options] listen.addr:port talk.addr:port
-    options:
-      --children=16
-      --minperchild=100
-      --maxperchild=200
-      --debugtrace=filename_prefix
+    $> ./smtpproxy.pl
+
+=head1 SCHEMA
+
+ Internet -> Postfix1 (Client) -> smtpproxy -> Postfix2 (Server)
 
 =head1 DESCRIPTION
 
-smtpprox listens on the addr and port specified by its first arg,
-and sends the traffic unmodified to the SMTP server whose addr and
-port are listed as its second arg. The SMTP dialogue is propogated
-literally, all commands from the client are copied to the server and
-the responses from the server are copied back from to the client,
-but the envelope info and message bodies are captured for analysis,
-and code has the option of modifying the body before sending it on,
-manipulating the envelope, or intervening in the SMTP dialogue to
-reject senders, recipients, or content at the SMTP level. The
-children option, defaulting to 16, allows adjusting how many child
-processes will be maintained in the service pool. Each child will
-kill itself after servicing some random number of messages between
-minperchild and maxperchild (100-200 default), after which the
-parent will immediately fork another child to pick up its share of
-the load. If debugtrace is specified, the prefix will have the PID
-appended to it for a separate logfile for each child, which will
-capture all the SMTP dialogues that child services. It looks like a
-snooper on the client side of the proxy. And if debugtracefile is
-defined, it returns its own banner including its PID for debugging
-at startup, otherwise it copies the server's banner back to the
-client transparently.
+The smtp-proxy listens on the port configured in its configuration file
+and sends the command it recieves on the the SMTP-Server specified also
+in its configuration file. The SMTP commands and replies from the server
+are passed on unmodified until the client send the end-of-data command
+(a single dot "." on a line of its own). The the proxy first checks
+the message size against the max message size for the recipients and
+if that test passes it checks the spam rating. If SpamAssassin reports
+a spam rating above the lowest spam kill score of all recipients the
+message if blocked at SMTP level (no bounce is generated on our side).
 
-=head1 EXAMPLE
+All mails are rewritten while they pass through this proxy so even clean mails
+get SpamAssassin headers for later inspection.
 
-	smtpprox 127.0.0.1:10025 127.0.0.1:10026
+You can control the ressource usage of this application by tuning the
+variables min_server, max_servers et. al. See the documentation
+of Net::Server::PreFork for more details. Basically this application
+will create a SpamAssasin instance, precompile the rules and fork
+of as many children as specified. These children live for some time,
+handle the requests the parent receives and die when they've done
+enough work. The the parent will spawn a new children. If there a too much
+incoming requests the server will spawn new children until max_servers
+if reached. This is very much like the behaviour of the Apache HTTPD
+prefork worker.
 
 =head1 WARNING
 
-While the richness or lack thereof in the SMTP dialect spoken lies
-in the hands of the next SMTP server down the chain, this proxy was
-not designed to run on the front lines listening for traffic from
-the internet; neither its performance characteristics nor its
-paranoia were tuned for that role. Rather, it's designed as an
-intermediate component, suitable for use as the framework for a
-content-scanning proxy for use with Postfix's content-filtering
-hooks.
+This application is designed as an intermediate component. Do not place it
+in an exposed position where everyone can talk to it. Put it between
+a sandwich of two postfix instances as suggested by the sample
+configuration distributed with this application.
 
 =head1 PERFORMANCE NOTES
 
-This proxy is tuned to some specific assumptions: execing perl is
-wickedly expensive, forking perl is fairly expensive, messages will
-vary rather widely in size, and memory footprint efficiency is
-somewhat more important than CPU utilization. It uses Apache-style
-preforking to almost entirely eliminate the need to fork perls,
-with controlled child restart to defend against resource leaks in
-children; it stores the body of the message in an unlinked file
-under /tmp, which should be a tmpfs; this prevents the allocation
-overhead associated with large strings (often 2-3x) and ensures that
-space will be returned to the OS as soon as it's not needed.
+This application is designed with some very specific assumptions in mind:
+Executing perl is very expensive, forking perl is somewhat expensive
+(although highly optimized), messages will vary in size and memory usage
+is more imporant than CPU-utilization. It uses apache-style preforking
+(through Net::Server::PreFork) to reduce the need to fork perl instances.
+Controlled child restarts reduce the effect of resource leaks in its
+children. The message passed through is bufferd in an unlinked tempfile
+in /tmp, which SHOULD by a tmpfs large enough to hold max_servers * max_msg_size
+of data. This prevents the allocation overhead associated with large strings
+and ensures that space will be returned to the OS as soon as possible.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+The configuration file should be place either in /etc/vboxadm.conf or
+in /etc/postfix/vboxadm.conf. This is a common configuration file
+for the whole suite of VBoxAdm applications. Each part of this suite
+has its own section in the config file and all use the values
+from the default section when appropriate.
+
+=head2 default
+The default section should contain at least the database configuration.
+
+dbuser - The user used to connect to the MySQL database.
+dbpass - This users password.
+dbdb - The db used by this application.
+dbhost - The MySQL database host, usually localhost.
+
+=head2 smtpproxy
+
+listen - Hostname:Port - Listen on this hostname (or IP) and port for
+incoming SMTP dialogs.
+connect - Hostname:Port - Connect to this hostname (or IP) and port
+to forward the SMTP.
+pidfile - This applications pidfile.
+user - The user this application should run as.
+group - The group this application should run as.
+max_msg_size - The overall max. message size.
+sa_max_msg_size - The max. size of messages SpamAssassin will scan.
+sa_timeout - The SpamAssassin scan timeout.
+min_servers - Start at least this much children.
+max_servers - Run no more than this number of children.
+min_spare_servers - Min. spare Children.
+max_spare_servers - Max. spare Children.
+max_requests - Each children will complete this much requests and than exit.
+
+=head1 DEPENDENCIES
+
+VBoxAdm::Utils, VBoxAdm::SmtpProxy, MSDW::SMTP::Client, MSDW::SMTP::Server.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+This implementation was previously based on smtpproxy but switched to
+Net::Server::PreFork later. Large parts of this code are based on the ideas
+of SpamPD, which is itself based on smtpprox, but all code,
+except MSDW::SMTP::*, was written by myself.
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This module is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself. See L<perlartistic>.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 =cut
