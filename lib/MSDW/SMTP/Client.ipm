@@ -13,6 +13,8 @@
 package MSDW::SMTP::Client;
 use IO::Socket;
 
+our $VERSION = '@VERSION@';
+
 =head1 NAME
 
   MSDW::SMTP::Client --- SMTP client for content-scanning proxy
