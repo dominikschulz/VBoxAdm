@@ -40,6 +40,8 @@ use CGI::Application::Plugin::Authentication;
 
 use Config::Std;
 
+use VBoxAdm::Utils '@VERSION@';
+
 #use VBoxAdm::Frontend::Admin '@VERSION@';
 
 our $VERSION = '@VERSION@';
@@ -385,15 +387,6 @@ sub is_superadmin {
     }
 }
 
-sub trim {
-    my $string = shift;
-    if ($string) {
-        $string =~ s/^\s+//;
-        $string =~ s/\s+$//;
-    }
-    return $string;
-}
-
 {
 
     # RFC2822 email syntax
@@ -599,7 +592,7 @@ sub show_add_domain {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $domain             = trim( lc( $q->param('domain') ) );
+    my $domain             = &VBoxAdm::Utils::trim( lc( $q->param('domain') ) );
     my $create_domainadmin = $q->param('create_domainadmin');
 
     my $msg = '';
@@ -839,7 +832,7 @@ sub show_add_domain_alias {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $domain_alias = trim( lc( $q->param('domain_alias') ) );
+    my $domain_alias = &VBoxAdm::Utils::trim( lc( $q->param('domain_alias') ) );
     my $domain_id    = $q->param('domain');
 
     my $msg = '';
@@ -1156,7 +1149,7 @@ sub show_add_alias {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $local_part = trim( lc( $q->param('local_part') ) );
+    my $local_part = &VBoxAdm::Utils::trim( lc( $q->param('local_part') ) );
     my $domain_id  = $q->param('domain');
     my $goto       = $q->param('goto');
 
@@ -1300,7 +1293,7 @@ sub show_update_alias {
 
     my $alias_id  = $q->param('alias_id');
     my $is_active = $q->param('is_active');
-    my $target    = trim( $q->param('goto') );
+    my $target    = &VBoxAdm::Utils::trim( $q->param('goto') );
 
     my $msg = '';
 
@@ -1482,7 +1475,7 @@ sub show_add_mailbox {
     my $q = $self->query();
 
     my $domain_id         = $q->param('domain');
-    my $username          = trim( lc( $q->param('username') ) );
+    my $username          = &VBoxAdm::Utils::trim( lc( $q->param('username') ) );
     my $password          = $q->param('password');
     my $password_2        = $q->param('password_2');
     my $name              = lc( $q->param('name') );

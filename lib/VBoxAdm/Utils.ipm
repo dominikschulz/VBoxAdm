@@ -7,9 +7,9 @@ require Exporter;
 our @ISA = qw(Exporter);
 
 #our @EXPORT    = qw(); # SHOULD be empty and not defined!
-our @EXPORT_OK = qw();
+our @EXPORT_OK   = qw();
 our %EXPORT_TAGS = ( ALL => [@EXPORT_OK], );
-our $VERSION = '@VERSION@';
+our $VERSION     = '@VERSION@';
 
 ############################################
 # Usage      : ????
@@ -34,9 +34,110 @@ sub extract_recipients {
     return @emails;
 }
 
+############################################
+# Usage      : my $content = MTK::Common::slurp($file);
+# Purpose    : Read a whole file in a string
+# See Also   : Perl6::Slurp
+sub slurp {
+    my $file = shift;
+    my $opts = shift || {};
+
+    if ( -f $file && open( my $FH, "<", $file ) ) {
+        my $buf = "";
+        while ( my $line = <$FH> ) {
+            $buf .= $line;
+        }
+        close($FH);
+        if ( $opts->{Chomp} ) {
+            chomp($buf);
+        }
+        return $buf;
+    }
+    else {
+        return;
+    }
+}
+
+############################################
+# Usage      : MTK::Common->sendmail($envelope-from,$message);
+# Purpose    : Send a text/plain mail via /usr/sbin/sendmail
+# Returns    : true on success
+# Parameters : From, To, Subject and Message
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub sendmail {
+    my $from     = shift;
+    my $msg      = shift;
+    my $sendmail = "/usr/sbin/sendmail";
+    if ( open( my $SENDMAIL, "|-", "$sendmail -t -f $from" ) ) {
+        print $SENDMAIL $msg;
+        if ( close($SENDMAIL) ) {
+            return 1;
+        }
+        else {
+            return;
+        }
+    }
+    else {
+        print STDERR "Error. Can not execute sendmail.\n";
+        return;
+    }
+}
+
+############################################
+# Usage      : my $trimmed_str = MTK::Common->trim()
+# Purpose    : Remove leading and trailing whitespaces from a string
+# Returns    : the trimmed string
+# Parameters : a string
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+# Remove leading and trailing whitespaces
+sub trim {
+    my $string = shift;
+    if ($string) {
+        $string =~ s/^\s+//;
+        $string =~ s/\s+$//;
+    }
+    return $string;
+}
+
+############################################
+# Usage      : my $trimmed_str = MTK::Common->trim()
+# Purpose    : Same as trim, additionally removes on-line comments (everything after a #)
+# Returns    : the trimmed string
+# Parameters : a string
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+# as well as on-line comments
+sub trim2 {
+    my $string = shift;
+    if ($string) {
+
+        # remove any trailing comments first ...
+        $string =~ s/#.*//g;
+
+        # ... then any leading wsps ...
+        $string =~ s/^\s+//;
+
+        # ... then any trailing wsps.
+        $string =~ s/\s+$//;
+
+        # if the comments are removed last there may be garbage left
+        # between the end of the value and the start of the comment
+
+        # alternate one line reg-exp pattern:
+        # $string =~ s/^\s*(.*?)\s*(#.*)?$/$1/s;
+        return $string;
+    }
+}
+
 1;
 
 __END__
+
 =head1 NAME
 
 VBoxAdm::Utils - Common Mail Handling utils.
