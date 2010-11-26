@@ -1,3 +1,17 @@
+========================================================
+=
+= WARNING
+=
+========================================================
+
+THIS IS APLHA QUALITY SOFTWARE WHICH IS STILL LARGELY UNTESTED.
+
+USE WITH CARE!
+
+YOU HAVE BEEN WARNED.
+
+This notice will be removed once I think it has received enough testing.
+
 How to Install VBoxAdm
 ======================
 
@@ -86,3 +100,8 @@ Copy all files and subdirs of doc/postfix to /etc/postfix.
 * Configure Dovecot
 Copy all files of doc/dovecot to /etc/dovecot.
 
+* Configure Vacation
+TODO configure the vacation tool
+
+* Configure SMTP-Proxy
+TODO configure the SMTP-Proxy
