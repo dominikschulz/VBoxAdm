@@ -101,7 +101,7 @@ smtpd_recipient_restrictions =
 # Rest erlauben
         permit
 smtpd_tls_auth_only = no
-#content_filter = smtp-amavis:[127.0.0.1]:10024
+#content_filter = smtp-proxy:[127.0.0.1]:10024
 receive_override_options = no_address_mappings
 milter_default_action = accept
 milter_protocol = 2
