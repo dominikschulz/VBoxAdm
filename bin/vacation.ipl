@@ -99,7 +99,7 @@ while (<STDIN>) {
     /^Resent-Bcc:\s+(.*)$/i            and $header{'resent-bcc'}        = $1;
     /^Reply-to:\s+(.*)$/i              and $header{'reply-to'}          = $1;
     /^Subject:\s+(.*)$/i               and $header{'subject'}           = $1;
-    /^Return-Path:\s+(.*)$/i           and $header{'return-path'}       = $1;
+    /^Return-Path:\s+<?([^>]+)>?$/i    and $header{'return-path'}       = $1;
     /^Auto-Submitted:\s+(.*)$/i        and $header{'auto-submitted'}    = lc($1);
     /^X-Loop:\s+VBoxAdm-Vacation\s+$/i and $status{'is-loop'}           = 1;
     /^List-.*:/i                       and $status{'is-list'}           = 1;
@@ -121,7 +121,7 @@ while (<STDIN>) {
 # Loops:
 # $is_loop
 if ( $status{'is-loop'} ) {
-    syslog( 2, 'Detected Loop - From: %s - To: %s - Exiting', $header{'from'}, $header{'to'} );
+    syslog( 2, 'Detected Loop - From: %s - To: %s - Exiting', $config{'sender'}, $config{'recipient'} );
     closelog();
     exit 0;
 }
@@ -129,8 +129,8 @@ if ( $status{'is-loop'} ) {
 # Bounces:
 # $from =~ /(MAILER-DAEMON|postmaster|Mail Delivery System|E-postsystemet|Delivery Subsystem|Mailer_Daemon)/i
 # $subject =~ /(Undeliver|Returned|returning|failure|failed|Delivery (Status )?Notification|fehlgeschlagen|remise|rejected|nicht zustellbar|Unzustellbar|Unbekannt|DSN|Benachrichtung|problem|falla|Zurückgeschickte Mail|Nondeliverable mail|Kan ikke leveres)/i
-if ( $header{'from'} =~ /(MAILER-DAEMON|postmaster|Mail Delivery System|E-postsystemet|Delivery Subsystem|Mailer_Daemon)/i ) {
-    syslog( 2, 'Detected Bounce - From: %s - To: %s - Exiting', $header{'from'}, $header{'to'} );
+if ( $header{'from'} && $header{'from'} =~ /(MAILER-DAEMON|postmaster|Mail Delivery System|E-postsystemet|Delivery Subsystem|Mailer_Daemon)/i ) {
+    syslog( 2, 'Detected Bounce - From: %s - To: %s - Exiting', $config{'sender'}, $config{'recipient'} );
     closelog();
     exit 0;
 }
@@ -138,11 +138,12 @@ if ( $header{'from'} =~ /(MAILER-DAEMON|postmaster|Mail Delivery System|E-postsy
 # Vacation:
 # $subject =~
 # /(abwesen|vacation|Out of Office|reply|ist au.er Haus|Vielen Dank für Ihre E-Mail|Out-of-office|Deine E-Mail|Ihre Nachricht|Semestersvar|Feriesvar|R.ponse en cas d.absence|Risposta di assenza)/i
-if ( $header{'subject'} =~
+if (   $header{'subject'}
+    && $header{'subject'} =~
 /(abwesen|vacation|Out of Office|reply|ist au.er Haus|Vielen Dank für Ihre E-Mail|Out-of-office|Deine E-Mail|Ihre Nachricht|Semestersvar|Feriesvar|R.ponse en cas d.absence|Risposta di assenza)/i
   )
 {
-    syslog( 2, 'Detected Vacation Message - From: %s - To: %s - Subject: %s - Exiting', $header{'from'}, $header{'to'}, $header{'subject'} );
+    syslog( 2, 'Detected Vacation Message - From: %s - To: %s - Subject: %s - Exiting', $config{'sender'}, $config{'recipient'}, $header{'subject'} );
     closelog();
     exit 0;
 }
@@ -154,7 +155,7 @@ if (   $header{'from'}
     && $header{'from'} =~ m/(mailer|Mail Delivery System)/i
     && $header{'subject'} =~ m/(delay|warning)/i )
 {
-    syslog( 2, 'Detected Delay Message - From: %s - To: %s - Subject: %s - Exiting', $header{'from'}, $header{'to'}, $header{'subject'} );
+    syslog( 2, 'Detected Delay Message - From: %s - To: %s - Subject: %s - Exiting', $config{'sender'}, $config{'recipient'}, $header{'subject'} );
     closelog();
     exit 0;
 }
@@ -165,7 +166,7 @@ if (   $status{'is-list'}
     || ( $header{'auto-submitted'} && $header{'auto-submitted'} ne 'no' )
     || ( $header{'from'} && $header{'from'} eq '<>' ) )
 {
-    syslog( 2, 'Detected Auto-Submitted Message - From: %s - To: %s - Exiting', $header{'from'}, $header{'to'} );
+    syslog( 2, 'Detected Auto-Submitted Message - From: %s - To: %s - Exiting', $config{'sender'}, $config{'recipient'} );
     closelog();
     exit 0;
 }
@@ -174,7 +175,7 @@ if (   $status{'is-list'}
 # $from && $subject && $subject =~ m/(\*\*\*SPAM\*\*\*|WW Spam: high)
 # $status{'is-spam'}
 if ( $status{'is-spam'} ) {
-    syslog( 2, 'Detected SPAM - From: %s - To: %s - Exiting', $header{'from'}, $header{'to'} );
+    syslog( 2, 'Detected SPAM - From: %s - To: %s - Exiting', $config{'sender'}, $config{'recipient'} );
     closelog();
     exit 0;
 }
@@ -182,7 +183,7 @@ if ( $status{'is-spam'} ) {
 # Facebook:
 # $header{'x-facebook-notify'}
 if ( $header{'x-facebook-notify'} ) {
-    syslog( 2, 'Detected Facebook Notify - From: %s - To: %s - Exiting', $header{'from'}, $header{'to'} );
+    syslog( 2, 'Detected Facebook Notify - From: %s - To: %s - Exiting', $config{'sender'}, $config{'recipient'} );
     closelog();
     exit 0;
 }
@@ -190,7 +191,7 @@ if ( $header{'x-facebook-notify'} ) {
 # Precedence:
 # $header{'precedence'}
 if ( $header{'precedence'} ) {
-    syslog( 2, 'Detected Precedence Header (%s) - From: %s - To: %s - Exiting', $header{'precedence'}, $header{'from'}, $header{'to'} );
+    syslog( 2, 'Detected Precedence Header (%s) - From: %s - To: %s - Exiting', $header{'precedence'}, $config{'sender'}, $config{'recipient'} );
     closelog();
     exit 0;
 }
@@ -198,14 +199,17 @@ if ( $header{'precedence'} ) {
 # No-Return-Path:
 # !$header{'return-path'}
 if ( !$header{'return-path'} ) {
-    syslog( 2, 'Missing Return-Path - From: %s - To: %s - Exiting', $header{'from'}, $header{'to'} );
+    syslog( 2, 'Missing Return-Path - From: %s - To: %s - Exiting', $config{'sender'}, $config{'recipient'} );
     closelog();
     exit 0;
 }
 
 # recipient address must be contained in either: to, cc, bcc, resent-to, resent-cc or resent-bcc
 if ( !&check_recipient( $config{'recipient'}, \%header ) ) {
-    return 1;
+    syslog( 2, 'Envelope-To Recipient not found in one of To, CC, BCC, Resent-To, Resent-CC or Reset-BCC - From: %s - To: %s - Exiting',
+        $config{'sender'}, $config{'recipient'} );
+    closelog();
+    exit 1;
 }
 
 my %reply_header = ();
@@ -221,11 +225,11 @@ elsif ( $header{'reply-to'} ) {
 elsif ( $header{'from'} ) {
     $reply_header{'To'} = $header{'from'};
 }
-elsif ($sender) {
-    $reply_header{'To'} = $sender;
+elsif ( $config{'sender'} ) {
+    $reply_header{'To'} = $config{'sender'};
 }
 else {
-    syslog( 2, 'Could not find a valid sender address - From: %s - To: %s - Exiting', $header{'from'}, $header{'to'} );
+    syslog( 2, 'Could not find a valid sender address - From: %s - To: %s - Exiting', $config{'sender'}, $config{'recipient'} );
     closelog();
     exit 1;
 }
@@ -235,17 +239,23 @@ $reply_header{'From'} = undef;
 $reply_header{'From'} = $config{'recipient'};
 
 # set X-Loop: VBoxAdmVacation
-$reply_header{'X-Loop'} = 'VBoxAdmVacation';
+$reply_header{'X-Loop'} = 'VBoxAdm-Vacation';
 
 # set Auto-Submitted: auto-replied
 $reply_header{'Auto-Submitted'} = 'auto-replied';
+
+# set references/in-reply-to, if we found a message id
+if ( $header{'msg-id'} ) {
+    $reply_header{'In-Reply-To'} = $header{'msg-id'};
+    $reply_header{'References'}  = $header{'msg-id'};
+}
 
 # if all these preconditions succeed:
 my $dsn = "DBI:mysql:host=$db_host;database=$db_db;port=$db_port;user=$db_user;password=$db_pass";
 my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 1, } );
 
 if ( !$dbh ) {
-    syslog( 2, 'Could not connect to database with DSN $dsn - From: %s - To: %s - Exiting', $header{'from'}, $header{'to'} );
+    syslog( 2, 'Could not connect to database with DSN $dsn - From: %s - To: %s - Exiting', $config{'sender'}, $config{'recipient'} );
     closelog();
     die("Could not connect to database with DSN $dsn");
 }
@@ -255,14 +265,14 @@ if ( !$dbh ) {
 $dbh->do("SET NAMES utf8");
 
 # check notification sent within ... (see above)
-if ( already_notified( $dbh, $to, $from, $notify_interval ) ) {
-    syslog( 2, 'Already notified - From: %s - To: %s - Exiting', $header{'from'}, $header{'to'} );
+if ( already_notified( $dbh, $config{'recipient'}, $config{'sender'}, $notify_interval ) ) {
+    syslog( 2, 'Already notified - From: %s - To: %s - Exiting', $config{'sender'}, $config{'recipient'} );
     closelog();
     exit 0;
 }
 
 # send msg
-&send_vacation_mail( $dbh, $recipient, \%reply_header );
+&send_vacation_mail( $dbh, $config{'recipient'}, \%reply_header );
 
 closelog();
 exit 0;
@@ -280,8 +290,9 @@ sub check_recipient {
 
     foreach my $hdr (qw(to cc bcc resent-to resent-cc resent-bcc)) {
         if ( $header{$hdr} ) {
-            foreach my $dest ( extract_recipients( $header{$hdr} ) ) {
-                if ( $recipient =~ m/$dest/i ) {
+            foreach my $dest ( VBoxAdm::Utils::extract_recipients( $header{$hdr} ) ) {
+                print "check_recipient - $recipient - $dest\n";
+                if ( $recipient =~ m/^$dest$/i ) {
                     return 1;
                 }
             }
@@ -295,7 +306,7 @@ sub unroll_recipient {
     my $rolled = shift;
 
     # recipient must be "unrolled", it's smth. like "user#domain.tld@vacation.domain.tld" -> "user@domain.tld"
-    if ( $rolled =~ m/^([^#]+)#([^@]+)@vacation\./ ) {
+    if ( $rolled =~ m/^([^#]+)#([^@]+)\@vacation\./ ) {
         my $local_part = $1;
         my $domain     = $2;
         return $local_part . '@' . $domain;
@@ -339,11 +350,18 @@ sub send_vacation_mail {
     my $header_ref = shift;
 
     # get vacation subj and vacation msg
-    my $sql = "SELECT vacation_subj, vacation_msg FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,'@',d.name) = ?";
+    my $sql =
+"SELECT vacation_subj, vacation_msg FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,'\@',d.name) = ? AND is_on_vacation";
     my $sth = $dbh->prepare($sql);
 
     if ( $sth->execute($recipient) ) {
         my ( $subj, $msg ) = $sth->fetchrow_array();
+
+        if ( !$subj || !$msg ) {
+            syslog( 2, 'send_vacation_mail - Recipient: %s - No Subject or Message found. Aborting.', $recipient );
+            return;
+        }
+
         $header_ref->{'Subject'} = $subj;
 
         my $mail = '';
@@ -354,11 +372,13 @@ sub send_vacation_mail {
         $mail .= $msg;
 
         &VBoxAdm::Utils::sendmail( $header_ref->{'From'}, $mail );
+        syslog( 2, "send_vacation_mail - Sent vacation reply to %s", $header_ref->{'To'} );
+        return 1;
     }
     else {
 
         # log error
-        syslog( 2, 'send_vacation_mail - Recipient: %s - Aborting.', $recipient );
+        syslog( 2, 'send_vacation_mail - Recipient: %s - SQL-Error. Aborting.', $recipient );
         return;
     }
 }

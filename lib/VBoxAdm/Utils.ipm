@@ -26,7 +26,21 @@ sub extract_recipients {
 
     my @recps = split( /\s*,\s*/, $recipients );
     foreach my $recp (@recps) {
-        if ( $recp =~ m/^\s*<?\s*([^>@]+@[^>]+)\s*>?\s*/ ) {
+        if ( $recp =~ m/^[^<]+\s+<\s*([^>@]+@[^>]+)\s*>\s*$/ ) {
+
+            # Name <user@domain.tld>
+            my $email = lc($1);
+            push( @emails, $email );
+        }
+        elsif ( $recp =~ m/^([^<@]+@\S+)$/ ) {
+
+            # user@domain.tld
+            my $email = lc($1);
+            push( @emails, $email );
+        }
+        elsif ( $recp =~ m/^\s*<?\s*([^>@]+@[^>]+)\s*>?\s*/ ) {
+
+            # <user@domain.tld>
             my $email = lc($1);
             push( @emails, $email );
         }

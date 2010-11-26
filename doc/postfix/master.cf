@@ -53,7 +53,7 @@ lmtp      unix  -       -       -       -       -       lmtp
 anvil     unix  -       -       -       -       1       anvil
 scache    unix  -       -       -       -       1       scache
 # Interface to AMaViS
-smtp-amavis unix -      -       n       -       15  smtp
+smtp-proxy unix -       -       n       -       15  	smtp
     -o smtp_data_done_timeout=1800
     -o smtp_send_xforward_command=yes
     -o disable_dns_lookups=yes
@@ -96,26 +96,26 @@ smtp-amavis unix -      -       n       -       15  smtp
 # maildrop. See the Postfix MAILDROP_README file for details.
 # Also specify in main.cf: maildrop_destination_recipient_limit=1
 #
-maildrop  unix  -       n       n       -       -       pipe
-  flags=DRhu user=vmail argv=/usr/bin/maildrop -d ${recipient}
+#maildrop  unix  -       n       n       -       -       pipe
+#  flags=DRhu user=vmail argv=/usr/bin/maildrop -d ${recipient}
 #
 # See the Postfix UUCP_README file for configuration details.
 #
-uucp      unix  -       n       n       -       -       pipe
-  flags=Fqhu user=uucp argv=uux -r -n -z -a$sender - $nexthop!rmail ($recipient)
+#uucp      unix  -       n       n       -       -       pipe
+#  flags=Fqhu user=uucp argv=uux -r -n -z -a$sender - $nexthop!rmail ($recipient)
 #
 # Other external delivery methods.
 #
-ifmail    unix  -       n       n       -       -       pipe
-  flags=F user=ftn argv=/usr/lib/ifmail/ifmail -r $nexthop ($recipient)
-bsmtp     unix  -       n       n       -       -       pipe
-  flags=Fq. user=bsmtp argv=/usr/lib/bsmtp/bsmtp -t$nexthop -f$sender $recipient
-scalemail-backend unix  -       n       n       -       2       pipe
-  flags=R user=scalemail argv=/usr/lib/scalemail/bin/scalemail-store ${nexthop} ${user} ${extension}
-mailman   unix  -       n       n       -       -       pipe
-  flags=FR user=list argv=/usr/lib/mailman/bin/postfix-to-mailman.py
-  ${nexthop} ${user}
+#ifmail    unix  -       n       n       -       -       pipe
+#  flags=F user=ftn argv=/usr/lib/ifmail/ifmail -r $nexthop ($recipient)
+#bsmtp     unix  -       n       n       -       -       pipe
+#  flags=Fq. user=bsmtp argv=/usr/lib/bsmtp/bsmtp -t$nexthop -f$sender $recipient
+#scalemail-backend unix  -       n       n       -       2       pipe
+#  flags=R user=scalemail argv=/usr/lib/scalemail/bin/scalemail-store ${nexthop} ${user} ${extension}
+#mailman   unix  -       n       n       -       -       pipe
+#  flags=FR user=list argv=/usr/lib/mailman/bin/postfix-to-mailman.py
+#  ${nexthop} ${user}
 dovecot   unix  -       n       n       -       -       pipe
   flags=DRhu user=vmail:vmail argv=/usr/lib/dovecot/deliver -d ${user}@${domain}
-#vacation  unix	-		n		n		-		-		pipe
-#  flags=Rq user=vacation argv=/usr/bin/vacation -s ${sender} -r ${recipient}
+vacation  unix	-		n		n		-		-		pipe
+  flags=Rq user=vacation argv=/usr/bin/vacation -s ${sender} -r ${recipient}
