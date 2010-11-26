@@ -10,7 +10,7 @@ use Config::Std;
 
 use Sys::Syslog;
 
-# TODO configure Sys::Syslog
+use VBoxAdm::Utils '@VERSION@';
 
 my $db_host = 'localhost';
 my $db_user = 'vacation';
@@ -55,6 +55,15 @@ foreach my $loc (@conffile_locations) {
     }
 }
 
+# recipient must be "unrolled", it's smth. like "user#domain.tld@vacation.domain.tld" -> "user@domain.tld"
+if($config{'recipient'}) {
+    my $unrolled = &unroll_recipient($config{'recipient'});
+    if($unrolled) {
+        $config{'orig-recipient'} = $config{'recipient'};
+        $config{'recipient'} = $unrolled;
+    }
+}
+
 $db_host = $config{'default'}{'dbhost'} || $db_host;
 $db_user = $config{'default'}{'dbuser'} || $db_user;
 $db_pass = $config{'default'}{'dbpass'} || $db_pass;
@@ -66,6 +75,8 @@ die("No sender given on command line!")    if !$config{'sender'};
 die("No recipient given on command line!") if !$config{'recipient'};
 
 binmode( STDIN, ':utf8' );
+
+openlog('vboxadm-vacation','ndelay,nofatal','mail');
 
 # detect infinite lookup loops
 #my $loopcount = 0;
@@ -109,8 +120,8 @@ while (<STDIN>) {
 # Loops:
 # $is_loop
 if ( $status{'is-loop'} ) {
-
-    # TODO LOG it
+    syslog(2, 'Detected Loop - From: %s - To: %s - Exiting', $header{'from'}, $header{'to'});
+    closelog();
     exit 0;
 }
 
@@ -118,8 +129,8 @@ if ( $status{'is-loop'} ) {
 # $from =~ /(MAILER-DAEMON|postmaster|Mail Delivery System|E-postsystemet|Delivery Subsystem|Mailer_Daemon)/i
 # $subject =~ /(Undeliver|Returned|returning|failure|failed|Delivery (Status )?Notification|fehlgeschlagen|remise|rejected|nicht zustellbar|Unzustellbar|Unbekannt|DSN|Benachrichtung|problem|falla|Zurückgeschickte Mail|Nondeliverable mail|Kan ikke leveres)/i
 if ( $header{'from'} =~ /(MAILER-DAEMON|postmaster|Mail Delivery System|E-postsystemet|Delivery Subsystem|Mailer_Daemon)/i ) {
-
-    # TODO LOG it
+    syslog(2, 'Detected Bounce - From: %s - To: %s - Exiting', $header{'from'}, $header{'to'});
+    closelog();
     exit 0;
 }
 
@@ -130,38 +141,90 @@ if ( $header{'subject'} =~
 /(abwesen|vacation|Out of Office|reply|ist au.er Haus|Vielen Dank für Ihre E-Mail|Out-of-office|Deine E-Mail|Ihre Nachricht|Semestersvar|Feriesvar|R.ponse en cas d.absence|Risposta di assenza)/i
   )
 {
-
-    # TODO LOG it
+    syslog(2, 'Detected Vacation Message - From: %s - To: %s - Subject: %s - Exiting', $header{'from'}, $header{'to'}, $header{'subject'});
+    closelog();
     exit 0;
 }
 
 # Delays:
 # $from && $subject && $from =~ /(mailer|Mail Delivery System)/i && $subject =~ /(delay|warning)/i
+if($header{'from'} && $header{'subject'}
+    && $header{'from'} =~ m/(mailer|Mail Delivery System)/i
+    && $header{'subject'} =~ m/(delay|warning)/i ) {
+    syslog(2, 'Detected Delay Message - From: %s - To: %s - Subject: %s - Exiting', $header{'from'}, $header{'to'}, $header{'subject'});
+    closelog();
+    exit 0;
+}
 
 # Auto-Generated Messages:
 # $is_list || ( $auto_submitted && $auto_submitted ne "no" ) || ( $from && $from eq "<>" )
+if($status{'is-list'}
+    || ($header{'auto-submitted'} && $header{'auto-submitted'} ne 'no')
+    || ($header{'from'} && $header{'from'} eq '<>')
+) {
+    syslog(2, 'Detected Auto-Submitted Message - From: %s - To: %s - Exiting', $header{'from'}, $header{'to'});
+    closelog();
+    exit 0;
+}
 
 # Spam:
 # $from && $subject && $subject =~ m/(\*\*\*SPAM\*\*\*|WW Spam: high)
 # $status{'is-spam'}
+if($status{'is-spam'}) {
+    syslog(2, 'Detected SPAM - From: %s - To: %s - Exiting', $header{'from'}, $header{'to'});
+    closelog();
+    exit 0;
+}
 
 # Facebook:
 # $header{'x-facebook-notify'}
+if($header{'x-facebook-notify'}) {
+    syslog(2, 'Detected Facebook Notify - From: %s - To: %s - Exiting', $header{'from'}, $header{'to'});
+    closelog();
+    exit 0;
+}
 
 # Precedence:
 # $header{'precedence'}
+if($header{'precedence'}) {
+    syslog(2, 'Detected Precedence Header (%s) - From: %s - To: %s - Exiting', $header{'precedence'}, $header{'from'}, $header{'to'});
+    closelog();
+    exit 0;
+}
 
 # No-Return-Path:
 # !$header{'return-path'}
+if(!$header{'return-path'}) {
+    syslog(2, 'Missing Return-Path - From: %s - To: %s - Exiting', $header{'from'}, $header{'to'});
+    closelog();
+    exit 0;
+}
 
 # Notification sent within $notify_interval seconds
 # SQL: SELECT COUNT(*) FROM vacation_notify WHERE on_vacation = recipient AND notified = sender AND notified_at <= NOW() - $notify_interval;
-
-# TODO recipient address must be contained in either: to, cc, bcc, resent-to, resent-cc or resent-bcc
-# TODO sent respone to Return-Path if set, of Reply-To if set or From as last resort
-# TODO set sender to (local) recipient, recipient must be "unrolled", it's smth. like "user#domain.tld@vacation.domain.tld" -> "user@domain.tld"
-my $from = '';
-my $to   = '';
+my $sql = "SELECT COUNT(*) FROM vacation_notify WHERE on_vacation = ? AND notified = ? AND notified_at <= NOW() - ?";
+# recipient address must be contained in either: to, cc, bcc, resent-to, resent-cc or resent-bcc
+if(!&check_recipient($config{'recipient'}, \%header)) {
+    return 1;
+}
+# sent respone to Return-Path if set, of Reply-To if set or From as last resort
+my $to   = undef;
+if($header{'return-path'}) {
+    $to = $header{'return-path'};
+} elsif($header{'reply-to'}) {
+    $to = $header{'reply-to'};
+} elsif($header{'from'}) {
+    $to = $header{'from'};
+} elsif($sender) {
+    $to = $sender;
+} else {
+    syslog(2, 'Could not find a valid sender address - From: %s - To: %s - Exiting', $header{'from'}, $header{'to'});
+    closelog();
+    exit 1;
+}
+# set sender to (local) recipient
+my $from = undef;
+$from = $config{'recipient'};
 
 # TODO set X-Loop: VBoxAdmVacation
 # TODO set Auto-Submitted: auto-replied
@@ -171,6 +234,8 @@ my $dsn = "DBI:mysql:host=$db_host;database=$db_db;port=$db_port;user=$db_user;p
 my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 1, } );
 
 if ( !$dbh ) {
+    syslog(2, 'Could not connect to database with DSN $dsn - From: %s - To: %s - Exiting', $header{'from'}, $header{'to'});
+    closelog();
     die("Could not connect to database with DSN $dsn");
 }
 
@@ -180,17 +245,45 @@ $dbh->do("SET NAMES utf8");
 
 # TODO check notification sent within ... (see above)
 if ( already_notified( $dbh, $to, $from ) ) {
-
-    # TODO LOG
+    syslog(2, 'Already notified - From: %s - To: %s - Exiting', $header{'from'}, $header{'to'});
+    closelog();
     exit 0;
 }
 
 # TODO get vacation subj and vacation msg
 # TODO send msg
+closelog();
+exit 0;
 
 ###########################################################################
 # Subs
 ###########################################################################
+sub check_recipient {
+    # recipient address must be contained in either: to, cc, bcc, resent-to, resent-cc or resent-bcc
+    my $recipient = shift;
+    my $header_ref = shift;
+    
+    my $found_recipient = 0;
+    
+    foreach my $hdr (qw(to cc bcc resent-to resent-cc resent-bcc)) {
+        if($header{$hdr}) {
+            foreach my $dest (extract_recipients($header{$hdr})) {
+                if($recipient =~ m/$dest/i) {
+                    return 1;
+                }
+            }
+        }
+    }
+    
+    return;
+}
+
+sub unroll_recipient {
+    my $rolled = shift;
+    # recipient must be "unrolled", it's smth. like "user#domain.tld@vacation.domain.tld" -> "user@domain.tld"
+    # TODO implement
+}
+
 sub already_notified {
     my $dbh  = shift;
     my $to   = shift;

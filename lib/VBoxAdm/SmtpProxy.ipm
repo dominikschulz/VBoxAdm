@@ -10,8 +10,10 @@ use Time::HiRes qw(time);
 
 use Mail::SpamAssassin;
 
-use MSDW::SMTP::Server;
-use MSDW::SMTP::Client;
+use MSDW::SMTP::Server '@VERSION@';
+use MSDW::SMTP::Client '@VERSION@';
+
+use VBoxAdm::Utils '@VERSION@';
 
 use base qw(Net::Server::PreFork);
 
@@ -137,7 +139,7 @@ sub max_msg_size {
     my $self      = shift;
     my $recipient = shift;
 
-    my $email = extract_recipients($recipient);
+    my $email = &VBoxAdm::Utils::extract_recipients($recipient);
 
     # check the max msg size for this recipient
     my @userinfo = $self->{vbox}->{sth}->{userinfo}->execute($email);
@@ -152,7 +154,7 @@ sub sa_block_score {
     # set arbitrarily high limit
     my $lowest_kill_score = 9999;
 
-    foreach my $email ( extract_recipients($recipients) ) {
+    foreach my $email ( &VBoxAdm::Utils::extract_recipients($recipients) ) {
         if ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
             my @userinfo      = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
             my $sa_kill_score = $userinfo[4];
@@ -170,27 +172,12 @@ sub sa_block_score {
     return $lowest_kill_score;
 }
 
-sub extract_recipients {
-    my $recipients = shift;
-
-    my @emails = ();
-
-    my @recps = split( /\s*,\s*/, $recipients );
-    foreach my $recp (@recps) {
-        if ( $recp =~ m/^\s*<?\s*([^>@]+@[^>]+)\s*>?\s*/ ) {
-            my $email = lc($1);
-            push( @emails, $email );
-        }
-    }
-    return @emails;
-}
-
 sub want_sa {
     my $self       = shift;
     my $recipients = shift;
 
     my $want_sa = 0;
-    foreach my $email ( extract_recipients($recipients) ) {
+    foreach my $email ( &VBoxAdm::Utils::extract_recipients($recipients) ) {
         if ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
             my @userinfo = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
             $want_sa = $want_sa || $userinfo[3] || 0;

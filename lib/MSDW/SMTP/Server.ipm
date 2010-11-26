@@ -14,6 +14,8 @@ package MSDW::SMTP::Server;
 use IO::Socket;
 use IO::File;
 
+our $VERSION = '@VERSION@';
+
 =head1 NAME
 
   MSDW::SMTP::Server --- SMTP server for content-scanning proxy
