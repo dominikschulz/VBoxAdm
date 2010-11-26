@@ -39,3 +39,16 @@ which was written by <NAME> <EMAIL> and is
   Copyright XXX
 It was licensed under the terms of the
   GNU GPL.
+  
+=== Postfix and Dovecot Configuration ===
+The configuration for postfix and dovcot as
+well as the database design were inspired
+Christoph Haas' execellet ISPmail tutorials.
+Find them at http://workaround.org/ispmail/.
+
+=== Roundcube Vacation ===
+The roundcube vacation plugin is distributed
+with this application since it is not included with the
+roundcube distribution and this application required a new
+driver for this plugin. It was written by jaspersl@gmail.com
+and is maintained at https://sourceforge.net/projects/rcubevacation/.
