@@ -1,5 +1,5 @@
 #
-# Makefile for mysql-toolkit
+# Makefile for vboxadm
 #
 
 # Required programs
@@ -51,6 +51,9 @@ LIBFILES = \
 	lib/MSDW/SMTP/Client.pm \
 	lib/MSDW/SMTP/Server.pm
 
+TESTFILES = \
+	t/VBoxAdm/Utils.t
+
 .PHONY: install tidy critic test
 
 %.pl: %.ipl
@@ -96,7 +99,7 @@ real-install: all test man
 	$(INSTALL_DATA) doc/man/VBoxAdm::Frontend.8 $(MANDIR)/man8/VBoxAdm::Frontend.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::SmtpProxy.8 $(MANDIR)/man8/VBoxAdm::SmtpProxy.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::Utils.8 $(MANDIR)/man8/VBoxAdm::Utils.8
-	$(INSTALL_PROGRAM) bin/vacation.pl $(VBOXLIBDIR)/bin/vacation
+	$(INSTALL_PROGRAM) bin/vacation.pl $(VBOXLIBDIR)/vacation
 	$(INSTALL_PROGRAM) cgi-bin/vboxadm.pl $(VHDIR)/cgi-bin/vboxadm.pl
 	$(INSTALL_PROGRAM) cron/cleanup.pl $(VBOXLIBDIR)/bin/cleanup
 	$(INSTALL_DATA) lib/VBoxAdm/Frontend.pm $(LIBDIR)/VBoxAdm/Frontend.pm
@@ -133,6 +136,8 @@ clean:
 	$(RM) -f cron/*.pl
 	$(RM) -f doc/man/*
 	$(RM) -f lib/VBoxAdm/*.bak
+	$(RM) -f lib/MSDW/SMTP/*.bak
+	$(RM) -f lib/MSDW/SMTP/*.pm
 	$(RM) -f lib/VBoxAdm/*.pm
 
 git: tidy all clean

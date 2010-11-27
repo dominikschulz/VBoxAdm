@@ -9,6 +9,7 @@
 #   GNU General Public License for more details.
 #
 # Written by Bennett Todd <bet@rahul.net>
+# Slightly modified by Dominik Schulz <dominik.schulz@gauner.org>
 
 package MSDW::SMTP::Server;
 use IO::Socket;

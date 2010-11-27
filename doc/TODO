@@ -11,6 +11,9 @@ Make sure class-C ip subnet auto-whitelists are supported
 -- Add alternate styles
 -- Add plaintext templates
 
+- Add conversion tools to help with migration from other database based
+mailbox management suites like debmin, Vexim, Postfixadmin and others.
+
 ###########################################################################
 Content Scanning
 ###########################################################################

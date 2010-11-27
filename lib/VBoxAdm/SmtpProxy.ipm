@@ -436,7 +436,7 @@ sub is_spam {
     }
 }
 
-# TODO LOW testcases
+# TODO testcases
 
 1;
 __END__

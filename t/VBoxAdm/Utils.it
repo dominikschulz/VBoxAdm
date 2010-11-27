@@ -1,0 +1,24 @@
+use Test::More qw( no_plan );
+use VBoxAdm::Utils '@VERSION@';
+
+BEGIN { use_ok( 'VBoxAdm::Utils', '@VERSION@' ); }
+
+# Special values to test
+# 0, 0E0, 0.0 and '0 but true'
+# undef, lists of undef
+
+# trim()
+is( VBoxAdm::Utils::trim("   hello, blaa    \t \n \r \f"), "hello, blaa", "'   hello, blaa  ' => 'hello, blaa'" );
+
+# trim2()
+is( VBoxAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", '"  key = value # comment   " => "key = value"' );
+
+# Test extract_recipients
+{
+	my $recipients = 'user1@domain.tld, <user2@domain.tld>, Mr. USer <User3@domain.tld>, <root@localhost>';
+	my @expect = qw(user1@domain.tld user2@domain.tld User3@domain.tld root@localhost);
+	my @emails = VBoxAdm::Utils::extract_recipients($recipients);
+	foreach my $i (1..$#expect) {
+		is(lc($emails[$i]),lc($expect[$i]),$expect[$i].' equals');
+	}
+}

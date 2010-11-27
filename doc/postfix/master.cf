@@ -52,7 +52,7 @@ virtual   unix  -       n       n       -       -       virtual
 lmtp      unix  -       -       -       -       -       lmtp
 anvil     unix  -       -       -       -       1       anvil
 scache    unix  -       -       -       -       1       scache
-# Interface to AMaViS
+# Interface to SMTP-Proxy
 smtp-proxy unix -       -       n       -       15  	smtp
     -o smtp_data_done_timeout=1800
     -o smtp_send_xforward_command=yes
@@ -118,4 +118,4 @@ smtp-proxy unix -       -       n       -       15  	smtp
 dovecot   unix  -       n       n       -       -       pipe
   flags=DRhu user=vmail:vmail argv=/usr/lib/dovecot/deliver -d ${user}@${domain}
 vacation  unix	-		n		n		-		-		pipe
-  flags=Rq user=vacation argv=/usr/bin/vacation -s ${sender} -r ${recipient}
+  flags=Rq user=vacation argv=/usr/lib/vboxadm/vacation -s ${sender} -r ${recipient}

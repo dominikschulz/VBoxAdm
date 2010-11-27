@@ -6,8 +6,8 @@
  * @uses	rcube_plugin
  * @author	Dominik Schulz
  * @version	1.9
- * @license     GPL
- * @link	https://sourceforge.net/projects/rcubevacation/
+ * @license GPL
+ * @link	https://vboxadm.gauner.org/
  * @todo	See README.TXT
  */
 
