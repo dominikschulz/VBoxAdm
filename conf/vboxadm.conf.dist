@@ -6,10 +6,11 @@ dbhost=localhost
 
 [vacation]
 # config for vacation autoresonder
-dbuser=vacation
-dbpass=vacation
-dbdb=vboxadm
-dbhost=localhost
+#dbuser=vacation
+#dbpass=vacation
+#dbdb=vboxadm
+#dbhost=localhost
+notify_interval=604800
 
 [smtpproxy]
 # config for smtpproxy
@@ -28,10 +29,10 @@ sa_max_msg_size=10
 sa_timeout=30
 
 # db
-dbuser=vboxadm
-dbpass=vboxadm
-dbdb=vboxadm
-dbhost=localhost
+#dbuser=vboxadm
+#dbpass=vboxadm
+#dbdb=vboxadm
+#dbhost=localhost
 
 # server information
 min_servers=20

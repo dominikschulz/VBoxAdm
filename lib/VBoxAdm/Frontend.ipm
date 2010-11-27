@@ -2,14 +2,7 @@ package VBoxAdm::Frontend;
 
 # TODO use captacha plugin to protect login
 # TODO use require ssl
-# TODO HIGH enforce lower case usernames and domain
-# TODO shorted alias target
-# TODO add search for list pages
-# TODO edit mailbox page
-# TODO edit domain page
-# TODO edit domain_alias page
-# TODO edit alias page
-# TODO deletion confirmation popup
+# TODO shortend alias target
 
 use base 'CGI::Application';
 
@@ -294,8 +287,9 @@ sub log {
 sub post_login_callback {
     my $self = shift;
 
-    # TODO setup users session, i.e. is he superadmin, domainadmin,
+    # setup users session, i.e. is he superadmin, domainadmin,
     # get domain id, mailbox id, ip, ...
+    $self->get_user_details();
     $self->log_login();
 }
 
@@ -384,46 +378,6 @@ sub is_superadmin {
     }
     else {
         return;
-    }
-}
-
-{
-
-    # RFC2822 email syntax
-    my $local_part = qr"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*"i;
-    my $domain     = qr"(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:[A-Z]{2}|com|org|net|gov|mil|biz|info|mobi|name|aero|jobs|museum)"i;
-
-    sub is_valid_address_rfc822 {
-        my $addy = shift;
-        return $addy =~ m/^$local_part\@$domain$/;
-    }
-
-    sub is_valid_addresses_rfc822 {
-        my $addys    = shift;
-        my @addrs    = split( /\s*,\s*/, $addys );
-        my $count_ok = 0;
-        foreach my $addr (@addrs) {
-            if ( is_valid_address_rfc822($addr) ) {
-                $count_ok++;
-            }
-            else {
-
-                # at least one invalid address found!
-                return;
-            }
-        }
-        return $count_ok;
-    }
-
-    sub is_valid_localpart_rfc822 {
-        my $addy = shift;
-        print "\tis_valid_localpart_rfc822: $addy\n";
-        return $addy =~ m/^$local_part$/;
-    }
-
-    sub is_valid_domain_rfc822 {
-        my $addy = shift;
-        return $addy =~ m/^$domain$/;
     }
 }
 
@@ -596,7 +550,7 @@ sub show_add_domain {
     my $create_domainadmin = $q->param('create_domainadmin');
 
     my $msg = '';
-    if ( $domain && !is_valid_domain_rfc822($domain) ) {
+    if ( $domain && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain) ) {
         $msg = "Invalid syntax. Domain is not RFC822 compliant!";
     }
     elsif ( $domain && $create_domainadmin ) {
@@ -836,7 +790,7 @@ sub show_add_domain_alias {
     my $domain_id    = $q->param('domain');
 
     my $msg = '';
-    if ( $domain_alias && !is_valid_domain_rfc822($domain_alias) ) {
+    if ( $domain_alias && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain_alias) ) {
         $msg = "Invalid syntax. Domain is not RFC822 compliant!";
     }
     elsif ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
@@ -1160,10 +1114,10 @@ sub show_add_alias {
         # if domainadmin, verify that its his domain
         $msg = "You are not authorized to modify this domain!";
     }
-    elsif ( $local_part && !is_valid_localpart_rfc822($local_part) ) {
+    elsif ( $local_part && !&VBoxAdm::Utils::is_valid_localpart_rfc822($local_part) ) {
         $msg = "Invalid local part. This address is not RFC822 compliant!";
     }
-    elsif ( $goto && !is_valid_addresses_rfc822($goto) ) {
+    elsif ( $goto && !&VBoxAdm::Utils::is_valid_addresses_rfc822($goto) ) {
         $msg = "Invalid address in destination!";
     }
     elsif ( $local_part && $domain_id && $goto ) {
@@ -1320,7 +1274,7 @@ sub show_update_alias {
             $msg .= "Failed to set Alias #$alias_id $status_str.";
         }
     }
-    if ( $target && !is_valid_addresses_rfc822($target) ) {
+    if ( $target && !&VBoxAdm::Utils::is_valid_addresses_rfc822($target) ) {
         $msg = "Invalid address in destination!";
     }
     elsif ( $alias_id && $target ) {
@@ -1481,10 +1435,20 @@ sub show_add_mailbox {
     my $name              = lc( $q->param('name') );
     my $is_active         = $q->param('is_active');
     my $send_welcome_mail = $q->param('send_welcome_mail');
+    my $msg_max_size_mb   = $q->param('max_msg_size_mb');
+    $msg_max_size_mb ||= 15;    # default to 15 MB
+    my $max_msg_size   = $msg_max_size_mb * 1024;
+    my $sa_active      = $q->param('sa_active') || 1;
+    my $sa_kill_score  = $q->param('sa_kill_score') || 6.31;
+    my $is_superadmin  = 0;
+    my $is_domainadmin = 0;
 
-    # TODO set default for max_msg_size
-    # TODO set default for sa_active and sa_kill_score
-    # TODO set default for is_domainadmin, is_superadmin
+    if ( $self->is_superadmin() ) {
+        $is_superadmin = $q->param('is_superadmin');
+    }
+    elsif ( $self->is_domainadmin() && $domain_id == $self->get_users_domainid() ) {
+        $is_domainadmin = $q->param('is_domainadmin');
+    }
 
     my $msg = '';
 
@@ -1493,7 +1457,7 @@ sub show_add_mailbox {
         # if domainadmin, verify that its his domain
         $msg = "You are not authorized to modify this domain!";
     }
-    elsif ( $username && !is_valid_localpart_rfc822($username) ) {
+    elsif ( $username && !&VBoxAdm::Utils::is_valid_localpart_rfc822($username) ) {
         $msg = "Invalid local part. This address is not RFC822 compliant!";
     }
     elsif ( $domain_id && $username && $password && $name && $password eq $password_2 ) {
@@ -1502,7 +1466,14 @@ sub show_add_mailbox {
         if ( $sth->execute( $domain_id, $username, $password, $is_active ) ) {
             $msg = "Added Mailbox $username @ #$domain_id for $name";
 
-            # TODO HIGH handle send_welcome_mail
+            # send_welcome_mail
+            my $msg = '';
+            $msg .= "Subject: Welcome\r\n";
+            $msg .= "Auto-Submitted: auto-generated\r\n";
+            $msg .= "From: VBoxAdm <vboxadm\@localhost>\r\n";    # TODO get domain from domain_id here
+            $msg .= "\r\n";
+            $msg .= "Welcome to your new mailbox.";
+            &VBoxAdm::Utils::sendmail( 'vboxadm@localhost', $msg );
         }
         else {
             $msg = "Failed to add Mailbox $username @ #$domain_id for $name. DBI Error: " . $sth->errstr;

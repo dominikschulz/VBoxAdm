@@ -19,8 +19,8 @@ append_dot_mydomain = no
 readme_directory = no
 
 # TLS parameters
-smtpd_tls_cert_file = /etc/ssl/certs/vs-mail-pf.pem
-smtpd_tls_key_file = /etc/ssl/private/vs-mail-pf.key
+smtpd_tls_cert_file = /etc/ssl/certs/hostname.pem
+smtpd_tls_key_file = /etc/ssl/private/hostname.key
 smtpd_use_tls = yes
 smtp_use_tls = yes
 smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
@@ -57,28 +57,28 @@ smtpd_sasl_type = dovecot
 smtpd_sasl_path = private/auth
 smtpd_sasl_auth_enable = yes
 smtpd_recipient_restrictions =
-# Postmaster, abuse und andere role-accounts
+# Allow Postmaster, Abuse and other imporant role accounts
         check_recipient_access btree:/etc/postfix/maps/access_recipient-rfc,
-# White- und Blacklisting
+# White- and Blacklisting
         check_client_access btree:/etc/postfix/maps/access_client,
         check_helo_access btree:/etc/postfix/maps/access_helo,
         check_sender_access btree:/etc/postfix/maps/access_sender,
         check_recipient_access btree:/etc/postfix/maps/access_recipient,
-# Keine unsauberen Mails annehmen!
+# Allow no malformed mails
         reject_non_fqdn_sender,
         reject_non_fqdn_recipient,
         reject_unknown_sender_domain,
         reject_unknown_recipient_domain,
-# Unsere Nutzer erlauben!
+# Allow our authed. users
         permit_sasl_authenticated,
         permit_mynetworks,
-# Testweise folgende rejects:
+# These rejects may have to be disalbed, watch your logs
         reject_invalid_helo_hostname,
         reject_unknown_helo_hostname,
         reject_non_fqdn_helo_hostname,
         reject_unknown_client_hostname,
         reject_unknown_reverse_client_hostname,
-# RBL checken
+# check RBLs
         reject_rbl_client ix.dnsbl.manitu.net,
         reject_rbl_client zen.spamhaus.org,
 #       reject_rbl_client bl.spamcop.net,
@@ -88,17 +88,15 @@ smtpd_recipient_restrictions =
 #       reject_rhsbl_sender dsn.rfc-ignorant.org
 # Greylisting
         check_policy_service inet:127.0.0.1:60000,
-# TODO policy service to check msg size!
-#		check_policy_service inet:127.0.0.1:60010,
-# Backup-MX: existierende Relay-Empfänger dyn. prüfen
+# Backup-MX: test existing relay recipients dynamically
 #       reject_unverified_recipient,
-# Backup-MX: erlauben
+# Backup-MX: allow
 #       permit_mx_backup,
-# Restliches Relaying verbieten,
+# No other relaying
         reject_unauth_destination,
 # Policyd-Weight
         check_policy_service inet:127.0.0.1:12525,
-# Rest erlauben
+# allow the rest
         permit
 smtpd_tls_auth_only = no
 #content_filter = smtp-proxy:[127.0.0.1]:10024

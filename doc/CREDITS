@@ -1,3 +1,5 @@
+CREDITS
+
 This application was put toegether by
   Dominik Schulz <dominik.schulz@gauner.org>
 but incorporates code and ideas of others.
@@ -11,40 +13,51 @@ whith minor snippets of code taken from the
 documentation of the modules used. This code is
   Copyright (c) 2010 Dominik Schulz <dominik.schulz@gauner.org>
 and licensed under the terms of the
-  GNU GPL Version 2.
+  GNU GPL Version 2 or later.
+
+The HTML/CSS/JS skeleton is taken from the HTML5 Boilerplate
+maintained by Paul Irish and Divya Manian. It is available
+at http://html5boilerplate.com/.
+
+The sortable tables are powered by sortable.js written
+by Stuart Langridge. Get it from
+http://www.kryogenix.org/code/browser/sorttable/.
 
 === Design ===
 The design (some CSS and some HTML snippets) is
 taken from
-  Postfix Admin <URL>
-which is written by <NAME> and 
-  Copyright (c) 20XX-20XX <NAME> <Email>
-It was licensed under the terms
-  <LICENSE>.
+  Postfix Admin http://postfixadmin.sf.net/
+which is written by Mischa Peters et. al. and 
+  Copyright (c) 2005 Mischa Peters
+It was licensed under the terms of the
+  GNU GPL Version 2 or later.
 
 === Icons ===
 Credit Famfamfam Silk icons.
 
 === SMTP-Proxy ===
 The base for the smtp proxy code is taken from
-  smtpprox <URL>
+  smtpprox http://bent.latency.net/smtpprox/
 which was written by Bennett Todd <bet@rahul.net> and is
   Copyright (C) 2001 Morgan Stanley Dean Witter
 It was licensed under the terms of the
   GNU GPL.
 
 Additional code and inspiration was taken from
-  SpamPD <URL>
-which was written by <NAME> <EMAIL> and is
-  Copyright XXX
+  SpamPD
+http://www.worlddesign.com/Content/rd/mta/spampd/spampd.html
+which was written by Maxim Paperno <MPaperno@WorldDesign.com>.
 It was licensed under the terms of the
-  GNU GPL.
+  GNU GPL Version 2 or later.
   
 === Postfix and Dovecot Configuration ===
 The configuration for postfix and dovcot as
 well as the database design were inspired
 Christoph Haas' execellet ISPmail tutorials.
 Find them at http://workaround.org/ispmail/.
+
+Additional kudos go to Peer Heinlein for his
+book 'Das Postfix Buch'.
 
 === Roundcube Vacation ===
 The roundcube vacation plugin is distributed

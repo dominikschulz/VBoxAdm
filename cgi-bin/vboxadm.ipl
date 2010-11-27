@@ -5,3 +5,45 @@ use VBoxAdm::Frontend '@VERSION@';
 
 my $vbox = VBoxAdm::Frontend->new();
 $vbox->run();
+
+__END__
+
+=head1 NAME
+
+vboxadm.pl - Frontend for VBoxAdm
+
+=head1 VERSION
+
+This documentation refers to vboxadm.pl version @VERSION@
+built on @BUILDDATE@.
+
+=head1 DESCRIPTION
+
+This is the cgi script for VBoxAdm.
+
+=head1 DEPENDENCIES
+
+VBoxAdm::Frontend.
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This module is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself. See L<perlartistic>.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+=cut

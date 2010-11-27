@@ -29,6 +29,8 @@ How to Install VBoxAdm
 - CGI::Application::Plugin::Authentication
 - Config::Std
 - Famfamfam Silk Icons
+- Dovecot 1.2.x (Version 2.x is untested, but should work with minor adustments)
+- Postfix 2.6+
 
 * Install MySQL
 In the default setup we need InnoDB. If you want to avoid InnoDB you can change the schema,
@@ -101,7 +103,34 @@ Copy all files and subdirs of doc/postfix to /etc/postfix.
 Copy all files of doc/dovecot to /etc/dovecot.
 
 * Configure Vacation
+Create the required system user and you should be ready to go.
 TODO configure the vacation tool
 
 * Configure SMTP-Proxy
+Create an init script.
 TODO configure the SMTP-Proxy
+
+* Install VBoxAdm
+To build and install this application use the supplied Makefile:
+	make clean
+	make all
+	make install
+
+You may set DESTDIR when running make install to specify another prefix
+than the default one in /usr. Just run the make install command like this:
+	DESTDIR=/your/prefix/ make install
+
+Contributing
+============
+Bug reports, Patches and comments are welcome. Just send them
+to me at dominik.schulz@gauner.org. If you send perl testcases
+along with your bug report or patch it'll get the highest priority
+on my todo list.
+
+Packaging
+=========
+I'd really love to see this application packaged for the differnt
+distributions out there. If you plan to create a package for an
+Debian-based distribution contact me and I'll send you my preliminary
+packaing information for this application. If you've created
+a packaged version of this application please let me know.
