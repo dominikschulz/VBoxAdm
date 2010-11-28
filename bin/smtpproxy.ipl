@@ -22,6 +22,7 @@ my @conffile_locations = qw(
 );
 GetOptions(
     'verbose|v+' => \$config{'verbose'},
+    'dry|d!'     => \$config{'dry'},
     'no-fork!'   => \$config{'no-fork'},
 
     # shift removes name of the option (config) and leaves the value for unshift
@@ -120,6 +121,7 @@ my $server = bless {
         sa_max_msg_size => $sa_max_msg_size,
         sa_timeout      => $sa_timeout,
         max_msg_size    => $max_msg_size,
+        dry             => $config{'dry'},
 
         dbhost => $dbhost,
         dbport => $dbport,
@@ -205,6 +207,17 @@ children. The message passed through is bufferd in an unlinked tempfile
 in /tmp, which SHOULD by a tmpfs large enough to hold max_servers * max_msg_size
 of data. This prevents the allocation overhead associated with large strings
 and ensures that space will be returned to the OS as soon as possible.
+
+=head1 PARAMETERS
+
+=head2 verbose
+Be more verbose.
+
+=head2 dry
+Do not acutually reject any messages. Only log to syslog.
+
+=head2 config
+Sepcify an alternate config path.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 

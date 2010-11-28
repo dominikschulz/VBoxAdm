@@ -33,7 +33,8 @@ It was licensed under the terms of the
   GNU GPL Version 2 or later.
 
 === Icons ===
-Credit Famfamfam Silk icons.
+This application uses the Silk Icon set
+from FamFamFam. http://www.famfamfam.com/lab/icons/silk/
 
 === SMTP-Proxy ===
 The base for the smtp proxy code is taken from

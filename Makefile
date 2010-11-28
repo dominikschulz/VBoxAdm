@@ -42,7 +42,8 @@ BINFILES = \
 	bin/vacation.pl \
 	bin/smtpproxy.pl \
 	cgi-bin/vboxadm.pl \
-	cron/cleanup.pl
+	cron/cleanup.pl \
+	contrib/migration.pl
 
 LIBFILES = \
 	lib/VBoxAdm/Frontend.pm \
@@ -124,6 +125,7 @@ tidy:
 	$(PERLTIDY) bin/*.ipl
 	$(PERLTIDY) cgi-bin/*.ipl
 	$(PERLTIDY) cron/*.ipl
+	$(PERLTIDY) contrib/*.ipl
 
 clean:
 	$(RM) -f bin/tmon.out
@@ -132,6 +134,8 @@ clean:
 	$(RM) -f bin/*.ERR
 	$(RM) -f cgi-bin/*.bak
 	$(RM) -f cgi-bin/*.pl
+	$(RM) -f contrib/*.bak
+	$(RM) -f contrib/*.pl
 	$(RM) -f cron/*.bak
 	$(RM) -f cron/*.pl
 	$(RM) -f doc/man/*

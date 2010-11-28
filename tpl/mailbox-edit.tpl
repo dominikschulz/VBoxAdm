@@ -35,7 +35,7 @@
 			</tr>
 			<tr>
 				<td>Active:</td>
-				<td><input class="flat" type="checkbox" name="is_active" checked /></td>
+				<td><input class="flat" type="checkbox" name="is_active"[% IF is_active %] checked[% END %] /></td>
 				<td></td>
 			</tr>
 			<tr>
@@ -61,12 +61,12 @@
 			[% IF user_is_superadmin %]
 			<tr>
 				<td>Domainadmin:</td>
-				<td><input class="flat" type="checkbox" name="is_domainadmin"[% IF is_domainadmin %] checked[% END %] /></td>
+				<td><input class="flat" type="checkbox" name="is_domainadmin"[% IF mb_is_domainadmin %] checked[% END %] /></td>
 				<td></td>
 			</tr>
 			<tr>
 				<td>Superadmin:</td>
-				<td><input class="flat" type="checkbox" name="is_superadmin"[% IF is_superadmin %] checked[% END %] /></td>
+				<td><input class="flat" type="checkbox" name="is_superadmin"[% IF mb_is_superadmin %] checked[% END %] /></td>
 				<td></td>
 			</tr>
 			[% END %]
