@@ -163,6 +163,67 @@ elsif ( $config{'source'} eq 'vexim' ) {
 elsif ( $config{'source'} eq 'postfixadmin' ) {
 
     # TODO convert postfix admin schema
+    my $sql_domains         = "SELECT domain, active FROM domain ORDER BY domain";
+    my $sth_domains         = $dbh->prepare($sql_domains);
+    my $sql_alias_domains   = "SELECT alias_domain, target_domain, active FROM alias_domain ORDER BY alias_domain";
+    my $sth_alias_domains   = $dbh->prepare($sql_alias_domains);
+    my $sql_mailboxes       = "SELECT local_part, password, name, quota, active FROM mailbox WHERE domain = ?";
+    my $sth_mailboxes       = $dbh->prepare($sql_mailboxes);
+    my $sql_domain_admin    = "SELECT username, domain FROM domains_admins WHERE active = 1";
+    my $sth_domain_admin    = $dbh->prepare($sql_domain_admin);
+    my $sql_vacation        = "SELECT subject, body FROM vacation WHERE email = ?";
+    my $sth_vacation        = $dbh->prepare($sql_vacation);
+    my $sql_vacation_notify = "SELECT on_vacation, notified, notified_at FROM vacation_notification WHERE notified_at > NOW() - INTERVAL 1 MONTH";
+    my $sth_vacation_notify = $dbh->prepare($sql_vacation_notify);
+
+    # domains and mailboxes
+    $sth_domains->execute();
+    while ( my ( $domain, $is_active ) = $sth_domains->fetchrow_array() ) {
+        $sth_mailboxes->execute($domain);
+        while ( my @row = $sth_mailboxes->fetchrow_array() ) {
+            my ( $local_part, $password, $name, $quota, $is_active ) = @row;
+            my $email = $local_part . '@' . $domain;
+
+            # TODO process each mailbox
+            # vacation status
+            if ( $sth_vacation->execute($email) ) {
+                my ( $subj, $msg ) = $sth_vacation->fetchrow_array();
+                if ( $subj && $msg ) {
+
+                    # TODO set vacation
+                }
+            }
+        }
+    }
+
+    # domains aliases
+    $sth_alias_domains->execute();
+    while ( my ( $domain, $goto ) = $sth_alias_domains->fetchrow_array() ) {
+
+        # TODO each alias domain
+    }
+
+    # vacation notify
+    $sth_vacation_notify->execute();
+    while ( my ( $on_vacation, $notified, $notified_at ) = $sth_vacation_notify->fetchrow_array() ) {
+
+        # TODO insert vacation status
+    }
+
+    # domainadmins
+    $sth_domain_admin->execute();
+    while ( my ( $email, $domain ) = $sth_domain_admin->fetchrow_array() ) {
+        my ( $local_part, $domain ) = split( /@/, $email );
+
+        # TODO update this user, set is_domainadmin = 1
+    }
+
+    $sth_domains->finish();
+    $sth_alias_domains->finish();
+    $sth_mailboxes->finish();
+    $sth_domain_admin->finish();
+    $sth_vacation->finish();
+    $sth_vacation_notify->finish();
 }
 else {
     print "Invalid source!\n";
