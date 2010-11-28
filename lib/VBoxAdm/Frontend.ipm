@@ -1558,7 +1558,7 @@ sub show_edit_mailbox {
 
     my $query = "SELECT m.local_part,d.name,m.name,m.is_active,m.max_msg_size,";
     $query .= "m.is_on_vacation,m.vacation_msg,m.quota,m.is_domainadmin,";
-    $query .= "m.is_superadmin,d.id FROM mailboxes AS m LEFT JOIN domains AS d ";
+    $query .= "m.is_superadmin,d.id,m.sa_active,m.sa_kill_score FROM mailboxes AS m LEFT JOIN domains AS d ";
     $query .= "ON m.domain_id = d.id WHERE m.id = ? ";
     my @args = ();
     push( @args, $mailbox_id );
@@ -1609,6 +1609,8 @@ sub show_edit_mailbox {
         mb_is_domainadmin  => $row[8],
         mb_is_superadmin   => $row[9],
         user_is_superadmin => $self->is_superadmin(),
+        sa_active          => $row[11],
+        sa_kill_score      => $row[12],
     );
 
     return $self->tt_process( 'mailbox-edit.tpl', \%params );
@@ -1643,6 +1645,8 @@ sub show_update_mailbox {
     my $vacation_msg   = $q->param('vacation_msg');
     my $is_domainadmin = $q->param('is_domainadmin');
     my $is_superadmin  = $q->param('is_superadmin');
+    my $sa_active      = $q->param('sa_active');
+    my $sa_kill_score  = $q->param('sa_kill_score');
 
     my $msg = '';
 
@@ -1706,6 +1710,20 @@ sub show_update_mailbox {
                 push( @params, 0 );
             }
         }
+
+        # SpamAssassin
+        if ( defined($sa_kill_score) ) {
+            $query .= "sa_kill_score = ?, ";
+            push( @params, $sa_kill_score );
+        }
+        if ( defined($sa_active) ) {
+            $sa_active = 1;
+        }
+        else {
+            $sa_active = 0;
+        }
+        push( @params, $sa_active );
+        $query .= "sa_active = ?, ";
 
         # Is_On_Vacation / Vacation Msg
         if ( defined($is_on_vacation) && $is_on_vacation eq 'on' && $vacation_msg && length($vacation_msg) > 1 ) {
