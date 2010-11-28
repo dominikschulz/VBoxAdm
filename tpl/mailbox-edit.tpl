@@ -71,6 +71,16 @@
 			</tr>
 			[% END %]
 			<tr>
+				<td>SpamAssassin:</td>
+				<td><input class="flat" type="checkbox" name="sa_active"[% IF sa_active %] checked[% END %] /></td>
+				<td></td>
+			</tr>
+			<tr>
+				<td>SpamAssassin block score:</td>
+				<td><input class="flat" type="text" name="sa_kill_score" value="[% sa_kill_score %]" /></td>
+				<td></td>
+			</tr>
+			<tr>
 				<td colspan="3" align="center">
 					<input class="button" type="submit" name="submit" value="Modify Mailbox" />
 				</td>
