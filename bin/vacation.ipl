@@ -8,7 +8,7 @@ use DBI;
 use Getopt::Long;
 use Config::Std;
 
-# TODO replay with Log::Dispatch
+# TODO replace with Log::Dispatch
 use Sys::Syslog;
 
 use VBoxAdm::Utils '@VERSION@';
