@@ -1,0 +1,176 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+use DBI;
+use Getopt::Long;
+use Config::Std;
+
+my $db_host = 'localhost';
+my $db_user = 'vacation';
+my $db_pass = '';
+my $db_port = 3306;
+my $db_db   = 'vboxadm';
+
+my ( $conffile_used, @hooks, %hook, %config, );
+
+# Valid config file locations to try
+my @conffile_locations = qw(
+  vboxadm.conf
+  conf/vboxadm.conf
+  /etc/vboxadm.conf
+  /etc/postfix/vboxadm.conf
+);
+
+GetOptions(
+    'source|s=s'    => \$config{'source'},
+    'source-db|d=s' => \$config{'source-db'},
+    'truncate!'     => \$config{'truncate'},
+    'verbose|v+'    => \$config{'verbose'},
+
+    # shift removes name of the option (config) and leaves the value for unshift
+    # unshift prepends to the list of valid config files so it is tried first
+    'config=s' => sub { shift; unshift( @conffile_locations, @_ ); },
+) or die("Unknown Command");
+
+# Try all config file locations
+foreach my $loc (@conffile_locations) {
+    if ( -r $loc ) {
+        $conffile_used = $loc;
+        read_config $loc => %config;
+        last;
+    }
+}
+
+if ( !$config{'source'} ) {
+    die("No --source given!\n");
+}
+if ( !$config{'source-db'} ) {
+    die("No --source-db given!\n");
+}
+
+$db_host = $config{'default'}{'dbhost'} || $db_host;
+$db_user = $config{'default'}{'dbuser'} || $db_user;
+$db_pass = $config{'default'}{'dbpass'} || $db_pass;
+$db_port = $config{'default'}{'dbport'} || $db_port;
+$db_db   = $config{'default'}{'dbdb'}   || $db_db;
+
+# if all these preconditions succeed:
+my $dsn = "DBI:mysql:host=$db_host;database=$db_db;port=$db_port;user=$db_user;password=$db_pass";
+my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 0, } );
+
+my $sql_new_domain = "INSERT INTO vboxadm.domains (name,is_active) VALUES(?,?)";
+my $sth_new_domain = $dbh->prepare($sql_new_domain);
+my $sql_new_alias  = "INSERT INTO vboxadm.aliases (domain_id,local_part,goto,is_active) VALUES(?,?,?,?)";
+my $sth_new_alias  = $dbh->prepare($sql_new_alias);
+my $sql_new_mailbox =
+"INSERT INTO vboxadm.mailboxes (domain_id,local_part,password,name,is_active,max_msg_size,is_on_vacation,vacation_subj,vacation_msg,is_domainadmin,is_superadmin,sa_active,sa_kill_score) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)";
+my $sth_new_mailbox = $dbh->prepare($sql_new_mailbox);
+
+if ( $config{'truncate'} ) {
+    $dbh->do('TRUNCATE TABLE vboxadm.aliases');
+    $dbh->do('TRUNCATE TABLE vboxadm.mailboxes');
+    $dbh->do('TRUNCATE TABLE vboxadm.domains');
+}
+
+#
+# debmin2
+#
+if ( $config{'source'} eq 'debmin2' ) {
+    my $sql_domains = 'SELECT id,domain,is_enabled FROM `' . $config{'source-db'} . '`.domains ORDER BY domain';
+    my $sth_domains = $dbh->prepare($sql_domains);
+    my $sql_mailboxes =
+        'SELECT local_part,forward,cc,name,pwclear,is_away,away_text,spam_check,is_enabled FROM `'
+      . $config{'source-db'}
+      . '`.mail_accounts WHERE domain = ? ORDER BY local_part';
+    my $sth_mailboxes = $dbh->prepare($sql_mailboxes);
+    $sth_domains->execute();
+  DOMAIN: while ( my ( $old_domain_id, $domain_name, $domain_is_enabled ) = $sth_domains->fetchrow_array() ) {
+        my $domain_is_active = 1;
+        if ( $domain_is_enabled && $domain_is_enabled =~ m/(no|0)/i ) {
+            $domain_is_active = 0;
+        }
+        $domain_name = lc($domain_name);
+        if ( $sth_new_domain->execute( $domain_name, $domain_is_active ) ) {
+            print "Created new Domain '$domain_name'\n";
+        }
+        else {
+            print "Failed to create new domain '$domain_name': " . $sth_new_domain->errstr . "\n";
+            next DOMAIN;
+        }
+        my $new_domain_id = $dbh->last_insert_id( undef, undef, undef, undef );
+        $sth_mailboxes->execute($old_domain_id);
+      MAILBOX: while ( my @row = $sth_mailboxes->fetchrow_array() ) {
+            my ( $local_part, $forward, $cc, $name, $pwclear, $is_away, $away_text, $spam_check, $is_enabled ) = @row;
+            $local_part = lc($local_part);
+            my $sa_active = 1;
+            if ( $spam_check && $spam_check =~ m/(no|0)/i ) {
+                $sa_active = 0;
+            }
+            my $is_on_vacation = 0;
+            if ( $is_away && $is_away =~ m/(yes|1)/i ) {
+                $is_on_vacation = 1;
+            }
+            my $is_active = 1;
+            if ( $is_enabled && $is_enabled =~ m/(no|0)/i ) {
+                $is_active = 0;
+            }
+            $away_text ||= '';
+            if ( !$forward ) {
+
+                # a real mailbox
+                if (
+                    $sth_new_mailbox->execute(
+                        $new_domain_id, $local_part, $pwclear, $name, $is_active, 15360, $is_on_vacation, 'On Vacation', $away_text, 0, 0, $sa_active, 6.31
+                    )
+                  )
+                {
+                    print "\tCreated new Mailbox: $local_part\@$domain_name\n";
+                }
+                else {
+                    print "\tFailed to create new Mailbox $local_part\@$domain_name: " . $sth_new_mailbox->errstr . "\n";
+                }
+            }
+            else {
+
+                # an alias
+                if ( $sth_new_alias->execute( $new_domain_id, $local_part, $forward, $is_active ) ) {
+                    print "\tCreated new Alias: $local_part\@$domain_name\n";
+                }
+                else {
+                    print "\tFailed to create new Alias $local_part\@$domain_name: " . $sth_new_mailbox->errstr . "\n";
+                }
+            }
+
+            # handle cc, too (insert as alias)
+            if ($cc) {
+                if ( $sth_new_alias->execute( $new_domain_id, $local_part, $cc, $is_active ) ) {
+                    print "\tCreated new Alias (CC): $local_part\@$domain_name\n";
+                }
+                else {
+                    print "\tFailed to create new Alias (CC) $local_part\@$domain_name: " . $sth_new_mailbox->errstr . "\n";
+                }
+            }
+        }
+    }
+    $sth_mailboxes->finish();
+    $sth_domains->finish();
+}
+elsif ( $config{'source'} eq 'vexim' ) {
+
+    # TODO my vexim source
+}
+elsif ( $config{'source'} eq 'postfixadmin' ) {
+
+    # TODO convert postfix admin schema
+}
+else {
+    print "Invalid source!\n";
+}
+
+$sth_new_domain->finish();
+$sth_new_alias->finish();
+$sth_new_mailbox->finish();
+$dbh->disconnect();
+exit 0;
+__END__

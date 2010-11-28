@@ -23,7 +23,7 @@
 		[% END %]
 			<tr>
 				<td>
-					[% line.local_part | highlight(search) %]@[% line.domain | highlight(search) %]
+					<a href="vboxadm.pl?rm=edit_alias&alias_id=[% line.id %]">[% line.local_part | highlight(search) %]@[% line.domain | highlight(search) %]</a>
 				</td>
 				<td>
 					[% line.target.substr(0,60) | highlight(search) %]

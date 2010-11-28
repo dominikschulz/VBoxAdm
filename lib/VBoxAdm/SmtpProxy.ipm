@@ -118,10 +118,6 @@ sub process_request {
                 # Do nothing but pass on the output from the server
                 # MSDW::SMTP::Server will cache all interesting data for us
                 $client->say($what);
-
-                if ( lc($what) eq 'quit' ) {
-                    last LINE;
-                }
             }
             else {
 
@@ -130,15 +126,27 @@ sub process_request {
                 my $msg_size = ( $smtp_server->{data}->stat )[7];
                 foreach my $recipient ( @{ $smtp_server->{recipients} } ) {
                     if ( $msg_size > $self->max_msg_size($recipient) ) {
-                        $smtp_server->fail( "Message to big ($msg_size/" . $self->max_msg_size($recipient) . ") for $recipient" );
-                        last LINE;
+                        my $msg = "Message too big ($msg_size/" . $self->max_msg_size($recipient) . ") for $recipient";
+                        if ( $self->{vbox}->{dry} ) {
+                            $self->log( 2, "DRY: $msg. Would reject this mail." );
+                        }
+                        else {
+                            $smtp_server->fail($msg);
+                            last LINE;
+                        }
                     }
                 }
 
                 # CHECK: SpamAssassin
                 if ( $self->is_spam($smtp_server) ) {
-                    $smtp_server->fail("Your message appears to be SPAM");
-                    last LINE;
+                    my $msg = "Your message appears to be SPAM";
+                    if ( $self->{vbox}->{dry} ) {
+                        $self->log( 2, "DRY: $msg. Would reject this mail." );
+                    }
+                    else {
+                        $smtp_server->fail($msg);
+                        last LINE;
+                    }
                 }
 
                 # further checks if necessary ...
@@ -201,7 +209,7 @@ sub sa_block_score {
     my $recipients = shift;
 
     # set arbitrarily high limit
-    my $lowest_kill_score = 9999;
+    my $lowest_kill_score = 0xFFFF;
 
     foreach my $email ( &VBoxAdm::Utils::extract_recipients($recipients) ) {
         if ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
@@ -315,23 +323,25 @@ sub is_spam {
         elsif ( $line =~ m/^(?:X-)?Envelope-From:/i ) {
             $envfrom = 1;
         }
-        elsif ( $in_header && $line =~ m/^\r?\n$/ ) {
 
-            # first blank line end header as per RFC822
+        # first blank line ends header as per RFC822
+        elsif ( $in_header && $line =~ m/^\r?\n$/ ) {
             $in_header = 0;
             if ( !$envfrom ) {
                 push( @msglines, "X-Envelope-From: " . lc($sender) . "\r\n" );
-                $self->log( 2, "Added X-Envelope-From: $sender" );
+
+                #$self->log( 2, "Added X-Envelope-From: $sender" );
             }
             if ( !$envto ) {
                 push( @msglines, "X-Envelope-To: " . lc($recipients) . "\r\n" );
                 $added_envto = 1;
-                $self->log( 2, "Added X-Envelope-To: $recipients" );
+
+                #$self->log( 2, "Added X-Envelope-To: $recipients" );
             }
         }
         elsif ( $in_header && $line =~ m/^Message-Id:\s+(.*)\s*$/i ) {
 
-            # Extracte Message-ID
+            # Extract Message-ID
             $msgid = $1;
             while ( $msgid =~ s/\([^\(\)]*\)// ) { }    # remove comments and
             $msgid =~ s/^\s+|\s+$//g;                   # leading and trailing spaces
@@ -348,7 +358,7 @@ sub is_spam {
     eval {
         local $SIG{ALRM} = sub { die "Timed out!\n"; };
 
-        # save prev. setting of time and start our own
+        # save the prev. setting of the alarm timer and start our own
         my $prev_alarm = alarm( $self->{vbox}->{sa_timeout} );
 
         # Audit the message
@@ -411,9 +421,9 @@ sub is_spam {
         my $block_score = sprintf( "%.2f", $status->get_required_score() );
         my $proc_time   = sprintf( "%.2f", time - $t0 );
 
-        $self->log( 2, "$was_it_spam $msgid ($msg_score/$block_score) from $sender for $recipients in $proc_time s, $msg_size bytes." );
-
-        $self->log( 2, "rules hit for $msgid: " . $status->get_names_of_tests_hit() );
+        $self->log( 2,
+            "$was_it_spam $msgid ($msg_score/$block_score) from $sender for $recipients in $proc_time s, $msg_size bytes. rules hit: "
+              . $status->get_names_of_tests_hit() );
 
         # Cleanup the SA analysis object
         $status->finish();
