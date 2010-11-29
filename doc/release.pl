@@ -79,7 +79,6 @@ if($config{$name}{'git_dest'}) {
     }
 }
 
-
 die("Need name for this package!") unless $name;
 
 if(!-e "./Makefile") {
@@ -120,6 +119,8 @@ run_cmd($cmd);
 
 # Do a testinstall to catch any Makefile errors
 # create tempdir and perform DESTDIR=tmpdir fakeroot make install, continue on success
+$cmd = "make clean";
+run_cmd($cmd);
 my $tempdir = tempdir( CLEANUP => 1, );
 $cmd = "DESTDIR=$tempdir/ fakeroot make install";
 run_cmd($cmd);
