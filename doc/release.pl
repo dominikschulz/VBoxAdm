@@ -13,7 +13,7 @@ my $name = undef;
     $name = $path[-1];
 }
 
-my ( $conffile_used, @hooks, %hook, %config, $keyid );
+my ( $conffile_used, @hooks, %hook, %config );
 
 # Valid config file locations to try
 my @conffile_locations = qw(
@@ -23,7 +23,7 @@ my @conffile_locations = qw(
 unshift(@conffile_locations,$ENV{'HOME'}.'/.release.conf');
 
 # --major --minor --version
-my ($opt_major, $opt_minor, $opt_version, $opt_local, $cmd, $changes_file, $dry, $verbose, $nobuild);
+my ($opt_major, $opt_minor, $opt_version, $opt_local, $cmd, $changes_file, $dry, $verbose, $nobuild, $keyid, $nodeb);
 GetOptions(
     'major!'        => \$opt_major,
     'minor!'        => \$opt_minor,
@@ -32,12 +32,13 @@ GetOptions(
     'dry!'          => \$dry,
     'verbose+'      => \$verbose,
     'nobuild'       => \$nobuild,
+    'nodeb'         => \$nodeb,
     'name=s'        => \$name,
     'keyid=s'       => \$keyid,
     # shift removes name of the option (config) and leaves the value for unshift
     # unshift prepends to the list of valid config files so it is tried first
     'config=s' => sub { shift; unshift( @conffile_locations, @_ ); },
-) or die("Usage: $0 [--major] [--minor] [--version=<V>] [--nobuild]\n");
+) or die("Usage: $0 [--major] [--minor] [--version=<V>] [--nobuild] [--name=<STR>] [--keyid=<KEY>] [--config=<CFG>]\n");
 
 # Try all config file locations
 foreach my $loc (@conffile_locations) {
@@ -49,6 +50,8 @@ foreach my $loc (@conffile_locations) {
 }
 
 $keyid = $keyid || $config{$name}{'keyid'} || $config{'default'}{'keyid'};
+$nobuild = $nobuild || $config{$name}{'nobuild'} || $config{'default'}{'nobuild'};
+$nodeb = $nodeb || $config{$name}{'nodeb'} || $config{'default'}{'nodeb'};
 
 my @dists = qw();
 my @git_dests = qw();
@@ -88,7 +91,8 @@ if(!-e "./Makefile") {
     die("No Makefile found! You're in the wrong directory!\n");
 }
 if(!-e "../../debian/$name/") {
-    die("No Debian package dir found\n");
+    warn("No Debian package dir found. Only creating release tar.gz.\n");
+    $nodeb = 1;
 }
 
 my $preversion = `git tag | sort -V | tail -1`;
@@ -149,6 +153,10 @@ if(!$opt_local) {
 }
 $cmd = "git archive --format=tar --prefix=$name-".$version."/ $version | gzip >../../debian/$name-".$version.".tar.gz";
 run_cmd($cmd);
+if($nodeb) {
+  print "No debian packaging found. Only prepared tar.gz\n";
+  exit 0;
+}
 chdir("../../debian/$name");
 $cmd = "rm -rf debian/patches";
 run_cmd($cmd);
