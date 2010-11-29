@@ -6,6 +6,8 @@ use DBI;
 use Getopt::Long;
 use Config::Std;
 
+use VBoxAdm::Utils '@VERSION@';
+
 my $db_host = 'localhost';
 my $db_user = 'vacation';
 my $db_pass = '';
@@ -45,9 +47,6 @@ foreach my $loc (@conffile_locations) {
 if ( !$config{'source'} ) {
     die("No --source given!\n");
 }
-if ( !$config{'source-db'} ) {
-    die("No --source-db given!\n");
-}
 
 $db_host = $config{'default'}{'dbhost'} || $db_host;
 $db_user = $config{'default'}{'dbuser'} || $db_user;
@@ -66,6 +65,8 @@ my $sth_new_alias  = $dbh->prepare($sql_new_alias);
 my $sql_new_mailbox =
 "INSERT INTO vboxadm.mailboxes (domain_id,local_part,password,name,is_active,max_msg_size,is_on_vacation,vacation_subj,vacation_msg,is_domainadmin,is_superadmin,sa_active,sa_kill_score) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)";
 my $sth_new_mailbox = $dbh->prepare($sql_new_mailbox);
+$query = "INSERT INTO $db_vbox.domain_aliases (name,domain_id,is_active) VALUES(?,?,1)";
+my $sth_new_domain_alias = $dbh->prepare($query);
 
 if ( $config{'truncate'} ) {
     $dbh->do('TRUNCATE TABLE vboxadm.aliases');
@@ -77,6 +78,9 @@ if ( $config{'truncate'} ) {
 # debmin2
 #
 if ( $config{'source'} eq 'debmin2' ) {
+    if ( !$config{'source-db'} ) {
+        $config{'source-db'} = 'sysmgm_ng';
+    }
     my $sql_domains = 'SELECT id,domain,is_enabled FROM `' . $config{'source-db'} . '`.domains ORDER BY domain';
     my $sth_domains = $dbh->prepare($sql_domains);
     my $sql_mailboxes =
@@ -157,10 +161,89 @@ if ( $config{'source'} eq 'debmin2' ) {
     $sth_domains->finish();
 }
 elsif ( $config{'source'} eq 'vexim' ) {
+    if ( !$config{'source-db'} ) {
+        $config{'source-db'} = 'vexim';
+    }
 
-    # TODO my vexim source
+    #
+    # Iterate over all domains, we need the domain_id
+    #
+    my $query       = "SELECT domain_id,domain,enabled FROM vexim.domains";
+    my $sth_domains = $dbh->prepare($query);
+    $query = "SELECT alias FROM vexim.domainalias WHERE domain_id = ?";
+    my $sth_domainalias = $dbh->prepare($query);
+    $query =
+"SELECT localpart,clear,smtp,pop,type,admin,on_vacation,enabled,forward,maxmsgsize,quota,realname,vacation,on_spamassassin,sa_refuse FROM $db_vexim.users WHERE domain_id = ?";
+    my $sth_users = $dbh->prepare($query);
+
+    $sth_domains->execute();
+    while ( my ( $old_domain_id, $domain, $is_active ) = $sth_domains->fetchrow_array() ) {
+
+        # Create new domain
+        $sth_new_domain->execute( $domain, $is_active ) unless $dry;
+        my $new_domain_id = $dbh->last_insert_id( undef, undef, undef, undef ) || 1;
+
+        # Convert domain_aliases
+        $sth_domainalias->execute($old_domain_id);
+        while ( my $domain_alias = $sth_domainalias->fetchrow_array() ) {
+
+            # Create new domain alias
+            $sth_new_domain_alias->execute( $domain_alias, $new_domain_id ) unless $dry;
+        }
+
+        # Convert users/aliases
+        $sth_users->execute($old_domain_id);
+        while ( my @row = $sth_users->fetchrow_array() ) {
+            my (
+                $localpart, $pwclear,    $smtp,  $pop,      $type,         $admin,     $on_vacation, $enabled,
+                $forward,   $maxmsgsize, $quota, $realname, $vacation_msg, $sa_active, $sa_kill_score,
+            ) = @row;
+            my $is_siteadmin   = 0;
+            my $is_domainadmin = 0;
+            my $is_alias       = 0;
+            my $is_local       = 0;
+            $vacation_msg ||= '';
+            $vacation_msg = trim($vacation_msg);
+            if ( $type eq 'site' && $admin ) {
+                $is_siteadmin = 1;
+            }
+            if ( $type eq 'local' && $admin ) {
+                $is_domainadmin = 1;
+            }
+            if ( $type eq 'alias' ) {
+                $is_alias = 1;
+                $forward  = $smtp;
+                $forward  = trim($forward);
+                $forward =~ s/\s+/,/g;
+            }
+            if ( $type eq 'local' ) {
+                $is_local = 1;
+            }
+            if ( $type eq 'local' && $forward ) {
+                $is_alias = 1;
+            }
+            if ($is_alias) {
+                $sth_new_alias->execute( $new_domain_id, $localpart, $forward, $enabled ) unless $dry;
+                print "New Alias: $new_domain_id, $localpart, $forward, $enabled\n";
+            }
+            if ($is_local) {
+                $sth_new_mailbox->execute(
+                    $new_domain_id,  $localpart,    $pwclear, $realname,       $enabled,      $maxmsgsize, $on_vacation,
+                    'Out of Office', $vacation_msg, $quota,   $is_domainadmin, $is_siteadmin, $sa_active,  $sa_kill_score,
+                ) unless $dry;
+                print
+"New Mailbox: $new_domain_id, $localpart, $pwclear, $realname, $enabled, $maxmsgsize, $on_vacation,'$vacation_msg',$quota,$is_domainadmin,$is_siteadmin\n";
+            }
+        }
+    }
+    $sth_domains->finish();
+    $sth_domainalias->finish();
+    $sth_users->finish();
 }
 elsif ( $config{'source'} eq 'postfixadmin' ) {
+    if ( !$config{'source-db'} ) {
+        $config{'source-db'} = 'postfix';
+    }
 
     # TODO convert postfix admin schema
     my $sql_domains         = "SELECT domain, active FROM domain ORDER BY domain";
