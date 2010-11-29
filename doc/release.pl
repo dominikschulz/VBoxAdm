@@ -13,7 +13,7 @@ my $name = undef;
     $name = $path[-1];
 }
 
-my ( $conffile_used, @hooks, %hook, %config, );
+my ( $conffile_used, @hooks, %hook, %config, $keyid );
 
 # Valid config file locations to try
 my @conffile_locations = qw(
@@ -33,6 +33,7 @@ GetOptions(
     'verbose+'      => \$verbose,
     'nobuild'       => \$nobuild,
     'name=s'        => \$name,
+    'keyid=s'       => \$keyid,
     # shift removes name of the option (config) and leaves the value for unshift
     # unshift prepends to the list of valid config files so it is tried first
     'config=s' => sub { shift; unshift( @conffile_locations, @_ ); },
@@ -46,6 +47,8 @@ foreach my $loc (@conffile_locations) {
         last;
     }
 }
+
+$keyid = $keyid || $config{$name}{'keyid'} || $config{'default'}{'keyid'};
 
 my @dists = qw();
 my @git_dests = qw();
@@ -165,7 +168,10 @@ run_cmd($cmd);
 $cmd = "git commit -a -m \"Tag ".$version."-1\"";
 run_cmd($cmd);
 # TODO can we test if any file which will be installed is in a .install file?
-$cmd = "git-buildpackage --git-tag --git-sign-tags --git-keyid=5ABDC246";
+$cmd = "git-buildpackage --git-tag --git-sign-tags";
+if($keyid) {
+  $cmd .= " --git-keyid=".$keyid;
+}
 if($opt_local) {
     $cmd = "QUICK_TEST=1 ".$cmd;
 }
@@ -175,7 +181,7 @@ chdir("..");
 if(!$opt_local) {
     $changes_file = `ls ${name}_*.changes | grep "$version" | sort -n | tail -1`;
     chomp($changes_file);
-    for my $dist (@dists) { # dgx-squeeze ...
+    for my $dist (@dists) {
         $cmd = "dupload --force --to ".$dist." ".$changes_file;
         run_cmd($cmd);
     }
