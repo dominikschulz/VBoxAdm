@@ -55,6 +55,8 @@ $db_pass = $config{'default'}{'dbpass'} || $db_pass;
 $db_port = $config{'default'}{'dbport'} || $db_port;
 $db_db   = $config{'default'}{'dbdb'}   || $db_db;
 
+die("This script is completely untested. You should not use it.\n");
+
 # if all these preconditions succeed:
 my $dsn = "DBI:mysql:host=$db_host;database=$db_db;port=$db_port;user=$db_user;password=$db_pass";
 my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 0, } );
