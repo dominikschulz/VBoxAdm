@@ -3,15 +3,24 @@ use strict;
 use warnings;
 
 use Getopt::Long;
+use Cwd;
 use File::Temp qw/tempdir/;
+use Config::Std;
 
-my $name = "vboxadm";
-my @dists = qw(dgx-lenny-proposed-updates dgx-squeeze-proposed-updates dgx-wheezy-proposed-updates);
-my @git_dests = qw(origin projects);
+my $name = undef;
+{
+    my @path = split(/\//, getcwd());
+    $name = $path[-1];
+}
 
-my $preversion = `git tag | sort -V | tail -1`;
-chomp($preversion);
-my $version = undef;
+my ( $conffile_used, @hooks, %hook, %config, );
+
+# Valid config file locations to try
+my @conffile_locations = qw(
+  release.conf
+  /etc/release.conf
+);
+unshift(@conffile_locations,$ENV{'HOME'}.'/.release.conf');
 
 # --major --minor --version
 my ($opt_major, $opt_minor, $opt_version, $opt_local, $cmd, $changes_file, $dry, $verbose, $nobuild);
@@ -23,7 +32,66 @@ GetOptions(
     'dry!'          => \$dry,
     'verbose+'      => \$verbose,
     'nobuild'       => \$nobuild,
+    'name=s'        => \$name,
+    # shift removes name of the option (config) and leaves the value for unshift
+    # unshift prepends to the list of valid config files so it is tried first
+    'config=s' => sub { shift; unshift( @conffile_locations, @_ ); },
 ) or die("Usage: $0 [--major] [--minor] [--version=<V>] [--nobuild]\n");
+
+# Try all config file locations
+foreach my $loc (@conffile_locations) {
+    if ( -r $loc ) {
+        $conffile_used = $loc;
+        read_config $loc => %config;
+        last;
+    }
+}
+
+my @dists = qw();
+my @git_dests = qw();
+
+if($config{'default'}{'dist'}) {
+    if(ref($config{'default'}{'dist'}) eq 'ARRAY') {
+        push(@dists, @{$config{'default'}{'dist'}});
+    } else {
+        push(@dists, $config{'default'}{'dist'});
+    }
+}
+if($config{$name}{'dist'}) {
+    if(ref($config{$name}{'dist'}) eq 'ARRAY') {
+        push(@dists, @{$config{$name}{'dist'}});
+    } else {
+        push(@dists, $config{$name}{'dist'});
+    }
+}
+if($config{'default'}{'git_dest'}) {
+    if(ref($config{'default'}{'git_dest'}) eq 'ARRAY') {
+        push(@git_dests, @{$config{'default'}{'git_dest'}});
+    } else {
+        push(@git_dests, $config{'default'}{'git_dest'});
+    }
+}
+if($config{$name}{'git_dest'}) {
+    if(ref($config{$name}{'git_dest'}) eq 'ARRAY') {
+        push(@git_dests, @{$config{$name}{'git_dest'}});
+    } else {
+        push(@git_dests, $config{$name}{'git_dest'});
+    }
+}
+
+
+die("Need name for this package!") unless $name;
+
+if(!-e "./Makefile") {
+    die("No Makefile found! You're in the wrong directory!\n");
+}
+if(!-e "../../debian/$name/") {
+    die("No Debian package dir found\n");
+}
+
+my $preversion = `git tag | sort -V | tail -1`;
+chomp($preversion);
+my $version = undef;
 
 if($opt_version) {
     $version = $opt_version;
@@ -35,31 +103,40 @@ if($opt_version) {
     $version = inc_version($preversion);
 }
 
-print "$0 - Creating Release ...\n";
+print "$0\n";
+print "\n";
+print "Package: $name\n";
 print "Previous-Version is: $preversion\n";
-print "New-Version is: $version\n";
+print "New-Version will be: $version\n";
+print "\n";
 
-if(!-e "Makefile") {
-    die("No Makefile found! You're in the wrong directory!\n");
-}
-
-# anything to commit?
+# Abort if there are uncommited changes
+# either in this repository ...
 $cmd = 'git status -z | grep "nothing to commit" >/dev/null';
 run_cmd($cmd);
+# or the debian package repo
 $cmd = 'cd ../../debian/'.$name.'/; git status -z | grep "nothing to commit" >/dev/null';
 run_cmd($cmd);
 
+# Do a testinstall to catch any Makefile errors
 # create tempdir and perform DESTDIR=tmpdir fakeroot make install, continue on success
 my $tempdir = tempdir( CLEANUP => 1, );
 $cmd = "DESTDIR=$tempdir/ fakeroot make install";
 run_cmd($cmd);
 
-$cmd = 'sed -i "s/VERSION = '.$preversion.'/VERSION = '.$version.'/g" Makefile';
+# Increase Version number in Makefile
+$cmd = 'sed -i "s/^VERSION = .*$/VERSION = '.$version.'/g" Makefile';
 run_cmd($cmd);
-#$cmd = 'git commit -a -m "Tag '.$version.'"';
-#run_cmd($cmd);
+
+# Commit the increased Version number
+$cmd = 'git commit -a -m "Tag '.$version.'"';
+run_cmd($cmd);
+
+# Tag the new release
 $cmd = "git tag ".$version;
 run_cmd($cmd);
+
+# Push to origins
 if(!$opt_local) {
     for my $dest (@git_dests) {
         $cmd = "git push $dest master";
@@ -154,7 +231,7 @@ release.pl - Tag and package releases
 
 =head1 VERSION
 
-This documentation refers to release.pl version 0.0.1.
+This documentation refers to release.pl version 0.0.5.
 
 =head1 USAGE
 
@@ -162,35 +239,43 @@ This documentation refers to release.pl version 0.0.1.
 
 =head1 REQUIRED ARGUMENTS
 
-A complete list of every argument that must appear on the command line.
-when the application  is invoked, explaining what each of them does, any
-restrictions on where each one may appear (i.e., flags that must appear
-before or after filenames), and how the various arguments and options
-may interact (e.g., mutual exclusions, required combinations, etc.)
-
-If all of the application's arguments are optional, this section
-may be omitted entirely.
+None.
 
 =head1 OPTIONS
 
-A complete list of every available option with which the application
-can be invoked, explaining what each does, and listing any restrictions,
-or interactions.
+Specifying neither major nor minor will increase the patch level, i.e. Z from X.Y.Z.
 
-If the application has no options, this section may be omitted entirely.
+=head2 major
+
+Increase major version number part, i.e. X from X.Y.Z.
+
+=head2 minor
+
+Increate minor version number part, i.e. Y from X.Y.Z.
+
+=head2 version
+
+Specify the new version manually. Be carefull not to give an existing version number!
+
+=head2 local
+
+Local Operation only. No git push or dupload.
+
+=head2 dry
+
+Dry mode. Only tell what would be done.
+
+=head2 verbose
+
+Increase verbosity.
+
+=head2 nobuild
+
+Do not build the debian package.
 
 =head1 DESCRIPTION
 
-A full description of the application and its features.
-May include numerous subsections (i.e., =head2, =head3, etc.).
-
-=head1 DIAGNOSTICS
-
-A list of every error and warning message that the application can generate
-(even the ones that will "never happen"), with a full explanation of each
-problem, one or more likely causes, and any suggested remedies. If the
-application generates exit status codes (e.g., under Unix), then list the exit
-status associated with each error.
+Create a new relelase of the given application.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
@@ -202,42 +287,24 @@ descriptions must also include details of any configuration language used.
 
 =head1 DEPENDENCIES
 
-A list of all the other modules that this module relies upon, including any
-restrictions on versions, and an indication of whether these required modules are
-part of the standard Perl distribution, part of the module's distribution,
-or must be installed separately.
+File::Temp, Cwd, Getopt::Long.
 
 =head1 INCOMPATIBILITIES
 
-A list of any modules that this module cannot be used in conjunction with.
-This may be due to name conflicts in the interface, or competition for
-system or program resources, or due to internal limitations of Perl
-(for example, many modules that use source code filters are mutually
-incompatible).
+None known.
 
 =head1 BUGS AND LIMITATIONS
-
-A list of known problems with the module, together with some indication of
-whether they are likely to be fixed in an upcoming release.
-
-Also a list of restrictions on the features the module does provide:
-data types that cannot be handled, performance issues and the circumstances
-in which they may arise, practical limitations on the size of data sets,
-special cases that are not (yet) handled, etc.
-
 There are no known bugs in this module.
-Please report problems to
-
-Dominik Schulz (dominik.schulz@)
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
 Patches are welcome.
 
 =head1 AUTHOR
 
-Dominik Schulz (dominik.schulz@)
+Dominik Schulz (dominik.schulz@gauner.org)
 
 =head1 LICENCE AND COPYRIGHT
 
-Copyright (c) 2010 Dominik Schulz (dominik.schulz@). All rights reserved.
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
 
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself. See L<perlartistic>.
