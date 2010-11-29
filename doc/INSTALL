@@ -20,6 +20,10 @@ How to Install VBoxAdm
 - Lighttpd (or Apache)
 - PHP5
 - Perl
+- Perltidy
+- Perl DBI
+- DBD MySQL
+- Config::Std
 - CGI::Application
 - CGI::Application::Plugin::DBH
 - CGI::Application::Plugin::Redirect
@@ -32,16 +36,36 @@ How to Install VBoxAdm
 - Dovecot 1.2.x (Version 2.x is untested, but should work with minor adustments)
 - Postfix 2.6+
 
+Debian based (Debian, Ubuntu):
+  aptitude install perl perltidy libdbi-perl libdbd-mysql-perl libconfig-std-perl libtest-pod-perl libmail-sender-perl libcgi-application-perl libcgi-application-basic-plugin-bundle-perl libcgi-application-extra-plugin-bundle-perl famfamfam-silk-png libmime-encwords-perl libhtml-clean-perl libtemplate-perl lighttpd mysql-server php5-cgi postfix dovecot-imapd
+
+Red Hat based (RHEL, CentOS, Fedora):
+  yum install perl perltidy perl-DBI (and others)
+
+Other Distributions:
+Users of other distributions will have to figure out themself what packages they need to install. If you use a distribution not listed here and have figured out which packages to install tell me and I'll and the information to this file.
+
+In case some of the perl dependencies are not packaged for your distribution you can install additional packages with the CPAN shell. Just run
+  perl -MCPAN -eshell
+and then use install <Package> like this
+  $> install Config::Std
+to install the missing CPAN packages.
+
+A note on the Silk icon set: At the time of this writing there is no official debian package of this icon set. Grab it from the vboxadm Download page. Users of other distributions can just grab the icon set from the famfamfam homepage and unpack it to /usr/share/icons/famfamfam/silk.
+
 * Install MySQL
+---------------
 In the default setup we need InnoDB. If you want to avoid InnoDB you can change the schema,
 but beware: This application relies on working foreign key contraints. So embrace errors if you
 skip InnoDB.
 
 * Create the Databases
+----------------------
 mysql> CREATE DATABASE vboxadm;
 mysql> CREATE DATABASE roundcube;
 
 * Create Database Accounts
+--------------------------
 - vboxadm
 GRANT ALL ON vboxadm.* TO 'vboxadm'@'localhost' IDENTIFIED BY '';
 - postfix
@@ -56,14 +80,16 @@ GRANT SELECT,UPDATE ON vboxadm.mailboxes TO 'vboxadm_user'@'localhost' IDENTIFIE
 GRANT SELECT ON vboxadm.domains TO 'vboxadm_user'@'localhost' IDENTIFIED BY '';
 
 * Load Schema
+-------------
 $> mysql -uvboxadm -p vboxadm < doc/mysql/schema.sql
 
 * Install Lighttpd
+------------------
 Enable cgi (or fastcgi) and symlink the lighttpd/12-vboxadm.conf to /etc/lighttpd/conf-enabled/12-vboxadm.conf.
 Restart lighttpd.
 
 * Install Roundcube
-
+-------------------
 Unpack Roundcube to /opt/roundcube, create a symlink from /opt/roundcube/roundcube-0.x.y/
 /opt/roundcube/current.
 The use the installer and follow the instructions of the installer. Use the database
@@ -73,12 +99,12 @@ When the installer has created the config for you place them in /opt/roundcube/c
 and symlink from /opt/roundcube/config/{db,main}.inc.php to /opt/roundcube/current/config/. 
 
 * Install Roundcube Plugin: vacation
-
+------------------------------------
 Since the vacation plugin is not contained in the upstream sources of roundcube, a modified version is supplied
 with VBoxAdm. Copy the folder contrib/roundcube/plugins/vacation to your roundcube plugins folder.
 
 * Configure Roundcube Plugins
-
+-----------------------------
 Edit plugins/vacation/config.ini and set a dsn in the default section:
 dsn = "mysql://vboxadm_user:password@localhost"
 
@@ -91,26 +117,31 @@ $rcmail_config['password_query'] = "UPDATE vboxadm.mailboxes SET password = %p W
 Copy the config.inc.php.dist in plugins/managesieve to config.inc.php.
 
 * Active the Roundcube Plugins
-
+------------------------------
 Edit the file config/main.inc.php and add the plugins 'password', 'managesieve' and 'vacation'.
 
 $rcmail_config['plugins'] = array('password','managesieve', 'vacation');
 
 * Configure Postfix
+-------------------
 Copy all files and subdirs of doc/postfix to /etc/postfix.
 
 * Configure Dovecot
+-------------------
 Copy all files of doc/dovecot to /etc/dovecot.
 
 * Configure Vacation
+--------------------
 Create the required system user and you should be ready to go.
 TODO configure the vacation tool
 
 * Configure SMTP-Proxy
+----------------------
 Create an init script.
 TODO configure the SMTP-Proxy
 
 * Install VBoxAdm
+-----------------
 To build and install this application use the supplied Makefile:
 	make clean
 	make all
