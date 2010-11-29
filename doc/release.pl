@@ -122,7 +122,7 @@ $cmd = 'git status -z | grep "nothing to commit" >/dev/null';
 run_cmd($cmd);
 # or the debian package repo
 $cmd = 'cd ../../debian/'.$name.'/; git status -z | grep "nothing to commit" >/dev/null';
-run_cmd($cmd);
+run_cmd($cmd) unless $nodeb;
 
 # Do a testinstall to catch any Makefile errors
 # create tempdir and perform DESTDIR=tmpdir fakeroot make install, continue on success
