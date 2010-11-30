@@ -196,16 +196,20 @@ sub setup {
                     },
                     1
                 ],
-                'l10n' => sub { return $self->{lh}->maketext(@_); },
 
-                #'l10n' => sub {
-                #	my ( $context, @args ) = @_;
-                #
-                #	return sub {
-                #		my $str = shift;
-                #		return $self->{lh}->maketext($str, @args);
-                #	}
-                #},
+                #'l10n' => sub { return $self->{lh}->maketext(@_); },
+
+                'l10n' => [
+                    sub {
+                        my ( $context, @args ) = @_;
+
+                        return sub {
+                            my $str = shift;
+                            return $self->{lh}->maketext( $str, @args );
+                          }
+                    },
+                    1,
+                ],
             }
         }
     );
@@ -1592,7 +1596,7 @@ sub show_edit_mailbox {
     $sth->finish();
 
     my %params = (
-        title              => 'Edit Alias',
+        title              => 'Edit Mailbox',
         mailbox_id         => $mailbox_id,
         local_part         => $row[0],
         domain             => $row[1],

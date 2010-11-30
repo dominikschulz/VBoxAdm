@@ -39,7 +39,7 @@
 					<a href="vboxadm.pl?rm=edit_alias&alias_id=[% line.id %]">[% "edit" | l10n %]</a>
 				</td>
 				<td>
-					<a onClick="if(confirm('Do you really want to delete the Account [% line.local_part %]@[% line.domain %]?')) return true; else return false;" href="vboxadm.pl?rm=remove_alias&alias_id=[% line.id %]">[% "del" | l10n %]</a>
+					<a onClick="if(confirm('[% "Do you really want to delete the Account [_1]?" | l10n(line.local_part _ '@' _ line.domain) %]')) return true; else return false;" href="vboxadm.pl?rm=remove_alias&alias_id=[% line.id %]">[% "del" | l10n %]</a>
 				</td>
 			</tr>
 		[% IF loop.last %]

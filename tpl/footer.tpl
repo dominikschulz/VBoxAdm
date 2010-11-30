@@ -14,7 +14,6 @@
     [% END %]
   </div> <!--! end of #container -->
 
-
   <!-- Javascript at the bottom for fast page loading -->
 
   <!-- Grab Google CDN's jQuery. fall back to local if necessary -->
