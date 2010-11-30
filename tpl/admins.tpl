@@ -5,10 +5,10 @@
 		<table class="sortable hilight">
 			<thead>
 			<tr>
-				<th>User</th>
-				<th>Active</th>
-				<th>Domainadmin</th>
-				<th>Superadmin</th>
+				<th>[% "User" | l10n %]</th>
+				<th>[% "Active" | l10n %]</th>
+				<th>[% "Domainadmin" | l10n %]</th>
+				<th>[% "Superadmin" | l10n %]</th>
 				<th></th>
 				<th></th>
 			</tr>
@@ -21,30 +21,30 @@
 				</td>
 				<td>
 					[% IF line.is_active == 1 %]
-					Yes
+					[% "Yes" | l10n %]
 					[% ELSE %]
-					No
+					[% "No" | l10n %]
 					[% END %]
 				</td>
 				<td>
 					[% IF line.is_domainadmin == 1 %]
-					Yes
+					[% "Yes" | l10n %]
 					[% ELSE %]
-					No
+					[% "No" | l10n %]
 					[% END %]
 				</td>
 				<td>
 					[% IF line.is_superadmin == 1 %]
-					Yes
+					[% "Yes" | l10n %]
 					[% ELSE %]
-					No
+					[% "No" | l10n %]
 					[% END %]
 				</td>
 				<td>
-					<a href="vboxadm.pl?rm=edit_mailbox&mailbox_id=[% line.id %]">edit</a>
+					<a href="vboxadm.pl?rm=edit_mailbox&mailbox_id=[% line.id %]">[% "edit" | l10n %]</a>
 				</td>
 				<td>
-					<a onClick="if(confirm('Do you really want to delete the Account [% line.local_part %]@[% line.domain %]?')) return true; else return false;" href="vboxadm.pl?rm=remove_mailbox&mailbox_id=[% line.id %]">del</a>
+					<a onClick="if(confirm('Do you really want to delete the Account [% line.local_part %]@[% line.domain %]?')) return true; else return false;" href="vboxadm.pl?rm=remove_mailbox&mailbox_id=[% line.id %]">[% "del" | l10n %]</a>
 				</td>
 			</tr>
 		[% IF loop.last %]
