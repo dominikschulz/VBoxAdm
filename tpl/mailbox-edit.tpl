@@ -10,7 +10,7 @@
     			</td>
     		</tr>
     		<tr>
-				<td>Username:</td>
+				<td>[% "Username:" | l10n %]</td>
 				<td>
 					[% local_part %]@[% domain %]
 					<input type="hidden" name="mailbox_id" value="[% mailbox_id %]" />
@@ -19,70 +19,70 @@
 				</td>
 			</tr>
 			<tr>
-				<td>Password:</td>
+				<td>[% "Password:" | l10n %]</td>
 				<td><input class="flat" type="password" name="password" autocomplete="off" /></td>
 				<td></td>
 			</tr>
 			<tr>
-				<td>Password (again):</td>
+				<td>[% "Password (again):" | l10n %]</td>
 				<td><input class="flat" type="password" name="password_2" autocomplete="off" /></td>
 				<td></td>
 			</tr>
 			<tr>
-				<td>Name:</td>
+				<td>[% "Name:" | l10n %]</td>
 				<td><input class="flat" type="text" name="name" value="[% name %]" /></td>
 				<td></td>
 			</tr>
 			<tr>
-				<td>Active:</td>
+				<td>[% "Active:" | l10n %]</td>
 				<td><input class="flat" type="checkbox" name="is_active"[% IF is_active %] checked[% END %] /></td>
 				<td></td>
 			</tr>
 			<tr>
-				<td>Max. Message Size:</td>
+				<td>[% "Max. Message Size:" | l10n %]</td>
 				<td><input class="flat" type="text" name="max_msg_size_mb" value="[% max_msg_size_mb %]" /> MB</td>
 				<td></td>
 			</tr>
 			<tr>
-				<td>On Vacation:</td>
+				<td>[% "On Vacation:" | l10n %]</td>
 				<td><input class="flat" type="checkbox" name="is_on_vacation"[% IF is_on_vacation %] checked[% END %] /></td>
 				<td></td>
 			</tr>
 			<tr>
-				<td>Vacation Message:</td>
+				<td>[% "Vacation Message:" | l10n %]</td>
 				<td><textarea name="vacation_msg">[% vacation_msg %]</textarea></td>
 				<td></td>
 			</tr>
 			<tr>
-				<td>CC:</td>
+				<td>[% "CC:" | l10n %]</td>
 				<td><a href="vboxadm.pl?rm=edit_alias&alias_id=[% cc_id %]">[% cc_goto %]</a></td>
 				<td></td>
 			</tr>
 			[% IF user_is_superadmin %]
 			<tr>
-				<td>Domainadmin:</td>
+				<td>[% "Domainadmin:" | l10n %]</td>
 				<td><input class="flat" type="checkbox" name="is_domainadmin"[% IF mb_is_domainadmin %] checked[% END %] /></td>
 				<td></td>
 			</tr>
 			<tr>
-				<td>Superadmin:</td>
+				<td>[% "Superadmin:" | l10n %]</td>
 				<td><input class="flat" type="checkbox" name="is_superadmin"[% IF mb_is_superadmin %] checked[% END %] /></td>
 				<td></td>
 			</tr>
 			[% END %]
 			<tr>
-				<td>SpamAssassin:</td>
+				<td>[% "SpamAssassin:" | l10n %]</td>
 				<td><input class="flat" type="checkbox" name="sa_active"[% IF sa_active %] checked[% END %] /></td>
 				<td></td>
 			</tr>
 			<tr>
-				<td>SpamAssassin block score:</td>
+				<td>[% "SpamAssassin block score:" | l10n %]</td>
 				<td><input class="flat" type="text" name="sa_kill_score" value="[% sa_kill_score %]" /></td>
 				<td></td>
 			</tr>
 			<tr>
 				<td colspan="3" align="center">
-					<input class="button" type="submit" name="submit" value="Modify Mailbox" />
+					<input class="button" type="submit" name="submit" value="[% "Modify Mailbox" | l10n %]" />
 				</td>
 			</tr>
 		</table>
