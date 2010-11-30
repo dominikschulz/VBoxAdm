@@ -49,6 +49,9 @@ LIBFILES = \
 	lib/VBoxAdm/Frontend.pm \
 	lib/VBoxAdm/SmtpProxy.pm \
 	lib/VBoxAdm/Utils.pm \
+	lib/VBoxAdm/L10N.pm \
+	lib/VBoxAdm/L10N/en.pm \
+	lib/VBoxAdm/L10N/de.pm \
 	lib/MSDW/SMTP/Client.pm \
 	lib/MSDW/SMTP/Server.pm
 
@@ -109,6 +112,9 @@ real-install: all test man
 	$(INSTALL_DATA) lib/VBoxAdm/Frontend.pm $(LIBDIR)/VBoxAdm/Frontend.pm
 	$(INSTALL_DATA) lib/VBoxAdm/SmtpProxy.pm $(LIBDIR)/VBoxAdm/SmtpProxy.pm
 	$(INSTALL_DATA) lib/VBoxAdm/Utils.pm $(LIBDIR)/VBoxAdm/Utils.pm
+	$(INSTALL_DATA) lib/VBoxAdm/L10N.pm $(LIBDIR)/VBoxAdm/L10N.pm
+	$(INSTALL_DATA) lib/VBoxAdm/L10N/en.pm $(LIBDIR)/VBoxAdm/L10N/en.pm
+	$(INSTALL_DATA) lib/VBoxAdm/L10N/de.pm $(LIBDIR)/VBoxAdm/L10N/de.pm
 	$(INSTALL_DATA) tpl/*.tpl $(VBOXLIBDIR)/tpl/
 	$(INSTALL_DATA) res/css/*.css $(VHDIR)/htdocs/css/
 	$(INSTALL_DATA) res/images/*.png $(VHDIR)/htdocs/images/
@@ -124,6 +130,7 @@ real-install: all test man
 
 tidy:
 	$(PERLTIDY) lib/VBoxAdm/*.ipm
+	$(PERLTIDY) lib/VBoxAdm/L10N/*.ipm
 	$(PERLTIDY) lib/MSDW/SMTP/*.ipm
 	$(PERLTIDY) bin/*.ipl
 	$(PERLTIDY) cgi-bin/*.ipl
@@ -143,9 +150,11 @@ clean:
 	$(RM) -f cron/*.pl
 	$(RM) -f doc/man/*
 	$(RM) -f lib/VBoxAdm/*.bak
+	$(RM) -f lib/VBoxAdm/*.pm
+	$(RM) -f lib/VBoxAdm/L10N/*.bak
+	$(RM) -f lib/VBoxAdm/L10N/*.pm
 	$(RM) -f lib/MSDW/SMTP/*.bak
 	$(RM) -f lib/MSDW/SMTP/*.pm
-	$(RM) -f lib/VBoxAdm/*.pm
 
 git: tidy all clean
 	$(GIT) status

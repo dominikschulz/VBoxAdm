@@ -1,0 +1,45 @@
+package VBoxAdm::L10N::de;
+use utf8;
+use base qw(VBoxAdm::L10N);
+
+our $VERSION = '@VERSION@';
+
+our %Lexicon = (
+    'Sign In'                                                      => 'Anmelden',
+    'Please enter your username and password in the fields below.' => '',
+    'User Name'                                                    => 'Benutzername',
+    'Username:'                                                    => 'Benutzername:',
+    'Target:'                                                      => 'Ziel:',
+    'Target'                                                       => 'Ziel',
+    'Add Alias'                                                    => 'Alias hinzufügen',
+    'User'                                                         => 'Benutzer',
+    'Active'                                                       => 'Aktiv',
+    'edit'                                                         => 'bearbeiten',
+    'del'                                                          => 'löschen',
+    'Search:'                                                      => 'Suche:',
+    'Yes'                                                          => 'Ja',
+    'No'                                                           => 'Nein',
+    'Add Domain'                                                   => 'Domain hinzufügen',
+    'Max. Msgsize'                                                 => 'Max. Mailgröße',
+    'Vacation'                                                     => 'Abwesend',
+    'Password'                                                     => 'Passwort',
+    'Remember User Name'                                           => 'Benutzernamen merken',
+    'Logged in as [_1]'                                            => 'Angemeldet als [_1]',
+    'Check for updates'                                            => 'Auf Updates prüfen',
+    'Return to [_1]'                                               => 'Zurück zu [_1]',
+
+    #'Domains' => '',
+    'Domain Aliases' => 'Domain Aliase',
+    'Aliases'        => 'Aliase',
+    'Mailboxes'      => 'Postfächer',
+    'Mailbox'        => 'Postfach',
+
+    #'Log' => '',
+    'Logout'                     => 'Abmelden',
+    'List and edit your Domains' => 'Domains anzeigen und bearbeiten',
+    'Overview'                   => 'Übersicht',
+    'Admin List'                 => 'Admins',
+    'Domain List'                => 'Domains',
+    'View Log'                   => 'Log anzeigen',
+);
+1;

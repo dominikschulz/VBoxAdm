@@ -1,0 +1,7 @@
+package VBoxAdm::L10N::en;
+use base qw(VBoxAdm::L10N);
+
+our $VERSION = '@VERSION@';
+
+our %Lexicon = ( '_AUTO' => 1, );
+1;
