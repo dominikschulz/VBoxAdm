@@ -23,3 +23,6 @@ sub direction {
 }
 
 1;
+
+__END__
+see http://search.cpan.org/~toddr/Locale-Maketext-1.17/lib/Locale/Maketext.pod

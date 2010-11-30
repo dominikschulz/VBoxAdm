@@ -47,5 +47,6 @@ our %Lexicon = (
     'Admin List'                                                   => 'Admins',
     'Domain List'                                                  => 'Domains',
     'View Log'                                                     => 'Log anzeigen',
+    'Logged in as [_1]' => 'Angemeldet als [_1]',
 );
 1;

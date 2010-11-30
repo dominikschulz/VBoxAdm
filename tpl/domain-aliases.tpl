@@ -7,6 +7,9 @@
 			<input type="textbox" name="search" size="10" value="[% search %]" />
 			</form>
 		</div>
+		[% IF domains.size == 0 %]
+			[% "No Domains found." | l10n %]<br />
+		[% END %]
 		[% FOREACH line IN domains %]
 		[% IF loop.first %]
 		<table class="sortable hilight">
