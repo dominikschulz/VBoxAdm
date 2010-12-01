@@ -43,7 +43,7 @@
 					[% END %]
 				</td>
 				<td>
-					<a onClick="if(confirm('Do you really want to delete the Domain [% line.name %]?')) return true; else return false;" href="vboxadm.pl?rm=remove_domain&domain_id=[% line.id %]">del</a>
+					<a onClick="if(confirm('[% "Do you really want to delete the Domain [_1]?" | l10n(line.name) %]')) return true; else return false;" href="vboxadm.pl?rm=remove_domain&domain_id=[% line.id %]">[% "del" | l10n %]</a>
 				</td>
 			</tr>
 		[% IF loop.last %]

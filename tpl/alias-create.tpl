@@ -26,13 +26,12 @@
 			</tr>
 			<tr>
 				<td>[% "Target:" | l10n %]</td>
-				<td>
-					<input class="flat" type="text" name="goto" size="20" />
+				<td colspan="2">
+					<input class="flat" type="text" name="goto" size="50" />
 				</td>
-				<td></td>
 			</tr>
 			<tr>
-				<td colspan="2" align="center">
+				<td colspan="3" align="center">
 					<input class="button" type="submit" name="submit" value="[% "Add Alias" | l10n %]" />
 				</td>
 			</tr>
