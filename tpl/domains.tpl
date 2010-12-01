@@ -54,6 +54,6 @@
 		[% END %]
 		[% END %]
 		<br />
-		<a href="vboxadm.pl?rm=create_domain">Add Domain</a>
+		<a href="vboxadm.pl?rm=create_domain">[% "Add Domain" | l10n %]</a>
     </div>
 [% INCLUDE footer.tpl %]

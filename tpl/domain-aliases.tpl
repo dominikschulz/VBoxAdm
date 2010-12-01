@@ -1,7 +1,7 @@
 [% INCLUDE header.tpl %]
     <div id="main">
 	    <div id="overview">
-			Search:
+			[% "Search:" | l10n %]
 			<form name="search" method="GET" action="vboxadm.pl">
 			<input type="hidden" name="rm" value="domain_aliases" />
 			<input type="textbox" name="search" size="10" value="[% search %]" />
