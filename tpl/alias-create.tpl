@@ -6,11 +6,11 @@
     	<table>
     		<tr>
     			<td colspan="3">
-    				<h3>Add a new alias</h3>
+    				<h3>[% "Add a new alias" | l10n %]</h3>
     			</td>
     		</tr>
     		<tr>
-				<td>Username:</td>
+				<td>[% "Username:" | l10n %]</td>
 				<td><input class="flat" type="text" name="local_part" /></td>
 				<td>@
 					[% FOREACH line IN domains %]
@@ -25,15 +25,14 @@
 				</td>
 			</tr>
 			<tr>
-				<td>Target:</td>
-				<td>
-					<input class="flat" type="text" name="goto" size="20" />
+				<td>[% "Target:" | l10n %]</td>
+				<td colspan="2">
+					<input class="flat" type="text" name="goto" size="50" />
 				</td>
-				<td></td>
 			</tr>
 			<tr>
-				<td colspan="2" align="center">
-					<input class="button" type="submit" name="submit" value="Add Alias" />
+				<td colspan="3" align="center">
+					<input class="button" type="submit" name="submit" value="[% "Add Alias" | l10n %]" />
 				</td>
 			</tr>
 		</table>

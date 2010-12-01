@@ -6,15 +6,15 @@
     	<table>
     		<tr>
     			<td colspan="2">
-    				<h3>Add a new domain alias</h3>
+    				<h3>[% "Add a new domain alias" | l10n %]</h3>
     			</td>
     		</tr>
     		<tr>
-				<td>Alias-Domain:</td>
+				<td>[% "Alias-Domain:" | l10n %]</td>
 				<td><input class="flat" type="text" name="domain_alias" /></td>
 			</tr>
 			<tr>
-				<td>Target:</td>
+				<td>[% "Target:" | l10n %]</td>
 				<td>
 					[% FOREACH line IN domains %]
 						[% IF loop.first %]
@@ -29,7 +29,7 @@
 			</tr>
 			<tr>
 				<td colspan="2" align="center">
-					<input class="button" type="submit" name="submit" value="Add Domain" />
+					<input class="button" type="submit" name="submit" value="[% "Add Domain" | l10n %]" />
 				</td>
 			</tr>
 		</table>

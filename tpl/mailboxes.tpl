@@ -1,7 +1,7 @@
 [% INCLUDE header.tpl %]
     <div id="main">
 	    <div id="overview">
-			Search:
+			[% "Search:" | l10n %]
 			<form name="search" method="GET" action="vboxadm.pl">
 			<input type="hidden" name="rm" value="mailboxes" />
 			<input type="textbox" name="search" size="10" value="[% search %]" />
@@ -12,12 +12,12 @@
 		<table class="sortable hilight">
 			<thead>
 			<tr>
-				<th>Mailbox</th>
-				<th>User</th>
-				<th>Active</th>
-				<th>Max. Msgsize</th>
-				<th>Vacation</th>
-				<th>Quota</th>
+				<th>[% "Mailbox" | l10n %]</th>
+				<th>[% "User" | l10n %]</th>
+				<th>[% "Active" | l10n %]</th>
+				<th>[% "Max. Msgsize" | l10n %]</th>
+				<th>[% "Vacation" | l10n %]</th>
+				<th>[% "Quota" | l10n %]</th>
 				<th></th>
 				<th></th>
 			</tr>
@@ -33,9 +33,9 @@
 				</td>
 				<td>
 					[% IF line.is_active == 1 %]
-					<a href="vboxadm.pl?rm=update_mailbox&mailbox_id=[% line.id %]&is_active=0">Yes</a>
+					<a href="vboxadm.pl?rm=update_mailbox&mailbox_id=[% line.id %]&is_active=0">[% "Yes" | l10n %]</a>
 					[% ELSE %]
-					<a href="vboxadm.pl?rm=update_mailbox&mailbox_id=[% line.id %]&is_active=1">No</a>
+					<a href="vboxadm.pl?rm=update_mailbox&mailbox_id=[% line.id %]&is_active=1">[% "No" | l10n %]</a>
 					[% END %]
 				</td>
 				<td>
@@ -43,19 +43,19 @@
 				</td>
 				<td>
 					[% IF line.is_on_vacation == 1 %]
-					Yes
+					[% "Yes" | l10n %]
 					[% ELSE %]
-					No
+					[% "No" | l10n %]
 					[% END %]
 				</td>
 				<td>
 					[% line.quota %]
 				</td>
 				<td>
-					<a href="vboxadm.pl?rm=edit_mailbox&mailbox_id=[% line.id %]">edit</a>
+					<a href="vboxadm.pl?rm=edit_mailbox&mailbox_id=[% line.id %]">[% "edit" | l10n %]</a>
 				</td>
 				<td>
-					<a onClick="if(confirm('Do you really want to delete the Account [% line.local_part %]@[% line.domain %]?')) return true; else return false;" href="vboxadm.pl?rm=remove_mailbox&mailbox_id=[% line.id %]">del</a>
+					<a onClick="if(confirm('Do you really want to delete the Account [% line.local_part %]@[% line.domain %]?')) return true; else return false;" href="vboxadm.pl?rm=remove_mailbox&mailbox_id=[% line.id %]">[% "del" | l10n %]</a>
 				</td>
 			</tr>
 		[% IF loop.last %]
@@ -66,6 +66,6 @@
 		[% END %]
 		[% END %]
 		<br />
-		<a href="vboxadm.pl?rm=create_mailbox">Add Mailbox</a>
+		<a href="vboxadm.pl?rm=create_mailbox">[% "Add Mailbox" | l10n %]</a>
     </div>
 [% INCLUDE footer.tpl %]

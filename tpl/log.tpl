@@ -1,7 +1,7 @@
 [% INCLUDE header.tpl %]
     <div id="main">
 	<div id="overview">
-		Search:
+		[% "Search:" | l10n %]
 		<form name="search" method="GET" action="vboxadm.pl">
 		<input type="hidden" name="rm" value="log" />
 		<input type="textbox" name="search" size="10" value="[% search %]" />
@@ -12,8 +12,8 @@
 		<table class="hilight">
 			<thead>
 			<tr>
-				<th>Date</th>
-				<th>Message</th>
+				<th>[% "Date" | l10n %]</th>
+				<th>[% "Message" | l10n %]</th>
 			</tr>
 			</thead>
 			<tbody>

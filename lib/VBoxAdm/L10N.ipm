@@ -1,0 +1,28 @@
+package VBoxAdm::L10N;
+
+use base qw(Locale::Maketext);
+
+our $VERSION = '@VERSION@';
+
+our %Lexicon = ( '_AUTO' => 1, );
+
+sub encoding {
+    return "utf-8";
+}
+
+sub left {
+    return 'left';
+}
+
+sub right {
+    return 'right';
+}
+
+sub direction {
+    return 'ltr';
+}
+
+1;
+
+__END__
+see http://search.cpan.org/~toddr/Locale-Maketext-1.17/lib/Locale/Maketext.pod
