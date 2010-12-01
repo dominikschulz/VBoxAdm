@@ -1,18 +1,29 @@
 #!/usr/bin/perl
+#
+# Release script
+#
+# This script can help with creating releases from git projects
+# and also update debian packages if they are managed
+# with git-buildpackage.
+#
+# Pragmas
 use strict;
 use warnings;
 
+# Modules
 use Getopt::Long;
 use Cwd;
 use File::Temp qw/tempdir/;
 use Config::Std;
 
+# Determine the name of the package
 my $name = undef;
 {
     my @path = split(/\//, getcwd());
     $name = $path[-1];
 }
 
+# Vars for config loading
 my ( $conffile_used, @hooks, %hook, %config );
 
 # Valid config file locations to try
@@ -20,9 +31,10 @@ my @conffile_locations = qw(
   release.conf
   /etc/release.conf
 );
+# Prepend config in users home dir (~/.release.conf)
 unshift(@conffile_locations,$ENV{'HOME'}.'/.release.conf');
 
-# --major --minor --version
+# Get Options
 my ($opt_major, $opt_minor, $opt_version, $opt_local, $cmd, $changes_file, $dry, $verbose, $nobuild, $keyid, $nodeb);
 GetOptions(
     'major!'        => \$opt_major,
@@ -53,7 +65,9 @@ $keyid = $keyid || $config{$name}{'keyid'} || $config{'default'}{'keyid'};
 $nobuild = $nobuild || $config{$name}{'nobuild'} || $config{'default'}{'nobuild'};
 $nodeb = $nodeb || $config{$name}{'nodeb'} || $config{'default'}{'nodeb'};
 
+# Debian distributions to upload to (must be configured for dupload)
 my @dists = qw();
+# Git Destinations to push to
 my @git_dests = qw();
 
 if($config{'default'}{'dist'}) {
@@ -87,14 +101,18 @@ if($config{$name}{'git_dest'}) {
 
 die("Need name for this package!") unless $name;
 
+# This script only works with Makefile built packages
+# WARNING: The Makefile must recognize DESTDIR!
 if(!-e "./Makefile") {
     die("No Makefile found! You're in the wrong directory!\n");
 }
+# We can only build a .deb if there is prepared debian packaging dir
 if(!-e "../../debian/$name/") {
     warn("No Debian package dir found. Only creating release tar.gz.\n");
     $nodeb = 1;
 }
 
+# Determine the current and next version of this package
 my $preversion = `git tag | sort -V | tail -1`;
 chomp($preversion);
 my $version = undef;
@@ -151,31 +169,48 @@ if(!$opt_local) {
         run_cmd($cmd);
     }
 }
+
+# Export tagged version from git
 $cmd = "git archive --format=tar --prefix=$name-".$version."/ $version | gzip >../../debian/$name-".$version.".tar.gz";
 run_cmd($cmd);
 if($nodeb) {
   print "No debian packaging found. Only prepared tar.gz\n";
   exit 0;
 }
+
+# Go to debian package dir
 chdir("../../debian/$name");
+
+# Remove patches ...
 $cmd = "rm -rf debian/patches";
 run_cmd($cmd);
+
+# Import new version
 $cmd = "git-import-orig ../$name-".$version.".tar.gz";
 run_cmd($cmd);
 if($nobuild) {
     print "Preparation for release of $version finished!\n";
     exit 0;
 }
+
+# Tag new version
 $cmd = "git-dch --release --new-version=${version}-1";
 run_cmd($cmd);
+
+# Remove patches ... again
 $cmd = "rm -rf debian/patches/";
 run_cmd($cmd);
+
+# Remove .pc ...
 $cmd = "rm -rf .pc/";
 run_cmd($cmd);
-# git commit -a to commit changelog
+
+# Commit changelog changes
 $cmd = "git commit -a -m \"Tag ".$version."-1\"";
 run_cmd($cmd);
 # TODO can we test if any file which will be installed is in a .install file?
+
+# Build the new package
 $cmd = "git-buildpackage --git-tag --git-sign-tags";
 if($keyid) {
   $cmd .= " --git-keyid=".$keyid;
@@ -184,8 +219,11 @@ if($opt_local) {
     $cmd = "QUICK_TEST=1 ".$cmd;
 }
 run_cmd($cmd);
+
+# .deb file will be placed one level above the package dir
 chdir("..");
 
+# Upload to reposity
 if(!$opt_local) {
     $changes_file = `ls ${name}_*.changes | grep "$version" | sort -n | tail -1`;
     chomp($changes_file);
