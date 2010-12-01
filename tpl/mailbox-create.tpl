@@ -6,11 +6,11 @@
     	<table>
     		<tr>
     			<td colspan="3">
-    				<h3>Create a new mailbox</h3>
+    				<h3>[% "Create a new Mailbox" | l10n %]</h3>
     			</td>
     		</tr>
     		<tr>
-				<td>Username:</td>
+				<td>[% "Username:" | l10n %]</td>
 				<td><input class="flat" type="text" name="username" /></td>
 				<td>@
 					[% FOREACH line IN domains %]
@@ -25,33 +25,33 @@
 				</td>
 			</tr>
 			<tr>
-				<td>Password:</td>
+				<td>[% "Password:" | l10n %]</td>
 				<td><input class="flat" type="password" name="password" /></td>
-				<td>Leave both password fields empty<br />to autogenerate a password.</td>
+				<td>[% "Leave both password fields empty to autogenerate a password." | l10n %]</td>
 			</tr>
 			<tr>
-				<td>Password (again):</td>
+				<td>[% "Password (again):" | l10n %]</td>
 				<td><input class="flat" type="password" name="password_2" /></td>
 				<td></td>
 			</tr>
 			<tr>
-				<td>Name:</td>
+				<td>[% "Name:" | l10n %]</td>
 				<td><input class="flat" type="text" name="name" /></td>
 				<td></td>
 			</tr>
 			<tr>
-				<td>Active:</td>
+				<td>[% "Active:" | l10n %]</td>
 				<td><input class="flat" type="checkbox" name="is_active" checked /></td>
 				<td></td>
 			</tr>
 			<tr>
-				<td>Send Welcome Mail:</td>
+				<td>[% "Send Welcome Mail:" | l10n %]</td>
 				<td><input class="flat" type="checkbox" name="send_welcome_mail" checked /></td>
 				<td></td>
 			</tr>
 			<tr>
 				<td colspan="3" align="center">
-					<input class="button" type="submit" name="submit" value="Add Mailbox" />
+					<input class="button" type="submit" name="submit" value="[% "Add Mailbox" | l10n %]" />
 				</td>
 			</tr>
 		</table>

@@ -10,7 +10,7 @@
     			</td>
     		</tr>
     		<tr>
-				<td>[% "AAlias-Domain:</td>
+				<td>[% "Alias-Domain:" | l10n %]</td>
 				<td><input class="flat" type="text" name="domain_alias" /></td>
 			</tr>
 			<tr>
