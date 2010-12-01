@@ -66,6 +66,6 @@
 		[% END %]
 		[% END %]
 		<br />
-		<a href="vboxadm.pl?rm=create_mailbox">Add Mailbox</a>
+		<a href="vboxadm.pl?rm=create_mailbox">[% "Add Mailbox" | l10n %]</a>
     </div>
 [% INCLUDE footer.tpl %]

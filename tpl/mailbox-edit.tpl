@@ -6,7 +6,7 @@
     	<table>
     		<tr>
     			<td colspan="3">
-    				<h3>Modify a mailbox</h3>
+    				<h3>[% "Modify a mailbox" | l10n %]</h3>
     			</td>
     		</tr>
     		<tr>
