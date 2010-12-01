@@ -132,12 +132,13 @@ Copy all files of doc/dovecot to /etc/dovecot.
 
 * Configure Vacation
 --------------------
-Create the required system user and you should be ready to go.
+Create the required system user and you should be ready to go. The vacation script is called from within
+Postfix's master.cf. You just need to create a user for it.
 TODO configure the vacation tool
 
 * Configure SMTP-Proxy
 ----------------------
-Create an init script.
+Create an init script. At the time of this writing there is no init script for the SMTP-Proxy so you need to create one.
 TODO configure the SMTP-Proxy
 
 * Install VBoxAdm
