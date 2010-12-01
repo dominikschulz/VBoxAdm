@@ -24,6 +24,7 @@ How to Install VBoxAdm
 - Perl DBI
 - DBD MySQL
 - Config::Std
+- Locale::Maketext
 - CGI::Application
 - CGI::Application::Plugin::DBH
 - CGI::Application::Plugin::Redirect
@@ -158,6 +159,13 @@ Bug reports, Patches and comments are welcome. Just send them
 to me at dominik.schulz@gauner.org. If you send perl testcases
 along with your bug report or patch it'll get the highest priority
 on my todo list.
+
+Localization
+============
+The application supports localization with the help of Locale::Maketext.
+The script contrib/lexicon-export.pl can export the list of strings to a CSV
+which can the edited with any spredsheet or text editor. If you create a
+new translation send it to me and it'll be included in the next release.
 
 Packaging
 =========
