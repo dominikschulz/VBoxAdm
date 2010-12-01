@@ -1,0 +1,65 @@
+package VBoxAdm::L10N::pl;
+use utf8;
+use base qw(VBoxAdm::L10N);
+
+# About this translation:
+# Machine translation by translate.google.com
+# 01.12.2010
+
+our $VERSION = '@VERSION@';
+
+our %Lexicon = (
+    'Sign In'                                                      => 'Zaloguj się',
+    'Please enter your username and password in the fields below.' => 'Wpisz nazwę użytkownika i hasło w poniższe pola.',
+    'User Name'                                                    => 'Nazwa użytkownika',
+    'Username:'                                                    => 'Nazwa użytkownika:',
+    'Target:'                                                      => 'Cel:',
+    'Target'                                                       => 'Cel',
+    'Add Alias'                                                    => 'Dodaj alias',
+    'User'                                                         => 'Użytkownik',
+    'Active'                                                       => 'aktywny',
+    'Active:'                                                      => 'aktywny:',
+    'edit'                                                         => 'redagować',
+    'del'                                                          => 'usunąć',
+    'Search:'                                                      => 'Szukaj:',
+    'Yes'                                                          => 'Tak',
+    'No'                                                           => 'Nr',
+    'Add Domain'                                                   => 'Dodaj domenę',
+    'Add Domain Alias'                                             => 'Dodaj alias domeny',
+    'Max. Msgsize'                                                 => 'Maksymalny rozmiar wiadomości',
+    'Max. Message Size:'                                           => 'Maksymalny rozmiar wiadomości:',
+    'Modify a mailbox'                                             => 'Modyfikowanie poczty',
+    'Vacation'                                                     => 'Wakacje',
+    'On Vacation:'                                                 => 'Na wakacje:',
+    'Vacation Message:'                                            => 'Wiadomość na wakacje:',
+    'CC:'                                                          => 'kopia',
+    'Password'                                                     => 'Hasło',
+    'Password:'                                                    => 'Hasło:',
+    'Password (again):'                                            => 'Hasło (ponownie):',
+    'Remember User Name'                                           => 'Nazwa użytkownika Pamiętaj',
+    'Logged in as [_1]'                                            => 'Zalogowany jako [_1]',
+    'Check for updates'                                            => 'Sprawdź aktualizacje',
+    'SpamAssassin block score:'                                    => 'Wynik bloku SpamAssassin:',
+    'Return to [_1]'                                               => 'Powrót do [_1]',
+    'Do you really want to delete the Account [_1]?'               => 'Czy naprawdę chcesz usunąć konto [_1]?',
+    'Do you really want to delete the Domain [_1]?'                => 'Czy na pewno chcesz usunąć Domain [_1]?',
+    'Create Domainadmin:'                                          => 'Tworzenie Domainadmin:',
+    'Add a new domain alias'                                       => 'Dodaj nowy alias domeny',
+    'Add a new alias'                                              => 'Dodaj nowy alias',
+    'Domain Aliases'                                               => 'Aliasy domeny',
+    'Aliases'                                                      => 'Aliasy',
+    'Mailboxes'                                                    => 'Skrzynki pocztowe',
+    'Mailbox'                                                      => 'Skrzynka pocztowa',
+    'Modify Mailbox'                                               => 'Modyfikacja Mailbox',
+    'Add Mailbox'                                                  => 'Dodaj do skrzynki pocztowej',
+    'Create a new Mailbox'                                         => 'Utwórz nową skrzynkę pocztową',
+    'Leave both password fields empty to autogenerate a password.' => 'Hasło w obu polach puste do wygenerować hasło.',
+    'Send Welcome Mail:'                                           => 'Wyślij Witamy Mail:',
+    'Logout'                                                       => 'Wyloguj się',
+    'List and edit your Domains'                                   => 'Lista domen i edytować',
+    'Overview'                                                     => 'Przegląd',
+    'Admin List'                                                   => 'Lista Admin',
+    'Domain List'                                                  => 'Lista domen',
+    'View Log'                                                     => 'Zobacz Zaloguj',
+);
+1;
