@@ -1,0 +1,35 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use utf8;
+
+use File::Basename;
+use Data::Dumper;
+use Text::CSV_XS;
+
+my %lexicon = ();
+my %langs = ();
+
+# TODO read csv
+# foreach lang (except en)
+# create new lang.ipm, print header,
+# foreach lexicon print line
+# print footer
+
+sub get_header {
+	return <<'EOF';
+package VBoxAdm::L10N::de;
+use utf8;
+use base qw(VBoxAdm::L10N);
+
+our $VERSION = '@VERSION@';
+
+our %Lexicon = (
+EOF
+}
+sub get_footer {
+	return <<'EOF';
+);
+1;
+EOF
+}
