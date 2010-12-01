@@ -34,6 +34,7 @@ use CGI::Application::Plugin::Authentication;
 use Config::Std;
 
 use VBoxAdm::Utils '@VERSION@';
+use VBoxAdm::L10N '@VERSION@';
 
 #use VBoxAdm::Frontend::Admin '@VERSION@';
 
@@ -166,6 +167,11 @@ sub setup {
     $self->dbh_config($dsn);
 
     #
+    # L10N
+    #
+    $self->{lh} = VBoxAdm::L10N->get_handle();
+
+    #
     # Templates
     #
     $self->tt_config(
@@ -190,29 +196,23 @@ sub setup {
                     },
                     1
                 ],
+
+                #'l10n' => sub { return $self->{lh}->maketext(@_); },
+
+                'l10n' => [
+                    sub {
+                        my ( $context, @args ) = @_;
+
+                        return sub {
+                            my $str = shift;
+                            return $self->{lh}->maketext( $str, @args );
+                          }
+                    },
+                    1,
+                ],
             }
         }
     );
-
-    #
-    # Captachas
-    #
-
-=begin disabled
-    $self->captcha_config(
-        IMAGE_OPTIONS => {
-            width    => 220,
-            height   => 60,
-            lines    => 10,
-            font     => "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
-            ptsize   => 18,
-            bgcolor  => "#FFCC00",
-            scramble => 1,
-        },
-        CREATE_OPTIONS   => [ 'ttf', 'rect' ],
-        PARTICLE_OPTIONS => [300],
-    );
-=cut
 
 }
 
@@ -237,6 +237,8 @@ sub show_captcha {
 sub tt_post_process {
     my $self    = shift;
     my $htmlref = shift;
+
+    return;    # TODO XXX DEBUG
 
     # clean up the resulting HTML
     require HTML::Clean;
@@ -1594,7 +1596,7 @@ sub show_edit_mailbox {
     $sth->finish();
 
     my %params = (
-        title              => 'Edit Alias',
+        title              => 'Edit Mailbox',
         mailbox_id         => $mailbox_id,
         local_part         => $row[0],
         domain             => $row[1],
