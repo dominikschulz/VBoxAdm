@@ -25,6 +25,8 @@ How to Install VBoxAdm
 - DBD MySQL
 - Config::Std
 - Locale::Maketext
+- Crypt::GeneratePassword
+- Data::Password
 - CGI::Application
 - CGI::Application::Plugin::DBH
 - CGI::Application::Plugin::Redirect
@@ -38,7 +40,7 @@ How to Install VBoxAdm
 - Postfix 2.6+
 
 Debian based (Debian, Ubuntu):
-  aptitude install perl perltidy libdbi-perl libdbd-mysql-perl libconfig-std-perl libtest-pod-perl libmail-sender-perl libcgi-application-perl libcgi-application-basic-plugin-bundle-perl libcgi-application-extra-plugin-bundle-perl famfamfam-silk-png libmime-encwords-perl libhtml-clean-perl libtemplate-perl lighttpd mysql-server php5-cgi postfix dovecot-imapd
+  aptitude install perl perltidy libdbi-perl libdbd-mysql-perl libconfig-std-perl libtest-pod-perl libmail-sender-perl libcgi-application-perl libcgi-application-basic-plugin-bundle-perl libcgi-application-extra-plugin-bundle-perl famfamfam-silk-png libmime-encwords-perl libhtml-clean-perl libtemplate-perl lighttpd mysql-server php5-cgi postfix dovecot-imapd libcrypt-generatepassword-perl libdata-password-perl
 
 Red Hat based (RHEL, CentOS, Fedora):
   yum install perl perltidy perl-DBI (and others)

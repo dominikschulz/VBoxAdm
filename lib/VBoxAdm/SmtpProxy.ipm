@@ -216,7 +216,7 @@ sub sa_block_score {
             my @userinfo      = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
             my $sa_kill_score = $userinfo[4];
 
-            if ( $sa_kill_score < $lowest_kill_score ) {
+            if ( $sa_kill_score && $sa_kill_score < $lowest_kill_score ) {
                 $lowest_kill_score = $sa_kill_score;
             }
         }
@@ -370,8 +370,8 @@ sub is_spam {
 
         # check if the reported score is higher than the lowest score
         # of all recipients. return true (=> this message is spam) if so.
-        $status->{conf}->{required_score} = $self->sa_block_score($recipients);
-        $status->{conf}->{report_safe}    = 0;
+        $status->{conf}->{required_score} = $self->sa_block_score($recipients) || 6.31;
+        $status->{conf}->{report_safe} = 0;
         my $was_it_spam = 'unknown';
         if ( $status->is_spam() ) {
             $is_spam     = 1;
