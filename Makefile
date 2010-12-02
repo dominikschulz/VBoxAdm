@@ -25,7 +25,7 @@ PROVE = /usr/bin/prove -l
 
 # some variables
 NAME = vboxadm
-VERSION = 0.0.12
+VERSION = 0.0.13
 BUILDDATE = $(shell date +%Y-%m-%d)
 
 # Directories
