@@ -1,8 +1,6 @@
 package VBoxAdm::Frontend;
 
-# TODO use captacha plugin to protect login
 # TODO use require ssl
-# TODO shortend alias target
 
 use base 'CGI::Application';
 
@@ -25,13 +23,12 @@ use CGI::Application::Plugin::TT;
 # http://search.cpan.org/~dhorne/CGI-Application-Plugin-RequireSSL-0.04/lib/CGI/Application/Plugin/RequireSSL.pm
 use CGI::Application::Plugin::RequireSSL;
 
-# http://search.cpan.org/~cromedome/CGI-Application-Plugin-CAPTCHA-0.01/lib/CGI/Application/Plugin/CAPTCHA.pm
-# use CGI::Application::Plugin::CAPTCHA;
-
 # http://search.cpan.org/~silasmonk/CGI-Application-Plugin-Authentication-0.18/lib/CGI/Application/Plugin/Authentication.pm
 use CGI::Application::Plugin::Authentication;
 
 use Config::Std;
+use Crypt::GeneratePassword;
+use Data::Password;
 
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
@@ -426,6 +423,23 @@ sub get_users_mailboxid {
     my ( $mailbox_id, undef, undef, undef ) = $self->get_user_details();
 
     return $mailbox_id;
+}
+
+sub get_domain_byid {
+    my $self      = shift;
+    my $domain_id = shift;
+
+    my $sql = "SELECT name FROM domains WHERE id = ?";
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    my $sth = $dbh->prepare($sql);
+    $sth->execute($domain_id);
+
+    my $domain = $sth->fetchrow_array() || '';
+    $sth->finish();
+    return $domain;
 }
 
 #
@@ -1276,6 +1290,11 @@ sub show_update_alias {
             $msg .= "Failed to set Alias #$alias_id $status_str.";
         }
     }
+
+    # clean target string
+    if ($target) {
+        $target = join( ",", split( /\s*,\s*/, $target ) );
+    }
     if ( $target && !&VBoxAdm::Utils::is_valid_addresses_rfc822($target) ) {
         $msg = "Invalid address in destination!";
     }
@@ -1454,6 +1473,12 @@ sub show_add_mailbox {
 
     my $msg = '';
 
+    # no pws given, generate one
+    if ( !$password && !$password_2 ) {
+        $password = Crypt::GeneratePassword::word( 8, 12 );
+        $password_2 = $password;
+    }
+
     if ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
 
         # if domainadmin, verify that its his domain
@@ -1462,20 +1487,26 @@ sub show_add_mailbox {
     elsif ( $username && !&VBoxAdm::Utils::is_valid_localpart_rfc822($username) ) {
         $msg = "Invalid local part. This address is not RFC822 compliant!";
     }
+    elsif ( $password && $password_2 && $password ne $password_2 ) {
+        $msg = "Passwords do not match.";
+    }
     elsif ( $domain_id && $username && $password && $name && $password eq $password_2 ) {
         my $query = "INSERT INTO mailboxes (domain_id,local_part,password,is_active) VALUES(?,?,?,?)";
         my $sth   = $dbh->prepare($query);
         if ( $sth->execute( $domain_id, $username, $password, $is_active ) ) {
-            $msg = "Added Mailbox $username @ #$domain_id for $name";
+            $msg .= "Added Mailbox $username @ #$domain_id for $name";
+
+            # get domain name for sender
+            my $domain_name = $self->get_domain_byid($domain_id) || 'localhost';
 
             # send_welcome_mail
-            my $msg = '';
-            $msg .= "Subject: Welcome\r\n";
-            $msg .= "Auto-Submitted: auto-generated\r\n";
-            $msg .= "From: VBoxAdm <vboxadm\@localhost>\r\n";    # TODO get domain from domain_id here
-            $msg .= "\r\n";
-            $msg .= "Welcome to your new mailbox.";
-            &VBoxAdm::Utils::sendmail( 'vboxadm@localhost', $msg );
+            my $emsg = '';
+            $emsg .= "Subject: Welcome\r\n";
+            $emsg .= "Auto-Submitted: auto-generated\r\n";
+            $emsg .= "From: VBoxAdm <vboxadm\@" . $domain_name . ">\r\n";
+            $emsg .= "\r\n";
+            $emsg .= "Welcome to your new mailbox.";
+            &VBoxAdm::Utils::sendmail( 'vboxadm@localhost', $emsg );
         }
         else {
             $msg = "Failed to add Mailbox $username @ #$domain_id for $name. DBI Error: " . $sth->errstr;
@@ -1580,7 +1611,7 @@ sub show_edit_mailbox {
 
     my $domain_id = $row[10];
 
-    # TODO show aliases pointing to this mbox, don't forget domain aliases!
+    # show aliases pointing to this mbox, don't forget domain aliases!
     # show cc (aliases w/ the same name as this mailbox)
     $query = "SELECT id,goto FROM aliases WHERE local_part = (SELECT local_part FROM mailboxes WHERE id = ?) AND domain_id = ? ";
     @args  = ();
@@ -1661,13 +1692,21 @@ sub show_update_mailbox {
         # Password
         if ( $password && $password_2 ) {
 
+            $Data::Password::MINLEN = 8;
+            $Data::Password::MAXLEN = undef;
+
             # passwords must be equal and at least 8 chars long
             if ( $password eq $password_2 && length($password) > 7 ) {
-                $query .= "password = ?, ";
-                push( @params, $password );
-            }
 
-            # TODO LOW use cracklib, etc. to check pw strength!
+                # Check password strength
+                if ( my $str = Data::Password::IsBadPassword($password) ) {
+                    $msg .= 'ERROR: Bad password - ' . $str . '.';
+                }
+                else {
+                    $query .= "password = ?, ";
+                    push( @params, $password );
+                }
+            }
         }
 
         # Name
@@ -1820,7 +1859,7 @@ sub show_log {
         'search' => $search,
     );
 
-    # TODO add pagination
+    # TODO LOW add pagination, see http://cgi-app.org/index.cgi?PagingData
 
     return $self->tt_process( 'log.tpl', \%params );
 }

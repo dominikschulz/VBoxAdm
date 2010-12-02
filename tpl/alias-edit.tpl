@@ -20,7 +20,11 @@
 			<tr>
 				<td>[% "Target:" | l10n %]</td>
 				<td>
+					[% IF goto.length > 80 %]
+					<textarea class="flat" name="goto" cols="80" rows="20">[% goto %]</textarea>
+					[% ELSE %]
 					<input class="flat" type="text" name="goto" size="80" value="[% goto %]" />
+					[% END %]
 				</td>
 				<td></td>
 			</tr>
