@@ -1,5 +1,9 @@
 TODO:
 
+- Password generation:
+Text::Password::Pronounceable, libtext-password-pronounceable-perl
+Crypt::GeneratePassword, libcrypt-generatepassword-perl
+
 - L10N helper script:
 -- extract lexicons from pm files and generate csv
 -- import lexicons from csv
