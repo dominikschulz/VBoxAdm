@@ -56,6 +56,25 @@ to install the missing CPAN packages.
 
 A note on the Silk icon set: At the time of this writing there is no official debian package of this icon set. Grab it from the vboxadm Download page. Users of other distributions can just grab the icon set from the famfamfam homepage and unpack it to /usr/share/icons/famfamfam/silk.
 
+* Create required system users
+------------------------------
+This application recommends a number of system users to be created. All services could be runder
+under the same user, but for security reasons I very strongly recommend you to create the following users.
+
+Postfix will need its own users, usually called postfix. The debian package will create this users for you along
+with setting up postfix.
+
+Dovecot should have its own user, too. The debian package will create this user, too.
+
+The SMTP-Proxy and the vacation script should be as the user vboxadm. Create this user now:
+
+  adduser --system --home /var/lib/vboxadm --no-create-home --group --disabled-password --disabled-login vboxadm
+  
+I prefer to create an extra user just to hold the mails. Create the directory containing your maildirs and this user now:
+
+  mkdir -p /srv/vmail/
+  adduser --system --home /srv/vmail --no-create-home --group --disabled-password --disabled-login vmail
+
 * Install MySQL
 ---------------
 In the default setup we need InnoDB. If you want to avoid InnoDB you can change the schema,
@@ -64,23 +83,32 @@ skip InnoDB.
 
 * Create the Databases
 ----------------------
+$> mysql -uroot -p<MYSQL-ROOT-PW>
 mysql> CREATE DATABASE vboxadm;
 mysql> CREATE DATABASE roundcube;
 
 * Create Database Accounts
 --------------------------
 - vboxadm
-GRANT ALL ON vboxadm.* TO 'vboxadm'@'localhost' IDENTIFIED BY '';
+mysql> GRANT ALL ON vboxadm.* TO 'vboxadm'@'localhost' IDENTIFIED BY '<PASSWORD>';
 - postfix
-GRANT SELECT ON vboxadm.* TO 'vboxadm'@'localhost' IDENTIFIED BY '';
+mysql> GRANT SELECT ON vboxadm.* TO 'postfix'@'localhost' IDENTIFIED BY '<PASSWORD>';
 - dovecot
-GRANT SELECT ON vboxadm.mailboxes TO 'vboxadm'@'localhost' IDENTIFIED BY '';
-GRANT SELECT ON vboxadm.domains TO 'vboxadm'@'localhost' IDENTIFIED BY '';
+mysql> GRANT SELECT ON vboxadm.mailboxes TO 'dovecot'@'localhost' IDENTIFIED BY '<PASSWORD>';
+mysql> GRANT SELECT ON vboxadm.domains TO 'dovecot'@'localhost' IDENTIFIED BY '<PASSWORD>';
 - roundcube
-GRANT ALL ON roundcube.* TO 'roundcube'@'localhost' IDENTIFIED BY '';
+mysql> GRANT ALL ON roundcube.* TO 'roundcube'@'localhost' IDENTIFIED BY '<PASSWORD>';
 - vboxadm_user (for vacation and pw change)
-GRANT SELECT,UPDATE ON vboxadm.mailboxes TO 'vboxadm_user'@'localhost' IDENTIFIED BY '';
-GRANT SELECT ON vboxadm.domains TO 'vboxadm_user'@'localhost' IDENTIFIED BY '';
+mysql> GRANT SELECT,UPDATE ON vboxadm.mailboxes TO 'vboxadm_user'@'localhost' IDENTIFIED BY '<PASSWORD>';
+mysql> GRANT SELECT ON vboxadm.domains TO 'vboxadm_user'@'localhost' IDENTIFIED BY '<PASSWORD>';
+mysql> FLUSH PRIVILEGES;
+
+Leave the mysql client and connect as each of the newly created users to see if they are working:
+$> mysql -uvboxadm -p<PASSWORD>
+$> mysql -upostfix -p<PASSWORD>
+$> mysql -udovecot -p<PASSWORD>
+$> mysql -uroundcube -p<PASSWORD>
+$> mysql -uvboxadm_user -p<PASSWORD>
 
 * Load Schema
 -------------
@@ -133,17 +161,6 @@ Copy all files and subdirs of doc/postfix to /etc/postfix.
 -------------------
 Copy all files of doc/dovecot to /etc/dovecot.
 
-* Configure Vacation
---------------------
-Create the required system user and you should be ready to go. The vacation script is called from within
-Postfix's master.cf. You just need to create a user for it.
-TODO configure the vacation tool
-
-* Configure SMTP-Proxy
-----------------------
-Create an init script. At the time of this writing there is no init script for the SMTP-Proxy so you need to create one.
-TODO configure the SMTP-Proxy
-
 * Install VBoxAdm
 -----------------
 To build and install this application use the supplied Makefile:
@@ -154,6 +171,55 @@ To build and install this application use the supplied Makefile:
 You may set DESTDIR when running make install to specify another prefix
 than the default one in /usr. Just run the make install command like this:
 	DESTDIR=/your/prefix/ make install
+
+* Configure Database for VBoxAdm
+--------------------------------
+All parts of VBoxAdm access the central configuration file at /etc/vboxadm/vboxadm.conf.
+This is an ini-style configuration file. The default section applies to all parts of this application
+and each component can have its own section. In the default section you should configure
+the database to use the mysql user vboxadm create above.
+
+Insert these lines below [default]:
+dbuser=vboxadm
+dbpass=<PASSWORD>
+dbdb=vboxadm
+dbhost=localhost
+
+* Configure Vacation
+--------------------
+The vacation script is called from within Postfix's master.cf.
+If you've created the system user for it as recommended above you should be ready to go.
+
+* Configure SMTP-Proxy
+----------------------
+At the time of this writing there is no init script for the SMTP-Proxy so you need to create one.
+The SMTP-Proxy has a number of options that can be configure in the vboxadm.conf.
+
+We'll discuss each one. You should adjust them to your needs.
+
+The SMTP-Proxy is a preforking SMTP-Server. The prefork mechanism is similar to the one of the
+popular apache http server. You can define a minimum number of server processes which will
+wait for incoming connections by the upfront postfix.
+
+The following options must be placed in the section labeled [smtpproxy].
+
+Variable: listen, Default Value: localhost:10024, Description: Specifies on which host/port the proxy will listen
+for incoming SMTP connections.
+Variable: connect, Default Value: localhost:10025, Description: Specifies to which host/port the proxy will
+connect and forward its SMTP connections to.
+Variable: pidfile, Default Value: /var/run/vboxadm-smtpproxy.pid, Description: The pidfile.
+Variable: user, Default Value: vboxadm, Description: Run as this user
+Variable: group, Default Value: vboxadm, Description: Run as this group
+Variable: max_msg_size, Default Value: 25, Description: The maximum allowed message size.
+Variable: sa_max_msg_size, Default Value: 16, Description: The maximum message size (in MB) for SpamAssassin scanning.
+Variable: sa_timeout, Default Value: 30, Description: The maximum allow scan time for SpamAssassin.
+Variable: min_servers, Default Value: 20, Description: Start at least this many servers
+Variable: max_servers, Default Value: 120, Description: Run no more than this servers
+Variable: min_spare_servers, Default Value: 10, Description: Have at least this many idle servers available
+Variable: max_spare_servers, Default Value: 20, Description: Have no more than this idle servers around
+Variable: max_requests, Default Value: 250, Description: Each fork should process this many requests and than exit
+Variable: nsloglevel, Default Value: 2, Description: Verbosity.
+Variable: logsock, Default Value: unix, Description: Syslog Logsock.
 
 Contributing
 ============
