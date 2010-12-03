@@ -1,13 +1,5 @@
 TODO:
 
-- Password generation:
-Text::Password::Pronounceable, libtext-password-pronounceable-perl
-Crypt::GeneratePassword, libcrypt-generatepassword-perl
-
-- L10N helper script:
--- extract lexicons from pm files and generate csv
--- import lexicons from csv
-
 - Evaluate alternatives to postgrey
 Make sure class-C ip subnet auto-whitelists are supported
 
@@ -19,48 +11,5 @@ Make sure class-C ip subnet auto-whitelists are supported
 -- Add alternate styles
 -- Add plaintext templates
 
-- Add conversion tools to help with migration from other database based
-mailbox management suites like debmin, Vexim, Postfixadmin and others.
-
-###########################################################################
-Content Scanning
-###########################################################################
-What we got:
-- Amavis (SMTP-Proxy)
--- SpamAssassin
--- Tagging
--- AV Scanner
--- Header Checks (Postfix does that)
--- Black/White listing
-- Policyd-Weight (Policy-Service)
--- RBL Checks (Postfix does that partly)
-- Postgrey (Policy Service)
--- Greylisting
-
-What we want:
-- SpamAssassin (per User, optional tagging)
-- Max_msg_size
-- Whitelisting
-- Blacklisting
-- Greylisting
--- intelligent greylisting with enhanced growing-subnet AWL
-- Weighted RBLs
-
-Adopt SpamPD for SMTP-Proxy, enhance with SQL queries to do:
-- whitelisting
-- blacklisting
-- max_msg_size checks
-
-Adopt e.g. Postgrey, enhance with smart AWL (e.g. from SQLgrey)
-and weighted policy checks.
-
-Brainstorming:
-- Use policyd-weight (RBL checks) + custom policyd (max_msg_size, greylisting)
-- Custom Policyd must be invoked twice: In stage RCPT (greylisting) and stage DATA (max_msg_size)
-
-It looks like size is undef for bigger messages. Perhaps the max_msg_size check must be done
-in the smtp proxy ... size is availabe in end_of_data restrictions, but recipient
-information is lost if more the one is specified, so we need to move this to the spam-proxy.
-
-- Use Custom SMTP-Proxy or smtppd for SA
+- test conversion tools for debmin, Vexim, Postfixadmin
 

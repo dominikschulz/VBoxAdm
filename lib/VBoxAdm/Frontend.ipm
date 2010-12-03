@@ -235,8 +235,6 @@ sub tt_post_process {
     my $self    = shift;
     my $htmlref = shift;
 
-    return;    # TODO XXX DEBUG
-
     # clean up the resulting HTML
     require HTML::Clean;
     my $h = HTML::Clean->new($htmlref);
