@@ -156,7 +156,8 @@ run_cmd($cmd);
 
 # Commit the increased Version number
 $cmd = 'git commit -a -m "Tag '.$version.'"';
-run_cmd($cmd);
+# command may fail if sed didnt yield any changes
+run_cmd($cmd, { MayFail => 1, });
 
 # Tag the new release
 $cmd = "git tag ".$version;
@@ -240,10 +241,11 @@ exit 0;
 
 sub run_cmd {
     my $cmd = shift;
+    my $opts = shift || {};
     print "CMD: $cmd\n" if $verbose;
     my $rv = 1;
     $rv = system($cmd) >> 8 unless $dry;
-    if(!$dry && $rv != 0) {
+    if(!$dry && $rv != 0 && !$opts->{MayFail}) {
         die("Command ($cmd) failed with non-zero exit status: $rv!\n");
     } else {
         return 1;
