@@ -118,8 +118,13 @@ real-install: all test man
 	$(INSTALL_DATA) lib/VBoxAdm/SmtpProxy.pm $(LIBDIR)/VBoxAdm/SmtpProxy.pm
 	$(INSTALL_DATA) lib/VBoxAdm/Utils.pm $(LIBDIR)/VBoxAdm/Utils.pm
 	$(INSTALL_DATA) lib/VBoxAdm/L10N.pm $(LIBDIR)/VBoxAdm/L10N.pm
-	$(INSTALL_DATA) lib/VBoxAdm/L10N/en.pm $(LIBDIR)/VBoxAdm/L10N/en.pm
 	$(INSTALL_DATA) lib/VBoxAdm/L10N/de.pm $(LIBDIR)/VBoxAdm/L10N/de.pm
+	$(INSTALL_DATA) lib/VBoxAdm/L10N/en.pm $(LIBDIR)/VBoxAdm/L10N/en.pm
+	$(INSTALL_DATA) lib/VBoxAdm/L10N/es.pm $(LIBDIR)/VBoxAdm/L10N/es.pm
+	$(INSTALL_DATA) lib/VBoxAdm/L10N/fr.pm $(LIBDIR)/VBoxAdm/L10N/fr.pm
+	$(INSTALL_DATA) lib/VBoxAdm/L10N/it.pm $(LIBDIR)/VBoxAdm/L10N/it.pm
+	$(INSTALL_DATA) lib/VBoxAdm/L10N/pl.pm $(LIBDIR)/VBoxAdm/L10N/pl.pm
+	$(INSTALL_DATA) lib/VBoxAdm/L10N/pt.pm $(LIBDIR)/VBoxAdm/L10N/pt.pm
 	$(INSTALL_DATA) tpl/*.tpl $(VBOXLIBDIR)/tpl/
 	$(INSTALL_DATA) res/css/*.css $(VHDIR)/htdocs/css/
 	$(INSTALL_DATA) res/images/*.png $(VHDIR)/htdocs/images/
