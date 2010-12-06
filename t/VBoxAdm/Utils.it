@@ -22,3 +22,8 @@ is( VBoxAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", '"  
 		is(lc($emails[$i]),lc($expect[$i]),$expect[$i].' equals');
 	}
 }
+# Test slurp
+# Test is_valid_address_rfc822
+# Test is_valid_addresses_rfc822
+# Test is_valid_localpart_rfc822
+# Test is_valid_domain_rfc822
