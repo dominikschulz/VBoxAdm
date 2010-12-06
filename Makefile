@@ -43,7 +43,9 @@ BINFILES = \
 	bin/smtpproxy.pl \
 	cgi-bin/vboxadm.pl \
 	cron/cleanup.pl \
-	contrib/migration.pl
+	contrib/migration.pl \
+	contrib/lexicons-export.pl \
+	contrib/lexicons-import.pl
 
 LIBFILES = \
 	lib/VBoxAdm/Frontend.pm \
@@ -144,6 +146,8 @@ real-install: all test man
 	$(INSTALL_DATA) res/favicon.ico $(VHDIR)/htdocs/favicon.ico
 	$(INSTALL_DATA) res/robots.txt $(VHDIR)/htdocs/robots.txt
 	$(INSTALL_CONF) conf/vboxadm.conf.dist $(CFGDIR)/vboxadm/vboxadm.conf
+	$(INSTALL_CONF) doc/apache/vboxadm.conf $(CFGDIR)/vboxadm/apache.conf
+	$(INSTALL_CONF) doc/lighttpd/50-vboxadm.conf $(CFGDIR)/vboxadm/lighttpd.conf
 
 tidy:
 	$(PERLTIDY) lib/VBoxAdm/*.ipm
