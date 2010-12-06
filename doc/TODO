@@ -43,4 +43,4 @@ all - Complete package
 
 sa - Can run anywhere, SMTP connections via network, mysql via network
 cgi - Can run anywhere, mysql via network
-vacation - mus run on mailserver, mail is piped
+vacation - must run on mailserver, mail is piped
