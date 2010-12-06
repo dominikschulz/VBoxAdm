@@ -220,13 +220,13 @@ sub teardown {
     $self->dbh->disconnect();
 }
 
-=begin disabled
-sub show_captcha {
+#
+# CGI::Application Hooks
+#
+sub cgiapp_init() {
     my $self = shift;
-    return $self->captcha_create;
-
+    $self->query->charset('UTF-8');
 }
-=cut
 
 #
 # Template::Toolkit Hooks
