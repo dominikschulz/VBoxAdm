@@ -50,13 +50,20 @@ LIBFILES = \
 	lib/VBoxAdm/SmtpProxy.pm \
 	lib/VBoxAdm/Utils.pm \
 	lib/VBoxAdm/L10N.pm \
+	lib/VBoxAdm/L10N/ar.pm \
+	lib/VBoxAdm/L10N/da.pm \
 	lib/VBoxAdm/L10N/de.pm \
 	lib/VBoxAdm/L10N/en.pm \
 	lib/VBoxAdm/L10N/es.pm \
+	lib/VBoxAdm/L10N/fi.pm \
 	lib/VBoxAdm/L10N/fr.pm \
+	lib/VBoxAdm/L10N/hi.pm \
 	lib/VBoxAdm/L10N/it.pm \
+	lib/VBoxAdm/L10N/ja.pm \
+	lib/VBoxAdm/L10N/ko.pm \
 	lib/VBoxAdm/L10N/pl.pm \
 	lib/VBoxAdm/L10N/pt.pm \
+	lib/VBoxAdm/L10N/zh.pm \
 	lib/MSDW/SMTP/Client.pm \
 	lib/MSDW/SMTP/Server.pm
 

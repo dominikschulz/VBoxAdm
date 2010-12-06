@@ -1,0 +1,66 @@
+package VBoxAdm::L10N::fi;
+use utf8;
+use base qw(VBoxAdm::L10N);
+
+# About this translation:
+# Machine translation by translate.google.com
+# 06.12.2010
+
+our $VERSION = '@VERSION@';
+
+our %Lexicon = (
+    'Sign In'                                                      => 'Kirjaudu sisään',
+    'Please enter your username and password in the fields below.' => 'Anna käyttäjätunnus ja salasana alla oleviin kenttiin.',
+    'User Name'                                                    => 'Käyttäjän nimi',
+    'Username:'                                                    => 'Käyttäjätunnus:',
+    'Target:'                                                      => 'Tavoite:',
+    'Target'                                                       => 'Kohde',
+    'Add Alias'                                                    => 'Lisää Alias',
+    'User'                                                         => 'Käyttäjä',
+    'Active'                                                       => 'Aktiivinen',
+    'Active:'                                                      => 'Aktiivinen:',
+    'edit'                                                         => 'Muokkaa',
+    'del'                                                          => 'Poista',
+    'Search:'                                                      => 'Etsi:',
+    'Yes'                                                          => 'Kyllä',
+    'No'                                                           => 'Ei',
+    'Add Domain'                                                   => 'Lisää Domain',
+    'Add Domain Alias'                                             => 'Lisää verkkotunnuksen alias',
+    'Max. Msgsize'                                                 => 'Viestin enimmäiskoko',
+    'Max. Message Size:'                                           => 'Viestin enimmäiskoko:',
+    'Modify a mailbox'                                             => 'Muokkaa postilaatikko',
+    'Vacation'                                                     => 'Loma',
+    'On Vacation:'                                                 => 'Lomalla:',
+    'Vacation Message:'                                            => 'Vacation Message:',
+    'CC:'                                                          => 'Kopioi:',
+    'Password'                                                     => 'Salasana',
+    'Password:'                                                    => 'Salasana:',
+    'Password (again):'                                            => 'Salasana (uudestaan):',
+    'Remember User Name'                                           => 'Muista käyttäjätunnus',
+    'Logged in as [_1]'                                            => 'Kirjautunut nimellä [_1]',
+    'Check for updates'                                            => 'Tarkista päivitykset',
+    'SpamAssassin block score:'                                    => 'SpamAssassin lohko pisteet:',
+    'Return to [_1]'                                               => 'Paluu [_1]',
+    'Do you really want to delete the Account [_1]?'               => 'Haluatko todella poistaa tilisi [_1]?',
+    'Do you really want to delete the Domain [_1]?'                => 'Haluatko varmasti poistaa Domain [_1]?',
+    'Create Domainadmin:'                                          => 'Luo verkkotunnuksen järjestelmänvalvoja:',
+    'Add a new domain alias'                                       => 'Lisää uusi domain alias',
+    'Add a new alias'                                              => 'Lisää uusi alias',
+    'Domain Aliases'                                               => 'Verkkotunnusaliakset',
+    'Aliases'                                                      => 'Peitenimet',
+    'Mailboxes'                                                    => 'Postilaatikot',
+    'Mailbox'                                                      => 'Postilaatikko',
+    'Modify Mailbox'                                               => 'Muokkaa Postilaatikko',
+    'Add Mailbox'                                                  => 'Lisää Postilaatikko',
+    'Create a new Mailbox'                                         => 'Luo uusi postilaatikko',
+    'Leave both password fields empty to autogenerate a password.' => 'Jätä molemmat salasana kentät tyhjiksi autogenerate salasanan.',
+    'Send Welcome Mail:'                                           => 'Lähetä Tervetuloa Mail:',
+    'Logout'                                                       => 'Kirjaudu ulos',
+    'List and edit your Domains'                                   => 'Luettelo ja muokata Domains',
+    'Overview'                                                     => 'Yleiskatsaus',
+    'Admin List'                                                   => 'Luettelo Ylläpitäjät',
+    'Domain List'                                                  => 'Luettelon verkkotunnuksista',
+    'View Log'                                                     => 'Lokin',
+    'Logged in as [_1]'                                            => 'Kirjautunut nimellä [_1]',
+);
+1;
