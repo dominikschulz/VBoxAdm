@@ -62,6 +62,15 @@ our %Lexicon = (
     'Domain List'                                                  => '',
     'View Log'                                                     => '',
     'Logged in as [_1]'                                            => '',
+    'Domains' => '',
+    'Domain' => '',
+    'Alias' => '',
+    'Log'			=> '',
+    'Domainadmin' => '',
+    'Superadmin' => '',
+    'Quota' => '',
+    'Date' => '',
+    'Message' => '',
 );
 1;
 
@@ -119,3 +128,12 @@ List of Administrators
 List of Domains
 View Log
 Logged in as [_1]
+Domains
+Domain
+Alias
+Log
+Domainadmin
+Superadmin
+Quota
+Date
+Message
