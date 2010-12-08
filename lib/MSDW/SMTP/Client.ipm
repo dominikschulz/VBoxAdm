@@ -104,8 +104,17 @@ sub new {
         Proto    => 'tcp',
         Type     => SOCK_STREAM,
     );
-    die "$0: socket connect failure: $!\n" unless defined $self->{sock};
-    return $self;
+    if ( !defined $self->{sock} ) {
+        if ( $self->{RaiseError} ) {
+            die "$0: socket connect failure: $!\n" unless defined;
+        }
+        else {
+            return;
+        }
+    }
+    else {
+        return $self;
+    }
 }
 
 sub hear {

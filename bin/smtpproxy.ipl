@@ -67,10 +67,42 @@ my $nsloglevel = $config{'smtpproxy'}{'nsloglevel'} // 2;
 my $logsock = $config{'smtpproxy'}{'logsock'} || 'unix';
 my $background = $config{'no-fork'} ? 0 : 1;
 
+# Database Hosts
+my @dbhosts = ();
+if ( $config{'smtpproxy'}{'dbhost'} ) {
+    if ( ref( $config{'smtpproxy'}{'dbhost'} ) eq 'ARRAY' ) {
+        push( @dbhosts, @{ $config{'smtpproxy'}{'dbhost'} } );
+    }
+    else {
+        push( @dbhosts, $config{'smtpproxy'}{'dbhost'} );
+    }
+}
+elsif ( $config{'default'}{'dbhost'} ) {
+    if ( ref( $config{'default'}{'dbhost'} ) eq 'ARRAY' ) {
+        push( @dbhosts, @{ $config{'default'}{'dbhost'} } );
+    }
+    else {
+        push( @dbhosts, $config{'default'}{'dbhost'} );
+    }
+}
+else {
+    push( @dbhosts, 'localhost' );
+}
+
 # Parse listen and connect options
 my ( $srcaddr, $srcport ) = split /:/, $listen;
-my ( $dstaddr, $dstport ) = split /:/, $connect;
-die $syntax unless defined($srcport) and defined($dstport);
+my @connect = ();
+if ( $config{'smtpproxy'}{'connect'} ) {
+    if ( ref( $config{'smtpproxy'}{'connect'} ) eq 'ARRAY' ) {
+        push( @connect, @{ $config{'smtpproxy'}{'connect'} } );
+    }
+    else {
+        push( @connect, $config{'smtpproxy'}{'connect'} );
+    }
+}
+else {
+    push( @connect, 'localhost:10026' );
+}
 
 # Create a new SA instance
 my $sa = Mail::SpamAssassin->new(
@@ -114,8 +146,7 @@ my $server = bless {
         max_requests      => $max_requests,
     },
     vbox => {
-        relayhost       => $dstaddr,
-        relayport       => $dstport,
+        relayhosts      => \@connect,
         dbh             => undef,
         childtimeout    => $childtimeout,
         sa              => $sa,
@@ -124,11 +155,11 @@ my $server = bless {
         max_msg_size    => $max_msg_size,
         dry             => $config{'dry'},
 
-        dbhost => $dbhost,
-        dbport => $dbport,
-        dbuser => $dbuser,
-        dbpass => $dbpass,
-        dbdb   => $dbdb,
+        dbhosts => \@dbhosts,
+        dbport  => $dbport,
+        dbuser  => $dbuser,
+        dbpass  => $dbpass,
+        dbdb    => $dbdb,
     },
   },
   'VBoxAdm::SmtpProxy';

@@ -13,3 +13,7 @@ Make sure class-C ip subnet auto-whitelists are supported
 
 - test conversion tools for debmin, Vexim, Postfixadmin
 
+- SmtpProxy:
+-- Multiple target SMTP servers (fail over, load balancing)
+- All:
+-- Multiple databaser servers (fail over, load balancing)

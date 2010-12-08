@@ -19,6 +19,8 @@ my $db_pass = '';
 my $db_port = 3306;
 my $db_db   = 'vboxadm';
 
+# TODO allow multiple db servers
+
 my $vacation_domain = 'autoreply.domain.tld';
 
 my $logfile = '/var/log/vacation.log';

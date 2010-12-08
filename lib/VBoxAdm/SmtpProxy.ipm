@@ -7,6 +7,7 @@ use Getopt::Long;
 use IO::File;
 use DBI;
 use Time::HiRes qw(time);
+use List::Util qw(shuffle);
 
 use Mail::SpamAssassin;
 
@@ -33,9 +34,17 @@ sub db_connect {
     my $host = $self->{vbox}->{dbhost} || 'localhost';
     my $port = $self->{vbox}->{dbport} || 3306;
     my $db   = $self->{vbox}->{dbdb} || 'vboxadm';
-    my $dsn  = "DBI:mysql:database=$db;user=$user;password=$pass;host=$host;port=$port";
-    $self->{vbox}->{dbh} = DBI->connect( $dsn, { RaiseError => 0, PrintError => 0, } )
-      or die "Could not connect to DB with DSN $dsn: " . DBI->errstr;
+
+    # if more than one dbhost is given shuffle the list
+    # and try each one until a connection succeeds, use short timeout
+    # use guarding alarm timer
+    my $dsn = "DBI:mysql:database=$db;user=$user;password=$pass;port=$port;host=";
+    foreach my $host ( shuffle @{ $self->{vbox}->{dbhosts} } ) {
+        $self->{vbox}->{dbh} = DBI->connect( $dsn . $host, { RaiseError => 0, PrintError => 0, } ) and last;
+    }
+    if ( !$self->{vbox}->{dbh} ) {
+        die "Could not connect to DB with DSN $dsn: " . DBI->errstr;
+    }
     return 1;
 }
 
@@ -104,10 +113,22 @@ sub process_request {
 
         # Start the SMTP-Client part which talks to the internal
         # mta (postfix) instance
-        my $client = MSDW::SMTP::Client->new(
-            interface => $self->{vbox}->{relayhost},
-            port      => $self->{vbox}->{relayport},
-        ) or die "Failed to create a sending client: $!\n";
+        # if more than one relayhost is given, try to connect to
+        # each one until the connection succeeds. use short timeout (max. 10s)
+        my $client = undef;
+        foreach my $node ( shuffle @{ $self->{vbox}->{relayhosts} } ) {
+            my ( $host, $port ) = split( /:/, $node );
+            $client = MSDW::SMTP::Client->new(
+                interface  => $host,
+                port       => $port,
+                timeout    => 10,
+                RaiseError => 0,
+            );
+            last if ($client);
+        }
+        if ( !$client ) {
+            die "Failed to create a sending client: $!\n";
+        }
 
         # Pass the inital welcome
         $smtp_server->print( $client->hear() . "\r\n" );
@@ -123,7 +144,7 @@ sub process_request {
 
                 # Message sent completely, now do our checks
                 # CHECK: Max_msg_size
-                my $msg_size = ( $smtp_server->{data}->stat )[7];
+                my $msg_size = ( $smtp_server->{data}->stat )[7] || 1;
                 foreach my $recipient ( @{ $smtp_server->{recipients} } ) {
                     if ( $msg_size > $self->max_msg_size($recipient) ) {
                         my $msg = "Message too big ($msg_size/" . $self->max_msg_size($recipient) . ") for $recipient";
@@ -182,7 +203,7 @@ sub process_request {
 # Returns    : ????
 # Parameters : ????
 # Throws     : no exceptions
-# Comments   : none
+# Comments   : Once cached the results are kept until this instance exits!
 # See Also   : n/a
 sub max_msg_size {
     my $self      = shift;
@@ -191,18 +212,29 @@ sub max_msg_size {
     my $email = &VBoxAdm::Utils::extract_recipients($recipient);
 
     # check the max msg size for this recipient
-    my @userinfo = $self->{vbox}->{sth}->{userinfo}->execute($email);
+    my $max_msg_size = $self->{vbox}->{max_msg_size};
+    if ( $self->{cache}->{max_msg_size}->{$email} ) {
+        $max_msg_size = $self->{cache}->{max_msg_size}->{$email};
+    }
+    elsif ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
+        my @userinfo = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
+        $max_msg_size = $userinfo[2] || $max_msg_size;
+        $self->{cache}->{max_msg_size}->{$email} = $max_msg_size;
+    }
+    else {
+        $self->log( 2, "max_msg_size - Excuting userinfo query failed: " . DBI->errstr );
+    }
 
-    return $userinfo[2] || $self->{vbox}->{max_msg_size};
+    return $max_msg_size;
 }
 
 ############################################
 # Usage      : ????
-# Purpose    : ????
+# Purpose    : Get the lowest sa_block_score of all given recipients
 # Returns    : ????
 # Parameters : ????
 # Throws     : no exceptions
-# Comments   : none
+# Comments   : Once cached the results are kept until this instance exits!
 # See Also   : n/a
 sub sa_block_score {
     my $self       = shift;
@@ -212,9 +244,19 @@ sub sa_block_score {
     my $lowest_kill_score = 0xFFFF;
 
     foreach my $email ( &VBoxAdm::Utils::extract_recipients($recipients) ) {
-        if ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
+        if ( $self->{cache}->{sa_block_score}->{$email} ) {
+
+            # try cached result first
+            my $sa_kill_score = $self->{cache}->{sa_block_score}->{$email};
+
+            if ( $sa_kill_score && $sa_kill_score < $lowest_kill_score ) {
+                $lowest_kill_score = $sa_kill_score;
+            }
+        }
+        elsif ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
             my @userinfo      = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
             my $sa_kill_score = $userinfo[4];
+            $self->{cache}->{sa_block_score}->{$email} = $sa_kill_score;
 
             if ( $sa_kill_score && $sa_kill_score < $lowest_kill_score ) {
                 $lowest_kill_score = $sa_kill_score;
@@ -513,6 +555,14 @@ children. The message passed through is bufferd in an unlinked tempfile
 in /tmp, which SHOULD by a tmpfs large enough to hold max_servers * max_msg_size
 of data. This prevents the allocation overhead associated with large strings
 and ensures that space will be returned to the OS as soon as possible.
+
+=head1 CACHING
+
+User information from the database is cached in each fork of this script
+so the number of database lookups is reduced. This causes two possible problems:
+1) the ram usage will grow if too many data is cached and 2) changes to the database
+won't immedeate effect. The severity of both issues can decreased by keeping
+the number of requests per instance reasonably low. 
 
 =head1 CONFIGURATION AND ENVIRONMENT
 

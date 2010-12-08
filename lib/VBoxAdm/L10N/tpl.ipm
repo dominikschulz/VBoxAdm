@@ -1,4 +1,4 @@
-package VBoxAdm::L10N::;
+package VBoxAdm::L10N ::;
 use utf8;
 use base qw(VBoxAdm::L10N);
 
@@ -62,15 +62,15 @@ our %Lexicon = (
     'Domain List'                                                  => '',
     'View Log'                                                     => '',
     'Logged in as [_1]'                                            => '',
-    'Domains' => '',
-    'Domain' => '',
-    'Alias' => '',
-    'Log'			=> '',
-    'Domainadmin' => '',
-    'Superadmin' => '',
-    'Quota' => '',
-    'Date' => '',
-    'Message' => '',
+    'Domains'                                                      => '',
+    'Domain'                                                       => '',
+    'Alias'                                                        => '',
+    'Log'                                                          => '',
+    'Domainadmin'                                                  => '',
+    'Superadmin'                                                   => '',
+    'Quota'                                                        => '',
+    'Date'                                                         => '',
+    'Message'                                                      => '',
 );
 1;
 

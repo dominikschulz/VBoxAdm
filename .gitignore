@@ -3,4 +3,5 @@
 *.bak
 *.ERR
 *.pm.LOG
+*.ipm.LOG
 doc/man/
