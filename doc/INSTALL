@@ -133,6 +133,12 @@ you've choosen for the MySQL user postfix.
 Change to /etc/postfix and create the database maps:
 $> make maps
 
+If you haven't done so already install postgrey and policyd-weight:
+ $> aptitude install postgrey policyd-weight
+ 
+Adjust the port to 60000 in /etc/default/postgrey and restart postgrey:
+ $> /etc/init.d/postgrey restart
+
 * Configure Dovecot
 -------------------
 Copy all files of doc/dovecot to /etc/dovecot.
@@ -208,6 +214,9 @@ Variable: max_requests, Default Value: 250, Description: Each fork should proces
 Variable: nsloglevel, Default Value: 2, Description: Verbosity.
 Variable: logsock, Default Value: unix, Description: Syslog Logsock.
 
+Debian: Enable the SMTP-Proxy be setting the variable
+START_SMTPPROXY in the file /etc/default/vboxadm-sa to true.
+
 * Create your Siteadmin
 -----------------------
 Use the script contrib/mkadmin.pl to create a new siteadmin.
@@ -267,7 +276,34 @@ $rcmail_config['plugins'] = array('password','managesieve', 'vacation');
 
 * Setup SSL Certificates
 ------------------------
-TODO
+For SSL connectivity (recommended!) either get a commerical certificate,
+a free one from cacert.org or as self signed one.
+
+First you need to generate a private key:
+ $> openssl genrsa -out server.key 2048
+ 
+Then you can generate a certificate signing request (CSR):
+ $> openssl req -new -key server.key -out server.csr
+
+Either submit this CSR to your certificate vendor or sign it yourself.
+A self signed certificate negates the security gain of SSL, but
+for testing and the initial setup it is ok. But remember to replace the
+self signed certificate later before you go into production.
+
+To create a self-signed certificate we use openssl again:
+ $> openssl x509 -req -days 3650 -in server.csr -signkey server.key -out server.crt
+
+Copy the generated keyfile and certificate to the appropirate places.
+In debian installations this would be
+ /etc/ssl/private/hostname.key
+and
+ /etc/ssl/certs/hostname.crt
+
+Make sure to enter the correct pathnames in the files
+ /etc/dovecot/dovecot.conf
+ /etc/postfix/main.cf
+and
+ /etc/lighttpd/conf-enabled/10-ssl.conf.
 
 * Test your Setup
 -----------------

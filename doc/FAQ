@@ -1,0 +1,13 @@
+Queue file write error during SMTP dialog
+-----------------------------------------
+Problem: During the SMTP dialog you get
+an temporary error with the description "queue file write error".
+
+ RCPT TO:<user@domain.tld>
+ 451 4.3.0 Error: queue file write error
+ 
+Reason: Most probably your SMTP-Proxy is not running or
+configured for the wrong port.
+
+Solution: Start your SMTP-Proxy, check the ports in master.cf and
+vboxadm.conf.
