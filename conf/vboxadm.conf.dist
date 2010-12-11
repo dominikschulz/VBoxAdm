@@ -14,8 +14,8 @@ notify_interval=604800
 
 [smtpproxy]
 # config for smtpproxy
-listen=localhost:10025
-connect=localhost:10026
+listen=localhost:10024
+connect=localhost:10025
 pidfile=/var/run/vboxadm-smtpproxy.pid
 user=vboxadm
 group=vboxadm
