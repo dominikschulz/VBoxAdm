@@ -49,6 +49,11 @@
 				<td></td>
 			</tr>
 			<tr>
+				<td>[% "Vacation Subject:" | l10n %]</td>
+				<td><input class="flat" type="text" name="vacation_subj" value="[% vacation_subj %]" /></td>
+				<td></td>
+			</tr>
+			<tr>
 				<td>[% "Vacation Message:" | l10n %]</td>
 				<td><textarea name="vacation_msg">[% vacation_msg %]</textarea></td>
 				<td></td>

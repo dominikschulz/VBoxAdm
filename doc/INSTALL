@@ -68,12 +68,13 @@ Dovecot should have its own user, too. The debian package will create this user,
 
 The SMTP-Proxy and the vacation script should be as the user vboxadm. Create this user now:
 
-  adduser --system --home /var/lib/vboxadm --no-create-home --group --disabled-password --disabled-login vboxadm
+  $> adduser --system --home /var/lib/vboxadm --no-create-home --group --disabled-password --disabled-login vboxadm
   
 I prefer to create an extra user just to hold the mails. Create the directory containing your maildirs and this user now:
 
-  mkdir -p /srv/vmail/
-  adduser --system --home /srv/vmail --no-create-home --group --disabled-password --disabled-login vmail
+  $> mkdir -p /srv/vmail/
+  $> adduser --system --home /srv/vmail --no-create-home --group --disabled-password --disabled-login vmail
+  $> chown -R vmail:vmail /srv/vmail/
 
 * Install MySQL
 ---------------
@@ -86,6 +87,10 @@ skip InnoDB.
 $> mysql -uroot -p<MYSQL-ROOT-PW>
 mysql> CREATE DATABASE vboxadm;
 mysql> CREATE DATABASE roundcube;
+
+* Load Schema
+-------------
+$> mysql -uroot -p vboxadm < doc/mysql/schema.sql
 
 * Create Database Accounts
 --------------------------
@@ -104,62 +109,40 @@ mysql> GRANT SELECT ON vboxadm.domains TO 'vboxadm_user'@'localhost' IDENTIFIED 
 mysql> FLUSH PRIVILEGES;
 
 Leave the mysql client and connect as each of the newly created users to see if they are working:
-$> mysql -uvboxadm -p<PASSWORD>
-$> mysql -upostfix -p<PASSWORD>
-$> mysql -udovecot -p<PASSWORD>
-$> mysql -uroundcube -p<PASSWORD>
-$> mysql -uvboxadm_user -p<PASSWORD>
-
-* Load Schema
--------------
-$> mysql -uvboxadm -p vboxadm < doc/mysql/schema.sql
+$> mysql -uvboxadm -p<PASSWORD> vboxadm -e 'SHOW TABLES'
+$> mysql -upostfix -p<PASSWORD> vboxadm -e 'SHOW TABLES'
+$> mysql -udovecot -p<PASSWORD> vboxadm -e 'SHOW TABLES'
+$> mysql -uroundcube -p<PASSWORD> roundcube -e 'SHOW TABLES'
+$> mysql -uvboxadm_user -p<PASSWORD> vboxadm -e 'SHOW TABLES'
 
 * Install Lighttpd
 ------------------
 Enable cgi (or fastcgi) and symlink the lighttpd/12-vboxadm.conf to /etc/lighttpd/conf-enabled/12-vboxadm.conf.
 Restart lighttpd.
 
-* Install Roundcube
--------------------
-Unpack Roundcube to /opt/roundcube, create a symlink from /opt/roundcube/roundcube-0.x.y/
-/opt/roundcube/current.
-The use the installer and follow the instructions of the installer. Use the database
-and user created above.
-
-When the installer has created the config for you place them in /opt/roundcube/config/main.inc.php and db.inc.php
-and symlink from /opt/roundcube/config/{db,main}.inc.php to /opt/roundcube/current/config/. 
-
-* Install Roundcube Plugin: vacation
-------------------------------------
-Since the vacation plugin is not contained in the upstream sources of roundcube, a modified version is supplied
-with VBoxAdm. Copy the folder contrib/roundcube/plugins/vacation to your roundcube plugins folder.
-
-* Configure Roundcube Plugins
------------------------------
-Edit plugins/vacation/config.ini and set a dsn in the default section:
-dsn = "mysql://vboxadm_user:password@localhost"
-
-Copy the config.inc.php.dist in plugins/password to config.inc.php and set the dsn
-$rcmail_config['password_db_dsn'] = 'mysql://vboxadm_user:password@localhost/vboxadm';
-
-and the password query:
-$rcmail_config['password_query'] = "UPDATE vboxadm.mailboxes SET password = %p WHERE local_part = %l AND password = %o AND domain_id = (SELECT id FROM vboxadm.domains WHERE name = %d)";
-
-Copy the config.inc.php.dist in plugins/managesieve to config.inc.php.
-
-* Active the Roundcube Plugins
-------------------------------
-Edit the file config/main.inc.php and add the plugins 'password', 'managesieve' and 'vacation'.
-
-$rcmail_config['plugins'] = array('password','managesieve', 'vacation');
-
 * Configure Postfix
 -------------------
 Copy all files and subdirs of doc/postfix to /etc/postfix.
 
+Debian: The files mentioned are located at /usr/share/doc/vboxadm-common/examples/postfix!
+You need to gunzip the files master.cf.gz and main.cf.gz.
+
+Go to /etc/postfix/maps/. Edit each virtual_*.cf file and enter the password
+you've choosen for the MySQL user postfix.
+
+Change to /etc/postfix and create the database maps:
+$> make maps
+
 * Configure Dovecot
 -------------------
 Copy all files of doc/dovecot to /etc/dovecot.
+
+Debian: The files mentioned are located at /usr/share/doc/vboxadm-common/examples/dovecot!
+
+Open the file /etc/dovecot/dovecot-sql.conf and change the password in the connect line.
+
+Adjust the uid and gid in the file /etc/dovecot/dovecot.conf to the ones of the user vmail. Set first_valid_uid and first_valid_gid
+to the uid and gid of the user vmail.
 
 * Install VBoxAdm
 -----------------
@@ -171,6 +154,8 @@ To build and install this application use the supplied Makefile:
 You may set DESTDIR when running make install to specify another prefix
 than the default one in /usr. Just run the make install command like this:
 	DESTDIR=/your/prefix/ make install
+
+Debian: You should have already installed the debian packages.
 
 * Configure Database for VBoxAdm
 --------------------------------
@@ -194,6 +179,8 @@ If you've created the system user for it as recommended above you should be read
 ----------------------
 At the time of this writing there is no init script for the SMTP-Proxy so you need to create one.
 The SMTP-Proxy has a number of options that can be configure in the vboxadm.conf.
+
+Debian: The debian package provides an init script.
 
 We'll discuss each one. You should adjust them to your needs.
 
@@ -220,6 +207,74 @@ Variable: max_spare_servers, Default Value: 20, Description: Have no more than t
 Variable: max_requests, Default Value: 250, Description: Each fork should process this many requests and than exit
 Variable: nsloglevel, Default Value: 2, Description: Verbosity.
 Variable: logsock, Default Value: unix, Description: Syslog Logsock.
+
+* Create your Siteadmin
+-----------------------
+Use the script contrib/mkadmin.pl to create a new siteadmin.
+
+$> contrib/mkadmin.pl --username your.name@domain.tld
+
+Use the supplied information to log in to VBoxAdm and create your
+users and mailboxes.
+
+* Install Roundcube
+-------------------
+Unpack Roundcube to /opt/roundcube, create a symlink from /opt/roundcube/roundcube-0.x.y/
+/opt/roundcube/current.
+
+To satisfy the requirements you'll need to install a few aditional packages:
+
+(Debian) $> aptitude install php5-cgi php5-mysql php5-mcrypt php5-imap php5-intl
+
+On Debian system you have to modify the suhosin settings. Edit the file /etc/php5/conf.d/suhosin.in
+and change the value suhosin.session.encrypt to off. Make sure the line is no longer commented.
+
+The use the installer access http://roundcube.domain.tld/installer/ and follow the instructions of the installer. Use the database
+and user created above. You should select Mysqli for database access. If you install all components on one
+server you can enter localhost and IMAP and SMTP server, if not you probably know what you are doing.
+
+When the installer has created the config for you place them in /opt/roundcube/config/main.inc.php and db.inc.php
+and symlink from /opt/roundcube/config/{db,main}.inc.php to /opt/roundcube/current/config/. 
+
+The final step of the installation is to remove the installer directory.
+
+* Install Roundcube Plugin: vacation
+------------------------------------
+Since the vacation plugin is not contained in the upstream sources of roundcube, a modified version is supplied
+with VBoxAdm. Copy the folder contrib/roundcube/plugins/vacation to your roundcube plugins folder.
+
+Debian: Extract the file /usr/share/doc/vboxadm-common/examples/roundcube-plugin-vacation.tar.gz
+to /opt/roundcube/current/plugins.
+
+* Configure Roundcube Plugins
+-----------------------------
+Edit plugins/vacation/config.ini and set a dsn in the default section:
+dsn = "mysql://vboxadm_user:password@localhost"
+
+Copy the config.inc.php.dist in plugins/password to config.inc.php and set the dsn
+$rcmail_config['password_db_dsn'] = 'mysql://vboxadm_user:password@localhost/vboxadm';
+
+and the password query:
+$rcmail_config['password_query'] = "UPDATE vboxadm.mailboxes SET password = %p WHERE local_part = %l AND password = %o AND domain_id = (SELECT id FROM vboxadm.domains WHERE name = %d)";
+
+Copy the config.inc.php.dist in plugins/managesieve to config.inc.php.
+
+* Active the Roundcube Plugins
+------------------------------
+Edit the file config/main.inc.php and add the plugins 'password', 'managesieve' and 'vacation'.
+
+$rcmail_config['plugins'] = array('password','managesieve', 'vacation');
+
+* Setup SSL Certificates
+------------------------
+TODO
+
+* Test your Setup
+-----------------
+IMAP Test - TODO
+POP3 Test - TODO
+Webmail Test - TODO
+CGI Test - TODO
 
 Contributing
 ============

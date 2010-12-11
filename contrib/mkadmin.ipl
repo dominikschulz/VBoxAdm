@@ -1,0 +1,90 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+use DBI;
+use Getopt::Long;
+use Config::Std;
+use Crypt::GeneratePassword;
+
+use VBoxAdm::Utils '@VERSION@';
+
+my $db_host = 'localhost';
+my $db_user = 'vacation';
+my $db_pass = '';
+my $db_port = 3306;
+my $db_db   = 'vboxadm';
+
+my ( $conffile_used, @hooks, %hook, %config, $email, );
+
+# Valid config file locations to try
+my @conffile_locations = qw(
+  vboxadm.conf
+  conf/vboxadm.conf
+  /etc/vboxadm/vboxadm.conf
+  /etc/postfix/vboxadm.conf
+);
+
+GetOptions(
+    'verbose|v+'   => \$config{'verbose'},
+    'dry|d!'       => \$config{'dry'},
+    'username|u=s' => \$email,
+
+    # shift removes name of the option (config) and leaves the value for unshift
+    # unshift prepends to the list of valid config files so it is tried first
+    'config=s' => sub { shift; unshift( @conffile_locations, @_ ); },
+) or die("Unknown Command");
+
+# Try all config file locations
+foreach my $loc (@conffile_locations) {
+    if ( -r $loc ) {
+        $conffile_used = $loc;
+        read_config $loc => %config;
+        last;
+    }
+}
+
+$db_host = $config{'default'}{'dbhost'} || $db_host;
+$db_user = $config{'default'}{'dbuser'} || $db_user;
+$db_pass = $config{'default'}{'dbpass'} || $db_pass;
+$db_port = $config{'default'}{'dbport'} || $db_port;
+$db_db   = $config{'default'}{'dbdb'}   || $db_db;
+
+if ( !$email ) {
+    print "Please enter the username (as user\@domain.tld) for the designated site-admin:\n";
+    $email = <STDIN>;
+    chomp($email);
+}
+if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+    die("Invalid Email-Address given: $email\n");
+}
+my ( $local_part, $domain ) = split( /@/, $email );
+
+# if all these preconditions succeed:
+my $dsn = "DBI:mysql:host=$db_host;database=$db_db;port=$db_port;user=$db_user;password=$db_pass";
+my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 0, } );
+
+# Create Domain
+my $sql = "INSERT INTO domains (name,is_active) VALUES(?,1)";
+my $sth = $dbh->prepare($sql);
+$sth->execute($domain);
+$sth->finish();
+
+$sql = "SELECT id FROM domains WHERE name = ?";
+$sth = $dbh->prepare($sql);
+$sth->execute($domain);
+my $domain_id = $sth->fetchrow_array();
+$sth->finish();
+
+my $password = Crypt::GeneratePassword::word( 8, 12 );
+
+$sql = "INSERT INTO mailboxes (domain_id,local_part,password,is_active,is_superadmin) VALUES(?,?,?,1,1)";
+$sth = $dbh->prepare($sql);
+$sth->execute( $domain_id, $local_part, $password );
+$sth->finish();
+
+print "User $email created. Your password is '$password'.\n";
+
+$dbh->disconnect();
+exit 0;
+__END__

@@ -21,6 +21,7 @@ my @conffile_locations = qw(
   vboxadm.conf
   conf/vboxadm.conf
   /etc/vboxadm.conf
+  /etc/vboxadm/vboxadm.conf
   /etc/postfix/vboxadm.conf
 );
 
