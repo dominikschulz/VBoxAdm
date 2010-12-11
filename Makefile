@@ -45,7 +45,8 @@ BINFILES = \
 	cron/cleanup.pl \
 	contrib/migration.pl \
 	contrib/lexicons-export.pl \
-	contrib/lexicons-import.pl
+	contrib/lexicons-import.pl \
+	contrib/mkadmin.pl
 
 LIBFILES = \
 	lib/VBoxAdm/Frontend.pm \
@@ -93,7 +94,7 @@ TESTFILES = \
 		   -e s/@VERSION@/$(VERSION)/ < $< > $@
 	$(PERLTIDY) $@
 
-all: $(LIBFILES) $(BINFILES) $(TESTFILES)
+all: $(LIBFILES) $(BINFILES) $(TESTFILES) rcvacation
 
 lib: $(LIBFILES)
 
@@ -177,6 +178,10 @@ clean:
 	$(RM) -f lib/VBoxAdm/L10N/*.pm
 	$(RM) -f lib/MSDW/SMTP/*.bak
 	$(RM) -f lib/MSDW/SMTP/*.pm
+	$(RM) -f contrib/roundcube-plugin-vacation.tar.gz
+
+rcvacation:
+	cd contrib/roundcube/plugins/ && tar -cvzf ../../roundcube-plugin-vacation.tar.gz vacation/ && cd ../../../
 
 git: tidy all clean
 	$(GIT) status

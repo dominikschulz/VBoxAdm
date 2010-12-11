@@ -1589,7 +1589,7 @@ sub show_edit_mailbox {
 
     my $query = "SELECT m.local_part,d.name,m.name,m.is_active,m.max_msg_size,";
     $query .= "m.is_on_vacation,m.vacation_msg,m.quota,m.is_domainadmin,";
-    $query .= "m.is_superadmin,d.id,m.sa_active,m.sa_kill_score FROM mailboxes AS m LEFT JOIN domains AS d ";
+    $query .= "m.is_superadmin,d.id,m.sa_active,m.sa_kill_score,m.vacation_subj FROM mailboxes AS m LEFT JOIN domains AS d ";
     $query .= "ON m.domain_id = d.id WHERE m.id = ? ";
     my @args = ();
     push( @args, $mailbox_id );
@@ -1634,6 +1634,7 @@ sub show_edit_mailbox {
         max_msg_size_mb    => $max_msg_size_mb,
         is_on_vacation     => $row[5],
         vacation_msg       => $row[6],
+        vacation_subj      => $row[13],
         quota              => $row[7],
         cc_goto            => $cc_goto,
         cc_id              => $cc_id,
@@ -1674,6 +1675,7 @@ sub show_update_mailbox {
     my $max_msg_size   = $msg_max_size_mb * 1024;
     my $is_on_vacation = $q->param('is_on_vacation');
     my $vacation_msg   = $q->param('vacation_msg');
+    my $vacation_subj  = $q->param('vacation_subj');
     my $is_domainadmin = $q->param('is_domainadmin');
     my $is_superadmin  = $q->param('is_superadmin');
     my $sa_active      = $q->param('sa_active');
@@ -1771,10 +1773,12 @@ sub show_update_mailbox {
         else {
             $is_on_vacation = 0;
             $vacation_msg   = '';
+            $vacation_subj  = '';
         }
-        $query .= "is_on_vacation = ?, vacation_msg = ? ";
+        $query .= "is_on_vacation = ?, vacation_msg = ?, vacation_subj = ? ";
         push( @params, $is_on_vacation );
         push( @params, $vacation_msg );
+        push( @params, $vacation_subj );
 
         # finialize query
         $query .= " WHERE id = ?";
