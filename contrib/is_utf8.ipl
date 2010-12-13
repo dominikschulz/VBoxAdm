@@ -1,0 +1,17 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+use VBoxAdm::Utils;
+
+my $file = shift
+  or die("Usage: $0 <filename>\n");
+
+open( my $FH, "<", $file )
+  or die("Could not open file $file: $!\n");
+while (<$FH>) {
+    chomp();
+    printf( "Line: %s\n\tHex: %s\n\tIsUTF8: %s\n", $_, VBoxAdm::Utils::string_to_hex($_), ( VBoxAdm::Utils::is_utf8($_) ? "Yes" : "No" ) );
+}
+close($FH);
+
