@@ -4,6 +4,9 @@ package VBoxAdm::SmtpProxy;
 use strict;
 use warnings;
 
+# We use "Defined-or operators" operators introduced with 5.9.0
+use 5.9.0;
+
 use Getopt::Long;
 use Config::Std;
 
