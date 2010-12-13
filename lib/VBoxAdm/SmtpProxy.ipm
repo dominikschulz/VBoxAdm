@@ -216,6 +216,7 @@ sub max_msg_size {
     if ( $self->{cache}->{max_msg_size}->{$email} ) {
         $max_msg_size = $self->{cache}->{max_msg_size}->{$email};
     }
+    # TODO catch error: DBD::mysql::st execute failed: MySQL server has gone away at /usr/share/perl5/VBoxAdm/SmtpProxy.pm line 219.
     elsif ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
         my @userinfo = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
         $max_msg_size = $userinfo[2] || $max_msg_size;
@@ -285,6 +286,7 @@ sub want_sa {
 
     my $want_sa = 0;
     foreach my $email ( &VBoxAdm::Utils::extract_recipients($recipients) ) {
+        # TODO catch error: DBD::mysql::st execute failed: MySQL server has gone away at /usr/share/perl5/VBoxAdm/SmtpProxy.pm line 288.
         if ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
             my @userinfo = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
             $want_sa = $want_sa || $userinfo[3] || 0;

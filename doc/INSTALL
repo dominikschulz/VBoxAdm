@@ -116,6 +116,9 @@ $> mysql -uvboxadm_user -p<PASSWORD> vboxadm -e 'SHOW TABLES'
 Enable cgi (or fastcgi) and symlink the lighttpd/12-vboxadm.conf to /etc/lighttpd/conf-enabled/12-vboxadm.conf.
 Restart lighttpd.
 
+Debian: The debconf script should ask during package installation for webservers to set up. Run dpkg-reconfigure vboxadm-cgi to change
+the selection.
+
 * Configure Postfix
 -------------------
 Copy all files and subdirs of doc/postfix to /etc/postfix.
@@ -134,6 +137,9 @@ If you haven't done so already install postgrey and policyd-weight:
  
 Adjust the port to 60000 in /etc/default/postgrey and restart postgrey:
  $> /etc/init.d/postgrey restart
+ 
+Open the file /etc/postfix/main.cf and the variables myhostname, virtual_minimum_uid, virtual_uid_maps and virtual_gid_maps.
+Set virtual_minimum_uid, virtual_uid_maps and virtual_gid_maps to the uid and gid of the user vmail.
 
 * Configure Dovecot
 -------------------
