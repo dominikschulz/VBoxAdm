@@ -29,18 +29,21 @@ smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
 # See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for
 # information on enabling SSL in the smtp client.
 
-myhostname = host.domain.tld
+myhostname = host.domain.tld << CHANGEME
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
 myorigin = /etc/mailname
 mydestination = host.domain.tld, localhost
 relayhost = 
-mynetworks = 192.168.XX.0/24 10.8.0.0/16 [::1]/128
+mynetworks = 192.168.XX.0/24 10.8.0.0/16 [::1]/128 << CHANGEME
 mailbox_size_limit = 0
 recipient_delimiter = +
 inet_interfaces = all
 inet_protocols = all
 #inet_protocols = ipv4
+virtual_minimum_uid = <CHANGEME>
+virtual_uid_maps = static:XX << CHANGEME
+virtual_gid_maps = static:XX << CHANGEME
 virtual_mailbox_domains =
 	proxy:mysql:/etc/postfix/maps/virtual_domain_maps.cf,
 	proxy:mysql:/etc/postfix/maps/virtual_domain_alias_maps.cf
