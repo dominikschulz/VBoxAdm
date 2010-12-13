@@ -46,6 +46,7 @@ BINFILES = \
 	contrib/migration.pl \
 	contrib/lexicons-export.pl \
 	contrib/lexicons-import.pl \
+	contrib/is_utf8.pl \
 	contrib/mkadmin.pl
 
 LIBFILES = \

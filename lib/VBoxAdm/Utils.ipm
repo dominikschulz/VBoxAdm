@@ -183,6 +183,41 @@ sub trim2 {
     }
 }
 
+# http://www.torsten-horn.de/techdocs/ascii.htm
+sub is_utf8 {
+    my $str = shift;
+
+    if (
+        $str =~ /^(
+						[\x00-\x7f] # ASCII
+	      	  | [\xc0-\xdf][\x80-\xbf] # 2byte
+	    	    | [\xe0-\xef][\x80-\xbf]{2} # 3byte
+	    	    | [\xf0-\xf7][\x80-\xbf]{3} # 4byte	
+	    	    )*$/gx
+      )
+    {
+        return 1;
+    }
+    elsif ( $str =~ m/[\x80-\xff]/ ) {
+
+        # contains chars with 8th bit set, i.e. no
+        # utf8 or ascii, rather something like cp850 (dos),
+        # cp1252 (windows) or iso-8859-1
+        return;
+    }
+    else {
+
+        # no utf-8
+        return 0;
+    }
+}
+
+sub string_to_hex {
+    my $str = shift;
+    $str =~ s/(.)/sprintf("%02lX", ord $1)/seg;
+    return $str;
+}
+
 1;
 
 __END__

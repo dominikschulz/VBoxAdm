@@ -1,5 +1,6 @@
 package VBoxAdm::L10N::de;
-use utf8;
+
+#use utf8;
 use base qw(VBoxAdm::L10N);
 
 # About this translation:
