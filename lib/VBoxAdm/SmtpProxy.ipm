@@ -126,7 +126,7 @@ sub child_init_hook {
     my $self = shift;
 
     $self->db_connect();
-    $sefl->prepare_queries();
+    $self->prepare_queries();
 
     return 1;
 }
