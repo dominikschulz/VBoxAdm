@@ -3,13 +3,7 @@ package VBoxAdm::Utils;
 use strict;
 use warnings;
 
-require Exporter;
-our @ISA = qw(Exporter);
-
-#our @EXPORT    = qw(); # SHOULD be empty and not defined!
-our @EXPORT_OK   = qw();
-our %EXPORT_TAGS = ( ALL => [@EXPORT_OK], );
-our $VERSION     = '@VERSION@';
+our $VERSION = '@VERSION@';
 
 ############################################
 # Usage      : ????
@@ -189,10 +183,10 @@ sub is_utf8 {
 
     if (
         $str =~ /^(
-						[\x00-\x7f] # ASCII
-	      	  | [\xc0-\xdf][\x80-\xbf] # 2byte
-	    	    | [\xe0-\xef][\x80-\xbf]{2} # 3byte
-	    	    | [\xf0-\xf7][\x80-\xbf]{3} # 4byte	
+						[\x00-\x7f]                 # ASCII
+	      	  | [\xc0-\xdf][\x80-\xbf]    # 2 byte UTF-8
+	    	    | [\xe0-\xef][\x80-\xbf]{2} # 3 byte UTF-8
+	    	    | [\xf0-\xf7][\x80-\xbf]{3} # 4 byte UTF-8
 	    	    )*$/gx
       )
     {

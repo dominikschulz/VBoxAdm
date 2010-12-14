@@ -3,6 +3,8 @@ package VBoxAdm::SmtpProxy;
 use strict;
 use warnings;
 
+use Carp;
+
 use Getopt::Long;
 use IO::File;
 use DBI;
@@ -43,12 +45,72 @@ sub db_connect {
         $self->{vbox}->{dbh} = DBI->connect( $dsn . $host, { RaiseError => 0, PrintError => 0, } ) and last;
     }
     if ( !$self->{vbox}->{dbh} ) {
-        die "Could not connect to DB with DSN $dsn: " . DBI->errstr;
+        croak "Could not connect to DB with DSN $dsn: " . DBI->errstr;
     }
-    
+
     # Prepare connection for UTF-8
     $self->dbh->do("SET NAMES utf8");
-    
+
+    return 1;
+}
+
+############################################
+# Usage      : SmtpProxy::show_child_handles($dbh);
+# Purpose    : Recursively prints all child handles of the given handle.
+# Returns    : nothing
+# Parameters : One DBI handle
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : http://search.cpan.org/~timb/DBI-1.611/DBI.pm#ChildHandles_%28array_ref%29
+sub show_child_handles {
+    my $h = shift;
+    my $level = shift || 0;
+    printf "%sh %s %s\n", $h->{Type}, "\t" x $level, $h;
+    &show_child_handles( $_, $level + 1 ) for ( grep { defined } @{ $h->{ChildHandles} } );
+    return;
+}
+
+############################################
+# Usage      : SmtpProxy::finish_child_handles($dbh);
+# Purpose    : Recursivly (up to 10 levels of nesting) visit all child handles an call finish() on them.
+# Returns    : nothing
+# Parameters : One DBI handle
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : http://search.cpan.org/~timb/DBI-1.611/DBI.pm#ChildHandles_%28array_ref%29
+sub finish_child_handles {
+    my $handle = shift;
+    my $level = shift || 0;
+
+    # prevent infinite loops
+    return if $level > 10;
+    foreach my $child ( grep { defined } @{ $handle->{ChildHandles} } ) {
+
+        # st -> (prepared) Statement
+        if ( $child->{Type} eq "st" ) {
+
+            #print "Handle-Type = st\n";
+            $child->finish();
+        }
+        else {
+
+            #print "Handle-Type = ".$child->{Type}."\n";
+            &finish_child_handles( $child, $level + 1 );
+        }
+    }
+    return;
+}
+
+sub prepare_queries {
+    my $self = shift;
+
+    # prepare statements
+    # TODO this will only work if postfix does proper
+    # address expansion before ... check that!
+    my $sql_userinfo =
+q{SELECT m.id,d.id,m.max_msg_size,m.sa_active,m.sa_kill_score FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,'@',d.name) = ?};
+    $self->{vbox}->{sth}->{userinfo} = $self->{vbox}->{dbh}->prepare($sql_userinfo);
+
     return 1;
 }
 
@@ -64,13 +126,9 @@ sub child_init_hook {
     my $self = shift;
 
     $self->db_connect();
+    $sefl->prepare_queries();
 
-    # prepare statements
-    # TODO this will only work if postfix does proper
-    # address expansion before ... check that!
-    my $sql_userinfo =
-q{SELECT m.id,d.id,m.max_msg_size,m.sa_active,m.sa_kill_score FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,'@',d.name) = ?};
-    $self->{vbox}->{sth}->{userinfo} = $self->{vbox}->{dbh}->prepare($sql_userinfo);
+    return 1;
 }
 
 ############################################
@@ -90,6 +148,8 @@ sub child_finish_hook {
     if ( $self->{vbox}->{dbh} ) {
         $self->{vbox}->{dbh}->disconnect();
     }
+
+    return 1;
 }
 
 ############################################
@@ -102,6 +162,12 @@ sub child_finish_hook {
 # See Also   : n/a
 sub process_request {
     my $self = shift;
+
+    # Check if the sql server went away
+    if ( !$self->{vbox}->{dbh}->ping() ) {
+        $self->db_connect();
+        $self->prepare_queries();
+    }
 
     eval {
         local $SIG{ALRM} = sub { die "Child server process timed out!\n" };
@@ -199,6 +265,8 @@ sub process_request {
         die( $msg . "\n" );
     }
     $self->{vbox}->{instance}++;
+
+    return 1;
 }
 
 ############################################
@@ -220,8 +288,6 @@ sub max_msg_size {
     if ( $self->{cache}->{max_msg_size}->{$email} ) {
         $max_msg_size = $self->{cache}->{max_msg_size}->{$email};
     }
-
-    # TODO catch error: DBD::mysql::st execute failed: MySQL server has gone away at /usr/share/perl5/VBoxAdm/SmtpProxy.pm line 219.
     elsif ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
         my @userinfo = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
         $max_msg_size = $userinfo[2] || $max_msg_size;
@@ -291,8 +357,6 @@ sub want_sa {
 
     my $want_sa = 0;
     foreach my $email ( &VBoxAdm::Utils::extract_recipients($recipients) ) {
-
-        # TODO catch error: DBD::mysql::st execute failed: MySQL server has gone away at /usr/share/perl5/VBoxAdm/SmtpProxy.pm line 288.
         if ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
             my @userinfo = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
             $want_sa = $want_sa || $userinfo[3] || 0;
@@ -320,6 +384,8 @@ sub want_sa {
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
+# TODO set SA options
+# TODO fix SA locking permissions problem
 sub is_spam {
     my $self   = shift;
     my $sa     = $self->{vbox}->{sa};
@@ -456,7 +522,7 @@ sub is_spam {
 
                 if ( !$skipline ) {
                     $fh->print( $line . "\r\n" )
-                      or die("Can't print to message file: $!");
+                      or croak("Can't print to message file: $!");
                 }
                 else {
                     $skipline = 0;
