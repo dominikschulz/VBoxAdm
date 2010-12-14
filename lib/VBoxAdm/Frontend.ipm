@@ -163,7 +163,7 @@ sub setup {
 
     # Connect to DBI database, same args as DBI->connect();
     $self->dbh_config($dsn);
-    
+
     # Prepare connection for UTF-8
     $self->dbh->do("SET NAMES utf8");
 
@@ -212,6 +212,8 @@ sub setup {
         }
     );
 
+    # to make perlcritic happy
+    return 1;
 }
 
 sub teardown {
@@ -222,12 +224,15 @@ sub teardown {
 
     # Close log
     closelog();
+
+    # to make perlcritic happy
+    return 1;
 }
 
 #
 # CGI::Application Hooks
 #
-sub cgiapp_init() {
+sub cgiapp_init {
     my $self = shift;
 
     # Everything should be in UTF-8!
@@ -235,6 +240,9 @@ sub cgiapp_init() {
 
     # Set up syslog
     openlog( 'VBoxAdm/Frontend', 'ndelay,nofatal', 'mail' );
+
+    # to make perlcritic happy
+    return 1;
 }
 
 #
@@ -299,6 +307,8 @@ sub post_login_callback {
     # get domain id, mailbox id, ip, ...
     $self->get_user_details();
     $self->log_login();
+
+    return 1;
 }
 
 sub log_login {

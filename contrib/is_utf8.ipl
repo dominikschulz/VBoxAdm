@@ -7,11 +7,64 @@ use VBoxAdm::Utils;
 my $file = shift
   or die("Usage: $0 <filename>\n");
 
-open( my $FH, "<", $file )
-  or die("Could not open file $file: $!\n");
-while (<$FH>) {
-    chomp();
-    printf( "Line: %s\n\tHex: %s\n\tIsUTF8: %s\n", $_, VBoxAdm::Utils::string_to_hex($_), ( VBoxAdm::Utils::is_utf8($_) ? "Yes" : "No" ) );
-}
-close($FH);
+my $verbose = 0;
 
+if ( -d $file ) {
+    &handle_dir($file);
+}
+elsif ( -f $file ) {
+    &handle_file($file);
+}
+else {
+    print "Don't know how to handle $file!\n";
+}
+
+sub handle_dir {
+    my $dir = shift;
+    opendir( my $DH, $dir )
+      or die("Could not open dir $dir: $!\n");
+    my @files = ();
+    my @dirs  = ();
+    while ( my $dir_entry = readdir($DH) ) {
+
+        # skip curdir, upperdir and hidden files
+        next if $dir_entry =~ m/^\.\.?/;
+        my $path = "$dir/$dir_entry";
+        if ( -d $path ) {
+            push( @dirs, $path );
+        }
+        elsif ( -f $path ) {
+            push( @files, $path );
+        }
+    }
+    closedir($DH);
+    foreach my $dir ( sort @dirs ) {
+        &handle_dir($dir);
+    }
+    foreach my $file ( sort @files ) {
+        &handle_file($file);
+    }
+}
+
+sub handle_file {
+    my $file = shift;
+    open( my $FH, "<", $file )
+      or die("Could not open file $file: $!\n");
+    my $is_utf8 = 1;
+    while (<$FH>) {
+        chomp() if $verbose > 1;
+        if ( !&VBoxAdm::Utils::is_utf8($_) ) {
+            $is_utf8 = 0;
+        }
+        printf( "Line: %s\n\tHex: %s\n\tIsUTF8: %s\n", $_, VBoxAdm::Utils::string_to_hex($_), ( $is_utf8 ? "Yes" : "No" ) ) if $verbose > 1;
+    }
+    close($FH);
+    if ($is_utf8) {
+        print "File: $file - VALID UTF8\n" if $verbose;
+        return 1;
+    }
+    else {
+        print "File: $file - NO UTF8!\n";
+        return;
+    }
+}
