@@ -117,7 +117,7 @@ quick-install: real-install
 
 install: clean real-install
 
-real-install: all test man
+real-install: all test man rcvacation
 	$(INSTALL) -d $(BINDIR) $(SBINDIR) $(DESTDIR)/etc
 	$(INSTALL) -d $(CFGDIR)/vboxadm
 	$(INSTALL) -d $(LIBDIR)/VBoxAdm/L10N $(LIBDIR)/MSDW/SMTP
