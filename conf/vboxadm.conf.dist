@@ -4,6 +4,9 @@ dbpass=vboxadm
 dbdb=vboxadm
 dbhost=localhost
 
+[cgi]
+pwscheme=ssha256
+
 [vacation]
 # config for vacation autoresonder
 #dbuser=vacation

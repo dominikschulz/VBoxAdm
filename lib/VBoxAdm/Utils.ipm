@@ -222,7 +222,6 @@ VBoxAdm::Utils - Common Mail Handling utils.
 
 =head1 VERSION
 
-The initial template usually just has:
 This documentation refers to VBoxAdm::Utils version @VERSION@
 built on @BUILDDATE@.
 

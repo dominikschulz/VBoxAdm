@@ -50,6 +50,7 @@ BINFILES = \
 	contrib/mkadmin.pl
 
 LIBFILES = \
+	lib/VBoxAdm/DovecotPW.pm \
 	lib/VBoxAdm/Frontend.pm \
 	lib/VBoxAdm/SmtpProxy.pm \
 	lib/VBoxAdm/Utils.pm \
@@ -73,6 +74,12 @@ LIBFILES = \
 	lib/MSDW/SMTP/Server.pm
 
 TESTFILES = \
+	t/VBoxAdm/L10N/de.t \
+	t/VBoxAdm/L10N/en.t \
+	t/VBoxAdm/DovecotPW.t \
+	t/VBoxAdm/Frontend.t \
+	t/VBoxAdm/L10N.t \
+	t/VBoxAdm/SmtpProxy.t \
 	t/VBoxAdm/Utils.t
 
 .PHONY: install tidy critic test
@@ -95,12 +102,13 @@ TESTFILES = \
 		   -e s/@VERSION@/$(VERSION)/ < $< > $@
 	$(PERLTIDY) $@
 
-all: $(LIBFILES) $(BINFILES) $(TESTFILES) rcvacation
+all: $(LIBFILES) $(BINFILES) $(TESTFILES)
 
 lib: $(LIBFILES)
 
 man:
 	mkdir -p doc/man/
+	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/DovecotPW.ipm > doc/man/VBoxAdm::DovecotPW.8
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/Frontend.ipm > doc/man/VBoxAdm::Frontend.8
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/SmtpProxy.ipm > doc/man/VBoxAdm::SmtpProxy.8
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/Utils.ipm > doc/man/VBoxAdm::Utils.8
@@ -117,6 +125,7 @@ real-install: all test man
 	$(INSTALL) -d $(VBOXLIBDIR)/bin $(VBOXLIBDIR)/tpl
 	$(INSTALL) -g www-data -d $(VHDIR)/cgi-bin $(VHDIR)/htdocs/css $(VHDIR)/htdocs/images
 	$(INSTALL) -g www-data -d $(VHDIR)/htdocs/js/libs $(VHDIR)/htdocs/js/mylibs $(VHDIR)/htdocs/js/profiling
+	$(INSTALL_DATA) doc/man/VBoxAdm::DovecotPW.8 $(MANDIR)/man8/VBoxAdm::DovecotPW.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::Frontend.8 $(MANDIR)/man8/VBoxAdm::Frontend.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::SmtpProxy.8 $(MANDIR)/man8/VBoxAdm::SmtpProxy.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::Utils.8 $(MANDIR)/man8/VBoxAdm::Utils.8
@@ -126,6 +135,7 @@ real-install: all test man
 	$(INSTALL_PROGRAM) cron/cleanup.pl $(VBOXLIBDIR)/bin/cleanup
 	$(INSTALL_DATA) lib/MSDW/SMTP/Client.pm $(LIBDIR)/MSDW/SMTP/Client.pm
 	$(INSTALL_DATA) lib/MSDW/SMTP/Server.pm $(LIBDIR)/MSDW/SMTP/Server.pm
+	$(INSTALL_DATA) lib/VBoxAdm/DovecotPW.pm $(LIBDIR)/VBoxAdm/DovecotPW.pm
 	$(INSTALL_DATA) lib/VBoxAdm/Frontend.pm $(LIBDIR)/VBoxAdm/Frontend.pm
 	$(INSTALL_DATA) lib/VBoxAdm/SmtpProxy.pm $(LIBDIR)/VBoxAdm/SmtpProxy.pm
 	$(INSTALL_DATA) lib/VBoxAdm/Utils.pm $(LIBDIR)/VBoxAdm/Utils.pm
