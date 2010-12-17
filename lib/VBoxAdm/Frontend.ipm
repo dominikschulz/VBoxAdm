@@ -267,6 +267,7 @@ sub tt_post_process {
 sub tt_pre_process {
     my ( $self, $file, $vars ) = @_;
     $vars->{username}       = $self->authen->username;
+    $vars->{system_domain}  = $self->{config}{'default'}{'domain'} || 'localhost';
     $vars->{version}        = $VERSION;
     $vars->{notify}         = $self->get_notify();
     $vars->{is_superadmin}  = $self->is_superadmin();
@@ -1541,6 +1542,12 @@ sub show_add_mailbox {
     my $is_superadmin  = 0;
     my $is_domainadmin = 0;
 
+    if($is_active && $is_active eq 'on') {
+      $is_active = 1;
+    }
+
+    my $system_domain = $self->{config}{'default'}{'domain'} || 'localhost';
+
     if ( $self->is_superadmin() ) {
         $is_superadmin = $q->param('is_superadmin');
     }
@@ -1554,6 +1561,7 @@ sub show_add_mailbox {
     if ( !$password && !$password_2 ) {
         $password = Crypt::GeneratePassword::word( 8, 12 );
         $password_2 = $password;
+        $msg .= 'Generated Password: '.$password.'. ';
     }
 
     if ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
@@ -1584,7 +1592,7 @@ sub show_add_mailbox {
             $emsg .= "From: VBoxAdm <vboxadm\@" . $domain_name . ">\r\n";
             $emsg .= "\r\n";
             $emsg .= "Welcome to your new mailbox.";
-            &VBoxAdm::Utils::sendmail( 'vboxadm@localhost', $emsg );
+            &VBoxAdm::Utils::sendmail( 'vboxadm@'.$system_domain, $emsg );
         }
         else {
             syslog(
