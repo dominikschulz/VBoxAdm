@@ -445,14 +445,10 @@ sub is_spam {
             $in_header = 0;
             if ( !$envfrom ) {
                 push( @msglines, "X-Envelope-From: " . lc($sender) . "\r\n" );
-
-                #$self->log( 2, "Added X-Envelope-From: $sender" );
             }
             if ( !$envto ) {
                 push( @msglines, "X-Envelope-To: " . lc($recipients) . "\r\n" );
                 $added_envto = 1;
-
-                #$self->log( 2, "Added X-Envelope-To: $recipients" );
             }
         }
         elsif ( $in_header && $line =~ m/^Message-Id:\s+(.*)\s*$/i ) {

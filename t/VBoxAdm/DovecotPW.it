@@ -31,7 +31,7 @@ BEGIN { use_ok( 'VBoxAdm::DovecotPW', '@VERSION@' ); }
 }
 # Test ssha256
 {
-	#is(VBoxAdm::DovecotPW::ssha256('ssha256',0x137edf9e),'{SSHA256}pJBnkoz8dh7xoiQL1eRMYQqnPD190Ni/xVMGwnbcG2sTft+e','SSHA256');
+	#is(VBoxAdm::DovecotPW::ssha256('ssha256',''),'{SSHA256}pJBnkoz8dh7xoiQL1eRMYQqnPD190Ni/xVMGwnbcG2sTft+e','SSHA256');
 	;
 }
 # Test sha512
