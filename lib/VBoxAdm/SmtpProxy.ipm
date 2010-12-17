@@ -49,7 +49,7 @@ sub db_connect {
     }
 
     # Prepare connection for UTF-8
-    $self->dbh->do("SET NAMES utf8");
+    $self->{vbox}->{dbh}->do("SET NAMES utf8");
 
     return 1;
 }
