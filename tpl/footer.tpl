@@ -3,9 +3,9 @@
 	&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 	[% "Logged in as [_1]" | l10n(username) %]
 	&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-	[% "Check for updates" | l10n %]
+	<a href="http://vboxadm.gauner.org/?versioncheck=[% version %]">[% "Check for updates" | l10n %]</a>
 	&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-	[% "Return to [_1]" | l10n(domain) %]
+	<a href="[% system_domain %]">[% "Return to [_1]" | l10n(system_domain) %]</a>
     </footer>
     [% IF debug_msg %]
     <div id="debug">
