@@ -33,8 +33,7 @@ use Sys::Syslog;
 
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
-
-#use VBoxAdm::Frontend::Admin '@VERSION@';
+use VBoxAdm::DovecotPW '@VERSION@';
 
 our $VERSION = '@VERSION@';
 
@@ -150,6 +149,10 @@ sub setup {
             last;
         }
     }
+    if ( !$conffile_used ) {
+        syslog( 2, "Warning: No config file found!" );
+    }
+    $self->{config} = \%config;
 
     #
     # Database
@@ -1766,6 +1769,7 @@ sub show_update_mailbox {
     my $is_superadmin  = $q->param('is_superadmin');
     my $sa_active      = $q->param('sa_active');
     my $sa_kill_score  = $q->param('sa_kill_score');
+    my $pwscheme       = $self->{config}{'cgi'}{'pwscheme'} || 'ssha256';
 
     my $msg = '';
 
@@ -1790,8 +1794,11 @@ sub show_update_mailbox {
                 }
                 else {
                     $query .= "password = ?, ";
-                    push( @params, $password );
+                    push( @params, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ) );
                 }
+            }
+            else {
+                $msg .= 'ERROR: Bad password - Password too short.';
             }
         }
 

@@ -1,0 +1,176 @@
+package VBoxAdm::DovecotPW;
+
+use strict;
+use warnings;
+
+use MIME::Base64;
+use Digest::MD5;
+use Digest::SHA;
+use Crypt::GeneratePassword;
+
+our $VERSION = '@VERSION@';
+
+############################################
+# Usage      : my $hash = VBoxAdm::DovecotPW::plain_md5('pwclear');
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : http://wiki.dovecot.org/Authentication/PasswordSchemes
+sub plain_md5 {
+    my $pw = shift;
+    return "{PLAIN-MD5}" . Digest::MD5::md5_hex($pw);
+}
+
+sub ldap_md5 {
+    my $pw = shift;
+    return "{LDAP-MD5}" . pad_base64( Digest::MD5::md5_base64($pw) );
+}
+
+sub smd5 {
+    my $pw = shift;
+    my $salt = shift || &make_salt();
+    return "{SMD5}" . pad_base64( MIME::Base64::encode( Digest::MD5::md5( $pw . $salt ) . $salt, '' ) );
+}
+
+sub sha {
+    my $pw = shift;
+    return "{SHA}" . MIME::Base64::encode( Digest::SHA::sha1($pw), '' );
+}
+
+sub ssha {
+    my $pw = shift;
+    my $salt = shift || &make_salt();
+    return "{SSHA}" . MIME::Base64::encode( Digest::SHA::sha1( $pw . $salt ) . $salt, '' );
+}
+
+sub sha256 {
+    my $pw = shift;
+    return "{SHA256}" . MIME::Base64::encode( Digest::SHA::sha256($pw), '' );
+}
+
+sub ssha256 {
+    my $pw = shift;
+    my $salt = shift || &make_salt();
+    return "{SSHA256}" . MIME::Base64::encode( Digest::SHA::sha256( $pw . $salt ) . $salt, '' );
+}
+
+sub sha512 {
+    my $pw = shift;
+    return "{SHA256}" . MIME::Base64::encode( Digest::SHA::sha512($pw), '' );
+}
+
+sub ssha512 {
+    my $pw = shift;
+    my $salt = shift || &make_salt();
+    return "{SSHA}" . MIME::Base64::encode( Digest::SHA::sha512( $pw . $salt ) . $salt, '' );
+}
+
+sub make_pass {
+    my $pw     = shift;
+    my $scheme = shift;
+    if ( $scheme eq 'ldap_md5' ) {
+        return &ldap_md5($pw);
+    }
+    elsif ( $scheme eq 'plain_md5' ) {
+        return &plain_md5($pw);
+    }
+    elsif ( $scheme eq 'sha' ) {
+        return &sha($pw);
+    }
+    elsif ( $scheme eq 'sha256' ) {
+        return &sha256($pw);
+    }
+    elsif ( $scheme eq 'sha512' ) {
+        return &sha512($pw);
+    }
+    elsif ( $scheme eq 'smd5' ) {
+        return &smd5($pw);
+    }
+    elsif ( $scheme eq 'ssha' ) {
+        return &ssha($pw);
+    }
+    elsif ( $scheme eq 'ssha256' ) {
+        return &ssha256($pw);
+    }
+    elsif ( $scheme eq 'ssha512' ) {
+        return &ssha512($pw);
+    }
+    else {
+        return "{CLEARTEXT}" . $pw;
+    }
+}
+
+sub make_salt {
+    return Crypt::GeneratePassword::word( 8, 12 );
+}
+
+sub pad_base64 {
+    my $b64_digest = shift;
+    while ( length($b64_digest) % 4 ) {
+        $b64_digest .= '=';
+    }
+    return $b64_digest;
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+VBoxAdm::DovecotPW - Generate hashed passwords for use with Dovecot SASL.
+
+=head1 VERSION
+
+This documentation refers to VBoxAdm::DovecotPW version @VERSION@
+built on @BUILDDATE@.
+
+=head1 SYNOPSIS
+
+    use VBoxAdm::DovecotPW;
+
+=head1 DESCRIPTION
+
+This module offers various password generation methods for the VBoxAdm suite.
+
+=head1 SUBROUTINES/METHODS
+
+=head2 ldap_md5
+
+TODO
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+None.
+
+=head1 DEPENDENCIES
+
+None.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This module is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself. See L<perlartistic>.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+=cut
