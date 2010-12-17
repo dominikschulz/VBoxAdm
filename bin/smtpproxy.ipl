@@ -112,6 +112,7 @@ my $sa = Mail::SpamAssassin->new(
     {
         'dont_copy_prefs'  => 1,
         'local_tests_only' => $sa_local_only,
+        'username' => $user,
     }
 );
 
