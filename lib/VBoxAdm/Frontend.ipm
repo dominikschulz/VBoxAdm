@@ -1586,6 +1586,8 @@ sub show_add_mailbox {
         $msg .= 'Generated Password: ' . $password . '. ';
     }
 
+    # TODO encrypt password
+
     if ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
 
         # if domainadmin, verify that its his domain

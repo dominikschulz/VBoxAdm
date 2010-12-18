@@ -7,6 +7,7 @@ use Getopt::Long;
 use Config::Std;
 
 use VBoxAdm::Utils '@VERSION@';
+use VBoxAdm::DovecotPW '@VERSION@';
 
 my $db_host = 'localhost';
 my $db_user = 'vacation';
@@ -55,6 +56,7 @@ $db_user = $config{'default'}{'dbuser'} || $db_user;
 $db_pass = $config{'default'}{'dbpass'} || $db_pass;
 $db_port = $config{'default'}{'dbport'} || $db_port;
 $db_db   = $config{'default'}{'dbdb'}   || $db_db;
+my $pwscheme = $config{'cgi'}{'pwscheme'} || 'ssha256';
 
 die("This script is completely untested. You should not use it.\n");
 
@@ -71,6 +73,11 @@ my $sql_new_mailbox =
 my $sth_new_mailbox      = $dbh->prepare($sql_new_mailbox);
 my $sql_new_domain_alias = "INSERT INTO vboxadm.domain_aliases (name,domain_id,is_active) VALUES(?,?,1)";
 my $sth_new_domain_alias = $dbh->prepare($sql_new_domain_alias);
+my $sql_vacation_status  = "INSERT INTO vboxadm.vacation_notify (on_vacation,notified,notified_at) VALUES(?,?,?)";
+my $sth_vacation_status  = $dbh->prepare($sql_vacation_status);
+my $sql_set_admin =
+  "UPDATE vboxadm.mailboxes SET is_domainadmin = ?, is_superadmin = ? WHERE local_part = ? AND domain_id = (SELECT id FROM domains WHERE name = ?)";
+my $sth_set_admin = $dbh->prepare($sql_set_admin);
 
 if ( $config{'truncate'} ) {
     $dbh->do('TRUNCATE TABLE vboxadm.aliases');
@@ -78,9 +85,9 @@ if ( $config{'truncate'} ) {
     $dbh->do('TRUNCATE TABLE vboxadm.domains');
 }
 
-#
-# debmin2
-#
+###########################################################################
+# DEBMIN2
+###########################################################################
 if ( $config{'source'} eq 'debmin2' ) {
     if ( !$config{'source-db'} ) {
         $config{'source-db'} = 'sysmgm_ng';
@@ -93,6 +100,10 @@ if ( $config{'source'} eq 'debmin2' ) {
       . '`.mail_accounts WHERE domain = ? ORDER BY local_part';
     my $sth_mailboxes = $dbh->prepare($sql_mailboxes);
     $sth_domains->execute();
+
+    #
+    # CREATE DOMAINS
+    #
   DOMAIN: while ( my ( $old_domain_id, $domain_name, $domain_is_enabled ) = $sth_domains->fetchrow_array() ) {
         my $domain_is_active = 1;
         if ( $domain_is_enabled && $domain_is_enabled =~ m/(no|0)/i ) {
@@ -108,6 +119,10 @@ if ( $config{'source'} eq 'debmin2' ) {
         }
         my $new_domain_id = $dbh->last_insert_id( undef, undef, undef, undef );
         $sth_mailboxes->execute($old_domain_id);
+
+        #
+        # CREATE MAILBOXES
+        #
       MAILBOX: while ( my @row = $sth_mailboxes->fetchrow_array() ) {
             my ( $local_part, $forward, $cc, $name, $pwclear, $is_away, $away_text, $spam_check, $is_enabled ) = @row;
             $local_part = lc($local_part);
@@ -130,7 +145,8 @@ if ( $config{'source'} eq 'debmin2' ) {
                 if (
                     !$config{'dry'}
                     && $sth_new_mailbox->execute(
-                        $new_domain_id, $local_part, $pwclear, $name, $is_active, 15360, $is_on_vacation, 'On Vacation', $away_text, 0, 0, $sa_active, 6.31
+                        $new_domain_id, $local_part, VBoxAdm::DovecotPW::make_pass( $pwclear, $pwscheme ),
+                        $name, $is_active, 15360, $is_on_vacation, 'On Vacation', $away_text, 0, 0, $sa_active, 6.31
                     )
                   )
                 {
@@ -165,6 +181,9 @@ if ( $config{'source'} eq 'debmin2' ) {
     $sth_mailboxes->finish();
     $sth_domains->finish();
 }
+###########################################################################
+# VEXIM
+###########################################################################
 elsif ( $config{'source'} eq 'vexim' ) {
     if ( !$config{'source-db'} ) {
         $config{'source-db'} = 'vexim';
@@ -186,19 +205,27 @@ elsif ( $config{'source'} eq 'vexim' ) {
     $sth_domains->execute();
     while ( my ( $old_domain_id, $domain, $is_active ) = $sth_domains->fetchrow_array() ) {
 
+        #
         # Create new domain
+        #
         $sth_new_domain->execute( $domain, $is_active ) unless $config{'dry'};
         my $new_domain_id = $dbh->last_insert_id( undef, undef, undef, undef ) || 1;
 
+        #
         # Convert domain_aliases
+        #
         $sth_domainalias->execute($old_domain_id);
         while ( my $domain_alias = $sth_domainalias->fetchrow_array() ) {
 
+            #
             # Create new domain alias
+            #
             $sth_new_domain_alias->execute( $domain_alias, $new_domain_id ) unless $config{'dry'};
         }
 
+        #
         # Convert users/aliases
+        #
         $sth_users->execute($old_domain_id);
         while ( my @row = $sth_users->fetchrow_array() ) {
             my (
@@ -235,8 +262,9 @@ elsif ( $config{'source'} eq 'vexim' ) {
             }
             if ($is_local) {
                 $sth_new_mailbox->execute(
-                    $new_domain_id,  $localpart,    $pwclear, $realname,       $enabled,      $maxmsgsize, $on_vacation,
-                    'Out of Office', $vacation_msg, $quota,   $is_domainadmin, $is_siteadmin, $sa_active,  $sa_kill_score,
+                    $new_domain_id, $localpart, VBoxAdm::DovecotPW::make_pass( $pwclear, $pwscheme ),
+                    $realname, $enabled, $maxmsgsize, $on_vacation, 'Out of Office',
+                    $vacation_msg, $quota, $is_domainadmin, $is_siteadmin, $sa_active, $sa_kill_score,
                 ) unless $config{'dry'};
                 print
 "New Mailbox: $new_domain_id, $localpart, $pwclear, $realname, $enabled, $maxmsgsize, $on_vacation,'$vacation_msg',$quota,$is_domainadmin,$is_siteadmin\n";
@@ -247,15 +275,16 @@ elsif ( $config{'source'} eq 'vexim' ) {
     $sth_domainalias->finish();
     $sth_users->finish();
 }
+###########################################################################
+# POSTFIXADMIN
+###########################################################################
 elsif ( $config{'source'} eq 'postfixadmin' ) {
     if ( !$config{'source-db'} ) {
         $config{'source-db'} = 'postfix';
     }
-
-    # TODO convert postfix admin schema
     my $sql_domains         = "SELECT domain, active FROM domain ORDER BY domain";
     my $sth_domains         = $dbh->prepare($sql_domains);
-    my $sql_alias_domains   = "SELECT alias_domain, target_domain, active FROM alias_domain ORDER BY alias_domain";
+    my $sql_alias_domains   = "SELECT alias_domain, active FROM alias_domain WHERE target_domain = ? ORDER BY alias_domain";
     my $sth_alias_domains   = $dbh->prepare($sql_alias_domains);
     my $sql_mailboxes       = "SELECT local_part, password, name, quota, active FROM mailbox WHERE domain = ?";
     my $sth_mailboxes       = $dbh->prepare($sql_mailboxes);
@@ -266,38 +295,61 @@ elsif ( $config{'source'} eq 'postfixadmin' ) {
     my $sql_vacation_notify = "SELECT on_vacation, notified, notified_at FROM vacation_notification WHERE notified_at > NOW() - INTERVAL 1 MONTH";
     my $sth_vacation_notify = $dbh->prepare($sql_vacation_notify);
 
-    # domains and mailboxes
+    #
+    # Domains and Mailboxes
+    #
     $sth_domains->execute();
     while ( my ( $domain, $is_active ) = $sth_domains->fetchrow_array() ) {
+
+        # create a new domain
+        $sth_new_domain->execute( $domain, $is_active ) unless $config{'dry'};
+        my $new_domain_id = $dbh->last_insert_id( undef, undef, undef, undef ) || 1;
         $sth_mailboxes->execute($domain);
         while ( my @row = $sth_mailboxes->fetchrow_array() ) {
             my ( $local_part, $password, $name, $quota, $is_active ) = @row;
-            my $email = $local_part . '@' . $domain;
+            my $is_on_vacation = 0;
+            my $vacation_subj  = '';
+            my $vacation_msg   = '';
+            my $sa_active      = 1;
+            my $sa_kill_score  = 6.31;
+            my $is_domainadmin = 0;
+            my $is_siteadmin   = 0;
+            my $maxmsgsize     = 15 * 1024 * 1024;
+            my $email          = $local_part . '@' . $domain;
 
-            # TODO process each mailbox
+            # process each mailbox
             # vacation status
             if ( $sth_vacation->execute($email) ) {
                 my ( $subj, $msg ) = $sth_vacation->fetchrow_array();
                 if ( $subj && $msg ) {
-
-                    # TODO set vacation
+                    $is_on_vacation = 1;
+                    $vacation_subj  = $subj;
+                    $vacation_msg   = $msg;
                 }
             }
+            $sth_new_mailbox->execute( $new_domain_id, $local_part, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ),
+                $name, $is_active, $maxmsgsize, $is_on_vacation, $vacation_subj, $vacation_msg, $quota, $is_domainadmin, $is_siteadmin, $sa_active,
+                $sa_kill_score, )
+              unless $config{'dry'};
+            print
+"New Mailbox: $new_domain_id, $local_part, $password, $name, $is_active, $maxmsgsize, $is_on_vacation,'$vacation_msg',$quota,$is_domainadmin,$is_siteadmin\n";
         }
-    }
 
-    # domains aliases
-    $sth_alias_domains->execute();
-    while ( my ( $domain, $goto ) = $sth_alias_domains->fetchrow_array() ) {
+        # domains aliases
+        $sth_alias_domains->execute($domain);
+        while ( my ( $domain_alias, $is_active ) = $sth_alias_domains->fetchrow_array() ) {
 
-        # TODO each alias domain
+            # create new alias domain
+            $sth_new_domain_alias->execute( $domain_alias, $new_domain_id ) unless $config{'dry'};
+        }
     }
 
     # vacation notify
     $sth_vacation_notify->execute();
     while ( my ( $on_vacation, $notified, $notified_at ) = $sth_vacation_notify->fetchrow_array() ) {
 
-        # TODO insert vacation status
+        # insert vacation status
+        $sth_vacation_status->execute( $on_vacation, $notified, $notified_at );
     }
 
     # domainadmins
@@ -305,7 +357,9 @@ elsif ( $config{'source'} eq 'postfixadmin' ) {
     while ( my ( $email, $domain ) = $sth_domain_admin->fetchrow_array() ) {
         my ( $local_part, $domain ) = split( /@/, $email );
 
-        # TODO update this user, set is_domainadmin = 1
+        # update this user, set is_domainadmin = 1
+        $sth_set_admin->execute( 1, 0, $local_part, $domain );
+
     }
 
     $sth_domains->finish();
@@ -322,6 +376,8 @@ else {
 $sth_new_domain->finish();
 $sth_new_alias->finish();
 $sth_new_mailbox->finish();
+$sth_vacation_status->finish();
+$sth_set_admin->finish();
 $dbh->disconnect();
 exit 0;
 __END__
