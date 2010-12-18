@@ -108,16 +108,27 @@ sub setup {
             TABLES      => [ 'mailboxes', 'domains' ],
             CONSTRAINTS => {
                 "CONCAT(mailboxes.local_part,'\@',domains.name)" => '__CREDENTIAL_1__',
-
-                # TODO use DovecotPW::verify for password checking!
-                'mailboxes.password'  => '__CREDENTIAL_2__',
-                'mailboxes.is_active' => '1',
-                'domains.is_active'   => '1',
+                'mailboxes.is_active'                            => '1',
+                'domains.is_active'                              => '1',
 
                 # WARNING: This contraint relies on an implementation detail of Plugin::Authentication!
                 # This is bad style, but there is no other way right now.
                 '(mailboxes.is_superadmin OR mailboxes.is_domainadmin) AND 1' => '1',
             },
+            COLUMNS => { 'dovecotpw:mailboxes.password' => '__CREDENTIAL_2__', },
+            FILTERS => {
+                'dovecotpw' => sub {
+
+                    # since we may use salted passwords, we have to do our own
+                    # password verification. a simple string eq would not do.
+                    my $param   = shift;    # unused, always empty
+                    my $plain   = shift;    # password from user
+                    my $pwentry = shift;    # password hash from db
+                    my ( $pwscheme, undef, $salt ) = &VBoxAdm::DovecotPW::split_pass($pwentry);
+                    my $passh = &VBoxAdm::DovecotPW::make_pass( $plain, $pwscheme, $salt );
+                    return $passh;
+                },
+            }
         ],
         LOGOUT_RUNMODE      => 'public_login',
         LOGIN_RUNMODE       => 'public_login',
@@ -1565,6 +1576,7 @@ sub show_add_mailbox {
     my $sa_kill_score  = $q->param('sa_kill_score') || 6.31;
     my $is_superadmin  = 0;
     my $is_domainadmin = 0;
+    my $pwscheme       = $self->{config}{'cgi'}{'pwscheme'} || 'ssha256';
 
     if ( $is_active && $is_active eq 'on' ) {
         $is_active = 1;
@@ -1588,8 +1600,6 @@ sub show_add_mailbox {
         $msg .= 'Generated Password: ' . $password . '. ';
     }
 
-    # TODO encrypt password
-
     if ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
 
         # if domainadmin, verify that its his domain
@@ -1605,7 +1615,7 @@ sub show_add_mailbox {
         my $query = "INSERT INTO mailboxes (domain_id,local_part,password,is_active) VALUES(?,?,?,?)";
         my $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_add_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        if ( $sth->execute( $domain_id, $username, $password, $is_active ) ) {
+        if ( $sth->execute( $domain_id, $username, VBoxAdm::DovecotPW::make_pass($password, $pwscheme), $is_active ) ) {
             $msg .= "Added Mailbox $username @ #$domain_id for $name";
 
             # get domain name for sender
