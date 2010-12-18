@@ -5,7 +5,7 @@
 	&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 	<a href="http://vboxadm.gauner.org/?versioncheck=[% version %]">[% "Check for updates" | l10n %]</a>
 	&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-	<a href="[% system_domain %]">[% "Return to [_1]" | l10n(system_domain) %]</a>
+	<a href="http://[% system_domain %]/">[% "Return to [_1]" | l10n(system_domain) %]</a>
     </footer>
     [% IF debug_msg %]
     <div id="debug">
