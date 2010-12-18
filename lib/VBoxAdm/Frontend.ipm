@@ -1615,7 +1615,7 @@ sub show_add_mailbox {
         my $query = "INSERT INTO mailboxes (domain_id,local_part,password,is_active) VALUES(?,?,?,?)";
         my $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_add_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        if ( $sth->execute( $domain_id, $username, VBoxAdm::DovecotPW::make_pass($password, $pwscheme), $is_active ) ) {
+        if ( $sth->execute( $domain_id, $username, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ), $is_active ) ) {
             $msg .= "Added Mailbox $username @ #$domain_id for $name";
 
             # get domain name for sender
