@@ -8,6 +8,7 @@ use Config::Std;
 use Crypt::GeneratePassword;
 
 use VBoxAdm::Utils '@VERSION@';
+use VBoxAdm::DovecotPW '@VERSION@';
 
 my $db_host = 'localhost';
 my $db_user = 'vacation';
@@ -49,6 +50,7 @@ $db_user = $config{'default'}{'dbuser'} || $db_user;
 $db_pass = $config{'default'}{'dbpass'} || $db_pass;
 $db_port = $config{'default'}{'dbport'} || $db_port;
 $db_db   = $config{'default'}{'dbdb'}   || $db_db;
+my $pwscheme = $config{'cgi'}{'pwscheme'} || 'ssha256';
 
 if ( !$email ) {
     print "Please enter the username (as user\@domain.tld) for the designated site-admin:\n";
@@ -80,7 +82,7 @@ my $password = Crypt::GeneratePassword::word( 8, 12 );
 
 $sql = "INSERT INTO mailboxes (domain_id,local_part,password,is_active,is_superadmin) VALUES(?,?,?,1,1)";
 $sth = $dbh->prepare($sql);
-$sth->execute( $domain_id, $local_part, $password );
+$sth->execute( $domain_id, $local_part, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ) );
 $sth->finish();
 
 print "User $email created. Your password is '$password'.\n";

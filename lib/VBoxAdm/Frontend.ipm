@@ -108,9 +108,11 @@ sub setup {
             TABLES      => [ 'mailboxes', 'domains' ],
             CONSTRAINTS => {
                 "CONCAT(mailboxes.local_part,'\@',domains.name)" => '__CREDENTIAL_1__',
-                'mailboxes.password'                             => '__CREDENTIAL_2__',
-                'mailboxes.is_active'                            => '1',
-                'domains.is_active'                              => '1',
+
+                # TODO use DovecotPW::verify for password checking!
+                'mailboxes.password'  => '__CREDENTIAL_2__',
+                'mailboxes.is_active' => '1',
+                'domains.is_active'   => '1',
 
                 # WARNING: This contraint relies on an implementation detail of Plugin::Authentication!
                 # This is bad style, but there is no other way right now.

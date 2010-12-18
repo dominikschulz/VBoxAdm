@@ -44,3 +44,7 @@ BEGIN { use_ok( 'VBoxAdm::DovecotPW', '@VERSION@' ); }
 	#is(VBoxAdm::DovecotPW::sha('ssha512'),'','SSHA512');
 	;
 }
+# Test verify_pass
+{
+	ok(VBoxAdm::DovecotPW::verify_pass('ssha256','{SSHA256}pJBnkoz8dh7xoiQL1eRMYQqnPD190Ni/xVMGwnbcG2sTft+e'),'verify pass ssha256');
+}

@@ -61,6 +61,8 @@ $dbh->do("SET NAMES utf8");
 # TODO cronjob which does this:
 # - create uncreated mailboxes
 # - remove deleted mailboxes
+# -- get all mailboxes from db into hash
+# -- traverse over maildirs and remove all maildirs not in hash
 # - remove expired vacation_notify entries
 my $sql = "DELETE FROM vacation_notify WHERE notified_at < NOW() - ?";
 my $sth = $dbh->prepare($sql);
