@@ -273,7 +273,12 @@ Copy the config.inc.php.dist in plugins/password to config.inc.php and set the d
 $rcmail_config['password_db_dsn'] = 'mysql://vboxadm_user:password@localhost/vboxadm';
 
 and the password query:
-$rcmail_config['password_query'] = "UPDATE vboxadm.mailboxes SET password = %p WHERE local_part = %l AND password = %o AND domain_id = (SELECT id FROM vboxadm.domains WHERE name = %d)";
+$rcmail_config['password_query'] = "UPDATE vboxadm.mailboxes SET password = %D WHERE local_part = %l AND domain_id = (SELECT id FROM vboxadm.domains WHERE name = %d)";
+
+And some options for Dovecotpw. You should use the same method here as in your vboxadm.conf.
+$rcmail_config['password_dovecotpw'] = '/usr/sbin/dovecotpw';
+$rcmail_config['password_dovecotpw_method'] = 'SSHA256';
+$rcmail_config['password_dovecotpw_with_method'] = true;
 
 Copy the config.inc.php.dist in plugins/managesieve to config.inc.php.
 
