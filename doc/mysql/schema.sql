@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS `aliases` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `domain_id` (`domain_id`,`local_part`),
   KEY `active` (`is_active`)
-) ENGINE=InnoDB  DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `domains`;
 CREATE TABLE IF NOT EXISTS `domains` (
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS `domains` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`),
   KEY `active` (`is_active`)
-) ENGINE=InnoDB  DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `domain_aliases`;
 CREATE TABLE IF NOT EXISTS `domain_aliases` (
@@ -37,13 +37,13 @@ CREATE TABLE IF NOT EXISTS `domain_aliases` (
   UNIQUE KEY `name` (`name`),
   KEY `active` (`is_active`),
   KEY `domain_id` (`domain_id`)
-) ENGINE=InnoDB  DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `log`;
 CREATE TABLE IF NOT EXISTS `log` (
   `ts` datetime NOT NULL,
   `msg` text NOT NULL
-) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
+) ENGINE=ARCHIVE DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `mailboxes`;
 CREATE TABLE IF NOT EXISTS `mailboxes` (
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS `mailboxes` (
   `sa_kill_score` decimal(5,2) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `domain_id` (`domain_id`,`local_part`)
-) ENGINE=InnoDB  DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `vacation_notify`;
 CREATE TABLE IF NOT EXISTS `vacation_notify` (
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS `vacation_notify` (
   `notified_at` datetime NOT NULL,
   PRIMARY KEY (`on_vacation`,`notified`),
   KEY `notified_at` (`notified_at`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
 ALTER TABLE `aliases`
   ADD CONSTRAINT `aliases_ibfk_1` FOREIGN KEY (`domain_id`) REFERENCES `domains` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
