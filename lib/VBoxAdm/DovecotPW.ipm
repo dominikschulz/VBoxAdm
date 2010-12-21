@@ -118,6 +118,7 @@ sub make_salt {
     return pack( 'C*', @bytes );
 }
 
+# this method was copied from some module on CPAN, I just don't remember which one right now
 sub pad_base64 {
     my $b64_digest = shift;
     while ( length($b64_digest) % 4 ) {
