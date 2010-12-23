@@ -16,6 +16,7 @@ pwscheme=ssha256
 notify_interval=604800
 
 [smtpproxy]
+caching=1
 # config for smtpproxy
 listen=localhost:10024
 connect=localhost:10025

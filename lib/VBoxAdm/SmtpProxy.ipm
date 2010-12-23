@@ -13,6 +13,8 @@ use List::Util qw(shuffle);
 
 use Mail::SpamAssassin;
 
+use Digest::SHA;
+
 use MSDW::SMTP::Server '@VERSION@';
 use MSDW::SMTP::Client '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
@@ -285,13 +287,13 @@ sub max_msg_size {
 
     # check the max msg size for this recipient
     my $max_msg_size = $self->{vbox}->{max_msg_size};
-    if ( $self->{cache}->{max_msg_size}->{$email} ) {
+    if ( $self->{vbox}->{caching} && $self->{cache}->{max_msg_size}->{$email} ) {
         $max_msg_size = $self->{cache}->{max_msg_size}->{$email};
     }
     elsif ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
         my @userinfo = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
         $max_msg_size = $userinfo[2] || $max_msg_size;
-        $self->{cache}->{max_msg_size}->{$email} = $max_msg_size;
+        $self->{cache}->{max_msg_size}->{$email} = $max_msg_size if $self->{vbox}->{caching};
     }
     else {
         $self->log( 2, "max_msg_size - Excuting userinfo query failed: " . DBI->errstr );
@@ -316,7 +318,7 @@ sub sa_block_score {
     my $lowest_kill_score = 0xFFFF;
 
     foreach my $email ( &VBoxAdm::Utils::extract_recipients($recipients) ) {
-        if ( $self->{cache}->{sa_block_score}->{$email} ) {
+        if ( $self->{vbox}->{caching} && $self->{cache}->{sa_block_score}->{$email} ) {
 
             # try cached result first
             my $sa_kill_score = $self->{cache}->{sa_block_score}->{$email};
@@ -328,7 +330,7 @@ sub sa_block_score {
         elsif ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
             my @userinfo      = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
             my $sa_kill_score = $userinfo[4];
-            $self->{cache}->{sa_block_score}->{$email} = $sa_kill_score;
+            $self->{cache}->{sa_block_score}->{$email} = $sa_kill_score if $self->{vbox}->{caching};
 
             if ( $sa_kill_score && $sa_kill_score < $lowest_kill_score ) {
                 $lowest_kill_score = $sa_kill_score;
@@ -357,9 +359,13 @@ sub want_sa {
 
     my $want_sa = 0;
     foreach my $email ( &VBoxAdm::Utils::extract_recipients($recipients) ) {
-        if ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
+        if ( $self->{vbox}->{caching} && defined( $self->{cache}->{want_sa} ) ) {
+            $want_sa = $want_sa || $self->{cache}->{want_sa}->{$email} || 0;
+        }
+        elsif ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
             my @userinfo = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
             $want_sa = $want_sa || $userinfo[3] || 0;
+            $self->{cache}->{want_sa}->{$email} = $userinfo[3] if $self->{vbox}->{caching};
         }
         else {
             $self->log( 2, "want_sa - Excuting userinfo query failed: " . DBI->errstr );
@@ -428,10 +434,12 @@ sub is_spam {
     my $fh = $server->{data};
     $fh->seek( 0, 0 ) or die "Can't rewind message file: $!";
 
+    # Add Envelope-To/From and calculated checksum
     my $envto       = 0;
     my $envfrom     = 0;
     my $in_header   = 1;
     my $added_envto = 0;
+    my $digest      = Digest::SHA->new(256);
     while ( my $line = <$fh> ) {
         if ( $line =~ m/^(?:X-)?Envelope-To:/i ) {
             $envto = 1;
@@ -464,90 +472,126 @@ sub is_spam {
             $msgid =~ s/^(.+)$/<$1>/;                   # re-bracket the id (if not empty)
         }
         push( @msglines, $line );
+
+        # to support caching, create a checksum (sha1) over the whole message (excluding some headers like To:, etc. and store
+        # with the spam score.
+        if ( $self->{vbox}->{caching} ) {
+            if ( $in_header && ( $line =~ m/^(From|Bcc|CC|To|Message-Id|Date|Received):/i || $line =~ m/^\s+/ ) ) {
+
+                # don't add to checksum
+            }
+            else {
+                $digest->add($line);
+            }
+        }
     }
 
-    # check if this message is spam
-    eval {
-        local $SIG{ALRM} = sub { die "Timed out!\n"; };
+    my $checksum = $digest->hexdigest() if $self->{vbox}->{caching};
+    $digest = undef;
 
-        # save the prev. setting of the alarm timer and start our own
-        my $prev_alarm = alarm( $self->{vbox}->{sa_timeout} );
-
-        # Audit the message
-        my $mail = $sa->parse( \@msglines );
-        undef(@msglines);
-
-        # Check spaminess (returns a Mail::SpamAssassin::PerMsgStatus object)
-        my $status = $sa->check($mail);
-
-        # check if the reported score is higher than the lowest score
-        # of all recipients. return true (=> this message is spam) if so.
-        $status->{conf}->{required_score} = $self->sa_block_score($recipients) || 6.31;
-        $status->{conf}->{report_safe} = 0;
-        my $was_it_spam = 'unknown';
-        if ( $status->is_spam() ) {
+    # Check cached result, don't invoke SA if we have a cached result for this message
+    if ( $self->{vbox}->{caching} && defined( $self->{cache}->{spam_score}->{$checksum} ) ) {
+        my $block_score = $self->sa_block_score($recipients) || 6.31;
+        my $msg_score   = $self->{cache}->{spam_score}->{$checksum};
+        my $was_it_spam = 'clean message';
+        if ( $msg_score > $block_score ) {
             $is_spam     = 1;
             $was_it_spam = 'identified spam';
         }
         else {
             $is_spam     = 0;
             $was_it_spam = 'clean message';
-
-            # No spam, only add header to inform the user
-            # what checks were performed and what the spam rating is
-            my $msg_response = $status->rewrite_mail();
-
-            # Build the rewritten message
-            # pause the timeout while doing so
-            my $pause_alarm = alarm(0);
-            my $in_header   = 1;
-            my $skipline    = 0;
-            $fh->seek( 0, 0 )
-              or die("Can't rewind message file: $!");
-            $fh->truncate(0)
-              or die("Can't truncate message file: $!");
-            foreach my $line ( split( /\r?\n/, $msg_response ) ) {
-                if ( $line =~ m/^\r?\n$/ ) {
-                    $in_header = 0;
-                }
-
-                # while in header skip over any X-Envelope-To we have added
-                if ( $in_header && $added_envto && $line =~ m/^X-Envelope-To:/i ) {
-                    $skipline = 1;
-                }
-
-                if ( !$skipline ) {
-                    $fh->print( $line . "\r\n" )
-                      or croak("Can't print to message file: $!");
-                }
-                else {
-                    $skipline = 0;
-                }
-            }    # end of foreach-split-msg_response
-                 # restart the alarm
-            alarm($pause_alarm);
         }
+        $self->log( 2, "$was_it_spam - using cached result for $msgid ($msg_score/$block_score) from $sender for $recipients, $msg_size bytes." );
+    }
+    else {
 
-        # Log what was done
-        my $msg_score   = sprintf( "%.2f", $status->get_score() );
-        my $block_score = sprintf( "%.2f", $status->get_required_score() );
-        my $proc_time   = sprintf( "%.2f", time - $t0 );
+        # check if this message is spam
+        eval {
+            local $SIG{ALRM} = sub { die "Timed out!\n"; };
 
-        $self->log( 2,
-            "$was_it_spam $msgid ($msg_score/$block_score) from $sender for $recipients in $proc_time s, $msg_size bytes. rules hit: "
-              . $status->get_names_of_tests_hit() );
+            # save the prev. setting of the alarm timer and start our own
+            my $prev_alarm = alarm( $self->{vbox}->{sa_timeout} );
 
-        # Cleanup the SA analysis object
-        $status->finish();
+            # Audit the message
+            my $mail = $sa->parse( \@msglines );
+            undef(@msglines);
 
-        # Set the timeout to whichever value is was before
-        alarm($prev_alarm);
+            # Check spaminess (returns a Mail::SpamAssassin::PerMsgStatus object)
+            my $status = $sa->check($mail);
 
-    };
+            # check if the reported score is higher than the lowest score
+            # of all recipients. return true (=> this message is spam) if so.
+            $status->{conf}->{required_score} = $self->sa_block_score($recipients) || 6.31;
+            $status->{conf}->{report_safe} = 0;
+            my $was_it_spam = 'unknown';
+            if ( $status->is_spam() ) {
+                $is_spam     = 1;
+                $was_it_spam = 'identified spam';
+            }
+            else {
+                $is_spam     = 0;
+                $was_it_spam = 'clean message';
 
-    if ($@) {
-        $self->log( 2, "eval error: $@" );
-        return;
+                # No spam, only add header to inform the user
+                # what checks were performed and what the spam rating is
+                my $msg_response = $status->rewrite_mail();
+
+                # Build the rewritten message
+                # pause the timeout while doing so
+                my $pause_alarm = alarm(0);
+                my $in_header   = 1;
+                my $skipline    = 0;
+                $fh->seek( 0, 0 )
+                  or die("Can't rewind message file: $!");
+                $fh->truncate(0)
+                  or die("Can't truncate message file: $!");
+                foreach my $line ( split( /\r?\n/, $msg_response ) ) {
+                    if ( $line =~ m/^\r?\n$/ ) {
+                        $in_header = 0;
+                    }
+
+                    # while in header skip over any X-Envelope-To we have added
+                    if ( $in_header && $added_envto && $line =~ m/^X-Envelope-To:/i ) {
+                        $skipline = 1;
+                    }
+
+                    if ( !$skipline ) {
+                        $fh->print( $line . "\r\n" )
+                          or croak("Can't print to message file: $!");
+                    }
+                    else {
+                        $skipline = 0;
+                    }
+                }    # end of foreach-split-msg_response
+                     # restart the alarm
+                alarm($pause_alarm);
+            }
+
+            # Cache score
+            $self->{cache}->{spam_score}->{$checksum} = $status->get_score() if $self->{vbox}->{caching};
+
+            # Log what was done
+            my $msg_score   = sprintf( "%.2f", $status->get_score() );
+            my $block_score = sprintf( "%.2f", $status->get_required_score() );
+            my $proc_time   = sprintf( "%.2f", time - $t0 );
+
+            $self->log( 2,
+                "$was_it_spam $msgid ($msg_score/$block_score) from $sender for $recipients in $proc_time s, $msg_size bytes. rules hit: "
+                  . $status->get_names_of_tests_hit() );
+
+            # Cleanup the SA analysis object
+            $status->finish();
+
+            # Set the timeout to whichever value is was before
+            alarm($prev_alarm);
+
+        };
+
+        if ($@) {
+            $self->log( 2, "eval error: $@" );
+            return;
+        }
     }
 
     if ($is_spam) {
@@ -557,8 +601,6 @@ sub is_spam {
         return;
     }
 }
-
-# TODO testcases
 
 1;
 __END__
