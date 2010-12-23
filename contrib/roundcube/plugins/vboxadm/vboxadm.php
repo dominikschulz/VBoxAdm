@@ -18,6 +18,184 @@ class vboxadm extends rcube_plugin
 	private $config;
 	private $db;
 	private $sections = array();
+	private $hashlen = array(
+		'smd5'    => 16,
+	    'ssha'    => 20,
+	    'ssha256' => 32,
+	    'ssha512' => 64,
+	);
+	
+	private function _make_salt() {
+	    $len   = 8 + int( rand(0,8) );
+	    $bytes = array();
+	    for ($i = 0; $i < $len; $i++ ) {
+	        $bytes[] = rand(255);
+	    }
+	    return pack( 'C*', $bytes );
+	}
+	
+	private function _verify_pass($pass, $pwentry) {
+	
+	    $pwinfo = $this->_split_pass($pwentry);
+	
+	    $passh = $this->_make_pass( $pass, $pwinfo[0], $pwinfo[2] );
+	    
+	    write_log('vboxadm',"_verify_pass($pass, $pwentry) - pwscheme: $pwinfo[0], salt: $pwinfo[2]");
+	
+	    if ( $pwentry == $passh ) {
+	        return TRUE;
+	    }
+	    else {
+	        return FALSE;
+	    }
+	}
+	
+	private function _verify_pass_by_uid($pass, $user_id) {
+		$sql = "SELECT password FROM mailboxes WHERE id = ".$this->db->quote($user_id, 'text');
+		$res = $this->db->query($sql);
+
+		if ($err = $this->db->is_error()){
+			return $err;
+		}
+		$ret = $this->db->fetch_assoc($res);
+		
+		write_log('vboxadm','_verify_pass_by_uid - SQL: '.$sql.' - Ret: '.print_r($ret, TRUE));
+		
+		return $this->_verify_pass($pass, $ret['password']);
+	}
+	
+	private function _ldap_md5($pw) {
+	    return "{SHA}" . base64_encode( hash('md5',$pw) );
+	}
+	
+	private function _smd5($pw, $salt) {
+	    return "{SSHA}" . base64_encode( hash('md5', $pw . $salt ) . $salt );
+	}
+	
+	private function _sha($pw) {
+	    return "{SHA}" . base64_encode( hash('sha1',$pw) );
+	}
+	
+	private function _ssha($pw, $salt) {
+	    return "{SSHA}" . base64_encode( hash('sha1', $pw . $salt ) . $salt );
+	}
+	
+	private function _sha256($pw) {
+	    return "{SHA256}" . base64_encode( hash('sha256',$pw) );
+	}
+	
+	private function _ssha256($pw, $salt) {
+	    return "{SSHA256}" . base64_encode( hash('sha256', $pw . $salt ) . $salt );
+	}
+	
+	private function _sha512($pw) {
+	    return "{SHA512}" . base64_encode( hash('sha512',$pw) );
+	}
+	
+	private function _ssha512($pw, $salt) {
+	    return "{SSHA512}" . base64_encode( hash('sha512', $pw . $salt ) . $salt );
+	}
+	
+	private function _make_pass($pw, $pwscheme, $salt) {
+		switch($pwscheme) {
+			case "ldap_md5":
+				return $this->_ldap_md5($pw);
+				break;
+			case "plain_md5":
+				return $this->_plain_md5($pw);
+				break;
+			case "sha":
+				return $this->_sha($pw);
+				break;
+			case "sha256":
+				return $this->_sha256($pw);
+				break;
+			case "sha512":
+				return $this->_sha512($pw);
+				break;
+			case "smd5":
+				return $this->_smd5($pw,$salt);
+				break;
+			case "ssha":
+				return $this->_ssha($pw,$salt);
+				break;
+			case "ssha256":
+				return $this->_ssha256($pw,$salt);
+				break;
+			case "ssha512":
+				return $this->_ssha512($pw,$salt);
+				break;
+			default:
+				return "{CLEARTEXT}".$pw;
+		}
+	}
+	
+	private function _split_pass($pw) {
+	    $pwscheme = 'cleartext';
+	
+	    # get use password scheme and remove leading block
+	    if ( preg_match("/^\{([^}]+)\}/", $pw, $matches) ) {
+	        $pwscheme = strtolower($matches[1]);
+	        $pw = preg_replace("/^\{([^}]+)\}/",'',$pw);
+	
+	        # turn - into _ so we can feed pwscheme to make_pass
+	        $pwscheme = preg_replace("/-/",'_',$pwscheme);
+	    }
+	
+	    # We have 3 major cases:
+	    # 1 - cleartext pw, return pw and empty salt
+	    # 2 - hashed pw, no salt
+	    # 3 - hashed pw with salt
+	    if ( !$pwscheme || $pwscheme == 'cleartext' || $pwscheme == 'plain' ) {
+	        return array('cleartext', $pw, '' );
+	    }
+	    elseif ( preg_match("/^(plain-md5|ldap-md5|md5|sha|sha256|sha512)$/i", $pwscheme) ) {
+	        $pw = base64_decode($pw);
+	        return array( $pwscheme, $pw, '' );
+	    }
+	    elseif ( preg_match("/^(smd5|ssha|ssha256|ssha512)/", $pwscheme) ) {
+	
+	        # now get hashed pass and salt
+	        # hashlen can be computed by doing
+	        # $hashlen = length(Digest::*::digest('string'));
+	        $hashlen = $this->hashlen[$pwscheme];
+	
+	        # pwscheme could also specify an encoding
+	        # like hex or base64, but right now we assume its b64
+	        $pw = base64_decode($pw);
+	
+	        # unpack byte-by-byte, the hash uses the full eight bit of each byte,
+	        # the salt may do so, too.
+	        $tmp  = unpack( 'C*', $pw );
+	        $i    = 0;
+	        $hash = array();
+	
+	        # the salted hash has the form: $saltedhash.$salt,
+	        # so the first bytes (# $hashlen) are the hash, the rest
+	        # is the variable length salt
+	        while ( $i < $hashlen ) {
+	            $hash[] = $tmp[$i];
+	            $i++;
+	        }
+	
+	        # as I've said: the rest is the salt
+	        $salt = array();
+	        for(; $i < sizeof($tmp); $i++) {
+	            $salt[] = $tmp[$i];
+	        }
+	
+	        # pack it again, byte-by-byte
+	        $pw_str   = pack( 'C' . $hashlen, $hash );
+	        $salt_str = pack( 'C*',           $salt );
+	
+	        return array( $pwscheme, $pw_str, $salt_str );
+	    }
+	    else {
+	
+	        # unknown pw scheme
+	        return FALSE;
+	    }
+	}
 
 	function init()
 	{
@@ -167,7 +345,7 @@ class vboxadm extends rcube_plugin
 			$is_on_vacation	= $settings['is_on_vacation'];
 			$vacation_subj 	= $settings['vacation_subj'];
 			$vacation_msg	= $settings['vacation_msg'];
-			$max_msg_size	= $settings['max_msg_size']*1024;
+			$max_msg_size_mb = $settings['max_msg_size']/1024;
 			$user_id		= $settings['id'];
 			$domain_id		= $settings['domain_id'];
 
@@ -380,7 +558,7 @@ class vboxadm extends rcube_plugin
 			$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
 				$field_id,
 				rep_specialchars_output($this->gettext('messagesize')),
-				$input_messagesize->show($max_msg_size/1024),
+				$input_messagesize->show($max_msg_size_mb),
 				'<br /><span class="vboxadm-explanation">'.
 				str_replace(
 					'%d',
@@ -483,7 +661,7 @@ class vboxadm extends rcube_plugin
 		return $ret;
 	}
 
-	private function _save($user,$sa_active,$sa_kill_score,$is_on_vacation,$vacation_subj,$vacation_msg,$max_msg_size)
+	private function _save($user,$sa_active,$sa_kill_score,$is_on_vacation,$vacation_subj,$vacation_msg,$max_msg_size_mb)
 	{
 		$rcmail = rcmail::get_instance();
 
@@ -492,6 +670,8 @@ class vboxadm extends rcube_plugin
 		$settings			= $this->_get_configuration();
 		$user_id			= $settings['user_id'];
 		$domain_id			= $settings['domain_id'];
+		
+		$max_msg_size = $max_msg_size_mb * 1024;
 
 		$sql = 'UPDATE mailboxes SET ';
 		$sql .= 'sa_active = '.$this->db->quote($sa_active,'text').', ';
@@ -518,7 +698,12 @@ class vboxadm extends rcube_plugin
 			$password_change_error = 0;
 			 
 			# check against salted pw from db!
-			if ($rcmail->decrypt($_SESSION['password']) != $curpwd) {
+			if($this->_verify_pass_by_uid($curpwd, $user_id)) {
+				write_log('vboxadm','_save - Password MATCHES!');
+			} else {
+				write_log('vboxadm','_save - Password NOT MATCHED!');
+			}
+			if (TRUE || $rcmail->decrypt($_SESSION['password']) != $curpwd) {
 				// Current password was not correct.
 				// Note that we check against the password saved in RoundCube.
 				// Alternatively we can to a:
@@ -527,8 +712,9 @@ class vboxadm extends rcube_plugin
 				$addtomessage .= '. ' . $this->gettext('saveerror-pass-mismatch');
 			} else {
 
-				$crypted_password = $this->_crypt_password($newpwd);
-				$sql_pass = "UPDATE mailboxes SET password=" . $this->db->quote($crypted_password) . " WHERE id = " . $this->db->quote($user_ud,'text') . " AND is_active LIMIT 1";
+				#$crypted_password = $this->_crypt_password($newpwd);
+				$crypted_password = $this->_make_pass($newpwd, 'SSHA256');
+				$sql_pass = "UPDATE mailboxes SET password=" . $this->db->quote($crypted_password) . " WHERE id = " . $this->db->quote($user_id,'text') . " AND is_active LIMIT 1";
 
 				$res_pass = $this->db->query($sql_pass);
 				if ($err = $this->db->is_error()) {
