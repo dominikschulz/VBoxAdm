@@ -1,0 +1,112 @@
+
+table.vboxadm-settings th {
+	width: 188px;
+	padding: 1px 10px 7px 0;
+	font-weight: normal;
+	text-align: left;
+	vertical-align: top;
+}
+
+table.vboxadm-settings td {
+	width: auto;
+	padding: 1px 0 7px 0;
+	font-weight: normal;
+	text-align: left;
+	vertical-align: top;
+}
+
+div.fieldset-content {
+	padding: 8px 2px 4px 5px;
+}
+
+div.fieldset-content p {
+	padding-top: 0;
+	margin-top: 0;
+}
+
+p.introtext {
+	margin-top: 0;
+}
+
+p.adminlink {
+	color: green;	
+}
+
+p.adminlink a, p.adminlink a:link, p.adminlink a:visited, p.adminlink a:active {
+	color: green;
+	text-decoration: underline;
+}
+
+p.adminlink a:hover {
+	color: green;
+	text-decoration: hover;
+}
+
+.tablinkvboxadmaccountadmin a {
+	padding-left: 0;
+	margin-left: 0;
+}
+
+.vboxadm-explanation {
+	font-size: 7pt;
+	margin-top: 2px;
+	color: #767676;
+}
+
+span.sameline {
+	white-space: nowrap;	
+}
+
+textarea.textarea {
+	width: 315px;
+	height: 120px;
+}
+
+input.text-short {
+	width: 75px;
+}
+
+select.select {
+	width: 75px;
+}
+
+input.text-long {
+	width: 315px;
+}
+
+#listcontrols
+{
+  font-size: 11px;
+  text-align: right;
+  padding: 5px 0 0 0;
+  vertical-align: bottom;
+}
+
+#listcontrols a,
+#listcontrols a:active,
+#listcontrols a:visited
+{
+  color: #CC0000;
+  font-size: 11px;
+  text-decoration: none;
+}
+
+#listcontrols a:hover
+{
+  text-decoration: underline;
+}
+
+table.generalprefstable td.title {
+  width: 155px;
+}
+
+a.deleteall-link, a.deleteall-link:active, a.deleteall-link:visited {
+  color: #CC0000;
+  font-size: 11px;
+  text-decoration: none;
+  float:right;
+}
+
+a.deleteall-link:hover {
+  text-decoration: underline;
+}

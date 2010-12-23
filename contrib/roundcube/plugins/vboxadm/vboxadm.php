@@ -1,0 +1,615 @@
+<?php
+
+/**
+ * vboxadm
+ *
+ * Plugin that covers the non-admin part of vboxadm web interface.
+ *
+ * @date 2010-12-23
+ * @author Dominik Schulz
+ * @url http://vboxadm.gauner.org/
+ * @licence GNU GPL 2
+ */
+
+class vboxadm extends rcube_plugin
+{
+
+	public $task = 'settings';
+	private $config;
+	private $db;
+	private $sections = array();
+
+	function init()
+	{
+		$rcmail = rcmail::get_instance();
+		$this->add_texts('localization/', array('accountadmin'));
+
+		$this->register_action('plugin.vboxadm', array($this, 'vboxadm_init'));
+		$this->register_action('plugin.vboxadm-save', array($this, 'vboxadm_save'));
+
+		$this->include_script('vboxadm.js');
+		$this->include_stylesheet('vboxadm.css');
+	}
+
+	function vboxadm_init()
+	{
+		$this->add_texts('localization/');
+		$this->register_handler('plugin.body', array($this, 'vboxadm_form'));
+
+		$rcmail = rcmail::get_instance();
+		$rcmail->output->set_pagetitle($this->gettext('accountadministration'));
+		$rcmail->output->send('plugin');
+	}
+
+
+	private function _load_config()
+	{
+
+		$fpath_config_dist	= $this->home . '/config.inc.php.dist';
+		$fpath_config 		= $this->home . '/config.inc.php';
+
+		if (is_file($fpath_config_dist) and is_readable($fpath_config_dist))
+		$found_config_dist = true;
+		if (is_file($fpath_config) and is_readable($fpath_config))
+		$found_config = true;
+
+		if ($found_config_dist or $found_config) {
+			ob_start();
+
+			if ($found_config_dist) {
+				include($fpath_config_dist);
+				$vboxadm_config_dist = $vboxadm_config;
+			}
+			if ($found_config) {
+				include($fpath_config);
+			}
+				
+			$config_array = array_merge($vboxadm_config_dist, $vboxadm_config);
+			$this->config = $config_array;
+			ob_end_clean();
+		} else {
+			raise_error(array(
+				'code' => 527,
+				'type' => 'php',
+				'message' => "Failed to load vboxadm plugin config"), true, true);
+		}
+	}
+
+	private function _db_connect($mode)
+	{
+		$this->db = new rcube_mdb2($this->config['db_dsn'], '', false);
+		$this->db->db_connect($mode);
+
+		// check DB connections and exit on failure
+		if ($err_str = $this->db->is_error()) {
+			raise_error(array(
+		    'code' => 603,
+		    'type' => 'db',
+		    'message' => $err_str), FALSE, TRUE);
+		}
+	}
+
+	function vboxadm_save()
+	{
+		$this->add_texts('localization/');
+		$this->register_handler(
+			'plugin.body',
+			array(
+				$this,
+				'vboxadm_form'
+			)
+		);
+
+		$rcmail = rcmail::get_instance();
+		$this->_load_config();
+		$rcmail->output->set_pagetitle($this->gettext('accountadministration'));
+
+		// Set variables and make them ready to be put into DB
+		$user = $rcmail->user->data['username'];
+
+		$sa_active = get_input_value('sa_active', RCUBE_INPUT_POST);
+		if(!$sa_active)
+			$sa_active = 0;
+
+		$sa_kill_score = get_input_value('sa_kill_score', RCUBE_INPUT_POST);
+		# turn , into . (metric vs. imperial)
+		$sa_kill_score = str_replace(",",".",$sa_kill_score);
+
+		$is_on_vacation = get_input_value('is_on_vacation', RCUBE_INPUT_POST);
+		if(!$is_on_vacation)
+			$is_on_vacation = 0;
+
+		$vacation_subj = get_input_value('vacation_subj', RCUBE_INPUT_POST);
+		$vacation_msg = get_input_value('vacation_msg', RCUBE_INPUT_POST);
+
+		// In case someone bypass the javascript maxlength, we make vacation message
+		// shorter if above treshold
+		if (strlen($vacation_subj) > $this->config['vboxadm_vacation_maxlength']) {
+			$vacation_subj = substr($vacation_subj, 0, $this->config['vboxadm_vacation_maxlength']);
+		}
+
+		$max_msg_size = get_input_value('max_msg_size', RCUBE_INPUT_POST);
+
+		$res = $this->_save($user,$sa_active,$sa_kill_score,$is_on_vacation,$vacation_subj,$vacation_msg,$max_msg_size);
+
+		if (!$res) {
+			$rcmail->output->command('display_message', $this->gettext('savesuccess-config'), 'confirmation');
+		} else {
+			$rcmail->output->command('display_message', $res, 'error');
+		}
+
+		rcmail_overwrite_action('plugin.vboxadm');
+
+		$this->vboxadm_init();
+	}
+
+	function vboxadm_form()
+	{
+
+		$rcmail = rcmail::get_instance();
+		$this->_load_config();
+
+		// add labels to client - to be used in JS alerts
+		$rcmail->output->add_label(
+			'vboxadm.enterallpassfields',
+			'vboxadm.passwordinconsistency',
+			'vboxadm.autoresponderlong',
+			'vboxadm.autoresponderlongnum',
+			'vboxadm.autoresponderlongmax'
+			);
+
+			$rcmail->output->set_env('product_name', $rcmail->config->get('product_name'));
+
+			$settings = $this->_get_configuration();
+
+			$sa_active		= $settings['sa_active'];
+			$sa_kill_score	= $settings['sa_kill_score'];
+			$is_on_vacation	= $settings['is_on_vacation'];
+			$vacation_subj 	= $settings['vacation_subj'];
+			$vacation_msg	= $settings['vacation_msg'];
+			$max_msg_size	= $settings['max_msg_size']*1024;
+			$user_id		= $settings['id'];
+			$domain_id		= $settings['domain_id'];
+
+			$domain_settings = $this->_get_domain_configuration($domain_id);
+
+			$active_domain	= $domain_settings['name'];
+
+			$rcmail->output->set_env('vacation_maxlength', $this->config['vboxadm_vacation_maxlength']);
+
+			$out .= '<p class="introtext">' . $this->gettext('introtext') . '</p>' . "\n";
+
+			if ($this->config['show_admin_link'] == true && ( $settings['is_domainadmin'] == true || $settings['is_superadmin'])) {
+				$out .= '<p class="adminlink">';
+				$out .= sprintf($this->gettext('adminlinktext'), '<a href="' . $this->config['vboxadm_url'] . '" target="_blank">', '</a>');
+				$out .= "</p>\n";
+			}
+
+			// =====================================================================================================
+			// Password
+			$out .= '<fieldset><legend>' . $this->gettext('password') . '</legend>' . "\n";
+			$out .= '<div class="fieldset-content">';
+			$out .= '<p>' . $this->gettext('passwordcurrentexplanation') . '</p>';
+			$out .= '<table class="vboxadm-settings" cellpadding="0" cellspacing="0">';
+
+			$field_id = 'curpasswd';
+			$input_passwordcurrent = new html_passwordfield(
+				array(
+					'name' => '_curpasswd',
+					'id' => $field_id,
+					'class' => 'text-long',
+					'autocomplete' => 'off'
+				)
+			);
+
+			$out .= sprintf(
+				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+				$field_id,
+				rep_specialchars_output($this->gettext('passwordcurrent')),
+				$input_passwordcurrent->show(),
+				''
+			);
+
+			$field_id = 'newpasswd';
+			$input_passwordnew = new html_passwordfield(
+				array(
+					'name' => '_newpasswd',
+					'id' => $field_id,
+					'class' => 'text-long',
+					'autocomplete' => 'off'
+				)
+			);
+
+			$out .= sprintf(
+				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+				$field_id,
+				rep_specialchars_output($this->gettext('passwordnew')),
+				$input_passwordnew->show(),
+				''
+			);
+
+			$field_id = 'confpasswd';
+			$input_passwordconf = new html_passwordfield(
+				array(
+					'name' => '_confpasswd',
+					'id' => $field_id,
+					'class' => 'text-long',
+					'autocomplete' => 'off'
+				)
+			);
+
+			$out .= sprintf(
+				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+				$field_id,
+				rep_specialchars_output($this->gettext('passwordconfirm')),
+				$input_passwordconf->show(),
+				''
+			);
+
+			$out .= '</table>';
+			$out .= '</div></fieldset>'."\n\n";
+
+			// =====================================================================================================
+			// SpamAssassin
+			$out .= '<fieldset><legend>' . $this->gettext('spam') . '</legend>' . "\n";
+			$out .= '<div class="fieldset-content">';
+			$out .= '<table class="vboxadm-settings" cellpadding="0" cellspacing="0">';
+
+			$field_id = 'sa_active';
+			$input_spamenabled = new html_checkbox(
+				array(
+					'name' => 'sa_active',
+					'id' => $field_id,
+					'value' => 1
+				)
+			);
+
+			$out .= sprintf(
+				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+				$field_id,
+				rep_specialchars_output($this->gettext('spamenabled')),
+				$input_spamenabled->show($sa_active ? 1 : 0 ),
+				'<br /><span class="vboxadm-explanation">' . $this->gettext('spamenabledexplanation') . '</span>'
+			);
+
+			$field_id = 'sa_kill_score';
+			$input_spamscorerefuse = new html_inputfield(
+				array(
+					'name' => 'sa_kill_score',
+					'id' => $field_id,
+					'maxlength' => 8,
+					'size' => 8,
+				)
+			);
+
+			$out .= sprintf(
+				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+				$field_id,
+				rep_specialchars_output($this->gettext('spamscorerefuse')),
+				$input_spamscorerefuse->show($sa_kill_score),
+				'<br /><span class="vboxadm-explanation">' . $this->gettext('spamscorerefuseexplanation') . '. <span class="sameline">' . $this->gettext('domaindefault') . ': ' . $default_sa_refuse . '.</span></span>'
+			);		
+
+			$out .= '</table>';
+			$out .= '</div></fieldset>'."\n\n";
+
+			// =====================================================================================================
+			// Autoresponder
+			$out .= '<fieldset><legend>' . $this->gettext('autoresponder') . '</legend>' . "\n";
+			$out .= '<div class="fieldset-content">';
+			$out .= '<table class="vboxadm-settings" cellpadding="0" cellspacing="0">';
+
+			$field_id = 'is_on_vacation';
+			$input_autoresponderenabled = new html_checkbox(
+				array(
+					'name' => 'is_on_vacation',
+					'id' => $field_id,
+					'value' => 1
+				)
+			);
+
+			$out .= sprintf(
+				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+				$field_id,
+				rep_specialchars_output($this->gettext('autoresponderenabled')),
+				$input_autoresponderenabled->show($is_on_vacation ? 1 : 0),
+				''
+			);
+
+			$field_id = 'vacation_subj';
+			$input_vacation_subj = new html_inputfield(
+				array(
+					'name' => 'vacation_subj',
+					'id' => $field_id,
+					'maxlength' => 255,
+					'class' => 'text-long'
+				)
+			);
+
+			$out .= sprintf(
+				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+				$field_id,
+				rep_specialchars_output($this->gettext('vacation subject')),
+				$input_vacation_subj->show($vacation_subj),
+				'<br /><span class="vboxadm-explanation">' . $this->gettext('vacation subject') . '.</span>'
+			);		
+
+			$field_id = 'vacation_msg';
+			$input_vacation_msg = new html_textarea(
+				array(
+					'name' => 'vacation_msg',
+					'id' => $field_id,
+					'class' => 'textarea'
+				)
+			);
+
+			$out .= sprintf(
+				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+				$field_id,
+				rep_specialchars_output($this->gettext('autorespondermessage')),
+				$input_vacation_msg->show($vacation_msg),
+				'<br /><span class="vboxadm-explanation">' . $this->gettext('autorespondermessageexplanation') . '</span>'
+			);
+				
+			$out .= '</table>';
+			$out .= '</div></fieldset>' . "\n\n";
+
+			// ============================================================
+			// Parameters
+			$out .= '<fieldset><legend>' . $this->gettext('parameters') . '</legend>' . "\n";
+
+			$out .= '<div class="fieldset-content">';
+			$out .= '<table class="vboxadm-settings" cellpadding="0" cellspacing="0">';
+
+			$field_id = 'max_msg_size';
+			$input_messagesize = new html_inputfield(
+				array(
+					'name' => 'max_msg_size',
+					'id' => $field_id,
+					'maxlength' => 16,
+					'class' => 'text-long',
+				)
+			);
+
+			if ($default_maxmsgsize == 0) {
+				$default_maxmsgsize = $this->gettext('unlimited');
+			} else {
+				$default_maxmsgsize = $default_maxmsgsize . ' MB';
+			}
+
+			$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+				$field_id,
+				rep_specialchars_output($this->gettext('messagesize')),
+				$input_messagesize->show($max_msg_size/1024),
+				'<br /><span class="vboxadm-explanation">'.
+				str_replace(
+					'%d',
+					$active_domain,
+					str_replace(
+						'%m',
+						$default_maxmsgsize,
+						$this->gettext('messagesizeexplanation')
+					)
+				).
+				'</span>'
+			);
+
+			$out .= '</table>';
+			$out .= '</div></fieldset>' . "\n\n";
+
+			// ============================================================
+
+			$out .= html::p(
+				null,
+				$rcmail->output->button(
+					array(
+						'command' => 'plugin.vboxadm-save',
+						'type' => 'input',
+						'class' => 'button mainaction',
+						'label' => 'save'
+					)
+				)
+			);
+
+			$rcmail->output->add_gui_object(
+				'vboxadmform',
+				'vboxadmform'
+			);
+			$out = $rcmail->output->form_tag(
+				array(
+					'id' => 'vboxadmform',
+					'name' => 'vboxadmform',
+					'method' => 'post',
+					'action' => './?_task=settings&_action=plugin.vboxadm-save'
+				),
+				$out
+			);
+			$out = html::div(
+				array(
+					'class' => 'settingsbox',
+					'style' => 'margin:0 0 15px 0;'
+				),
+				html::div(
+					array(
+						'class' => 'boxtitle'
+					),
+					$this->gettext('accountadministration')
+				) .
+				html::div(
+					array(
+						'style' => 'padding:15px'
+					),
+					$outtop . "\n" . $out . "\n" . $outbottom
+				)
+			);
+
+			return $out;
+
+	}
+	 
+	 
+	private function _get_configuration()
+	{
+		$this->_load_config();
+		$rcmail = rcmail::get_instance();
+		$this->_db_connect('r');
+
+		$sql = 'SELECT m.id AS user_id, d.id AS domain_id, m.local_part AS local_part,d.name AS domain,m.name AS username,m.max_msg_size,m.is_on_vacation,m.vacation_subj,m.vacation_msg,m.is_domainadmin,m.is_superadmin,m.sa_active,m.sa_kill_score FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,\'@\',d.name) = ' . $this->db->quote($rcmail->user->data['username'],'text') . ' AND m.is_active AND d.is_active LIMIT 1';
+		$res = $this->db->query($sql);
+
+		if ($err = $this->db->is_error()){
+			return $err;
+		}
+		$ret = $this->db->fetch_assoc($res);
+
+		return $ret;
+	}
+
+
+	private function _get_domain_configuration($domain_id)
+	{
+		$this->_load_config();
+		$rcmail = rcmail::get_instance();
+		$this->_db_connect('r');
+
+		$sql = 'SELECT id,name,is_active FROM domains WHERE id = ' . $this->db->quote($domain_id) . ' AND is_active LIMIT 1';
+		$res = $this->db->query($sql);
+
+		if ($err = $this->db->is_error()){
+			return $err;
+		}
+		$ret = $this->db->fetch_assoc($res);
+
+		return $ret;
+	}
+
+	private function _save($user,$sa_active,$sa_kill_score,$is_on_vacation,$vacation_subj,$vacation_msg,$max_msg_size)
+	{
+		$rcmail = rcmail::get_instance();
+
+		$this->_load_config();
+		$this->_db_connect('w');
+		$settings			= $this->_get_configuration();
+		$user_id			= $settings['user_id'];
+		$domain_id			= $settings['domain_id'];
+
+		$sql = 'UPDATE mailboxes SET ';
+		$sql .= 'sa_active = '.$this->db->quote($sa_active,'text').', ';
+		$sql .= 'sa_kill_score = '.$this->db->quote($sa_kill_score,'text').', ';
+		$sql .= 'is_on_vacation = '.$this->db->quote($is_on_vacation,'text').', ';
+		$sql .= 'vacation_subj = '.$this->db->quote($vacation_subj,'text').', ';
+		$sql .= 'vacation_msg = '.$this->db->quote($vacation_msg,'text').', ';
+		$sql .= 'max_msg_size = '.$this->db->quote($max_msg_size,'text').' ';
+		$sql .= 'WHERE id = '.$this->db->quote($user_id,'text').' AND is_active LIMIT 1';
+
+		$config_error = 0;
+		$res = $this->db->query($sql);
+		if ($err = $this->db->is_error()) {
+			$config_error = 1;
+		}
+		$res = $this->db->affected_rows($res);
+
+		$curpwd = get_input_value('_curpasswd', RCUBE_INPUT_POST);
+		$newpwd = get_input_value('_newpasswd', RCUBE_INPUT_POST);
+
+		if ($curpwd != '' and $newpwd != '') {
+				
+			$trytochangepass = 1;
+			$password_change_error = 0;
+			 
+			# check against salted pw from db!
+			if ($rcmail->decrypt($_SESSION['password']) != $curpwd) {
+				// Current password was not correct.
+				// Note that we check against the password saved in RoundCube.
+				// Alternatively we can to a:
+				// 		if (_crypt_password($curpwd, $settings['domain_id'])
+				$password_change_error = 1;
+				$addtomessage .= '. ' . $this->gettext('saveerror-pass-mismatch');
+			} else {
+
+				$crypted_password = $this->_crypt_password($newpwd);
+				$sql_pass = "UPDATE mailboxes SET password=" . $this->db->quote($crypted_password) . " WHERE id = " . $this->db->quote($user_ud,'text') . " AND is_active LIMIT 1";
+
+				$res_pass = $this->db->query($sql_pass);
+				if ($err = $this->db->is_error()) {
+					$password_change_error = 2;
+					$addtomessage .= '.' . $this->gettext('saveerror-pass-database');
+				} else {
+
+					$res_pass = $this->db->affected_rows($res_pass);
+					if ($res_pass == 0) {
+						$password_change_error = 3;
+						$addtomessage .= '. ' . $this->gettext('saveerror-pass-norows');
+					} elseif ($res_pass == 1) {
+						$password_change_success = 1;
+						$_SESSION['password'] = $rcmail->encrypt($newpwd);
+					}
+				}
+			}
+		}
+
+		// This error handling is a bit messy, should be improved!
+		// We may also want to check for $res and $res_pass to see if changes were done or not
+
+		if ($config_error == 1) {
+			// Mysql error on config update. Also print any errors from password.
+			return $this->gettext('saveerror-config-database')  . $addtomessage;
+		}
+		if ($config_error == 0 and $trytochangepass == 1 and $password_change_error == 1) {
+			// Config updated, but error in password saving due to mismatch
+			return $this->gettext('savesuccess-config-saveerror-pass-mismatch');
+		}
+		if ($config_error == 0 and $trytochangepass == 1 and $password_change_error) {
+			// Config updated, but other error in password saving
+			return $this->gettext('savesuccess-config') . $addtomessage;
+		}
+
+		if ($config_error == 0) {
+			// Best case, no trouble reported
+			return false;
+		}
+
+		// If still here - send all error messages.
+		return $this->gettext('saveerror-internalerror') . $addtomessage;
+
+	}
+
+	private function _crypt_password($clear, $salt = '')
+	{
+
+		// Function from vboxadm.
+
+		$settings = $this->_get_configuration();
+		$cryptscheme = $this->config['vboxadm_cryptscheme'];
+
+		if ($cryptscheme == 'sha')
+		{
+			$hash = sha1($clear);
+			$cryptedpass = '{SHA}' . base64_encode(pack('H*', $hash));
+		}
+		else
+		{
+			if ($salt != '')
+			{
+				if ($cryptscheme == 'des')
+				{
+					$salt = substr($salt, 0, 2);
+				}
+				else
+				if ($cryptscheme == 'md5')
+				{
+					$salt = substr($salt, 0, 12);
+				}
+				else
+				{
+					$salt = '';
+				}
+			}
+			$cryptedpass = crypt($clear, $salt);
+		}
+
+		return $cryptedpass;
+
+	}
+
+}
