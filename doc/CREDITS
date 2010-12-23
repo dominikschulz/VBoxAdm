@@ -60,9 +60,9 @@ Find them at http://workaround.org/ispmail/.
 Additional kudos go to Peer Heinlein for his
 book 'Das Postfix Buch'.
 
-=== Roundcube Vacation ===
-The roundcube vacation plugin is distributed
-with this application since it is not included with the
-roundcube distribution and this application required a new
-driver for this plugin. It was written by jaspersl@gmail.com
-and is maintained at https://sourceforge.net/projects/rcubevacation/.
+=== Roundcube Plugin ===
+The Roundcube vboxadm plugin is based on the
+VeximAcountAdmin plugin written by Axel Sjostedt.
+It was downloaded from http://axel.sjostedt.no/misc/dev/roundcube/
+and is distributed under the terms of the
+  GNU GPL 2.
