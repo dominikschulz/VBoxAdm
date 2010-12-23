@@ -256,37 +256,26 @@ and symlink from /opt/roundcube/config/{db,main}.inc.php to /opt/roundcube/curre
 
 The final step of the installation is to remove the installer directory.
 
-* Install Roundcube Plugin: vacation
+* Install VBoxAdm Roundcube Plugin
 ------------------------------------
-Since the vacation plugin is not contained in the upstream sources of roundcube, a modified version is supplied
-with VBoxAdm. Copy the folder contrib/roundcube/plugins/vacation to your roundcube plugins folder.
+The folder contrib/roundcube/plugins/vacation contains a Roundcube plugin that covers the user
+part of VBoxAdm, copy it to your roundcube plugins folder.
 
-Debian: Extract the file /usr/share/doc/vboxadm-common/examples/roundcube-plugin-vacation.tar.gz
+Debian: Extract the file /usr/share/doc/vboxadm-common/examples/roundcube-plugin-vboxadm.tar.gz
 to /opt/roundcube/current/plugins.
 
-* Configure Roundcube Plugins
------------------------------
-Edit plugins/vacation/config.ini and set a dsn in the default section:
-dsn = "mysql://vboxadm_user:password@localhost"
-
-Copy the config.inc.php.dist in plugins/password to config.inc.php and set the dsn
+* Configure Roundcube Plugin
+----------------------------
+Copy the config.inc.php.dist in plugins/vboxadm to config.inc.php and set the dsn
 $rcmail_config['password_db_dsn'] = 'mysql://vboxadm_user:password@localhost/vboxadm';
-
-and the password query:
-$rcmail_config['password_query'] = "UPDATE vboxadm.mailboxes SET password = %D WHERE local_part = %l AND domain_id = (SELECT id FROM vboxadm.domains WHERE name = %d)";
-
-And some options for Dovecotpw. You should use the same method here as in your vboxadm.conf.
-$rcmail_config['password_dovecotpw'] = '/usr/sbin/dovecotpw';
-$rcmail_config['password_dovecotpw_method'] = 'SSHA256';
-$rcmail_config['password_dovecotpw_with_method'] = true;
 
 Copy the config.inc.php.dist in plugins/managesieve to config.inc.php.
 
 * Active the Roundcube Plugins
 ------------------------------
-Edit the file config/main.inc.php and add the plugins 'password', 'managesieve' and 'vacation'.
+Edit the file config/main.inc.php and add the plugins 'vboxadm' and 'managesieve'.
 
-$rcmail_config['plugins'] = array('password','managesieve', 'vacation');
+$rcmail_config['plugins'] = array('vboxadm','managesieve');
 
 * Setup SSL Certificates
 ------------------------

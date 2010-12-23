@@ -1830,19 +1830,18 @@ sub show_update_mailbox {
             $Data::Password::MAXLEN = undef;
 
             # passwords must be equal and at least 8 chars long
-            if ( $password eq $password_2 && length($password) > 7 ) {
+            if ( $password eq $password_2 ) {
+            		# Check password length
+            		if(length($password) < 8) {
+            			$msg .= 'WARNING: Bad password - Password too short.';
+            		}
 
                 # Check password strength
                 if ( my $str = Data::Password::IsBadPassword($password) ) {
-                    $msg .= 'ERROR: Bad password - ' . $str . '.';
+                    $msg .= 'WARNING: Weak password - ' . $str . '.';
                 }
-                else {
-                    $query .= "password = ?, ";
-                    push( @params, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ) );
-                }
-            }
-            else {
-                $msg .= 'ERROR: Bad password - Password too short.';
+                $query .= "password = ?, ";
+                push( @params, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ) );
             }
         }
 

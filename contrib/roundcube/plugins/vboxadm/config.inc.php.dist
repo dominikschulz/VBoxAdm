@@ -8,34 +8,16 @@
 $vboxadm_config = array();
 
 // PEAR database DSN for performing the query
-// change this to your vexim database info, e.g.
-//    mysql://vexim:password@localhost/vexim
-$vboxadm_config['db_dsn'] = 'mysql://USERNAME:PASSWORD@SERVER/DATABASE';
+// change this to your vboxadm database info, e.g.
+//    mysql://vboxadm:password@localhost/vboxadm
+$vboxadm_config['db_dsn'] = 'mysql://vboxadm_user:vboxadm@localhost/vboxadm';
 
-// Use the same $cryptscheme as in vexim config/variables.php (either 'des' or 'md5')
-$vboxadm_config['vexim_cryptscheme'] = 'md5';
+// Use the either MD5, SHA, SHA256, SMD5, SSHA or SSHA256 
+$vboxadm_config['vboxadm_cryptscheme'] = 'ssha256';
 
-// Maxlength of autoresponder message, defaults to 255 characters. You probably want to
-// extend this limit. If so, you must change the vacation field in users table in
-// vexim database structure from VARCHAR(255) to TEXT. Also set $max_vacation_length
-// in vexim config/variables.php to get the same limit there.
-$vboxadm_config['vexim_vacation_maxlength'] = 255;
+$vboxadm_config['vboxadm_vacation_maxlength'] = 255;
 
-/*
-	Support for the Exim/Vexim customizations described on
-	http://axel.sjostedt.no/misc/vexim/
-*/
-// Set this to true if you have added the custom crypted password hack to Vexim/Exim
-$vboxadm_config['crypted_password_hack'] = false;
-// Set this to true if you have added the auto spam folder transporters to Vexim/Exim
-$vboxadm_config['movespam_transporter'] = false;
-// Set this to true if you have added the parsefolders shell script
-$vboxadm_config['parsefolders_script'] = false;
-$vboxadm_config['parsefolders_script_show_tip'] = true; // Show notice about learnasspam folders
-
-// Show a link to Vexim if the user is registered as domain admin
+// Show a link to vboxadm if the user is registered as domain admin
 $vboxadm_config['show_admin_link'] = true;
-// Vexim link URL, relative to Roundcube or external
-$vboxadm_config['vexim_url'] = '../vexim/';
 
 ?>
