@@ -244,7 +244,7 @@ To satisfy the requirements you'll need to install a few aditional packages:
 
 (Debian) $> aptitude install php5-cgi php5-mysql php5-mcrypt php5-imap php5-intl
 
-On Debian system you have to modify the suhosin settings. Edit the file /etc/php5/conf.d/suhosin.in
+On Debian system you have to modify the suhosin settings. Edit the file /etc/php5/conf.d/suhosin.ini
 and change the value suhosin.session.encrypt to off. Make sure the line is no longer commented.
 
 The use the installer access http://roundcube.domain.tld/installer/ and follow the instructions of the installer. Use the database

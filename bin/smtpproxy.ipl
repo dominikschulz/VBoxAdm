@@ -61,6 +61,7 @@ my $max_servers       = $config{'smtpproxy'}{'max_servers'}       || 80;
 my $max_spare_servers = $config{'smtpproxy'}{'max_spare_servers'} || 20;
 my $max_requests      = $config{'smtpproxy'}{'max_requests'}      || 250;
 my $max_msg_size      = $config{'smtpproxy'}{'max_msg_size'}      || 25;                                 # MB
+my $caching           = $config{'smtpproxy'}{'caching'}           || 1;
 $max_msg_size *= ( 1024 * 1024 );
 my $sa_max_msg_size = $config{'smtpproxy'}{'sa_max_msg_size'} || 10;                                     # MB
 $sa_max_msg_size *= ( 1024 * 1024 );                                                                     # convert to bytes
@@ -158,6 +159,7 @@ my $server = bless {
         sa_timeout      => $sa_timeout,
         max_msg_size    => $max_msg_size,
         dry             => $config{'dry'},
+        caching         => $caching,
 
         dbhosts => \@dbhosts,
         dbport  => $dbport,
