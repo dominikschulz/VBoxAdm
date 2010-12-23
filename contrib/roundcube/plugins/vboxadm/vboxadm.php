@@ -13,189 +13,11 @@
 
 class vboxadm extends rcube_plugin
 {
-
 	public $task = 'settings';
 	private $config;
 	private $db;
 	private $sections = array();
-	private $hashlen = array(
-		'smd5'    => 16,
-	    'ssha'    => 20,
-	    'ssha256' => 32,
-	    'ssha512' => 64,
-	);
-	
-	private function _make_salt() {
-	    $len   = 8 + int( rand(0,8) );
-	    $bytes = array();
-	    for ($i = 0; $i < $len; $i++ ) {
-	        $bytes[] = rand(255);
-	    }
-	    return pack( 'C*', $bytes );
-	}
-	
-	private function _verify_pass($pass, $pwentry) {
-	
-	    $pwinfo = $this->_split_pass($pwentry);
-	
-	    $passh = $this->_make_pass( $pass, $pwinfo[0], $pwinfo[2] );
-	    
-	    write_log('vboxadm',"_verify_pass($pass, $pwentry) - pwscheme: $pwinfo[0], salt: $pwinfo[2]");
-	
-	    if ( $pwentry == $passh ) {
-	        return TRUE;
-	    }
-	    else {
-	        return FALSE;
-	    }
-	}
-	
-	private function _verify_pass_by_uid($pass, $user_id) {
-		$sql = "SELECT password FROM mailboxes WHERE id = ".$this->db->quote($user_id, 'text');
-		$res = $this->db->query($sql);
-
-		if ($err = $this->db->is_error()){
-			return $err;
-		}
-		$ret = $this->db->fetch_assoc($res);
-		
-		write_log('vboxadm','_verify_pass_by_uid - SQL: '.$sql.' - Ret: '.print_r($ret, TRUE));
-		
-		return $this->_verify_pass($pass, $ret['password']);
-	}
-	
-	private function _ldap_md5($pw) {
-	    return "{SHA}" . base64_encode( hash('md5',$pw) );
-	}
-	
-	private function _smd5($pw, $salt) {
-	    return "{SSHA}" . base64_encode( hash('md5', $pw . $salt ) . $salt );
-	}
-	
-	private function _sha($pw) {
-	    return "{SHA}" . base64_encode( hash('sha1',$pw) );
-	}
-	
-	private function _ssha($pw, $salt) {
-	    return "{SSHA}" . base64_encode( hash('sha1', $pw . $salt ) . $salt );
-	}
-	
-	private function _sha256($pw) {
-	    return "{SHA256}" . base64_encode( hash('sha256',$pw) );
-	}
-	
-	private function _ssha256($pw, $salt) {
-	    return "{SSHA256}" . base64_encode( hash('sha256', $pw . $salt ) . $salt );
-	}
-	
-	private function _sha512($pw) {
-	    return "{SHA512}" . base64_encode( hash('sha512',$pw) );
-	}
-	
-	private function _ssha512($pw, $salt) {
-	    return "{SSHA512}" . base64_encode( hash('sha512', $pw . $salt ) . $salt );
-	}
-	
-	private function _make_pass($pw, $pwscheme, $salt) {
-		switch($pwscheme) {
-			case "ldap_md5":
-				return $this->_ldap_md5($pw);
-				break;
-			case "plain_md5":
-				return $this->_plain_md5($pw);
-				break;
-			case "sha":
-				return $this->_sha($pw);
-				break;
-			case "sha256":
-				return $this->_sha256($pw);
-				break;
-			case "sha512":
-				return $this->_sha512($pw);
-				break;
-			case "smd5":
-				return $this->_smd5($pw,$salt);
-				break;
-			case "ssha":
-				return $this->_ssha($pw,$salt);
-				break;
-			case "ssha256":
-				return $this->_ssha256($pw,$salt);
-				break;
-			case "ssha512":
-				return $this->_ssha512($pw,$salt);
-				break;
-			default:
-				return "{CLEARTEXT}".$pw;
-		}
-	}
-	
-	private function _split_pass($pw) {
-	    $pwscheme = 'cleartext';
-	
-	    # get use password scheme and remove leading block
-	    if ( preg_match("/^\{([^}]+)\}/", $pw, $matches) ) {
-	        $pwscheme = strtolower($matches[1]);
-	        $pw = preg_replace("/^\{([^}]+)\}/",'',$pw);
-	
-	        # turn - into _ so we can feed pwscheme to make_pass
-	        $pwscheme = preg_replace("/-/",'_',$pwscheme);
-	    }
-	
-	    # We have 3 major cases:
-	    # 1 - cleartext pw, return pw and empty salt
-	    # 2 - hashed pw, no salt
-	    # 3 - hashed pw with salt
-	    if ( !$pwscheme || $pwscheme == 'cleartext' || $pwscheme == 'plain' ) {
-	        return array('cleartext', $pw, '' );
-	    }
-	    elseif ( preg_match("/^(plain-md5|ldap-md5|md5|sha|sha256|sha512)$/i", $pwscheme) ) {
-	        $pw = base64_decode($pw);
-	        return array( $pwscheme, $pw, '' );
-	    }
-	    elseif ( preg_match("/^(smd5|ssha|ssha256|ssha512)/", $pwscheme) ) {
-	
-	        # now get hashed pass and salt
-	        # hashlen can be computed by doing
-	        # $hashlen = length(Digest::*::digest('string'));
-	        $hashlen = $this->hashlen[$pwscheme];
-	
-	        # pwscheme could also specify an encoding
-	        # like hex or base64, but right now we assume its b64
-	        $pw = base64_decode($pw);
-	
-	        # unpack byte-by-byte, the hash uses the full eight bit of each byte,
-	        # the salt may do so, too.
-	        $tmp  = unpack( 'C*', $pw );
-	        $i    = 0;
-	        $hash = array();
-	
-	        # the salted hash has the form: $saltedhash.$salt,
-	        # so the first bytes (# $hashlen) are the hash, the rest
-	        # is the variable length salt
-	        while ( $i < $hashlen ) {
-	            $hash[] = $tmp[$i];
-	            $i++;
-	        }
-	
-	        # as I've said: the rest is the salt
-	        $salt = array();
-	        for(; $i < sizeof($tmp); $i++) {
-	            $salt[] = $tmp[$i];
-	        }
-	
-	        # pack it again, byte-by-byte
-	        $pw_str   = pack( 'C' . $hashlen, $hash );
-	        $salt_str = pack( 'C*',           $salt );
-	
-	        return array( $pwscheme, $pw_str, $salt_str );
-	    }
-	    else {
-	
-	        # unknown pw scheme
-	        return FALSE;
-	    }
-	}
+	private $dovecotpw;
 
 	function init()
 	{
@@ -207,6 +29,8 @@ class vboxadm extends rcube_plugin
 
 		$this->include_script('vboxadm.js');
 		$this->include_stylesheet('vboxadm.css');
+		
+		$this->dovecotpw = new DovecotPW;
 	}
 
 	function vboxadm_init()
@@ -507,9 +331,9 @@ class vboxadm extends rcube_plugin
 			$out .= sprintf(
 				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
 				$field_id,
-				rep_specialchars_output($this->gettext('vacation subject')),
+				rep_specialchars_output($this->gettext('autorespondersubject')),
 				$input_vacation_subj->show($vacation_subj),
-				'<br /><span class="vboxadm-explanation">' . $this->gettext('vacation subject') . '.</span>'
+				'<br /><span class="vboxadm-explanation">' . $this->gettext('autorespondersubjectexplanation') . '.</span>'
 			);		
 
 			$field_id = 'vacation_msg';
@@ -691,29 +515,28 @@ class vboxadm extends rcube_plugin
 
 		$curpwd = get_input_value('_curpasswd', RCUBE_INPUT_POST);
 		$newpwd = get_input_value('_newpasswd', RCUBE_INPUT_POST);
+		
+		write_log('vboxadm','_save');
 
 		if ($curpwd != '' and $newpwd != '') {
-				
+
 			$trytochangepass = 1;
 			$password_change_error = 0;
 			 
 			# check against salted pw from db!
-			if($this->_verify_pass_by_uid($curpwd, $user_id)) {
-				write_log('vboxadm','_save - Password MATCHES!');
-			} else {
-				write_log('vboxadm','_save - Password NOT MATCHED!');
-			}
-			if (TRUE || $rcmail->decrypt($_SESSION['password']) != $curpwd) {
+			if (!$this->verify_pass_by_uid($curpwd, $user_id)) {
 				// Current password was not correct.
-				// Note that we check against the password saved in RoundCube.
-				// Alternatively we can to a:
-				// 		if (_crypt_password($curpwd, $settings['domain_id'])
 				$password_change_error = 1;
 				$addtomessage .= '. ' . $this->gettext('saveerror-pass-mismatch');
+			} elseif($rcmail->decrypt($_SESSION['password']) != $curpwd) {
+				$password_change_error = 1;
+				$addtomessage .= '. ' . $this->gettext('saveerror-pass-mismatch');
+			} elseif(!$this->dovecotpw->check_password($newpwd, FALSE)) {
+				$password_change_error = 1;
+				$addtomessage .= '. ' . $this->gettext('saveerror-pass-too-weak');
 			} else {
-
-				#$crypted_password = $this->_crypt_password($newpwd);
-				$crypted_password = $this->_make_pass($newpwd, 'SSHA256');
+				$crypted_password = $this->dovecotpw->make_pass($newpwd, 'SSHA256');
+				write_log('vboxadm','_save - Password MATCHES! New crypted Pass: '.$crypted_password);
 				$sql_pass = "UPDATE mailboxes SET password=" . $this->db->quote($crypted_password) . " WHERE id = " . $this->db->quote($user_id,'text') . " AND is_active LIMIT 1";
 
 				$res_pass = $this->db->query($sql_pass);
@@ -759,43 +582,251 @@ class vboxadm extends rcube_plugin
 		return $this->gettext('saveerror-internalerror') . $addtomessage;
 
 	}
+	
+	
+	private function verify_pass_by_uid($pass, $user_id) {
+		$sql = "SELECT password FROM mailboxes WHERE id = ".$this->db->quote($user_id, 'text');
+		$res = $this->db->query($sql);
 
-	private function _crypt_password($clear, $salt = '')
-	{
-
-		// Function from vboxadm.
-
-		$settings = $this->_get_configuration();
-		$cryptscheme = $this->config['vboxadm_cryptscheme'];
-
-		if ($cryptscheme == 'sha')
-		{
-			$hash = sha1($clear);
-			$cryptedpass = '{SHA}' . base64_encode(pack('H*', $hash));
+		if ($err = $this->db->is_error()){
+			return $err;
 		}
-		else
-		{
-			if ($salt != '')
-			{
-				if ($cryptscheme == 'des')
-				{
-					$salt = substr($salt, 0, 2);
-				}
-				else
-				if ($cryptscheme == 'md5')
-				{
-					$salt = substr($salt, 0, 12);
-				}
-				else
-				{
-					$salt = '';
-				}
-			}
-			$cryptedpass = crypt($clear, $salt);
-		}
-
-		return $cryptedpass;
-
+		$ret = $this->db->fetch_assoc($res);
+		
+		return $this->dovecotpw->verify_pass($pass, $ret['password']);
 	}
 
+}
+
+class DovecotPW {
+	private $hashlen = array(
+		'smd5'    => 16,
+	    'ssha'    => 20,
+	    'ssha256' => 32,
+	    'ssha512' => 64,
+	);
+	
+	public function check_password($pwd, $numeric = FALSE) 
+	{
+		$score = 0;
+		/* no too short passwords at all */
+		if (strlen($pwd) < 8)
+		{
+			return FALSE; 
+		}
+	
+		if (strlen($pwd) >= 8)
+		{
+			$score++; 
+		}
+		if (strlen($pwd) >= 12)
+		{
+			$score++; 
+		}
+		/* UPPER and lower case mixed */
+		if (preg_match("/[a-z]/", $pwd) && preg_match("/[A-Z]/", $pwd)) 
+		{
+			$score++; 
+		}
+		/* contains numbers */
+		if (preg_match("/[0-9]/", $pwd)) 
+		{
+			$score++; 
+		}
+		/* contains special chars */
+		if (preg_match("/.[!,@,#,$,%,^,&,*,?,_,~,-,£,(,)]/", $pwd)) 
+		{
+			$score++; 
+		}
+		if($numeric) {
+			return $score;
+		} else {
+			if($score > 2) {
+				return TRUE;
+			} else {
+				return FALSE;
+			}
+		} 
+	}		
+	
+	public function make_salt() {
+	    $len   = 8 + rand(0,8);
+	    $bytes = array();
+	    for ($i = 0; $i < $len; $i++ ) {
+	        $bytes[] = rand(1,255);
+	    }
+	    $salt_str = '';
+	    foreach ($bytes as $b) {
+	    	$salt_str .= pack('C', $b);
+	    }
+	    return $salt_str;
+	}
+	
+	public function verify_pass($pass, $pwentry) {
+	    $pwinfo = $this->split_pass($pwentry);
+	
+	    $passh = $this->make_pass( $pass, $pwinfo[0], $pwinfo[2] );
+	
+	    if ( $pwentry == $passh ) {
+	        return TRUE;
+	    }
+	    else {
+	        return FALSE;
+	    }
+	}
+	
+	public function ldap_md5($pw) {
+	    return "{SHA}" . base64_encode( hash('md5',$pw, TRUE) );
+	}
+	
+	public function smd5($pw, $salt) {
+		if(strlen($salt) < 1) {
+			$salt = $this->make_salt();
+		}
+	    return "{SSHA}" . base64_encode( hash('md5', $pw . $salt, TRUE ) . $salt );
+	}
+	
+	public function sha($pw) {
+	    return "{SHA}" . base64_encode( hash('sha1',$pw, TRUE) );
+	}
+	
+	public function ssha($pw, $salt) {
+		if(strlen($salt) < 1) {
+			$salt = $this->make_salt();
+		}
+	    return "{SSHA}" . base64_encode( hash('sha1', $pw . $salt, TRUE ) . $salt );
+	}
+	
+	public function sha256($pw) {
+	    return "{SHA256}" . base64_encode( hash('sha256',$pw, TRUE) );
+	}
+	
+	public function ssha256($pw, $salt) {
+		if(strlen($salt) < 1) {
+			$salt = $this->make_salt();
+		}
+	    return "{SSHA256}" . base64_encode( hash('sha256', $pw . $salt, TRUE ) . $salt );
+	}
+	
+	public function sha512($pw) {
+	    return "{SHA512}" . base64_encode( hash('sha512',$pw, TRUE) );
+	}
+	
+	public function ssha512($pw, $salt) {
+		if(strlen($salt) < 1) {
+			$salt = $this->make_salt();
+		}
+	    return "{SSHA512}" . base64_encode( hash('sha512', $pw . $salt, TRUE ) . $salt );
+	}
+	
+	public function make_pass($pw, $pwscheme, $salt) {
+		if(strlen($salt) < 1) {
+			$salt = $this->make_salt();
+		}
+		if(strlen($pwscheme) < 1) {
+			$pwscheme = $this->config['vboxadm_cryptscheme'];
+		}
+		$pwscheme = strtolower($pwscheme);
+		switch($pwscheme) {
+			case "ldap_md5":
+				return $this->ldap_md5($pw);
+				break;
+			case "plain_md5":
+				return $this->plain_md5($pw);
+				break;
+			case "sha":
+				return $this->sha($pw);
+				break;
+			case "sha256":
+				return $this->sha256($pw);
+				break;
+			case "sha512":
+				return $this->sha512($pw);
+				break;
+			case "smd5":
+				return $this->smd5($pw,$salt);
+				break;
+			case "ssha":
+				return $this->ssha($pw,$salt);
+				break;
+			case "ssha256":
+				return $this->ssha256($pw,$salt);
+				break;
+			case "ssha512":
+				return $this->ssha512($pw,$salt);
+				break;
+			default:
+				return "{CLEARTEXT}".$pw;
+		}
+	}
+	
+	public function split_pass($pw) {
+	    $pwscheme = 'cleartext';
+	
+	    # get use password scheme and remove leading block
+	    if ( preg_match("/^\{([^}]+)\}/", $pw, $matches) ) {
+	        $pwscheme = strtolower($matches[1]);
+	        $pw = preg_replace("/^\{([^}]+)\}/",'',$pw);
+	
+	        # turn - into _ so we can feed pwscheme to make_pass
+	        $pwscheme = preg_replace("/-/",'_',$pwscheme);
+	    }
+	
+	    # We have 3 major cases:
+	    # 1 - cleartext pw, return pw and empty salt
+	    # 2 - hashed pw, no salt
+	    # 3 - hashed pw with salt
+	    if ( !$pwscheme || $pwscheme == 'cleartext' || $pwscheme == 'plain' ) {
+	        return array('cleartext', $pw, '' );
+	    }
+	    elseif ( preg_match("/^(plain-md5|ldap-md5|md5|sha|sha256|sha512)$/i", $pwscheme) ) {
+	        $pw = base64_decode($pw);
+	        return array( $pwscheme, $pw, '' );
+	    }
+	    elseif ( preg_match("/^(smd5|ssha|ssha256|ssha512)/", $pwscheme) ) {
+	
+	        # now get hashed pass and salt
+	        # hashlen can be computed by doing
+	        # $hashlen = length(Digest::*::digest('string'));
+	        $hashlen = $this->hashlen[$pwscheme];
+	
+	        # pwscheme could also specify an encoding
+	        # like hex or base64, but right now we assume its b64
+	        $pw = base64_decode($pw);
+	
+	        # unpack byte-by-byte, the hash uses the full eight bit of each byte,
+	        # the salt may do so, too.
+	        $tmp  = unpack( 'C*', $pw );
+	        $i    = 1;
+	        $hash = array();
+	
+	        # the salted hash has the form: $saltedhash.$salt,
+	        # so the first bytes (# $hashlen) are the hash, the rest
+	        # is the variable length salt
+	        while ( $i <= $hashlen ) {
+	            $hash[] = $tmp[$i++];
+	        }
+	
+	        # as I've said: the rest is the salt
+	        $salt = array();
+	        for(; $i <= sizeof($tmp); $i++) {
+	            $salt[] = $tmp[$i];
+	        }
+	
+	        # pack it again, byte-by-byte
+	        foreach ($hash as $h) {
+	        	$pw_str .= pack('C', $h);
+	        }
+	        foreach ($salt as $s) {
+	        	$salt_str .= pack('C', $s);
+	        }
+	
+	        return array( $pwscheme, $pw_str, $salt_str );
+	    }
+	    else {
+	
+	        # unknown pw scheme
+	        return FALSE;
+	    }
+	}
 }

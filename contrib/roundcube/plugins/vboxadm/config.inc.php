@@ -13,7 +13,7 @@ $vboxadm_config = array();
 $vboxadm_config['db_dsn'] = 'mysql://vboxadm_user:vboxadm@localhost/vboxadm';
 
 // Use the either MD5, SHA, SHA256, SMD5, SSHA or SSHA256 
-$vboxadm_config['vboxadm_cryptscheme'] = 'md5';
+$vboxadm_config['vboxadm_cryptscheme'] = 'ssha256';
 
 $vboxadm_config['vboxadm_vacation_maxlength'] = 25500;
 
