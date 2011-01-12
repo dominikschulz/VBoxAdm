@@ -17,7 +17,7 @@
 		[% END %]
 			<tr>
 				<td>
-					<a href="vboxadm.pl?rm=edit_mailbox&domain_id=[% line.id %]">[% line.local_part %]@[% line.domain %]</a>
+					<a href="vboxadm.pl?rm=edit_mailbox&mailbox_id=[% line.id %]">[% line.local_part %]@[% line.domain %]</a>
 				</td>
 				<td>
 					[% IF line.is_active == 1 %]
