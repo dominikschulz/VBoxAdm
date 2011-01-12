@@ -37,7 +37,7 @@ sub db_connect {
     my $pass = $self->{vbox}->{dbpass} || 'vboxadm';
     my $host = $self->{vbox}->{dbhost} || 'localhost';
     my $port = $self->{vbox}->{dbport} || 3306;
-    my $db   = $self->{vbox}->{dbdb} || 'vboxadm';
+    my $db   = $self->{vbox}->{dbdb} 	 || 'vboxadm';
 
     # if more than one dbhost is given shuffle the list
     # and try each one until a connection succeeds, use short timeout
@@ -509,6 +509,8 @@ sub is_spam {
         # check if this message is spam
         eval {
             local $SIG{ALRM} = sub { die "Timed out!\n"; };
+            
+            # TODO evaluate IO::CaptureOutput and/or IO::Capture
 
             # save the prev. setting of the alarm timer and start our own
             my $prev_alarm = alarm( $self->{vbox}->{sa_timeout} );
