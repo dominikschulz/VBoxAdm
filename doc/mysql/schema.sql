@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS `vacation_notify` (
   `on_vacation` varchar(255) NOT NULL,
   `notified` varchar(255) NOT NULL,
   `notified_at` datetime NOT NULL,
-  PRIMARY KEY (`on_vacation`,`notified`),
+  PRIMARY KEY (`on_vacation` (100),`notified` (100)),
   KEY `notified_at` (`notified_at`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
