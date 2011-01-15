@@ -130,7 +130,7 @@ Go to /etc/postfix/maps/. Edit each virtual_*.cf file and enter the password
 you've choosen for the MySQL user postfix.
 
 Change to /etc/postfix and create the database maps:
-$> make maps
+ $> make maps
 
 If you haven't done so already install postgrey and policyd-weight:
  $> aptitude install postgrey policyd-weight
