@@ -32,9 +32,15 @@ which is written by Mischa Peters et. al. and
 It was licensed under the terms of the
   GNU GPL Version 2 or later.
 
+The Navigation design is taken from
+http://cssmenumaker.com/builder/menu_info.php?menu=018#
+
 === Icons ===
 This application uses the Silk Icon set
 from FamFamFam. http://www.famfamfam.com/lab/icons/silk/
+
+Additional Icons are taken from the "Knob Button Toolbar Icons" set
+found at http://itweek.deviantart.com/art/Knob-Buttons-Toolbar-icons-73463960
 
 === SMTP-Proxy ===
 The base for the smtp proxy code is taken from
