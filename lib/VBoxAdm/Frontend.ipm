@@ -204,7 +204,7 @@ sub setup {
                         return sub {
                             my $str = shift;
                             if ($search) {
-                                $str =~ s/($search)/<span style='background-color: lightgreen'>$1<\/span>/g;
+                                $str =~ s/($search)/<span style='background-color: #ff7f00'>$1<\/span>/g;
                             }
                             return $str;
                           }
@@ -529,7 +529,10 @@ sub show_login {
 sub show_welcome {
     my $self = shift;
 
-    my %params = ( 'title' => 'VBoxAdm Overview', );
+    my %params = (
+    	'title' => 'VBoxAdm Overview',
+    	'current' => 'welcome',
+    );
 
     return $self->tt_process( 'welcome.tpl', \%params );
 }
@@ -587,6 +590,7 @@ sub show_domains {
 
     my %params = (
         'title'   => 'VBoxAdm Domains',
+        'current' => 'domains',
         'domains' => \@domains,
         'search'  => $search,
     );
@@ -814,6 +818,7 @@ sub show_domain_aliases {
 
     my %params = (
         'title'   => 'VBoxAdm Domain-Aliases',
+        'current' => 'domain_aliases',
         'domains' => \@domains,
         'search'  => $search,
     );
@@ -1016,6 +1021,7 @@ sub show_edit_domain_alias {
 
     my %params = (
         title           => 'Edit Domain Alias',
+        'current' => 'domain_aliases',
         domain_name     => $row[1],
         is_active       => $row[3],
         target          => $row[2],
@@ -1152,6 +1158,7 @@ sub show_aliases {
 
     my %params = (
         'title'   => 'VBoxAdm Aliases',
+        'current' => 'aliases',
         'aliases' => \@aliases,
         'search'  => $search,
     );
@@ -1345,6 +1352,7 @@ sub show_edit_alias {
         domain     => $row[1],
         'goto'     => $row[2],
         is_active  => $row[3],
+        'current' => 'aliases',
     );
 
     return $self->tt_process( 'alias-edit.tpl', \%params );
@@ -1498,6 +1506,7 @@ sub show_mailboxes {
 
     my %params = (
         'title'     => 'VBoxAdm Mailboxes',
+        'current' => 'mailboxes',
         'mailboxes' => \@mailboxes,
         'search'    => $search,
     );
@@ -1777,6 +1786,7 @@ sub show_edit_mailbox {
         user_is_superadmin => $self->is_superadmin(),
         sa_active          => $row[11],
         sa_kill_score      => $row[12],
+        'current' => 'mailboxes',
     );
 
     return $self->tt_process( 'mailbox-edit.tpl', \%params );
@@ -1998,6 +2008,7 @@ sub show_log {
 
     my %params = (
         'title'  => 'VBoxAdm Log',
+        'current' => 'log',
         'log'    => \@log,
         'search' => $search,
     );
@@ -2053,6 +2064,7 @@ sub show_admins {
 
     my %params = (
         'title'  => 'VBoxAdm Admins',
+        'current' => 'admins',
         'admins' => \@admins,
         'search' => $search,
     );
