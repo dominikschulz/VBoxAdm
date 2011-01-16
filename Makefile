@@ -189,7 +189,7 @@ clean:
 	$(RM) -f lib/VBoxAdm/L10N/*.pm
 	$(RM) -f lib/MSDW/SMTP/*.bak
 	$(RM) -f lib/MSDW/SMTP/*.pm
-	$(RM) -f contrib/roundcube-plugin-vacation.tar.gz
+	$(RM) -f contrib/roundcube-plugin-vboxadm.tar.gz
 
 rcvboxadm:
 	cd contrib/roundcube/plugins/ && tar -cvzf ../../roundcube-plugin-vboxadm.tar.gz vboxadm/ && cd ../../../
