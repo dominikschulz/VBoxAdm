@@ -361,6 +361,7 @@ sub add_message {
 # get and reset notify
 sub get_messages {
     my $self   = shift;
+    return if $self->session->is_empty();
     my $notify_ref = $self->session->param('notify');
     $self->session->param( 'notify', {} );
     return $notify_ref;
@@ -411,6 +412,8 @@ sub is_localnet {
 
 sub is_domainadmin {
     my $self = shift;
+    
+    return if $self->session->is_empty();
 
     if ( defined( $self->session->param('user_is_domainadmin') ) ) {
         return $self->session->param('user_is_domainadmin');
@@ -428,6 +431,8 @@ sub is_domainadmin {
 
 sub is_superadmin {
     my $self = shift;
+    
+    return if $self->session->is_empty();
 
     if ( defined( $self->session->param('user_is_superadmin') ) ) {
         return $self->session->param('user_is_superadmin');
@@ -1966,6 +1971,11 @@ sub show_update_mailbox {
         if ( defined($sa_kill_score) ) {
             $query .= "sa_kill_score = ?, ";
             push( @params, $sa_kill_score );
+            if($sa_kill_score > 10) {
+            	$self->add_message('warning','SpamAssassin kill score probably set too high!');
+            } elsif($sa_kill_score < 5) {
+            	$self->add_message('warning','SpamAssassin kill score probably set too low!');
+            }
         }
         if ( defined($sa_active) ) {
             $sa_active = 1;
@@ -1977,8 +1987,12 @@ sub show_update_mailbox {
         $query .= "sa_active = ?, ";
 
         # Is_On_Vacation / Vacation Msg
-        if ( defined($is_on_vacation) && $is_on_vacation eq 'on' && $vacation_msg && length($vacation_msg) > 1 ) {
+        if ( defined($is_on_vacation) && $is_on_vacation eq 'on') {
+        	if($vacation_subj && length($vacation_subj) && $vacation_msg && length($vacation_msg) > 1 ) {
             $is_on_vacation = 1;
+        	} else {
+        		$self->add_message('warning','Attemept to enable Vacation w/o vacation message or subject denied!');
+        	}
         }
         else {
             $is_on_vacation = 0;
