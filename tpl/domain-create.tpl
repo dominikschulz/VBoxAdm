@@ -19,7 +19,10 @@
 			</tr>
 			<tr>
 				<td colspan="2" align="center">
-					<input class="button" type="submit" name="submit" value="[% "Add Domain" | l10n %]" />
+					<button class="button" type="submit" name="submit">
+					<img src="/icons/fffsilk/add.png" border="0" />
+					[% "Add Domain" | l10n %]
+					</button>
 				</td>
 			</tr>
 		</table>

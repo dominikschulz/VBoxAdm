@@ -87,7 +87,10 @@
 			</tr>
 			<tr>
 				<td colspan="3" align="center">
-					<input class="button" type="submit" name="submit" value="[% "Modify Mailbox" | l10n %]" />
+					<button class="button" type="submit" name="submit">
+					<img src="/icons/fffsilk/accept.png" border="0" />
+					[% "Modify Mailbox" | l10n %]
+					</button>
 				</td>
 			</tr>
 		</table>

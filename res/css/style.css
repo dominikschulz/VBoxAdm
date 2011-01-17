@@ -535,10 +535,12 @@ nav ul li a.current {
 #overview {
 	width: 750px;
 	margin: 0 auto;
-	/* background: #AFE1A6; */ /*#9ACD32;*/
-	background: #c13333;
+	/* background: #AFE1A6; */
+	/* background: #9ACD32;*/
+	/* background: #c13333; */
+	background: #eee;
 	border: 1px solid #bbb;
-	color: #fff;
+	color: #000;
 }
 
 h4, p, form {
@@ -554,10 +556,35 @@ nav {
 	margin: 0 auto;
 }
 */
+
 table {
 	width: 750px;
 	margin: 0px auto;
 	border: 1px solid #efefef;
+}
+
+thead {
+	line-height: 20px;
+	background: #efefef;
+	color: black;
+}
+
+th {
+        padding: 0 0.5em;
+        text-align: left;
+}
+thead th {
+        border-top: 1px solid #FB7A31;
+        border-bottom: 1px solid #FB7A31;
+        background: #FFC;
+}
+td {
+        border-bottom: 1px solid #CCC;
+        padding 0 0.5em;
+}
+td+td {
+        border-left: 1px solid #CCC;
+        text-align: center;
 }
 
 thead {
@@ -574,7 +601,8 @@ thead {
 	/* background: #D9FF43; */
 	/* background: #D6FF85; */
 	/* background: #ffdddd; */
-	background: #ff7f00;
+	/* background: #ff7f00; */
+	background: #FFC;
 }
 
 .hilight tr:hover {
@@ -582,9 +610,9 @@ thead {
 	/* background: #D6FF85; */
 	/* background: #ffdddd; */
 	/* background: #e15e5e; */
-	background: #ff7f00;
+	/* background: #ff7f00; */
+	background: #FFC;
 }
-
 
 h3 {
 	background: silver;

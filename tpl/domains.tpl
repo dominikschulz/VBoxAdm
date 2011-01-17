@@ -4,7 +4,7 @@
 			[% "Search:" | l10n %]
 			<form name="search" method="GET" action="vboxadm.pl">
 			<input type="hidden" name="rm" value="domains" />
-			<input type="textbox" name="search" size="10" value="[% search %]" />
+			<input type="textbox" name="search" size="20" value="[% search %]" />
 			</form>
 		</div>
 		[% FOREACH line IN domains %]
@@ -24,7 +24,7 @@
 		[% END %]
 			<tr>
 				<td>
-					[% line.name | highlight(search) %]
+					<a href="vboxadm.pl?rm=domain&domain_id=[% line.id %]">[% line.name | highlight(search) %]</a>
 				</td>
 				<td>
 					[% line.num_aliases %]
@@ -54,6 +54,6 @@
 		[% END %]
 		[% END %]
 		<br />
-		<a href="vboxadm.pl?rm=create_domain">[% "Add Domain" | l10n %]</a>
+		<a href="vboxadm.pl?rm=create_domain"><img src="/icons/fffsilk/add.png" border="0" /> [% "Add Domain" | l10n %]</a>
     </div>
 [% INCLUDE footer.tpl %]

@@ -33,7 +33,10 @@
 			</tr>
 			<tr>
 				<td colspan="2" align="center">
-					<input class="button" type="submit" name="submit" value="[% "Modify Domain" | l10n %]" />
+					<button class="button" type="submit" name="submit">
+					<img src="/icons/fffsilk/accept.png" border="0" />
+					[% "Modify Domain-Alias" | l10n %]
+					</button>
 					<input type="hidden" name="domain_alias_id" value="[% domain_alias_id %]" />
 				</td>
 			</tr>
