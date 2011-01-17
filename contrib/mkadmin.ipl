@@ -52,6 +52,8 @@ $dbi->{'port'} = $config{'default'}{'dbport'} || $db_port;
 $dbi->{'db'}   = $config{'default'}{'dbdb'}   || $db_db;
 my $pwscheme = $config{'cgi'}{'pwscheme'} || 'sha256';
 
+# Most of this code is disabled since it is unfinished yet.
+if(0) {
 # Ask for options
 if(!$do{'create-database'}) {
 	$do{'create-database'} = &ask_yesno('Create Database?');
@@ -83,6 +85,9 @@ if(!$do{'configure-postfix'}) {
 if(!$do{'configure-dovecot'}) {
 	$do{'configure-dovecot'} = &ask_yesno('Configure Dovecot?');
 }
+} else {
+    &create_siteadmin();
+}
 
 ###
 # BASIC
@@ -106,6 +111,8 @@ if($do{'create-database-grants'} && $vboxadm_db && $roundcube_db) {
 if($do{'init-db'}) {
 	&initialize_database($dbi); # TODO set $dbi
 }
+
+# TODO write configuration
 
 # Select pwscheme
 # --pwscheme
@@ -246,6 +253,10 @@ sub create_siteadmin {
 	# if all these preconditions succeed:
 	my $dsn = "DBI:mysql:host=$db_host;database=$db_db;port=$db_port;user=$db_user;password=$db_pass";
 	my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 0, } );
+	if(!$dbh) {
+	    print STDERR "Could not connect to database. Aborting.\n";
+	    return;
+	}
 	
 	# Create Domain
 	my $sql = "INSERT INTO domains (name,is_active) VALUES(?,1)";
