@@ -63,6 +63,7 @@ sub setup {
 
         # Domains
         'domains'       => 'show_domains',
+        'domain'        => 'show_domain',
         'create_domain' => 'show_create_domain',
         'add_domain'    => 'show_add_domain',
         'remove_domain' => 'show_remove_domain',
@@ -204,7 +205,7 @@ sub setup {
                         return sub {
                             my $str = shift;
                             if ($search) {
-                                $str =~ s/($search)/<span style='background-color: #ff7f00'>$1<\/span>/g;
+                                $str =~ s/($search)/<span class='hilighton'>$1<\/span>/g;
                             }
                             return $str;
                           }
@@ -260,6 +261,7 @@ sub cgiapp_init {
     if ( $self->is_shell() || $self->is_localnet() ) {
         $ignore_ssl_check = 1;
     }
+
     # TODO add ssl override option in config
     $self->config_requiressl(
         'keep_in_ssl'  => 1,
@@ -291,7 +293,7 @@ sub tt_pre_process {
     $vars->{username}       = $self->authen->username;
     $vars->{system_domain}  = $self->{config}{'default'}{'domain'} || 'localhost';
     $vars->{version}        = $VERSION;
-    $vars->{messages}         = $self->get_messages();
+    $vars->{messages}       = $self->get_messages();
     $vars->{is_superadmin}  = $self->is_superadmin();
     $vars->{is_domainadmin} = $self->is_domainadmin();
     return;
@@ -346,21 +348,21 @@ sub log_login {
 
 # add entry to notify
 sub add_message {
-    my $self   = shift;
-    my $type   = shift;
-    my $msg    = shift;
+    my $self       = shift;
+    my $type       = shift;
+    my $msg        = shift;
     my $notify_ref = $self->session->param('notify') || [];
-    if(ref($notify_ref) ne 'ARRAY') {
-    	$notify_ref = [];
+    if ( ref($notify_ref) ne 'ARRAY' ) {
+        $notify_ref = [];
     }
-    push(@{$notify_ref}, { 'type' => $type, 'text' => $msg, });
+    push( @{$notify_ref}, { 'type' => $type, 'text' => $msg, } );
     $self->session->param( 'notify', $notify_ref );
     return 1;
 }
 
 # get and reset notify
 sub get_messages {
-    my $self   = shift;
+    my $self = shift;
     return if $self->session->is_empty();
     my $notify_ref = $self->session->param('notify');
     $self->session->param( 'notify', {} );
@@ -369,7 +371,7 @@ sub get_messages {
 
 # get notify (no reset)
 sub peek_message {
-    my $self   = shift;
+    my $self       = shift;
     my $notify_ref = $self->session->param('notify');
     return $notify_ref;
 }
@@ -412,7 +414,7 @@ sub is_localnet {
 
 sub is_domainadmin {
     my $self = shift;
-    
+
     return if $self->session->is_empty();
 
     if ( defined( $self->session->param('user_is_domainadmin') ) ) {
@@ -431,7 +433,7 @@ sub is_domainadmin {
 
 sub is_superadmin {
     my $self = shift;
-    
+
     return if $self->session->is_empty();
 
     if ( defined( $self->session->param('user_is_superadmin') ) ) {
@@ -539,8 +541,8 @@ sub show_welcome {
     my $self = shift;
 
     my %params = (
-    	'title' => 'VBoxAdm Overview',
-    	'current' => 'welcome',
+        'title'   => 'VBoxAdm Overview',
+        'current' => 'welcome',
     );
 
     return $self->tt_process( 'welcome.tpl', \%params );
@@ -556,7 +558,7 @@ sub show_domains {
     if ( !$self->is_superadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -607,18 +609,100 @@ sub show_domains {
     return $self->tt_process( 'domains.tpl', \%params );
 }
 
+sub show_domain {
+    my $self = shift;
+
+    if ( !$self->is_superadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $msg );
+        $self->redirect('vboxadm.pl?rm=welcome');
+        return;
+    }
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain_id = $q->param('domain_id') || undef;
+
+    if ( !$domain_id || $domain_id !~ m/^\d+$/ ) {
+        my $msg = "Invalid Domain-ID.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $msg );
+        $self->redirect('vboxadm.pl?rm=welcome');
+        return;
+    }
+
+    my $sql = undef;
+    my $sth = undef;
+
+    # Get Domain name
+    $sql = "SELECT name FROM domains WHERE id = ?";
+    $sth = $dbh->prepare($sql);
+    $sth->execute($domain_id);
+    my $domain_name = $sth->fetchrow_array();
+    $sth->finish();
+
+    # Get Aliases
+    $sql = "SELECT id,local_part,goto,is_active FROM aliases WHERE domain_id = ? ORDER BY local_part";
+    $sth = $dbh->prepare($sql);
+    $sth->execute($domain_id);
+    my @aliases = ();
+    while ( my ( $id, $local_part, $goto, $is_active ) = $sth->fetchrow_array() ) {
+        push( @aliases, { id => $id, local_part => $local_part, 'goto' => $goto, is_active => $is_active, } );
+    }
+    $sth->finish();
+
+    # Get Mailboxes
+    $sql = "SELECT id,local_part,name,is_active FROM mailboxes WHERE domain_id = ? ORDER BY local_part";
+    $sth = $dbh->prepare($sql);
+    $sth->execute($domain_id);
+    my @mailboxes = ();
+    while ( my ( $id, $local_part, $name, $is_active ) = $sth->fetchrow_array() ) {
+        push( @mailboxes, { id => $id, local_part => $local_part, name => $name, is_active => $is_active, } );
+    }
+    $sth->finish();
+
+    # Get Domain Aliases
+    $sql = "SELECT id,name,is_active FROM domain_aliases WHERE domain_id = ? ORDER BY name";
+    $sth = $dbh->prepare($sql);
+    $sth->execute($domain_id);
+    my @domain_aliases = ();
+    while ( my ( $id, $name, $is_active ) = $sth->fetchrow_array() ) {
+        push( @domain_aliases, { id => $id, name => $name, is_active => $is_active, } );
+    }
+    $sth->finish();
+
+    my %params = (
+        'title'          => 'VBoxAdm Domain: ' . $domain_name,
+        'current'        => 'domains',
+        'domain'         => $domain_name,
+        'aliases'        => \@aliases,
+        'mailboxes'      => \@mailboxes,
+        'domain_aliases' => \@domain_aliases,
+    );
+
+    return $self->tt_process( 'domain.tpl', \%params );
+}
+
 sub show_create_domain {
     my $self = shift;
 
     if ( !$self->is_superadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
 
-    my %params = ( 'title' => 'Add Domain', );
+    my %params = (
+        'title'   => 'Add Domain',
+        'current' => 'domains',
+    );
 
     return $self->tt_process( 'domain-create.tpl', \%params );
 }
@@ -629,7 +713,7 @@ sub show_add_domain {
     if ( !$self->is_superadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -646,7 +730,7 @@ sub show_add_domain {
     my $msg = '';
     if ( $domain && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain) ) {
         $msg = "Invalid syntax. Domain is not RFC822 compliant!";
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
     }
     elsif ( $domain && $create_domainadmin ) {
         my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
@@ -655,19 +739,19 @@ sub show_add_domain {
 
         if ( $sth->execute($domain) ) {
             $msg = "Domain '$domain' added";
-            $self->add_message('success',$msg);
+            $self->add_message( 'success', $msg );
         }
         else {
             syslog( 2, 'show_add_domain - Could not execute Query: %s, Args: %s, Error: %s', $query, $domain, $sth->errstr );
             $msg = "Failed to add Domain '$domain'. Database error.";
-            $self->add_message('error',$msg);
+            $self->add_message( 'error', $msg );
         }
         $sth->finish();
 
     }
     else {
         $msg = "Failed to add Domain. Insufficient parameters.";
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
     }
 
     $self->log( $msg . ". User: " . $self->authen->username );
@@ -681,7 +765,7 @@ sub show_remove_domain {
     if ( !$self->is_superadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -696,25 +780,26 @@ sub show_remove_domain {
 
     my $msg = '';
     if ($domain_id) {
-    	# TODO get domain name for message
+
+        # TODO get domain name for message
         my $query = "DELETE FROM domains WHERE id = ?";
         my $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_remove_domain - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute($domain_id) ) {
             $msg = "Domain #$domain_id removed";
-            $self->add_message('success',$msg);
+            $self->add_message( 'success', $msg );
         }
         else {
             syslog( 2, 'show_remove_domain - Could not execute Query: %s, Args: %s, Error: %s', $query, $domain_id, $sth->errstr );
             $msg = "Failed to remove Domain #$domain_id. Database error.";
-            $self->add_message('error',$msg);
+            $self->add_message( 'error', $msg );
         }
         $sth->finish();
 
     }
     else {
         $msg = 'Failed to remove domain. Insufficient Parameters.';
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
     }
 
     $self->log( $msg . ". User: " . $self->authen->username );
@@ -728,7 +813,7 @@ sub show_update_domain {
     if ( !$self->is_superadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -744,7 +829,8 @@ sub show_update_domain {
 
     my $msg = '';
     if ( $domain_id && defined($is_active) ) {
-    	# TODO get domain name for message
+
+        # TODO get domain name for message
         my $query = "UPDATE domains SET is_active = ? WHERE id = ?";
         my @args  = ();
         push( @args, $is_active );
@@ -761,19 +847,19 @@ sub show_update_domain {
         }
         if ( $sth->execute(@args) ) {
             $msg = "Domain #$domain_id $status_str";
-            $self->add_message('success',$msg);
+            $self->add_message( 'success', $msg );
         }
         else {
             syslog( 2, 'show_update_domain - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
             $msg = "Failed to set Domain #$domain_id $status_str.";
-            $self->add_message('error',$msg);
+            $self->add_message( 'error', $msg );
         }
         $sth->finish();
 
     }
     else {
         $msg = 'Failed to update Domain. Insufficient parameters';
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
     }
 
     $self->log( $msg . ". User: " . $self->authen->username );
@@ -791,7 +877,7 @@ sub show_domain_aliases {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -850,7 +936,7 @@ sub show_create_domain_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -878,6 +964,7 @@ sub show_create_domain_alias {
     my %params = (
         'title'   => 'Add Domain Alias',
         'domains' => \@domains,
+        'current' => 'domain_aliases',
     );
 
     return $self->tt_process( 'domain-alias-create.tpl', \%params );
@@ -889,7 +976,7 @@ sub show_add_domain_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -906,13 +993,13 @@ sub show_add_domain_alias {
     my $msg = '';
     if ( $domain_alias && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain_alias) ) {
         $msg = "Invalid syntax. Domain is not RFC822 compliant!";
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
     }
     elsif ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
 
         # if domainadmin, verify that its his domain
         $msg = "You are not authorized to modify this domain!";
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
     }
     elsif ( $domain_alias && $domain_id ) {
         my $query = "INSERT INTO domain_aliases (name,domain_id,is_active) VALUES(?,?,1)";
@@ -920,7 +1007,7 @@ sub show_add_domain_alias {
           or syslog( 2, 'show_add_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $domain_alias, $domain_id ) ) {
             $msg = "Added domain alias '$domain_alias' to domain #$domain_id";
-            $self->add_message('success',$msg);
+            $self->add_message( 'success', $msg );
         }
         else {
             syslog(
@@ -929,13 +1016,13 @@ sub show_add_domain_alias {
                 $sth->errstr
             );
             $msg = "Failed to add domain alias '$domain_alias' to domain #$domain_id. Database Error.";
-            $self->add_message('error',$msg);
+            $self->add_message( 'error', $msg );
         }
         $sth->finish();
     }
     else {
         $msg = "Failed to add domain alias. No domain_alias or target domain given!";
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
     }
     $self->log( $msg . ". User: " . $self->authen->username );
     $self->redirect('vboxadm.pl?rm=domain_aliases');
@@ -948,7 +1035,7 @@ sub show_remove_domain_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -974,17 +1061,17 @@ sub show_remove_domain_alias {
           or syslog( 2, 'show_remove_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute(@args) ) {
             $msg = "Domain-Alias #$domain_alias_id removed";
-            $self->add_message('success',$msg);
+            $self->add_message( 'success', $msg );
         }
         else {
             syslog( 2, 'show_remove_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
             $msg = "Failed to remove Domain-Alias #$domain_alias_id. Database error.";
-            $self->add_message('error',$msg);
+            $self->add_message( 'error', $msg );
         }
     }
     else {
         $msg = 'Failed to remove domain alias. Insufficient parameters.';
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
     }
     $self->log( $msg . ". User: " . $self->authen->username );
     $self->redirect('vboxadm.pl?rm=domain_aliases');
@@ -997,7 +1084,7 @@ sub show_edit_domain_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1045,7 +1132,7 @@ sub show_edit_domain_alias {
 
     my %params = (
         title           => 'Edit Domain Alias',
-        'current' => 'domain_aliases',
+        'current'       => 'domain_aliases',
         domain_name     => $row[1],
         is_active       => $row[3],
         target          => $row[2],
@@ -1062,7 +1149,7 @@ sub show_update_domain_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1097,14 +1184,14 @@ sub show_update_domain_alias {
         }
         if ( $sth->execute(@args) ) {
             my $msg = "Domain-Alias #$domain_alias_id $status_str.";
-            $self->add_message('success',$msg);
-            $msg1 .= $msg.' ';
+            $self->add_message( 'success', $msg );
+            $msg1 .= $msg . ' ';
         }
         else {
             syslog( 2, 'show_update_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
             my $msg = "Failed to set Domain-Alias #$domain_alias_id $status_str. Database Error.";
-            $self->add_message('error',$msg);
-            $msg1 .= $msg.' ';
+            $self->add_message( 'error', $msg );
+            $msg1 .= $msg . ' ';
         }
     }
 
@@ -1112,8 +1199,8 @@ sub show_update_domain_alias {
 
         # if domainadmin, verify that its his domain
         my $msg = "You are not authorized to modify this domain!";
-        $self->add_message('errror',$msg);
-        $msg1 .= $msg.' ';
+        $self->add_message( 'errror', $msg );
+        $msg1 .= $msg . ' ';
     }
     elsif ( $domain_alias_id && $target ) {
         my $query = "UPDATE domain_aliases SET domain_id = ? WHERE id = ?";
@@ -1121,8 +1208,8 @@ sub show_update_domain_alias {
           or syslog( 2, 'show_update_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $target, $domain_alias_id ) ) {
             my $msg = "Domain-Alias #$domain_alias_id redirected to Domain #$target";
-            $self->add_message('success',$msg);
-            $msg1 .= $msg.' ';
+            $self->add_message( 'success', $msg );
+            $msg1 .= $msg . ' ';
         }
         else {
             syslog(
@@ -1131,8 +1218,8 @@ sub show_update_domain_alias {
                 $sth->errstr
             );
             my $msg = "Failed to redirect Domain-Alias #$domain_alias_id to #$target";
-            $self->add_message('error',$msg);
-            $msg1 .= $msg.' ';
+            $self->add_message( 'error', $msg );
+            $msg1 .= $msg . ' ';
         }
     }
     $self->log( $msg1 . ". User: " . $self->authen->username );
@@ -1150,7 +1237,7 @@ sub show_aliases {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1205,7 +1292,7 @@ sub show_create_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1232,6 +1319,7 @@ sub show_create_alias {
 
     my %params = (
         'title'   => 'Add Alias',
+        'current' => 'aliases',
         'domains' => \@domains,
     );
 
@@ -1244,7 +1332,7 @@ sub show_add_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1265,15 +1353,15 @@ sub show_add_alias {
 
         # if domainadmin, verify that its his domain
         $msg = "You are not authorized to modify this domain!";
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
     }
     elsif ( $local_part && !&VBoxAdm::Utils::is_valid_localpart_rfc822($local_part) ) {
         $msg = "Invalid local part. This address is not RFC822 compliant!";
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
     }
     elsif ( $goto && !&VBoxAdm::Utils::is_valid_addresses_rfc822($goto) ) {
         $msg = "Invalid address in destination!";
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
     }
     elsif ( $local_part && $domain_id && $goto ) {
         my $query = "INSERT INTO aliases (domain_id,local_part,goto,is_active) VALUES(?,?,?,1)";
@@ -1281,7 +1369,7 @@ sub show_add_alias {
           or syslog( 2, 'show_add_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $domain_id, $local_part, $goto ) ) {
             $msg = "Alias $local_part @ $domain_id to $goto added";
-            $self->add_message('success',$msg);
+            $self->add_message( 'success', $msg );
         }
         else {
             syslog(
@@ -1290,13 +1378,13 @@ sub show_add_alias {
                 $sth->errstr
             );
             $msg = "Failed to add alias $local_part @ $domain_id => $goto. Database Error.";
-            $self->add_message('error',$msg);
+            $self->add_message( 'error', $msg );
         }
         $sth->finish();
     }
     else {
         $msg = "Failed to add alias. Missing local_part, domain_id or target.";
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
     }
     $self->log( $msg . ". User: " . $self->authen->username );
     $self->redirect('vboxadm.pl?rm=aliases');
@@ -1309,7 +1397,7 @@ sub show_remove_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1325,7 +1413,8 @@ sub show_remove_alias {
     my $msg = '';
 
     if ($alias_id) {
-    	# TODO get alias name for message
+
+        # TODO get alias name for message
         my $query = "DELETE FROM aliases WHERE id = ?";
         my @args  = ();
         push( @args, $alias_id );
@@ -1337,17 +1426,17 @@ sub show_remove_alias {
           or syslog( 2, 'show_remove_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute(@args) ) {
             $msg = "Alias #$alias_id removed";
-            $self->add_message('success',$msg);
+            $self->add_message( 'success', $msg );
         }
         else {
             syslog( 2, 'show_remove_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
             $msg = "Failed to remove Alias #$alias_id. Database Error.";
-            $self->add_message('error',$msg);
+            $self->add_message( 'error', $msg );
         }
     }
     else {
         $msg = 'Failed to remove alias. Insufficient parameters.';
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
     }
     $self->log( $msg . ". User: " . $self->authen->username );
     $self->redirect('vboxadm.pl?rm=aliases');
@@ -1360,7 +1449,7 @@ sub show_edit_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1393,7 +1482,7 @@ sub show_edit_alias {
         domain     => $row[1],
         'goto'     => $row[2],
         is_active  => $row[3],
-        'current' => 'aliases',
+        'current'  => 'aliases',
     );
 
     return $self->tt_process( 'alias-edit.tpl', \%params );
@@ -1405,7 +1494,7 @@ sub show_update_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1441,14 +1530,14 @@ sub show_update_alias {
         }
         if ( $sth->execute(@args) ) {
             my $msg = "Alias #$alias_id $status_str.";
-            $self->add_message('success',$msg);
-            $msg1 .= $msg.' ';
+            $self->add_message( 'success', $msg );
+            $msg1 .= $msg . ' ';
         }
         else {
             syslog( 2, 'show_update_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
             my $msg = "Failed to set Alias #$alias_id $status_str.";
-            $self->add_message('error',$msg);
-            $msg1 .= $msg.' ';
+            $self->add_message( 'error', $msg );
+            $msg1 .= $msg . ' ';
         }
     }
 
@@ -1458,8 +1547,8 @@ sub show_update_alias {
     }
     if ( $target && !&VBoxAdm::Utils::is_valid_addresses_rfc822($target) ) {
         my $msg = "Invalid address in destination!";
-        $self->add_message('error',$msg);
-        $msg1 .= $msg.' ';
+        $self->add_message( 'error', $msg );
+        $msg1 .= $msg . ' ';
     }
     elsif ( $alias_id && $target ) {
         my $query = "UPDATE aliases SET goto = ? WHERE id = ?";
@@ -1467,14 +1556,14 @@ sub show_update_alias {
           or syslog( 2, 'show_mailboxes - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $target, $alias_id ) ) {
             my $msg .= "Alias #$alias_id redirected to $target";
-            $self->add_message('success',$msg);
-            $msg1 .= $msg.' ';
+            $self->add_message( 'success', $msg );
+            $msg1 .= $msg . ' ';
         }
         else {
             syslog( 2, 'show_mailboxes - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $target, $alias_id ) ), $sth->errstr );
             my $msg = "Failed to redirect Alias #$alias_id to $target";
-            $self->add_message('error',$msg);
-            $msg1 .= $msg.' ';
+            $self->add_message( 'error', $msg );
+            $msg1 .= $msg . ' ';
         }
     }
     $self->log( $msg1 . ". User: " . $self->authen->username );
@@ -1492,7 +1581,7 @@ sub show_mailboxes {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1556,7 +1645,7 @@ sub show_mailboxes {
 
     my %params = (
         'title'     => 'VBoxAdm Mailboxes',
-        'current' => 'mailboxes',
+        'current'   => 'mailboxes',
         'mailboxes' => \@mailboxes,
         'search'    => $search,
     );
@@ -1570,7 +1659,7 @@ sub show_create_mailbox {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1600,6 +1689,7 @@ sub show_create_mailbox {
     my %params = (
         'title'   => 'Add Mailbox',
         'domains' => \@domains,
+        'current' => 'mailboxes',
     );
 
     return $self->tt_process( 'mailbox-create.tpl', \%params );
@@ -1611,7 +1701,7 @@ sub show_add_mailbox {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1658,24 +1748,24 @@ sub show_add_mailbox {
         $password = Crypt::GeneratePassword::word( 8, 12 );
         $password_2 = $password;
         my $msg = 'Generated Password: ' . $password . '. ';
-        $self->add_message('info',$msg);
+        $self->add_message( 'info', $msg );
     }
 
     if ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
 
         # if domainadmin, verify that its his domain
         my $msg = "You are not authorized to modify this domain!";
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $msg1 = $msg;
     }
     elsif ( $username && !&VBoxAdm::Utils::is_valid_localpart_rfc822($username) ) {
         my $msg = "Invalid local part. This address is not RFC822 compliant!";
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $msg1 = $msg;
     }
     elsif ( $password && $password_2 && $password ne $password_2 ) {
         my $msg = "Passwords do not match.";
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $msg1 = $msg;
     }
     elsif ( $domain_id && $username && $password && $name && $password eq $password_2 ) {
@@ -1684,7 +1774,7 @@ sub show_add_mailbox {
           or syslog( 2, 'show_add_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $domain_id, $username, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ), $is_active ) ) {
             my $msg = "Added Mailbox $username @ #$domain_id for $name";
-            $self->add_message('success',$msg);
+            $self->add_message( 'success', $msg );
             $msg1 .= $msg;
 
             # get domain name for sender
@@ -1706,14 +1796,14 @@ sub show_add_mailbox {
                 $sth->errstr
             );
             my $msg = "Failed to add Mailbox $username @ #$domain_id for $name. Database Error.";
-            $self->add_message('error',$msg);
+            $self->add_message( 'error', $msg );
             $msg1 = $msg;
         }
         $sth->finish();
     }
     else {
         my $msg = "Failed to add Mailbox. Insufficient parameters.";
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $msg1 = $msg;
     }
 
@@ -1728,7 +1818,7 @@ sub show_remove_mailbox {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1755,17 +1845,17 @@ sub show_remove_mailbox {
           or syslog( 2, 'show_remove_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute(@args) ) {
             $msg = "Mailbox #$mailbox_id removed";
-            $self->add_message('success',$msg);
+            $self->add_message( 'success', $msg );
         }
         else {
             syslog( 2, 'show_remove_mailbox - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
             $msg = "Failed to remove Mailbox #$mailbox_id. Database Error.";
-            $self->add_message('error',$msg);
+            $self->add_message( 'error', $msg );
         }
     }
     else {
         $msg = "Failed to remove mailbox. Insufficient parameters.";
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
     }
 
     $self->log( $msg . ". User: " . $self->authen->username );
@@ -1850,7 +1940,7 @@ sub show_edit_mailbox {
         user_is_superadmin => $self->is_superadmin(),
         sa_active          => $row[11],
         sa_kill_score      => $row[12],
-        'current' => 'mailboxes',
+        'current'          => 'mailboxes',
     );
 
     return $self->tt_process( 'mailbox-edit.tpl', \%params );
@@ -1862,7 +1952,7 @@ sub show_update_mailbox {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1906,18 +1996,19 @@ sub show_update_mailbox {
 
             # passwords must be equal and at least 8 chars long
             if ( $password eq $password_2 ) {
-            		# Check password length
-            		if(length($password) < 8) {
-            			my $msg = 'Bad password - Password too short. Need at least 8 characters.';
-            			$self->add_message('warning',$msg);
-            			$msg1 .= $msg.' ';
-            		}
+
+                # Check password length
+                if ( length($password) < 8 ) {
+                    my $msg = 'Bad password - Password too short. Need at least 8 characters.';
+                    $self->add_message( 'warning', $msg );
+                    $msg1 .= $msg . ' ';
+                }
 
                 # Check password strength
                 if ( my $str = Data::Password::IsBadPassword($password) ) {
                     my $msg = 'Weak password - ' . $str . '.';
-                    $self->add_message('warning',$msg);
-                    $msg1 .= $msg.' ';
+                    $self->add_message( 'warning', $msg );
+                    $msg1 .= $msg . ' ';
                 }
                 $query .= "password = ?, ";
                 push( @params, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ) );
@@ -1971,10 +2062,11 @@ sub show_update_mailbox {
         if ( defined($sa_kill_score) ) {
             $query .= "sa_kill_score = ?, ";
             push( @params, $sa_kill_score );
-            if($sa_kill_score > 10) {
-            	$self->add_message('warning','SpamAssassin kill score probably set too high!');
-            } elsif($sa_kill_score < 5) {
-            	$self->add_message('warning','SpamAssassin kill score probably set too low!');
+            if ( $sa_kill_score > 10 ) {
+                $self->add_message( 'warning', 'SpamAssassin kill score probably set too high!' );
+            }
+            elsif ( $sa_kill_score < 5 ) {
+                $self->add_message( 'warning', 'SpamAssassin kill score probably set too low!' );
             }
         }
         if ( defined($sa_active) ) {
@@ -1987,12 +2079,13 @@ sub show_update_mailbox {
         $query .= "sa_active = ?, ";
 
         # Is_On_Vacation / Vacation Msg
-        if ( defined($is_on_vacation) && $is_on_vacation eq 'on') {
-        	if($vacation_subj && length($vacation_subj) && $vacation_msg && length($vacation_msg) > 1 ) {
-            $is_on_vacation = 1;
-        	} else {
-        		$self->add_message('warning','Attemept to enable Vacation w/o vacation message or subject denied!');
-        	}
+        if ( defined($is_on_vacation) && $is_on_vacation eq 'on' ) {
+            if ( $vacation_subj && length($vacation_subj) && $vacation_msg && length($vacation_msg) > 1 ) {
+                $is_on_vacation = 1;
+            }
+            else {
+                $self->add_message( 'warning', 'Attemept to enable Vacation w/o vacation message or subject denied!' );
+            }
         }
         else {
             $is_on_vacation = 0;
@@ -2021,26 +2114,26 @@ sub show_update_mailbox {
 
             if ( $sth->execute(@params) ) {
                 my $msg = "Updated Mailbox #$mailbox_id.";
-                $self->add_message('success',$msg);
-                $msg1 .= $msg.' ';
+                $self->add_message( 'success', $msg );
+                $msg1 .= $msg . ' ';
             }
             else {
                 syslog( 2, 'show_update_mailbox - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @params ), $sth->errstr );
                 my $msg = "Failed to update Mailbox #$mailbox_id. Database Error.";
-                $self->add_message('error',$msg);
-                $msg1 .= $msg.' ';
+                $self->add_message( 'error', $msg );
+                $msg1 .= $msg . ' ';
             }
         }
         else {
             my $msg = "No Parameter changed. ";
-            $self->add_message('error',$msg);
-            $msg1 .= $msg.' ';
+            $self->add_message( 'error', $msg );
+            $msg1 .= $msg . ' ';
         }
     }
     else {
         my $msg = "Failed to update Mailbox. No Mailbox-ID given. ";
-        $self->add_message('error',$msg);
-        $msg1 .= $msg.' ';
+        $self->add_message( 'error', $msg );
+        $msg1 .= $msg . ' ';
     }
 
     $self->log( $msg1 . ". User: " . $self->authen->username );
@@ -2058,7 +2151,7 @@ sub show_log {
     if ( !$self->is_superadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -2091,10 +2184,10 @@ sub show_log {
     }
 
     my %params = (
-        'title'  => 'VBoxAdm Log',
+        'title'   => 'VBoxAdm Log',
         'current' => 'log',
-        'log'    => \@log,
-        'search' => $search,
+        'log'     => \@log,
+        'search'  => $search,
     );
 
     return $self->tt_process( 'log.tpl', \%params );
@@ -2110,7 +2203,7 @@ sub show_admins {
     if ( !$self->is_superadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message('error',$msg);
+        $self->add_message( 'error', $msg );
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -2147,10 +2240,10 @@ sub show_admins {
     }
 
     my %params = (
-        'title'  => 'VBoxAdm Admins',
+        'title'   => 'VBoxAdm Admins',
         'current' => 'admins',
-        'admins' => \@admins,
-        'search' => $search,
+        'admins'  => \@admins,
+        'search'  => $search,
     );
 
     return $self->tt_process( 'admins.tpl', \%params );

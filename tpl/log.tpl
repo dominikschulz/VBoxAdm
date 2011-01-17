@@ -4,7 +4,7 @@
 		[% "Search:" | l10n %]
 		<form name="search" method="GET" action="vboxadm.pl">
 		<input type="hidden" name="rm" value="log" />
-		<input type="textbox" name="search" size="10" value="[% search %]" />
+		<input type="textbox" name="search" size="20" value="[% search %]" />
 		</form>
 	</div>
 		[% FOREACH line IN log %]

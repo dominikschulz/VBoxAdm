@@ -11,7 +11,7 @@
     		</tr>
     		<tr>
 				<td>[% "Alias-Domain:" | l10n %]</td>
-				<td><input class="flat" type="text" name="domain_alias" /></td>
+				<td><input class="flat" type="text" name="domain_alias" size="20" /></td>
 			</tr>
 			<tr>
 				<td>[% "Target:" | l10n %]</td>
@@ -29,7 +29,10 @@
 			</tr>
 			<tr>
 				<td colspan="2" align="center">
-					<input class="button" type="submit" name="submit" value="[% "Add Domain" | l10n %]" />
+					<button class="button" type="submit" name="submit">
+					<img src="/icons/fffsilk/add.png" border="0" />
+					[% "Add Domain Alias" | l10n %]
+					</button>
 				</td>
 			</tr>
 		</table>

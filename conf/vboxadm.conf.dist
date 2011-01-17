@@ -5,7 +5,8 @@ dbdb=vboxadm
 dbhost=localhost
 
 [cgi]
-pwscheme=ssha256
+pwscheme=sha256
+# ssh256
 
 [vacation]
 # config for vacation autoresonder

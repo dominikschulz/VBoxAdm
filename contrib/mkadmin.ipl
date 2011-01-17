@@ -53,39 +53,41 @@ $dbi->{'db'}   = $config{'default'}{'dbdb'}   || $db_db;
 my $pwscheme = $config{'cgi'}{'pwscheme'} || 'sha256';
 
 # Most of this code is disabled since it is unfinished yet.
-if(0) {
-# Ask for options
-if(!$do{'create-database'}) {
-	$do{'create-database'} = &ask_yesno('Create Database?');
+if (0) {
+
+    # Ask for options
+    if ( !$do{'create-database'} ) {
+        $do{'create-database'} = &ask_yesno('Create Database?');
+    }
+    if ( !$do{'create-database-grants'} ) {
+        $do{'create-database-grants'} = &ask_yesno('Create Database User?');
+    }
+    if ( !$do{'init-db'} ) {
+        $do{'init-db'} = &ask_yesno('Initialize Database?');
+    }
+    if ( !$do{'create-site-admin'} ) {
+        $do{'create-site-admin'} = &ask_yesno('Create site-admin?');
+    }
+    if ( !$do{'configure-smtpproxy'} ) {
+        $do{'configure-smtpproxy'} = &ask_yesno('Configure the SMTP-Proxy?');
+    }
+    if ( !$do{'enable-smtpproxy'} ) {
+        $do{'enable-smtpproxy'} = &ask_yesno('Start SMTP-Proxy at boot?');
+    }
+    if ( !$do{'create-ssl'} ) {
+        $do{'create-ssl'} = &ask_yesno('Create self-signed SSL cert?');
+    }
+    if ( !$do{'init-postfix-maps'} ) {
+        $do{'init-postfix-maps'} = &ask_yesno('Initilize Postfix Maps files?');
+    }
+    if ( !$do{'configure-postfix'} ) {
+        $do{'configure-postfix'} = &ask_yesno('Configure Postfix?');
+    }
+    if ( !$do{'configure-dovecot'} ) {
+        $do{'configure-dovecot'} = &ask_yesno('Configure Dovecot?');
+    }
 }
-if(!$do{'create-database-grants'}) {
-	$do{'create-database-grants'} = &ask_yesno('Create Database User?');
-}
-if(!$do{'init-db'}) {
-	$do{'init-db'} = &ask_yesno('Initialize Database?');
-}
-if(!$do{'create-site-admin'}) {
-	$do{'create-site-admin'} = &ask_yesno('Create site-admin?');
-}
-if(!$do{'configure-smtpproxy'}) {
-	$do{'configure-smtpproxy'} = &ask_yesno('Configure the SMTP-Proxy?');
-}
-if(!$do{'enable-smtpproxy'}) {
-	$do{'enable-smtpproxy'} = &ask_yesno('Start SMTP-Proxy at boot?');
-}
-if(!$do{'create-ssl'}) {
-	$do{'create-ssl'} = &ask_yesno('Create self-signed SSL cert?');
-}
-if(!$do{'init-postfix-maps'}) {
-	$do{'init-postfix-maps'} = &ask_yesno('Initilize Postfix Maps files?');
-}
-if(!$do{'configure-postfix'}) {
-	$do{'configure-postfix'} = &ask_yesno('Configure Postfix?');
-}
-if(!$do{'configure-dovecot'}) {
-	$do{'configure-dovecot'} = &ask_yesno('Configure Dovecot?');
-}
-} else {
+else {
     &create_siteadmin();
 }
 
@@ -97,19 +99,19 @@ if(!$do{'configure-dovecot'}) {
 # - CREATE DATABASE
 # - GRANT
 # - initialize
-my $dbh; # TODO connect to DB as root
+my $dbh;    # TODO connect to DB as root
 my $vboxadm_db;
 my $roundcube_db;
 my $user_ref;
-if($do{'create-database'}) {
-	my $vboxadm_db = &create_database($dbh, 'vboxadm');
-	my $roundcube_db = &create_database($dbh, 'roundcube');
+if ( $do{'create-database'} ) {
+    my $vboxadm_db   = &create_database( $dbh, 'vboxadm' );
+    my $roundcube_db = &create_database( $dbh, 'roundcube' );
 }
-if($do{'create-database-grants'} && $vboxadm_db && $roundcube_db) {
-	$user_ref = &create_database_grants($dbh, $vboxadm_db, $roundcube_db);
+if ( $do{'create-database-grants'} && $vboxadm_db && $roundcube_db ) {
+    $user_ref = &create_database_grants( $dbh, $vboxadm_db, $roundcube_db );
 }
-if($do{'init-db'}) {
-	&initialize_database($dbi); # TODO set $dbi
+if ( $do{'init-db'} ) {
+    &initialize_database($dbi);    # TODO set $dbi
 }
 
 # TODO write configuration
@@ -123,10 +125,8 @@ if($do{'init-db'}) {
 # Configure SMTP-Proxy
 # --configure-smtpproxy
 
-
 # Enable SMTP-Proxy
 # --enable-smtpproxy
-
 
 ###
 # ADVANCED
@@ -134,18 +134,14 @@ if($do{'init-db'}) {
 # Create self-signed ssl cert
 # --create-ssl
 
-
 # Create Postfix Maps
 # --create-postfix-maps
-
 
 # Configure Postfix
 # --configure-postfix
 
-
 # Configure Dovecot
 # --configure-dovecot
-
 
 ###
 # TESTS
@@ -161,156 +157,163 @@ if($do{'init-db'}) {
 # SUBS
 ####
 sub initialize_database {
-	my $dbi = shift;
-	my $database = shift;
-	
-	my $cmd = "mysql -f -u$dbi->{'user'} -p$dbi->{'pass'} -h$dbi->{'host'} --port=$dbi->{'port'} $database < doc/schema.sql";
-	
-	my $rv = system($cmd) >> 8;
-	
-	if($rv == 0) {
-		return 1;
-	}
-	return;
+    my $dbi      = shift;
+    my $database = shift;
+
+    my $cmd = "mysql -f -u$dbi->{'user'} -p$dbi->{'pass'} -h$dbi->{'host'} --port=$dbi->{'port'} $database < doc/schema.sql";
+
+    my $rv = system($cmd) >> 8;
+
+    if ( $rv == 0 ) {
+        return 1;
+    }
+    return;
 }
 
 sub create_database {
-	my $dbh = shift;
-	my $database = shift;
-	
-	my $sql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ?";
-	my $sth = $dbh->prepare($sql);
-	$sth->execute($database);
-	my $num = $sth->fetchrow_array();
-	my $i = 0;
-	# find a free db name
-	while($num > 0) {
-		$i++;
-		$sth->execute($database.$i);
-		$num = $sth->fetchrow_array();
-	}
-	$database .= $i if $i;
-	
-	$sql = "CREATE DATABASE \`$database\`";
-	$dbh->do($sql);
-	
-	return $database;
+    my $dbh      = shift;
+    my $database = shift;
+
+    my $sql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ?";
+    my $sth = $dbh->prepare($sql);
+    $sth->execute($database);
+    my $num = $sth->fetchrow_array();
+    my $i   = 0;
+
+    # find a free db name
+    while ( $num > 0 ) {
+        $i++;
+        $sth->execute( $database . $i );
+        $num = $sth->fetchrow_array();
+    }
+    $database .= $i if $i;
+
+    $sql = "CREATE DATABASE \`$database\`";
+    $dbh->do($sql);
+
+    return $database;
 }
 
 sub create_database_grants {
-	my $dbh = shift;
-	my $database = shift;
-	my $rc_database = shift;
-	
-	my %user = ();
-	# User: vboxadm@localhost
-	my $password = Crypt::GeneratePassword::word( 8, 12 );
-	my $sql = "GRANT ALL ON \`$database\`.* TO 'vboxadm'\@'localhost' IDENTIFIED BY '$password'";
-	$dbh->do($sql);
-	$user{'vboxadm'} = $password;
-	# User: postfix@localhost
-	$password = Crypt::GeneratePassword::word( 8, 12 );
-	$sql = "GRANT SELECT ON \`$database\`.* TO 'postfix'\@'localhost' IDENTIFIED BY '$password'";
-	$dbh->do($sql);
-	$user{'postfix'} = $password;
-	# User: dovecot@localhost
-	$password = Crypt::GeneratePassword::word( 8, 12 );
-	$sql = "GRANT ALL ON \`$database\`.mailboxes TO 'dovecot'\@'localhost' IDENTIFIED BY '$password'";
-	$dbh->do($sql);
-	$sql = "GRANT ALL ON \`$database\`.domains TO 'dovecot'\@'localhost' IDENTIFIED BY '$password'";
-	$dbh->do($sql);
-	$user{'dovecot'} = $password;
-	# User: roundcube@localhost
-	$password = Crypt::GeneratePassword::word( 8, 12 );
-	$sql = "GRANT ALL ON \`$rc_database\`.* TO 'roundcube'\@'localhost' IDENTIFIED BY '$password'";
-	$dbh->do($sql);
-	$user{'roundcube'} = $password;
-	# User: vboxadm_user@localhost
-	$password = Crypt::GeneratePassword::word( 8, 12 );
-	$sql = "GRANT SELECT,UPDATE ON \`$database\`.mailboxes TO 'vboxadm_user'\@'localhost' IDENTIFIED BY '$password'";
-	$dbh->do($sql);
-	$sql = "GRANT SELECT ON \`$database\`.domains TO 'vboxadm_user'\@'localhost' IDENTIFIED BY '$password'";
-	$dbh->do($sql);
-	$user{'vboxadm_user'} = $password;
-	# Flush privileges
-	$sql = "FLUSH PRIVILEGES";
-	$dbh->do($sql);
-	
-	return \%user;
+    my $dbh         = shift;
+    my $database    = shift;
+    my $rc_database = shift;
+
+    my %user = ();
+
+    # User: vboxadm@localhost
+    my $password = Crypt::GeneratePassword::word( 8, 12 );
+    my $sql = "GRANT ALL ON \`$database\`.* TO 'vboxadm'\@'localhost' IDENTIFIED BY '$password'";
+    $dbh->do($sql);
+    $user{'vboxadm'} = $password;
+
+    # User: postfix@localhost
+    $password = Crypt::GeneratePassword::word( 8, 12 );
+    $sql = "GRANT SELECT ON \`$database\`.* TO 'postfix'\@'localhost' IDENTIFIED BY '$password'";
+    $dbh->do($sql);
+    $user{'postfix'} = $password;
+
+    # User: dovecot@localhost
+    $password = Crypt::GeneratePassword::word( 8, 12 );
+    $sql = "GRANT ALL ON \`$database\`.mailboxes TO 'dovecot'\@'localhost' IDENTIFIED BY '$password'";
+    $dbh->do($sql);
+    $sql = "GRANT ALL ON \`$database\`.domains TO 'dovecot'\@'localhost' IDENTIFIED BY '$password'";
+    $dbh->do($sql);
+    $user{'dovecot'} = $password;
+
+    # User: roundcube@localhost
+    $password = Crypt::GeneratePassword::word( 8, 12 );
+    $sql = "GRANT ALL ON \`$rc_database\`.* TO 'roundcube'\@'localhost' IDENTIFIED BY '$password'";
+    $dbh->do($sql);
+    $user{'roundcube'} = $password;
+
+    # User: vboxadm_user@localhost
+    $password = Crypt::GeneratePassword::word( 8, 12 );
+    $sql = "GRANT SELECT,UPDATE ON \`$database\`.mailboxes TO 'vboxadm_user'\@'localhost' IDENTIFIED BY '$password'";
+    $dbh->do($sql);
+    $sql = "GRANT SELECT ON \`$database\`.domains TO 'vboxadm_user'\@'localhost' IDENTIFIED BY '$password'";
+    $dbh->do($sql);
+    $user{'vboxadm_user'} = $password;
+
+    # Flush privileges
+    $sql = "FLUSH PRIVILEGES";
+    $dbh->do($sql);
+
+    return \%user;
 }
 
 sub create_siteadmin {
-	if ( !$email ) {
-	    print "Please enter the username (as user\@domain.tld) for the designated site-admin:\n";
-	    $email = <STDIN>;
-	    chomp($email);
-	}
-	if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
-	    die("Invalid Email-Address given: $email\n");
-	}
-	my ( $local_part, $domain ) = split( /@/, $email );
-	
-	# if all these preconditions succeed:
-	my $dsn = "DBI:mysql:host=$db_host;database=$db_db;port=$db_port;user=$db_user;password=$db_pass";
-	my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 0, } );
-	if(!$dbh) {
-	    print STDERR "Could not connect to database. Aborting.\n";
-	    return;
-	}
-	
-	# Create Domain
-	my $sql = "INSERT INTO domains (name,is_active) VALUES(?,1)";
-	my $sth = $dbh->prepare($sql);
-	$sth->execute($domain);
-	$sth->finish();
-	
-	$sql = "SELECT id FROM domains WHERE name = ?";
-	$sth = $dbh->prepare($sql);
-	$sth->execute($domain);
-	my $domain_id = $sth->fetchrow_array();
-	$sth->finish();
-	
-	my $password = Crypt::GeneratePassword::word( 8, 12 );
-	
-	$sql = "INSERT INTO mailboxes (domain_id,local_part,password,is_active,is_superadmin) VALUES(?,?,?,1,1)";
-	$sth = $dbh->prepare($sql);
-	$sth->execute( $domain_id, $local_part, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ) );
-	$sth->finish();
-	
-	print "User $email created. Your password is '$password'.\n";
-	
-	$dbh->disconnect();
+    if ( !$email ) {
+        print "Please enter the username (as user\@domain.tld) for the designated site-admin:\n";
+        $email = <STDIN>;
+        chomp($email);
+    }
+    if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+        die("Invalid Email-Address given: $email\n");
+    }
+    my ( $local_part, $domain ) = split( /@/, $email );
+
+    # if all these preconditions succeed:
+    my $dsn = "DBI:mysql:host=$db_host;database=$db_db;port=$db_port;user=$db_user;password=$db_pass";
+    my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 0, } );
+    if ( !$dbh ) {
+        print STDERR "Could not connect to database. Aborting.\n";
+        return;
+    }
+
+    # Create Domain
+    my $sql = "INSERT INTO domains (name,is_active) VALUES(?,1)";
+    my $sth = $dbh->prepare($sql);
+    $sth->execute($domain);
+    $sth->finish();
+
+    $sql = "SELECT id FROM domains WHERE name = ?";
+    $sth = $dbh->prepare($sql);
+    $sth->execute($domain);
+    my $domain_id = $sth->fetchrow_array();
+    $sth->finish();
+
+    my $password = Crypt::GeneratePassword::word( 8, 12 );
+
+    $sql = "INSERT INTO mailboxes (domain_id,local_part,password,is_active,is_superadmin) VALUES(?,?,?,1,1)";
+    $sth = $dbh->prepare($sql);
+    $sth->execute( $domain_id, $local_part, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ) );
+    $sth->finish();
+
+    print "User $email created. Your password is '$password'.\n";
+
+    $dbh->disconnect();
 }
 
 exit 0;
 
 sub ask_yesno {
-	my $msg = shift;
-	print $msg." [y/N]: ";
-	my $resp = <STDIN>;
-	chomp($resp);
-	if($resp =~ m/(1|Yes|Ja|Y)/i) {
-		return 1;
-	}
-	return;
+    my $msg = shift;
+    print $msg. " [y/N]: ";
+    my $resp = <STDIN>;
+    chomp($resp);
+    if ( $resp =~ m/(1|Yes|Ja|Y)/i ) {
+        return 1;
+    }
+    return;
 }
 
 sub ask_number {
-	my $msg = shift;
-	print $msg.": ";
-	my $resp = <STDIN>;
-	chomp($resp);
-	if($resp =~ m/^\s*(\d+)\s*$/) {
-		return $1;
-	}
-	return;
+    my $msg = shift;
+    print $msg. ": ";
+    my $resp = <STDIN>;
+    chomp($resp);
+    if ( $resp =~ m/^\s*(\d+)\s*$/ ) {
+        return $1;
+    }
+    return;
 }
 
 sub ask_string {
-	my $msg = shift;
-	print $msg.": ";
-	my $resp = <STDIN>;
-	chomp($resp);
-	return $resp;
+    my $msg = shift;
+    print $msg. ": ";
+    my $resp = <STDIN>;
+    chomp($resp);
+    return $resp;
 }
 __END__

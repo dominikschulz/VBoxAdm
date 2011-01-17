@@ -4,7 +4,7 @@
 			[% "Search:" | l10n %]
 			<form name="search" method="GET" action="vboxadm.pl">
 			<input type="hidden" name="rm" value="aliases" />
-			<input type="textbox" name="search" size="10" value="[% search %]" />
+			<input type="textbox" name="search" size="20" value="[% search %]" />
 			</form>
 		</div>
 		[% FOREACH line IN aliases %]
@@ -50,6 +50,6 @@
 		[% END %]
 		[% END %]
 		<br />
-		<a href="vboxadm.pl?rm=create_alias">[% "Add Alias" | l10n %]</a>
+		<a href="vboxadm.pl?rm=create_alias"><img src="/icons/fffsilk/add.png" border="0" /> [% "Add Alias" | l10n %]</a>
     </div>
 [% INCLUDE footer.tpl %]
