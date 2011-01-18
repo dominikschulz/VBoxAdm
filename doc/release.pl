@@ -229,9 +229,13 @@ if(!$opt_local) {
     $changes_file = `ls ${name}_*.changes | grep "$version" | sort -n | tail -1`;
     chomp($changes_file);
     for my $dist (@dists) {
-        $cmd = "dupload --force --to ".$dist." ".$changes_file;
+      #$cmd = "dupload --force --to ".$dist." ".$changes_file;
+        $cmd = "reprepro -Vb /srv/media/public.packages/ include ".$dist." ".$changes_file;
         run_cmd($cmd);
     }
+    $cmd = "/srv/media/public.packages/rsync.sh";
+    run_cmd($cmd);
+    # TODO add to homepage
 }
 
 # TODO clean up old package files
