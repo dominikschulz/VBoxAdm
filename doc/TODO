@@ -17,3 +17,7 @@ Make sure class-C ip subnet auto-whitelists are supported
 -- Multiple target SMTP servers (fail over, load balancing)
 - All:
 -- Multiple databaser servers (fail over, load balancing)
+
+- Extensions:
+-- Add "customer extension"
+-- Add multi-ip sendout extension
