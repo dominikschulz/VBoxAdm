@@ -1,0 +1,44 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+foreach my $file (glob("/home/tex/tmp/maillogs/mail.log*")) {
+	&read_maillog($file);
+}
+
+sub read_maillog {
+	my $file = shift;
+	print "read_maillog - Reading file $file\n";
+	if(open(my $FH, "<", $file)) {
+		LINE: while(my $line = <$FH>) {
+			if($line =~ m/postfix\/smtpd/ && $line =~ m/NOQUEUE: reject:/) {
+				#print "found candidate line:\n\t".$line;
+				if($line =~ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d) ([^;]+); from=<([^>]+)> to=<([^>]+)> proto=([A-Z]+) helo=<([^>]+)>/) {
+					my ($rdns,$ip,$smtpcode,$smtpmsg,$from,$to,$proto,$helo) = ($1,$2,$3,$4,$5,$6,$7,$8);
+					if($from eq $to) {
+						print "SKIPPED: SPAM - from=to\n";
+						next LINE;
+					} elsif($smtpmsg =~ m/Greylisted/) {
+						print "SKIPPED: GREYLISTED\n";
+						next LINE;
+					} elsif($from =~ m/@(yahoo|gmail|microsoft|hotmail|msn|live|aim)\./) {
+						print "SKIPPED: SPAM from well-known domain\n";
+						next LINE;
+					}
+					# TODO do dns lookup on helo to see if we get an IP
+					# check that ip -rdns-> rdns -fdns-> helo
+					print "REJECT - RDNS: $rdns - IP: $ip - SMTP-Code: $smtpcode - SMTP-Msg: $smtpmsg - From: $from - To: $to - Proto: $proto - Helo: $helo\n";
+					# msg: Client host rejected: cannot find your hostname -> no RDNS found, notify about missing RDNS
+					# msg: Helo command rejected: Host not found -> helo does not resolve to valid IP, notify about invalid helo
+					# send message from postmaster@<yourdomain.tld> to postmaster@<fromdomain> and postmaster@<strippedhelodomain>
+					# set BCC to postmaster@<yourdomain.tld>
+					# fromdomain: domain part of "from"
+					# strippedhelodomain: helo stripped from ^(smtp|mail|mailout).
+					# TODO record sent mail in DB, only send twice. once when found and one reminder after one week
+				}
+			}
+		}
+		close($FH);
+	}
+}

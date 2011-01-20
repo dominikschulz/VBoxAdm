@@ -94,6 +94,10 @@ sub setup {
         'remove_mailbox' => 'show_remove_mailbox',
         'edit_mailbox'   => 'show_edit_mailbox',
         'update_mailbox' => 'show_update_mailbox',
+        
+        # Broadcast
+        'broadcast'				=> 'show_broadcast',
+        'send_broadcase'  => 'show_send_broadcast',
 
         # Log
         'log' => 'show_log',
@@ -546,6 +550,17 @@ sub show_welcome {
     );
 
     return $self->tt_process( 'welcome.tpl', \%params );
+}
+
+#
+# Broadcast
+#
+sub show_broadcast {
+	# TODO implement
+}
+
+sub show_send_broadcast {
+	# TODO implement
 }
 
 #
