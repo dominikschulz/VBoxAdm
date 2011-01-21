@@ -75,7 +75,7 @@ smtpd_recipient_restrictions =
 # Allow our authed. users
         permit_sasl_authenticated,
         permit_mynetworks,
-# These rejects may have to be disalbed, watch your logs
+# These rejects may have to be disabled, watch your logs
         reject_invalid_helo_hostname,
         reject_unknown_helo_hostname,
         reject_non_fqdn_helo_hostname,

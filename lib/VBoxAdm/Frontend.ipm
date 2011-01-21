@@ -262,11 +262,10 @@ sub cgiapp_init {
 
     # Configure RequireSSL
     my $ignore_ssl_check = 0;
-    if ( $self->is_shell() || $self->is_localnet() ) {
+    if ( $self->is_shell() || $self->is_localnet() || $self->{config}{'cgi'}{'no_ssl'} ) {
         $ignore_ssl_check = 1;
     }
 
-    # TODO add ssl override option in config
     $self->config_requiressl(
         'keep_in_ssl'  => 1,
         'ignore_check' => $ignore_ssl_check,
