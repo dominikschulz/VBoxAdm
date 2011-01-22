@@ -1,49 +1,56 @@
 ### main.cf ###
 # See /usr/share/postfix/main.cf.dist for a commented, more complete version
-
-
 # Debian specific:  Specifying a file name will cause the first
 # line of that file to be used as the name.  The Debian default
 # is /etc/mailname.
-#myorigin = /etc/mailname
+myorigin = /etc/mailname
 
+### EDIT THE FOLLOWING LINES ###
+myhostname = host.domain.tld << CHANGEME
+mynetworks = 192.168.XX.0/24 10.8.0.0/16 [::1]/128 << CHANGEME
+virtual_minimum_uid = <CHANGEME>
+virtual_uid_maps = static:XX << CHANGEME
+virtual_gid_maps = static:XX << CHANGEME
+mydestination = host.domain.tld, localhost << CHANGEME
+relayhost = 
+inet_protocols = all
+#inet_protocols = ipv4
+### NO NEED TO EDIT AFTER THIS LINE ###
+# (except smtpd_recipient_restrictions perhaps)
+
+# Misc. MTA settings
 smtpd_banner = $myhostname ESMTP $mail_name (Debian/GNU)
 biff = no
-
 # appending .domain is the MUA's job.
 append_dot_mydomain = no
-
 # Uncomment the next line to generate "delayed mail" warnings
 #delay_warning_time = 4h
-
 readme_directory = no
+mailbox_size_limit = 0
+recipient_delimiter = +
+inet_interfaces = all
+maximal_queue_lifetime = 3d
+bounce_queue_lifetime = 2d
+default_database_type = btree
+message_size_limit = 26214400
+2bounce_notice_recipient = postmaster
 
-# TLS parameters
+# SSL/TLS
+# See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for
+# information on enabling SSL in the smtp client.
 smtpd_tls_cert_file = /etc/ssl/certs/hostname.pem << CHANGEME
 smtpd_tls_key_file = /etc/ssl/private/hostname.key << CHANGEME
 smtpd_use_tls = yes
 smtp_use_tls = yes
 smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
 smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
+smtpd_tls_auth_only = no
 
-# See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for
-# information on enabling SSL in the smtp client.
-
-myhostname = host.domain.tld << CHANGEME
+# Local Aliases
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
-myorigin = /etc/mailname
-mydestination = host.domain.tld, localhost
-relayhost = 
-mynetworks = 192.168.XX.0/24 10.8.0.0/16 [::1]/128 << CHANGEME
-mailbox_size_limit = 0
-recipient_delimiter = +
-inet_interfaces = all
-inet_protocols = all
-#inet_protocols = ipv4
-virtual_minimum_uid = <CHANGEME>
-virtual_uid_maps = static:XX << CHANGEME
-virtual_gid_maps = static:XX << CHANGEME
+
+# Virtual Tables
 virtual_mailbox_domains =
 	proxy:mysql:/etc/postfix/maps/virtual_domain_maps.cf,
 	proxy:mysql:/etc/postfix/maps/virtual_domain_alias_maps.cf
@@ -56,9 +63,13 @@ virtual_alias_maps =
 	proxy:mysql:/etc/postfix/maps/virtual_vacation_alias_maps.cf
 virtual_transport = dovecot
 dovecot_destination_recipient_limit = 1
+
+# SASL
 smtpd_sasl_type = dovecot
 smtpd_sasl_path = private/auth
 smtpd_sasl_auth_enable = yes
+
+# Recipient and Relay Checks - VERY IMPORTANT
 smtpd_recipient_restrictions =
 # Allow Postmaster, Abuse and other imporant role accounts
         check_recipient_access btree:/etc/postfix/maps/access_recipient-rfc,
@@ -101,21 +112,18 @@ smtpd_recipient_restrictions =
         check_policy_service inet:127.0.0.1:12525,
 # allow the rest
         permit
-smtpd_tls_auth_only = no
-#content_filter = smtp-proxy:[127.0.0.1]:10024
-#receive_override_options = no_address_mappings
+
+# Milter settings
 milter_default_action = accept
 milter_protocol = 2
+
+# Rate limiting
 anvil_status_update_time = 600s
 anvil_rate_time_unit = 60s
 smtpd_client_connection_rate_limit = 60
 smtpd_client_connection_count_limit = 25
 smtpd_client_message_rate_limit = 1000
 smtpd_client_recipient_rate_limit = 1000
-maximal_queue_lifetime = 3d
-bounce_queue_lifetime = 2d
-default_database_type = btree
-message_size_limit = 26214400
-2bounce_notice_recipient = postmaster
 # Vacation
 transport_maps = btree:/etc/postfix/maps/transport
+vacation_destination_recipient_limit = 1
