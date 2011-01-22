@@ -107,8 +107,9 @@ sub prepare_queries {
     my $self = shift;
 
     # prepare statements
-    # TODO this will only work if postfix does proper
-    # address expansion before ... check that!
+    # TODO postfix won't/can't do address expansion before, so
+    # we should check if we can resolve the alias locally and retreive the
+    # settings from there!
     my $sql_userinfo =
 q{SELECT m.id,d.id,m.max_msg_size,m.sa_active,m.sa_kill_score FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,'@',d.name) = ?};
     $self->{vbox}->{sth}->{userinfo} = $self->{vbox}->{dbh}->prepare($sql_userinfo);
@@ -251,7 +252,7 @@ sub process_request {
                 $client->yammer( $smtp_server->{data} );
             }
             $smtp_server->print( $client->hear() . "\r\n" );
-        }
+        } # end-of-while-LINE
 
         # Close open connections
         $client->{sock}->close()
