@@ -69,7 +69,7 @@ $db_user         = $config{'default'}{'dbuser'}           || $db_user;
 $db_pass         = $config{'default'}{'dbpass'}           || $db_pass;
 $db_port         = $config{'default'}{'dbport'}           || $db_port;
 $db_db           = $config{'default'}{'dbdb'}             || $db_db;
-$notify_interval = $config{'vacation'}{'notify_interval'} || 7;    # default to seven days = one week
+$notify_interval = $config{'vacation'}{'notify_interval'} || 7;          # default to seven days = one week
 $notify_interval = $notify_interval * 24 * 3600;
 
 my $vacation_domain = $config{'vacation'}{'domain'} || 'autoreply.domain.tld';
@@ -267,10 +267,31 @@ if ( !$dbh ) {
 # Prepare DB connection for utf8
 $dbh->do("SET NAMES utf8");
 
+# check vacation_blacklist which lists senders (or parts thereof) which are never notified although they pass the tests above
+if ( &is_blacklisted( $dbh, $config{'sender'} ) ) {
+    syslog( 2, 'Sender %s is blacklisted in DB.', $config{'sender'} );
+    closelog();
+    $dbh->disconnect();
+    exit 0;
+}
+
+# check if vacation is (still) active
+if ( !&is_on_vacation( $dbh, $config{'recipient'} ) ) {
+    syslog(
+        2,
+'Recipient %s is no longer on vacation. Not sending reply. Check your MTA configuration! Vacation Script should not be invoked if the recipient is not on vacation.',
+        $config{'recipient'}
+    );
+    closelog();
+    $dbh->disconnect();
+    exit 1;
+}
+
 # check notification sent within ... (see above)
-if ( already_notified( $dbh, $config{'recipient'}, $config{'sender'}, $notify_interval ) ) {
+if ( &already_notified( $dbh, $config{'recipient'}, $config{'sender'}, $notify_interval ) ) {
     syslog( 2, 'Already notified - From: %s - To: %s - Exiting', $config{'sender'}, $config{'recipient'} );
     closelog();
+    $dbh->disconnect();
     exit 0;
 }
 
@@ -278,11 +299,32 @@ if ( already_notified( $dbh, $config{'recipient'}, $config{'sender'}, $notify_in
 &send_vacation_mail( $dbh, $config{'recipient'}, \%reply_header );
 
 closelog();
+$dbh->disconnect();
 exit 0;
 
 ###########################################################################
 # Subs
 ###########################################################################
+sub is_blacklisted {
+    my $dbh    = shift;
+    my $sender = shift;
+
+    # TODO implement
+    # check vacation_blacklist which lists senders (or parts thereof) which are never notified although they pass the tests above
+}
+
+sub is_on_vacation {
+    my $dbh       = shift;
+    my $recipient = shift;
+    my $query =
+"SELECT COUNT(*) FROM mailboxes AS ma LEFT JOIN domains AS d ON ma.domain_id = d.id WHERE is_on_vacation AND CONCAT(ma.local_part,'\@',d.name) = ? AND (ma.vacation_start = '0000-00-00' OR NOW() >= ma.vacation_start) AND (ma.vacation_end = '0000-00-00' OR ma.vacation_end <= NOW())";
+    my $sth = $dbh->prepare($query);
+    $sth->execute($recipient);
+    my $count = $sth->fetchrow_array();
+    $sth->finish();
+    return $count;
+}
+
 sub check_recipient {
 
     # recipient address must be contained in either: to, cc, bcc, resent-to, resent-cc or resent-bcc

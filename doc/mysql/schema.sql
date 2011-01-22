@@ -57,13 +57,16 @@ CREATE TABLE IF NOT EXISTS `mailboxes` (
   `is_on_vacation` tinyint(1) NOT NULL,
   `vacation_subj` varchar(255) NOT NULL,
   `vacation_msg` text NOT NULL,
+  `vacation_start` date NOT NULL,
+  `vacation_end` date NOT NULL,
   `quota` int(16) NOT NULL,
   `is_domainadmin` tinyint(1) NOT NULL,
   `is_superadmin` tinyint(1) NOT NULL,
   `sa_active` tinyint(1) NOT NULL,
   `sa_kill_score` decimal(5,2) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `domain_id` (`domain_id`,`local_part`)
+  UNIQUE KEY `domain_id` (`domain_id`,`local_part`),
+  KEY `vacation_duration` (`vacation_start`,`vacation_end`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `vacation_notify`;

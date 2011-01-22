@@ -49,13 +49,23 @@
 				<td></td>
 			</tr>
 			<tr>
+				<td>[% "Begin of Vacation:" | l10n %] (dd.mm.yyyy)</td>
+				<td><input class="flat" type="text" name="vacation_start" value="[% vacation_start %]" /></td>
+				<td></td>
+			</tr>
+			<tr>
+				<td>[% "End of Vacation:" | l10n %] (dd.mm.yyyy)</td>
+				<td><input class="flat" type="text" name="vacation_end" value="[% vacation_end %]" /></td>
+				<td></td>
+			</tr>
+			<tr>
 				<td>[% "Vacation Subject:" | l10n %]</td>
 				<td><input class="flat" type="text" name="vacation_subj" value="[% vacation_subj %]" /></td>
 				<td></td>
 			</tr>
 			<tr>
 				<td>[% "Vacation Message:" | l10n %]</td>
-				<td><textarea name="vacation_msg">[% vacation_msg %]</textarea></td>
+				<td><textarea name="vacation_msg" rows="10" cols="40">[% vacation_msg %]</textarea></td>
 				<td></td>
 			</tr>
 			<tr>

@@ -2,4 +2,4 @@ user = postfix
 password = PASSWORD
 hosts = localhost
 dbname = vboxadm
-query = SELECT CONCAT(ma.local_part,'@',d.name,',',ma.local_part,'#',d.name,'@vacation.domain.tld') AS goto FROM mailboxes AS ma LEFT JOIN domains AS d ON ma.domain_id = d.id WHERE is_on_vacation AND d.name = '%d' AND ma.local_part = '%u'
+query = SELECT CONCAT(ma.local_part,'@',d.name,',',ma.local_part,'#',d.name,'@vacation.domain.tld') AS goto FROM mailboxes AS ma LEFT JOIN domains AS d ON ma.domain_id = d.id WHERE is_on_vacation AND d.name = '%d' AND ma.local_part = '%u' AND (ma.vacation_start = '0000-00-00' OR NOW() >= ma.vacation_start) AND (ma.vacation_end = '0000-00-00' OR ma.vacation_end <= NOW())
