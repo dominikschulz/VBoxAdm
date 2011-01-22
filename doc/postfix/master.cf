@@ -74,12 +74,13 @@ smtp-proxy unix -       -       n       -       15  	smtp
     -o smtpd_end_of_data_restrictions=
     -o smtpd_proxy_filter=
     -o mynetworks=127.0.0.0/8
+    -o smtpd_authorized_xforward_hosts=127.0.0.0/8
     -o smtpd_error_sleep_time=0
     -o smtpd_soft_error_limit=1001
     -o smtpd_hard_error_limit=1000
     -o smtpd_client_connection_count_limit=0
     -o smtpd_client_connection_rate_limit=0
-    -o receive_override_options=no_header_body_checks,no_unknown_recipient_checks,no_address_mappings
+    -o receive_override_options=no_header_body_checks,no_unknown_recipient_checks,no_milters
     -o local_header_rewrite_clients=
     -o smtpd_milters=
     -o non_smtpd_milters=

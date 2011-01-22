@@ -21,10 +21,6 @@ my $db_db   = 'vboxadm';
 
 # TODO allow multiple db servers
 
-my $vacation_domain = 'autoreply.domain.tld';
-
-my $logfile = '/var/log/vacation.log';
-
 # notification interval, in seconds
 # default to 7 days
 my $notify_interval = 7 * 60 * 60 * 24;
@@ -36,6 +32,7 @@ my @conffile_locations = qw(
   vboxadm.conf
   conf/vboxadm.conf
   /etc/vboxadm.conf
+  /etc/vboxadm/vboxadm.conf
   /etc/postfix/vboxadm.conf
 );
 
@@ -72,7 +69,10 @@ $db_user         = $config{'default'}{'dbuser'}           || $db_user;
 $db_pass         = $config{'default'}{'dbpass'}           || $db_pass;
 $db_port         = $config{'default'}{'dbport'}           || $db_port;
 $db_db           = $config{'default'}{'dbdb'}             || $db_db;
-$notify_interval = $config{'vacation'}{'notify_interval'} || 3600 * 24 * 7;    # default to one week
+$notify_interval = $config{'vacation'}{'notify_interval'} || 7;    # default to seven days = one week
+$notify_interval = $notify_interval * 24 * 3600;
+
+my $vacation_domain = $config{'vacation'}{'domain'} || 'autoreply.domain.tld';
 
 # Check options
 die("No sender given on command line!")    if !$config{'sender'};
@@ -255,10 +255,10 @@ if ( $header{'msg-id'} ) {
 
 # if all these preconditions succeed:
 my $dsn = "DBI:mysql:host=$db_host;database=$db_db;port=$db_port;user=$db_user;password=$db_pass";
-my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 1, } );
+my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 0, PrintError => 0, } );
 
 if ( !$dbh ) {
-    syslog( 2, 'Could not connect to database with DSN $dsn - From: %s - To: %s - Exiting', $config{'sender'}, $config{'recipient'} );
+    syslog( 2, 'Could not connect to database with DSN %s - From: %s - To: %s - Exiting', $dsn, $config{'sender'}, $config{'recipient'} );
     closelog();
     die("Could not connect to database with DSN $dsn");
 }
@@ -309,7 +309,7 @@ sub unroll_recipient {
     my $rolled = shift;
 
     # recipient must be "unrolled", it's smth. like "user#domain.tld@vacation.domain.tld" -> "user@domain.tld"
-    if ( $rolled =~ m/^([^#]+)#([^@]+)\@vacation\./ ) {
+    if ( $rolled =~ m/^([^#]+)#([^@]+)\@(?:vacation|autoreply)\./ ) {
         my $local_part = $1;
         my $domain     = $2;
         return $local_part . '@' . $domain;
@@ -375,7 +375,7 @@ sub send_vacation_mail {
         $mail .= $msg;
 
         &VBoxAdm::Utils::sendmail( $header_ref->{'From'}, $mail );
-        syslog( 2, "send_vacation_mail - Sent vacation reply to %s", $header_ref->{'To'} );
+        syslog( 2, "send_vacation_mail - Sent vacation reply to %s on behalf of %s", $header_ref->{'To'}, $recipient );
         return 1;
     }
     else {
