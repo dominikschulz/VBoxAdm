@@ -5,6 +5,8 @@ use base 'CGI::Application';
 use strict;
 use warnings;
 
+use CGI::Carp qw(fatalsToBrowser);
+
 # Neede for database connection
 use CGI::Application::Plugin::DBH (qw/dbh_config dbh/);
 
@@ -94,10 +96,10 @@ sub setup {
         'remove_mailbox' => 'show_remove_mailbox',
         'edit_mailbox'   => 'show_edit_mailbox',
         'update_mailbox' => 'show_update_mailbox',
-        
+
         # Broadcast
-        'broadcast'				=> 'show_broadcast',
-        'send_broadcase'  => 'show_send_broadcast',
+        'broadcast'      => 'show_broadcast',
+        'send_broadcase' => 'show_send_broadcast',
 
         # Log
         'log' => 'show_log',
@@ -555,11 +557,43 @@ sub show_welcome {
 # Broadcast
 #
 sub show_broadcast {
-	# TODO implement
+    my $self = shift;
+
+    if ( !$self->is_superadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $msg );
+        $self->redirect('vboxadm.pl?rm=welcome');
+        return;
+    }
+
+    my %params = (
+        'title'   => 'VBoxAdm Send Broadcast',
+        'current' => 'broadcast',
+    );
+
+    return $self->tt_process( 'broadcast.tpl', \%params );
 }
 
 sub show_send_broadcast {
-	# TODO implement
+    my $self = shift;
+
+    if ( !$self->is_superadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $msg );
+        $self->redirect('vboxadm.pl?rm=welcome');
+        return;
+    }
+
+    # TODO implement
+
+    my %params = (
+        'title'   => 'VBoxAdm Sent Broadcast',
+        'current' => 'broadcast',
+    );
+
+    return $self->tt_process( 'broadcast-result.tpl', \%params );
 }
 
 #
@@ -795,17 +829,23 @@ sub show_remove_domain {
     my $msg = '';
     if ($domain_id) {
 
-        # TODO get domain name for message
-        my $query = "DELETE FROM domains WHERE id = ?";
-        my $sth   = $dbh->prepare($query)
+        # get domain name for message
+        my $query = 'SELECT name FROM domains WHERE id = ?';
+        my $sth   = $dbh->prepare($query);
+        $sth->execute($domain_id);
+        my ($domain_name) = $sth->fetchrow_array();
+        $sth->finish();
+
+        $query = "DELETE FROM domains WHERE id = ?";
+        $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_remove_domain - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute($domain_id) ) {
-            $msg = "Domain #$domain_id removed";
+            $msg = "Domain $domain_name (#$domain_id) removed";
             $self->add_message( 'success', $msg );
         }
         else {
             syslog( 2, 'show_remove_domain - Could not execute Query: %s, Args: %s, Error: %s', $query, $domain_id, $sth->errstr );
-            $msg = "Failed to remove Domain #$domain_id. Database error.";
+            $msg = "Failed to remove Domain $domain_name (#$domain_id). Database error.";
             $self->add_message( 'error', $msg );
         }
         $sth->finish();
@@ -844,28 +884,34 @@ sub show_update_domain {
     my $msg = '';
     if ( $domain_id && defined($is_active) ) {
 
-        # TODO get domain name for message
-        my $query = "UPDATE domains SET is_active = ? WHERE id = ?";
-        my @args  = ();
+        # get domain name for message
+        my $query = 'SELECT name FROM domains WHERE id = ?';
+        my $sth   = $dbh->prepare($query);
+        $sth->execute($domain_id);
+        my ($domain_name) = $sth->fetchrow_array();
+        $sth->finish();
+
+        $query = "UPDATE domains SET is_active = ? WHERE id = ?";
+        my @args = ();
         push( @args, $is_active );
         push( @args, $domain_id );
         if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
             $query .= "AND id = ?";
             push( @args, $self->get_users_domainid() );
         }
-        my $sth = $dbh->prepare($query)
+        $sth = $dbh->prepare($query)
           or syslog( 2, 'show_update_domain - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         my $status_str = 'disabled';
         if ($is_active) {
             $status_str = 'enabled';
         }
         if ( $sth->execute(@args) ) {
-            $msg = "Domain #$domain_id $status_str";
+            $msg = "Domain $domain_name (#$domain_id) $status_str";
             $self->add_message( 'success', $msg );
         }
         else {
             syslog( 2, 'show_update_domain - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            $msg = "Failed to set Domain #$domain_id $status_str.";
+            $msg = "Failed to set Domain $domain_name (#$domain_id) $status_str.";
             $self->add_message( 'error', $msg );
         }
         $sth->finish();
@@ -1428,23 +1474,29 @@ sub show_remove_alias {
 
     if ($alias_id) {
 
-        # TODO get alias name for message
-        my $query = "DELETE FROM aliases WHERE id = ?";
-        my @args  = ();
+        # get alias name for message
+        my $query = 'SELECT CONCAT(a.local_part,\'@\',d.name) AS alias,a.goto FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?';
+        my $sth   = $dbh->prepare($query);
+        $sth->execute($alias_id);
+        my ( $alias, $goto ) = $sth->fetchrow_array();
+        $sth->finish();
+
+        $query = "DELETE FROM aliases WHERE id = ?";
+        my @args = ();
         push( @args, $alias_id );
         if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
             $query .= "AND domain_id = ?";
             push( @args, $self->get_users_domainid() );
         }
-        my $sth = $dbh->prepare($query)
+        $sth = $dbh->prepare($query)
           or syslog( 2, 'show_remove_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute(@args) ) {
-            $msg = "Alias #$alias_id removed";
+            $msg = "Alias $alias => $goto (#$alias_id) removed";
             $self->add_message( 'success', $msg );
         }
         else {
             syslog( 2, 'show_remove_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            $msg = "Failed to remove Alias #$alias_id. Database Error.";
+            $msg = "Failed to remove Alias $alias => $goto (#$alias_id). Database Error.";
             $self->add_message( 'error', $msg );
         }
     }
@@ -1898,7 +1950,8 @@ sub show_edit_mailbox {
 
     my $query = "SELECT m.local_part,d.name,m.name,m.is_active,m.max_msg_size,";
     $query .= "m.is_on_vacation,m.vacation_msg,m.quota,m.is_domainadmin,";
-    $query .= "m.is_superadmin,d.id,m.sa_active,m.sa_kill_score,m.vacation_subj FROM mailboxes AS m LEFT JOIN domains AS d ";
+    $query .= "m.is_superadmin,d.id,m.sa_active,m.sa_kill_score,m.vacation_subj,m.vacation_start,m.vacation_end ";
+    $query .= "FROM mailboxes AS m LEFT JOIN domains AS d ";
     $query .= "ON m.domain_id = d.id WHERE m.id = ? ";
     my @args = ();
     push( @args, $mailbox_id );
@@ -1935,6 +1988,15 @@ sub show_edit_mailbox {
     my ( $cc_id, $cc_goto ) = $sth->fetchrow_array();
     $sth->finish();
 
+    my $vacation_start = '';
+    if ( $row[14] =~ m/(\d\d\d\d)-(\d\d)-(\d\d)/ ) {
+        $vacation_start = "$3.$2.$1";
+    }
+    my $vacation_end = '';
+    if ( $row[15] =~ m/(\d\d\d\d)-(\d\d)-(\d\d)/ ) {
+        $vacation_end = "$3.$2.$1";
+    }
+
     my %params = (
         title              => 'Edit Mailbox',
         mailbox_id         => $mailbox_id,
@@ -1946,6 +2008,8 @@ sub show_edit_mailbox {
         is_on_vacation     => $row[5],
         vacation_msg       => $row[6],
         vacation_subj      => $row[13],
+        vacation_start     => $vacation_start,
+        vacation_end       => $vacation_end,
         quota              => $row[7],
         cc_goto            => $cc_goto,
         cc_id              => $cc_id,
@@ -1988,6 +2052,8 @@ sub show_update_mailbox {
     my $is_on_vacation = $q->param('is_on_vacation');
     my $vacation_msg   = $q->param('vacation_msg');
     my $vacation_subj  = $q->param('vacation_subj');
+    my $vacation_start = $q->param('vacation_start');
+    my $vacation_end   = $q->param('vacation_end');
     my $is_domainadmin = $q->param('is_domainadmin');
     my $is_superadmin  = $q->param('is_superadmin');
     my $sa_active      = $q->param('sa_active');
@@ -2098,18 +2164,36 @@ sub show_update_mailbox {
                 $is_on_vacation = 1;
             }
             else {
-                $self->add_message( 'warning', 'Attemept to enable Vacation w/o vacation message or subject denied!' );
+                $self->add_message( 'warning', 'Attempt to enable Vacation w/o vacation message or subject denied!' );
+            }
+            if ( $vacation_start && $vacation_start =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
+                $vacation_start = "$3-$2-$1";
+            }
+            else {
+                $vacation_start = '0000-00-00';
+                $self->add_message( 'warning', 'Invalid vacation start date!' );
+            }
+            if ( $vacation_end && $vacation_end =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
+                $vacation_end = "$3-$2-$1";
+            }
+            else {
+                $vacation_end = '0000-00-00';
+                $self->add_message( 'warning', 'Invalid vacation end date!' );
             }
         }
         else {
             $is_on_vacation = 0;
             $vacation_msg   = '';
             $vacation_subj  = '';
+            $vacation_start = '0000-00-00';
+            $vacation_end   = '0000-00-00';
         }
-        $query .= "is_on_vacation = ?, vacation_msg = ?, vacation_subj = ? ";
+        $query .= "is_on_vacation = ?, vacation_msg = ?, vacation_subj = ?, vacation_start = ?, vacation_end = ? ";
         push( @params, $is_on_vacation );
         push( @params, $vacation_msg );
         push( @params, $vacation_subj );
+        push( @params, $vacation_start );
+        push( @params, $vacation_end );
 
         # finialize query
         $query .= " WHERE id = ?";

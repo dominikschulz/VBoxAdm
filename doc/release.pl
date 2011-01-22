@@ -66,7 +66,7 @@ $nobuild = $nobuild || $config{$name}{'nobuild'} || $config{'default'}{'nobuild'
 $nodeb = $nodeb || $config{$name}{'nodeb'} || $config{'default'}{'nodeb'};
 
 # Debian distributions to upload to (must be configured for dupload)
-my @dists = qw();
+my @dists = qw(lenny squeeze);
 # Git Destinations to push to
 my @git_dests = qw();
 

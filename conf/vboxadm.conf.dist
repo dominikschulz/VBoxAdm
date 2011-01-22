@@ -4,22 +4,20 @@ dbpass=vboxadm
 dbdb=vboxadm
 dbhost=localhost
 
+# config for webfrontend
 [cgi]
 pwscheme=sha256
-# ssh256
+# change to ssh256 after installation
 no_ssl=1
 
-[vacation]
 # config for vacation autoresonder
-#dbuser=vacation
-#dbpass=vacation
-#dbdb=vboxadm
-#dbhost=localhost
-notify_interval=604800
+[vacation]
 
+notify_interval=7
+
+# config for smtpproxy
 [smtpproxy]
 caching=1
-# config for smtpproxy
 listen=localhost:10024
 connect=localhost:10025
 pidfile=/var/run/vboxadm-smtpproxy.pid

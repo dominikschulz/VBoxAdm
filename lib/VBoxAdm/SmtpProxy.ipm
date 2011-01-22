@@ -252,7 +252,7 @@ sub process_request {
                 $client->yammer( $smtp_server->{data} );
             }
             $smtp_server->print( $client->hear() . "\r\n" );
-        } # end-of-while-LINE
+        }    # end-of-while-LINE
 
         # Close open connections
         $client->{sock}->close()

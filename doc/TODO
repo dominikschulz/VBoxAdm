@@ -18,6 +18,16 @@ Make sure class-C ip subnet auto-whitelists are supported
 - All:
 -- Multiple databaser servers (fail over, load balancing)
 
+- Vacation:
+-- add vacation blacklist to list senders which never get an reply
+-- Test new vacation query
+
+- RFC Notfiy:
+-- finish 'you've been blocked' RFC notify cronjob
+
 - Extensions:
 -- Add "customer extension"
 -- Add multi-ip sendout extension
+
+- Translation:
+-- Translate status messages
