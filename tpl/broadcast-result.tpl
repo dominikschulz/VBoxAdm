@@ -1,5 +1,5 @@
 [% INCLUDE header.tpl %]
     <div id="main">
-    	<!-- TODO show how many mails were sent -->
+    	<p>Sent message to [% num_sent %] recipients.</p>
     </div>
 [% INCLUDE footer.tpl %]
