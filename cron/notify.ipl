@@ -28,7 +28,7 @@ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d)
                         print "SKIPPED: GREYLISTED\n";
                         next LINE;
                     }
-                    elsif ( $from =~ m/@(yahoo|gmail|microsoft|hotmail|msn|live|aim)\./ ) {
+                    elsif ( $from =~ m/@(yahoo|gmail|microsoft|hotmail|msn|live|aim|rolex|blizzard)\./ ) {
                         print "SKIPPED: SPAM from well-known domain\n";
                         next LINE;
                     }
@@ -36,17 +36,91 @@ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d)
                     # TODO do dns lookup on helo to see if we get an IP
                     # check that ip -rdns-> rdns -fdns-> helo
                     print "REJECT - RDNS: $rdns - IP: $ip - SMTP-Code: $smtpcode - SMTP-Msg: $smtpmsg - From: $from - To: $to - Proto: $proto - Helo: $helo\n";
+                    
+                    my $notfiy_to = $from;
+                    	if($from =~ m/@(.*)$/) {
+                    		my $from_domain = $1;
+                    		$notfiy_to .= ',postmaster@'.$from_domain;
+                    	}
+                    	$notfiy_to .= ",$to";
 
                     # msg: Client host rejected: cannot find your hostname -> no RDNS found, notify about missing RDNS
+                    if($smtpmsg =~ m/Client host rejected: cannot find your hostname/) {
+
+                    	print "WOULD Handle missing RDNS and send report to $notfiy_to.\n";
+                    }
                     # msg: Helo command rejected: Host not found -> helo does not resolve to valid IP, notify about invalid helo
+                    elsif($smtpmsg =~ m/Helo command rejected: Host not found/) {
+                    	print "WOULD Handle invalid HELO and send report to $notfiy_to.\n";
+                    }
                     # send message from postmaster@<yourdomain.tld> to postmaster@<fromdomain> and postmaster@<strippedhelodomain>
                     # set BCC to postmaster@<yourdomain.tld>
                     # fromdomain: domain part of "from"
                     # strippedhelodomain: helo stripped from ^(smtp|mail|mailout).
                     # TODO record sent mail in DB, only send twice. once when found and one reminder after one week
+                    else {
+                    	print "ERROR Unknown Cause: $smtpmsg\n";
+                    }
                 }
             }
         }
         close($FH);
     }
 }
+=begin invalid_rdns
+Dear Postmaster,
+
+you are receiving this mail since your mailserver is probably misconfigured or someone is abusing your domainname.
+You will receive this mail only once. Please act acordingly to restore full service to your users.
+
+Below you will find detailed information about what is wrong with your mailserver and some pointers on how to fix this issue.
+
+--- RDNS ---
+Your mailserver is using a IP address for sending that has no valid reverse DNS record. This makes it very hard to determine if this
+IP is eligible to send mail for your domain and thus many mailservers will reject mails coming from this IP.
+
+How to fix this:
+Contact your network department or ISP to setup a reverse DNS mapping from <IP> to <HELO>. 
+--- RDNS END ---
+
+--- HELO ---
+Your mailserver is using a HELO hostname during the greeting sequence of SMTP which does not resolve to a valid IP address. This is regarded bad style
+and should be fixed.
+
+How to fix this:
+Set your HELO hostname to <RDNS> or make the reverse DNS of <IP> match <HELO>.
+--- HELO END ---
+
+Please don't make the misconeption that because some mailservers are accepting your mail everyone will do.
+
+You should alway make sure that the HELO name of your mailserver resolves to a valid IP whose reverse DNS resolves to your HELO name again.
+
+Best Regards,
+
+postmaster@DOMAIN.TLD
+
+---
+
+Dear <designated recipient>,
+
+you are reciving this mail because XXX tried to send you a mail which you didn't receive due to their mailserver being misconfigured.
+In case you expect messages from XXX you should contact him by other means and make sure his ISP or employee fixes his mailserver.
+The sender and the postmaster of the sending mailserver have been contacted and will hopefully work to restore the service.
+Please note that the sender address may be forged to send you spam. In this case this should be regarded as a false alarm and be ignored.
+
+Best Regards,
+
+postmaster@DOMAIN.TLD
+
+---
+
+Dear <sender>,
+
+you've tried to send mail to XXX. Unfortunately the mailserver you are using is misconfigured and the recipients mailserver is not accepting mail from
+misconfigured mailservers. Please contact the operator of your mailserver and make sure he fixes these issues. He has already been notified about this problem
+and should be aware of it already. Technical information on how to fix this issue have been sent as well.
+
+Best Regards,
+
+postmaster@DOMAIN.TLD
+=cut
