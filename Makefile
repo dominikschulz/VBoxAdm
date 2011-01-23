@@ -123,7 +123,7 @@ real-install: all test man rcvboxadm
 	$(INSTALL) -d $(LIBDIR)/VBoxAdm/L10N $(LIBDIR)/MSDW/SMTP
 	$(INSTALL) -d $(MANDIR)/man1 $(MANDIR)/man3 $(MANDIR)/man8
 	$(INSTALL) -d $(VBOXLIBDIR)/bin $(VBOXLIBDIR)/tpl
-	$(INSTALL) -g www-data -d $(VHDIR)/cgi-bin $(VHDIR)/htdocs/css $(VHDIR)/htdocs/images
+	$(INSTALL) -g www-data -d $(VHDIR)/cgi-bin $(VHDIR)/htdocs/css $(VHDIR)/htdocs/images/knob
 	$(INSTALL) -g www-data -d $(VHDIR)/htdocs/js/libs $(VHDIR)/htdocs/js/mylibs $(VHDIR)/htdocs/js/profiling
 	$(INSTALL_DATA) doc/man/VBoxAdm::DovecotPW.8 $(MANDIR)/man8/VBoxAdm::DovecotPW.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::Frontend.8 $(MANDIR)/man8/VBoxAdm::Frontend.8
@@ -150,6 +150,7 @@ real-install: all test man rcvboxadm
 	$(INSTALL_DATA) tpl/*.tpl $(VBOXLIBDIR)/tpl/
 	$(INSTALL_DATA) res/css/*.css $(VHDIR)/htdocs/css/
 	$(INSTALL_DATA) res/images/*.png $(VHDIR)/htdocs/images/
+	$(INSTALL_DATA) res/images/knob/*.png $(VHDIR)/htdocs/images/kob/
 	$(INSTALL_DATA) res/js/*.js $(VHDIR)/htdocs/js/
 	$(INSTALL_DATA) res/js/libs/*.js $(VHDIR)/htdocs/js/libs/
 #	$(INSTALL_DATA) res/js/mylibs/*.js $(VHDIR)/htdocs/js/mylibs/
