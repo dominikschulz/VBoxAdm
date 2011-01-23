@@ -2,13 +2,10 @@
 use strict;
 use warnings;
 
-# See http://tools.ietf.org/html/rfc3834
-
 use DBI;
 use Getopt::Long;
 use Config::Std;
 
-# TODO replace with Log::Dispatch
 use Sys::Syslog;
 
 use VBoxAdm::Utils '@VERSION@';
@@ -18,12 +15,6 @@ my $db_user = 'vacation';
 my $db_pass = '';
 my $db_port = 3306;
 my $db_db   = 'vboxadm';
-
-# TODO allow multiple db servers
-
-# notification interval, in seconds
-# default to 7 days
-my $notify_interval = 7 * 60 * 60 * 24;
 
 my ( $conffile_used, @hooks, %hook, %config, );
 
@@ -69,7 +60,7 @@ $db_user         = $config{'default'}{'dbuser'}           || $db_user;
 $db_pass         = $config{'default'}{'dbpass'}           || $db_pass;
 $db_port         = $config{'default'}{'dbport'}           || $db_port;
 $db_db           = $config{'default'}{'dbdb'}             || $db_db;
-$notify_interval = $config{'vacation'}{'notify_interval'} || 7;          # default to seven days = one week
+my $notify_interval = $config{'vacation'}{'notify_interval'} || 7;          # default to seven days = one week
 $notify_interval = $notify_interval * 24 * 3600;
 
 my $vacation_domain = $config{'vacation'}{'domain'} || 'autoreply.domain.tld';
@@ -81,9 +72,6 @@ die("No recipient given on command line!") if !$config{'recipient'};
 binmode( STDIN, ':utf8' );
 
 openlog( 'vboxadm-vacation', 'ndelay,nofatal', 'mail' );
-
-# detect infinite lookup loops
-#my $loopcount = 0;
 
 ###
 # Parse incoming mail
@@ -308,16 +296,25 @@ exit 0;
 sub is_blacklisted {
     my $dbh    = shift;
     my $sender = shift;
-
-    # TODO implement
+    
     # check vacation_blacklist which lists senders (or parts thereof) which are never notified although they pass the tests above
+    # TODO create vacation_blacklist table
+    my $query = "SELECT COUNT(*) FROM vacation_blacklist WHERE email = ?";
+    
+    my $sth = $dbh->prepare($query);
+    $sth->execute($sender);
+    my $count = $sth->fetchrow_array();
+    $sth->finish();
+    return $count;
 }
 
 sub is_on_vacation {
     my $dbh       = shift;
     my $recipient = shift;
-    my $query =
-"SELECT COUNT(*) FROM mailboxes AS ma LEFT JOIN domains AS d ON ma.domain_id = d.id WHERE is_on_vacation AND CONCAT(ma.local_part,'\@',d.name) = ? AND (ma.vacation_start = '0000-00-00' OR NOW() >= ma.vacation_start) AND (ma.vacation_end = '0000-00-00' OR ma.vacation_end <= NOW())";
+    
+    my $query = "SELECT COUNT(*) FROM mailboxes AS ma LEFT JOIN domains AS d ON ma.domain_id = d.id ";
+    $query .= "WHERE is_on_vacation AND CONCAT(ma.local_part,'\@',d.name) = ? ";
+    $query .= "AND (ma.vacation_start = '0000-00-00' OR NOW() >= ma.vacation_start) AND (ma.vacation_end = '0000-00-00' OR ma.vacation_end <= NOW())";
     my $sth = $dbh->prepare($query);
     $sth->execute($recipient);
     my $count = $sth->fetchrow_array();
@@ -439,6 +436,8 @@ This documentation refers to VBoxAdm vacation version @VERSION@
 built on @BUILDDATE@.
 
 =head1 DESCRIPTION
+
+See http://tools.ietf.org/html/rfc3834
 
 This script implements the vacation functionality of VBoxAdm. If your MTA
 is configured correctly it will forward any message received for a user
