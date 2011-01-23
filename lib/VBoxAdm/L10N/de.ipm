@@ -62,5 +62,6 @@ our %Lexicon = (
     'Domain List'                                                  => 'Domains',
     'View Log'                                                     => 'Log anzeigen',
     'Logged in as [_1]'                                            => 'Angemeldet als [_1]',
+    'VBoxAdm Mailboxes'																						 => 'VBoxAdm Postfächer',
 );
 1;

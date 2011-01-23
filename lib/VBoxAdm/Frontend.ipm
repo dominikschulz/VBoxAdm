@@ -573,8 +573,7 @@ sub show_broadcast {
     # - ... ?
 
     my %params = (
-    # TODO localize: $self->{lh}->maketext( $str, @args );
-        'title'   => 'VBoxAdm Send Broadcast',
+        'title'   => $self->{lh}->maketext( 'VBoxAdm Send Broadcast'),
         'current' => 'broadcast',
     );
 
@@ -622,8 +621,7 @@ sub show_send_broadcast {
     $sth->finish();
 
     my %params = (
-    # TODO localize: $self->{lh}->maketext( $str, @args );
-        'title'   => 'VBoxAdm Sent Broadcast',
+        'title'   => $self->{lh}->maketext( 'VBoxAdm Sent Broadcast'),
         'current' => 'broadcast',
         'num_sent' => $num_sent,
     );
@@ -760,8 +758,7 @@ sub show_domain {
     $sth->finish();
 
     my %params = (
-    # TODO localize: $self->{lh}->maketext( $str, @args );
-        'title'          => 'VBoxAdm Domain: ' . $domain_name,
+        'title'          => $self->{lh}->maketext( 'VBoxAdm Domain: [_1]', $domain_name),
         'current'        => 'domains',
         'domain'         => $domain_name,
         'aliases'        => \@aliases,
@@ -784,8 +781,7 @@ sub show_create_domain {
     }
 
     my %params = (
-    # TODO localize: $self->{lh}->maketext( $str, @args );
-        'title'   => 'Add Domain',
+        'title'   => $self->{lh}->maketext( 'Add Domain'),
         'current' => 'domains',
     );
 
@@ -814,8 +810,7 @@ sub show_add_domain {
 
     my $msg = '';
     if ( $domain && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain) ) {
-    	# TODO localize: $self->{lh}->maketext( $str, @args );
-        $msg = "Invalid syntax. Domain is not RFC822 compliant!";
+        $msg = $self->{lh}->maketext( 'Invalid syntax. Domain is not RFC822 compliant!');
         $self->add_message( 'error', $msg );
     }
     elsif ( $domain && $create_domainadmin ) {
@@ -824,22 +819,19 @@ sub show_add_domain {
           or syslog( 2, 'show_add_domain - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
 
         if ( $sth->execute($domain) ) {
-        	# TODO localize: $self->{lh}->maketext( $str, @args );
-            $msg = "Domain '$domain' added";
+            $msg = $self->{lh}->maketext( "Domain '[_1]' added", $domain);
             $self->add_message( 'success', $msg );
         }
         else {
             syslog( 2, 'show_add_domain - Could not execute Query: %s, Args: %s, Error: %s', $query, $domain, $sth->errstr );
-            # TODO localize: $self->{lh}->maketext( $str, @args );
-            $msg = "Failed to add Domain '$domain'. Database error.";
+            $msg = $self->{lh}->maketext( "Failed to add Domain '[_1]'. Database error.", $domain);
             $self->add_message( 'error', $msg );
         }
         $sth->finish();
 
     }
     else {
-    	# TODO localize: $self->{lh}->maketext( $str, @args );
-        $msg = "Failed to add Domain. Insufficient parameters.";
+        $msg = $self->{lh}->maketext( "Failed to add Domain. Insufficient parameters.");
         $self->add_message( 'error', $msg );
     }
 
@@ -881,22 +873,19 @@ sub show_remove_domain {
         $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_remove_domain - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute($domain_id) ) {
-        	# TODO localize: $self->{lh}->maketext( $str, @args );
-            $msg = "Domain $domain_name (#$domain_id) removed";
+            $msg = $self->{lh}->maketext( "Domain [_1] (#[_2]) removed", $domain_name, $domain_id);
             $self->add_message( 'success', $msg );
         }
         else {
             syslog( 2, 'show_remove_domain - Could not execute Query: %s, Args: %s, Error: %s', $query, $domain_id, $sth->errstr );
-            # TODO localize: $self->{lh}->maketext( $str, @args );
-            $msg = "Failed to remove Domain $domain_name (#$domain_id). Database error.";
+            $msg = $self->{lh}->maketext( "Failed to remove Domain [_1] (#[_2]). Database error.",$domain_name,$domain_id);
             $self->add_message( 'error', $msg );
         }
         $sth->finish();
 
     }
     else {
-    	# TODO localize: $self->{lh}->maketext( $str, @args );
-        $msg = 'Failed to remove domain. Insufficient Parameters.';
+        $msg = $self->{lh}->maketext( 'Failed to remove domain. Insufficient Parameters.');
         $self->add_message( 'error', $msg );
     }
 
@@ -950,22 +939,19 @@ sub show_update_domain {
             $status_str = 'enabled';
         }
         if ( $sth->execute(@args) ) {
-        	# TODO localize: $self->{lh}->maketext( $str, @args );
-            $msg = "Domain $domain_name (#$domain_id) $status_str";
+            $msg = $self->{lh}->maketext( "Domain [_1] (#[_2]) [_3].",$domain_name,$domain_id,$status_str);
             $self->add_message( 'success', $msg );
         }
         else {
             syslog( 2, 'show_update_domain - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            # TODO localize: $self->{lh}->maketext( $str, @args );
-            $msg = "Failed to set Domain $domain_name (#$domain_id) $status_str.";
+            $msg = $self->{lh}->maketext( "Failed to set Domain [_1] (#[_2]) [_3].",$domain_name,$domain_id,$status_str);
             $self->add_message( 'error', $msg );
         }
         $sth->finish();
 
     }
     else {
-    	# TODO localize: $self->{lh}->maketext( $str, @args );
-        $msg = 'Failed to update Domain. Insufficient parameters';
+        $msg = $self->{lh}->maketext( 'Failed to update Domain. Insufficient parameters');
         $self->add_message( 'error', $msg );
     }
 
@@ -1028,8 +1014,7 @@ sub show_domain_aliases {
     $sth->finish();
 
     my %params = (
-    # TODO localize: $self->{lh}->maketext( $str, @args );
-        'title'   => 'VBoxAdm Domain-Aliases',
+        'title'   => $self->{lh}->maketext( 'VBoxAdm Domain-Aliases'),
         'current' => 'domain_aliases',
         'domains' => \@domains,
         'search'  => $search,
@@ -1070,8 +1055,7 @@ sub show_create_domain_alias {
     }
 
     my %params = (
-    # TODO localize: $self->{lh}->maketext( $str, @args );
-        'title'   => 'Add Domain Alias',
+        'title'   => $self->{lh}->maketext( 'Add Domain Alias'),
         'domains' => \@domains,
         'current' => 'domain_aliases',
     );
@@ -1101,25 +1085,27 @@ sub show_add_domain_alias {
 
     my $msg = '';
     if ( $domain_alias && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain_alias) ) {
-    	# TODO localize: $self->{lh}->maketext( $str, @args );
-        $msg = "Invalid syntax. Domain is not RFC822 compliant!";
+        $msg = $self->{lh}->maketext( "Invalid syntax. Domain is not RFC822 compliant!");
         $self->add_message( 'error', $msg );
     }
     elsif ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
 
         # if domainadmin, verify that its his domain
-        # TODO localize: $self->{lh}->maketext( $str, @args );
-        $msg = "You are not authorized to modify this domain!";
+        $msg = $self->{lh}->maketext( "You are not authorized to modify this domain!");
         $self->add_message( 'error', $msg );
     }
     elsif ( $domain_alias && $domain_id ) {
-        my $query = "INSERT INTO domain_aliases (name,domain_id,is_active) VALUES(?,?,1)";
-        my $sth   = $dbh->prepare($query)
+    		my $query = "SELECT name FROM domains WHERE id = ?";
+    		my $sth = $dbh->prepare($query);
+    		$sth->execute($domain_id);
+    		my $domain_name = $sth->fetchrow_array();
+    		$sth->finish();
+    	
+        $query = "INSERT INTO domain_aliases (name,domain_id,is_active) VALUES(?,?,1)";
+        $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_add_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $domain_alias, $domain_id ) ) {
-        	# TODO get domain name for message
-        	# TODO localize: $self->{lh}->maketext( $str, @args );
-            $msg = "Added domain alias '$domain_alias' to domain #$domain_id";
+            $msg = $self->{lh}->maketext( "Added domain alias '[_1]' to domain [_2] (#[_3]).",$domain_alias,$domain_name,$domain_id);
             $self->add_message( 'success', $msg );
         }
         else {
@@ -1128,16 +1114,13 @@ sub show_add_domain_alias {
                 $query, join( "-", ( $domain_alias, $domain_id ) ),
                 $sth->errstr
             );
-            # TODO get domain name for message
-            # TODO localize: $self->{lh}->maketext( $str, @args );
-            $msg = "Failed to add domain alias '$domain_alias' to domain #$domain_id. Database Error.";
+            $msg = $self->{lh}->maketext( "Failed to add domain alias '[_1]' to domain [_2] (#[_3]). Database Error.",$domain_alias,$domain_name,$domain_id);
             $self->add_message( 'error', $msg );
         }
         $sth->finish();
     }
     else {
-    	# TODO localize: $self->{lh}->maketext( $str, @args );
-        $msg = "Failed to add domain alias. No domain_alias or target domain given!";
+        $msg = $self->{lh}->maketext( "Failed to add domain alias. No domain_alias or target domain given!");
         $self->add_message( 'error', $msg );
     }
     $self->log( $msg . ". User: " . $self->authen->username );
@@ -1166,32 +1149,33 @@ sub show_remove_domain_alias {
 
     my $msg = '';
     if ($domain_alias_id) {
-        my $query = "DELETE FROM domain_aliases WHERE id = ?";
+    	  my $query = "SELECT name FROM domain_aliases WHERE id = ?";
+    		my $sth = $dbh->prepare($query);
+    		$sth->execute($domain_alias_id);
+    		my $domain_name = $sth->fetchrow_array();
+    		$sth->finish();
+    	
+        $query = "DELETE FROM domain_aliases WHERE id = ?";
         my @args  = ();
         push( @args, $domain_alias_id );
         if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
             $query .= "AND domain_id = ?";
             push( @args, $self->get_users_domainid() );
         }
-        my $sth = $dbh->prepare($query)
+        $sth = $dbh->prepare($query)
           or syslog( 2, 'show_remove_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute(@args) ) {
-        	# TODO get domain name for message
-        	# TODO localize: $self->{lh}->maketext( $str, @args );
-            $msg = "Domain-Alias #$domain_alias_id removed";
+            $msg = $self->{lh}->maketext( "Domain-Alias [_1] (#[_2]) removed.",$domain_name,$domain_alias_id);
             $self->add_message( 'success', $msg );
         }
         else {
             syslog( 2, 'show_remove_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            # TODO get domain name for message
-            # TODO localize: $self->{lh}->maketext( $str, @args );
-            $msg = "Failed to remove Domain-Alias #$domain_alias_id. Database error.";
+            $msg = $self->{lh}->maketext( "Failed to remove Domain-Alias [_1] (#[_2]). Database error.",$domain_name,$domain_alias_id);
             $self->add_message( 'error', $msg );
         }
     }
     else {
-    	# TODO localize: $self->{lh}->maketext( $str, @args );
-        $msg = 'Failed to remove domain alias. Insufficient parameters.';
+        $msg = $self->{lh}->maketext( 'Failed to remove domain alias. Insufficient parameters.');
         $self->add_message( 'error', $msg );
     }
     $self->log( $msg . ". User: " . $self->authen->username );
@@ -1252,8 +1236,7 @@ sub show_edit_domain_alias {
     $sth->finish();
 
     my %params = (
-    # TODO localize: $self->{lh}->maketext( $str, @args );
-        title           => 'Edit Domain Alias',
+        title           => $self->{lh}->maketext( 'Edit Domain Alias'),
         'current'       => 'domain_aliases',
         domain_name     => $row[1],
         is_active       => $row[3],
@@ -1287,6 +1270,14 @@ sub show_update_domain_alias {
     my $target          = $q->param('target');
 
     my $msg1 = '';
+    my $domain_name = '';
+    if ( $domain_alias_id) {
+    	my $query = "SELECT name FROM domain_aliases WHERE id = ?";
+    		my $sth = $dbh->prepare($query);
+    		$sth->execute($domain_alias_id);
+    		$domain_name = $sth->fetchrow_array();
+    		$sth->finish();
+    }
 
     if ( $domain_alias_id && defined($is_active) ) {
         my $query = "UPDATE domain_aliases SET is_active = ? WHERE id = ?";
@@ -1305,17 +1296,13 @@ sub show_update_domain_alias {
             $is_active  = 1;
         }
         if ( $sth->execute(@args) ) {
-        	# TODO get domain name for message
-        	# TODO localize: $self->{lh}->maketext( $str, @args );
-            my $msg = "Domain-Alias #$domain_alias_id $status_str.";
+            my $msg = $self->{lh}->maketext( "Domain-Alias [_1] (#[_2]) $status_str.",$domain_name,$domain_alias_id);
             $self->add_message( 'success', $msg );
             $msg1 .= $msg . ' ';
         }
         else {
             syslog( 2, 'show_update_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            # TODO get domain name for message
-            # TODO localize: $self->{lh}->maketext( $str, @args );
-            my $msg = "Failed to set Domain-Alias #$domain_alias_id $status_str. Database Error.";
+            my $msg = $self->{lh}->maketext( "Failed to set Domain-Alias [_1] (#[_2]) [_3]. Database Error.",$domain_name,$domain_alias_id,$status_str);
             $self->add_message( 'error', $msg );
             $msg1 .= $msg . ' ';
         }
@@ -1329,13 +1316,17 @@ sub show_update_domain_alias {
         $msg1 .= $msg . ' ';
     }
     elsif ( $domain_alias_id && $target ) {
-        my $query = "UPDATE domain_aliases SET domain_id = ? WHERE id = ?";
-        my $sth   = $dbh->prepare($query)
+    	  my $query = "SELECT name FROM domains WHERE id = ?";
+    		my $sth = $dbh->prepare($query);
+    		$sth->execute($target);
+    		my $target_domain_name = $sth->fetchrow_array();
+    		$sth->finish();
+    	
+        $query = "UPDATE domain_aliases SET domain_id = ? WHERE id = ?";
+        $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_update_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $target, $domain_alias_id ) ) {
-        	# TODO get domain name for message
-        	# TODO localize: $self->{lh}->maketext( $str, @args );
-            my $msg = "Domain-Alias #$domain_alias_id redirected to Domain #$target";
+            my $msg = $self->{lh}->maketext( "Domain-Alias [_1] (#[_2]) redirected to Domain [_3] (#[_4]).",$domain_name,$domain_alias_id,$target_domain_name,$target);
             $self->add_message( 'success', $msg );
             $msg1 .= $msg . ' ';
         }
@@ -1345,9 +1336,7 @@ sub show_update_domain_alias {
                 $query, join( "-", ( $target, $domain_alias_id ) ),
                 $sth->errstr
             );
-            # TODO get domain name for message
-            # TODO localize: $self->{lh}->maketext( $str, @args );
-            my $msg = "Failed to redirect Domain-Alias #$domain_alias_id to #$target";
+            my $msg = $self->{lh}->maketext( "Failed to redirect Domain-Alias [_1] (#[_2]) to Domain [_3] (#[_4]).",$domain_name,$domain_alias_id,$target_domain_name,$target);
             $self->add_message( 'error', $msg );
             $msg1 .= $msg . ' ';
         }
@@ -1407,8 +1396,7 @@ sub show_aliases {
     }
 
     my %params = (
-    # TODO localize: $self->{lh}->maketext( $str, @args );
-        'title'   => 'VBoxAdm Aliases',
+        'title'   => $self->{lh}->maketext( 'VBoxAdm Aliases'),
         'current' => 'aliases',
         'aliases' => \@aliases,
         'search'  => $search,
@@ -1449,8 +1437,7 @@ sub show_create_alias {
     }
 
     my %params = (
-    # TODO localize: $self->{lh}->maketext( $str, @args );
-        'title'   => 'Add Alias',
+        'title'   => $self->{lh}->maketext( 'Add Alias'),
         'current' => 'aliases',
         'domains' => \@domains,
     );
@@ -1484,28 +1471,29 @@ sub show_add_alias {
     if ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
 
         # if domainadmin, verify that its his domain
-        # TODO localize: $self->{lh}->maketext( $str, @args );
-        $msg = "You are not authorized to modify this domain!";
+        $msg = $self->{lh}->maketext( "You are not authorized to modify this domain!");
         $self->add_message( 'error', $msg );
     }
     elsif ( $local_part && !&VBoxAdm::Utils::is_valid_localpart_rfc822($local_part) ) {
-    	# TODO localize: $self->{lh}->maketext( $str, @args );
-        $msg = "Invalid local part. This address is not RFC822 compliant!";
+        $msg = $self->{lh}->maketext( "Invalid local part. This address is not RFC822 compliant!");
         $self->add_message( 'error', $msg );
     }
     elsif ( $goto && !&VBoxAdm::Utils::is_valid_addresses_rfc822($goto) ) {
-    	# TODO localize: $self->{lh}->maketext( $str, @args );
-        $msg = "Invalid address in destination!";
+        $msg = $self->{lh}->maketext( "Invalid address in destination!");
         $self->add_message( 'error', $msg );
     }
     elsif ( $local_part && $domain_id && $goto ) {
-        my $query = "INSERT INTO aliases (domain_id,local_part,goto,is_active) VALUES(?,?,?,1)";
-        my $sth   = $dbh->prepare($query)
+    	my $query = "SELECT name FROM domains WHERE id = ?";
+    		my $sth = $dbh->prepare($query);
+    		$sth->execute($domain_id);
+    		my $domain_name = $sth->fetchrow_array();
+    		$sth->finish();
+    	
+        $query = "INSERT INTO aliases (domain_id,local_part,goto,is_active) VALUES(?,?,?,1)";
+        $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_add_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $domain_id, $local_part, $goto ) ) {
-        	# TODO get domain name for message
-        	# TODO localize: $self->{lh}->maketext( $str, @args );
-            $msg = "Alias $local_part @ $domain_id to $goto added";
+            $msg = $self->{lh}->maketext( "Alias [_1] to [_2] added.","$local_part@$domain_name",$goto);
             $self->add_message( 'success', $msg );
         }
         else {
@@ -1514,16 +1502,13 @@ sub show_add_alias {
                 $query, join( "-", ( $domain_id, $local_part, $goto ) ),
                 $sth->errstr
             );
-            # TODO get domain name for message
-            # TODO localize: $self->{lh}->maketext( $str, @args );
-            $msg = "Failed to add alias $local_part @ $domain_id => $goto. Database Error.";
+            $msg = $self->{lh}->maketext( "Failed to add alias [_1] => [_2]. Database Error.","$local_part@$domain_name",$goto);
             $self->add_message( 'error', $msg );
         }
         $sth->finish();
     }
     else {
-    	# TODO localize: $self->{lh}->maketext( $str, @args );
-        $msg = "Failed to add alias. Missing local_part, domain_id or target.";
+        $msg = $self->{lh}->maketext( "Failed to add alias. Missing local_part, domain_id or target.");
         $self->add_message( 'error', $msg );
     }
     $self->log( $msg . ". User: " . $self->authen->username );
@@ -1571,20 +1556,17 @@ sub show_remove_alias {
         $sth = $dbh->prepare($query)
           or syslog( 2, 'show_remove_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute(@args) ) {
-        	# TODO localize: $self->{lh}->maketext( $str, @args );
-            $msg = "Alias $alias => $goto (#$alias_id) removed";
+            $msg = $self->{lh}->maketext( "Alias [_1] => [_2] (#[_3]) removed.",$alias,$goto,$alias_id);
             $self->add_message( 'success', $msg );
         }
         else {
             syslog( 2, 'show_remove_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            # TODO localize: $self->{lh}->maketext( $str, @args );
-            $msg = "Failed to remove Alias $alias => $goto (#$alias_id). Database Error.";
+            $msg = $self->{lh}->maketext( "Failed to remove Alias [_1] => [_2] (#[_3]). Database Error.",$alias,$goto,$alias_id);
             $self->add_message( 'error', $msg );
         }
     }
     else {
-    	# TODO localize: $self->{lh}->maketext( $str, @args );
-        $msg = 'Failed to remove alias. Insufficient parameters.';
+        $msg = $self->{lh}->maketext( 'Failed to remove alias. Insufficient parameters.');
         $self->add_message( 'error', $msg );
     }
     $self->log( $msg . ". User: " . $self->authen->username );
@@ -1625,8 +1607,7 @@ sub show_edit_alias {
     my @row = $sth->fetchrow_array();
 
     my %params = (
-    # TODO localize: $self->{lh}->maketext( $str, @args );
-        title      => 'Edit Alias',
+        title      => $self->{lh}->maketext( 'Edit Alias'),
         alias_id   => $alias_id,
         local_part => $row[0],
         domain     => $row[1],
@@ -1660,6 +1641,14 @@ sub show_update_alias {
     my $target    = &VBoxAdm::Utils::trim( $q->param('goto') );
 
     my $msg1 = '';
+    my $alias_name = '';
+    if($alias_id) {
+    	  my $query = "SELECT a.local_part,d.name FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
+    		my $sth = $dbh->prepare($query);
+    		$sth->execute($alias_id);
+    		$alias_name = $sth->fetchrow_array();
+    		$sth->finish();
+    }
 
     if ( $alias_id && defined($is_active) ) {
         my $query = "UPDATE aliases SET is_active = ? WHERE id = ?";
@@ -1679,17 +1668,13 @@ sub show_update_alias {
             $status_str = 'enabled';
         }
         if ( $sth->execute(@args) ) {
-        	# TODO get alias name for message
-        	# TODO localize: $self->{lh}->maketext( $str, @args );
-            my $msg = "Alias #$alias_id $status_str.";
+            my $msg = $self->{lh}->maketext( "Alias [_1] (#[_2]) [_3].",$alias_name,$alias_id,$status_str);
             $self->add_message( 'success', $msg );
             $msg1 .= $msg . ' ';
         }
         else {
             syslog( 2, 'show_update_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            # TODO get alias name for message
-            # TODO localize: $self->{lh}->maketext( $str, @args );
-            my $msg = "Failed to set Alias #$alias_id $status_str.";
+            my $msg = $self->{lh}->maketext( "Failed to set Alias [_1] (#[_2]) [_3].",$alias_name,$alias_id,$status_str);
             $self->add_message( 'error', $msg );
             $msg1 .= $msg . ' ';
         }
@@ -1700,8 +1685,7 @@ sub show_update_alias {
         $target = join( ",", split( /\s*,\s*/, $target ) );
     }
     if ( $target && !&VBoxAdm::Utils::is_valid_addresses_rfc822($target) ) {
-    	# TODO localize: $self->{lh}->maketext( $str, @args );
-        my $msg = "Invalid address in destination!";
+        my $msg = $self->{lh}->maketext( "Invalid address in destination!");
         $self->add_message( 'error', $msg );
         $msg1 .= $msg . ' ';
     }
@@ -1710,17 +1694,13 @@ sub show_update_alias {
         my $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_mailboxes - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $target, $alias_id ) ) {
-        	# TODO get alias name for message
-        	# TODO localize: $self->{lh}->maketext( $str, @args );
-            my $msg .= "Alias #$alias_id redirected to $target";
+            my $msg .= $self->{lh}->maketext( "Alias [_1] (#[_2]) redirected to [_3].",$alias_name,$alias_id,$target);
             $self->add_message( 'success', $msg );
             $msg1 .= $msg . ' ';
         }
         else {
             syslog( 2, 'show_mailboxes - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $target, $alias_id ) ), $sth->errstr );
-            # TODO get alias name for message
-            # TODO localize: $self->{lh}->maketext( $str, @args );
-            my $msg = "Failed to redirect Alias #$alias_id to $target";
+            my $msg = $self->{lh}->maketext( "Failed to redirect Alias [_1] (#[_2]) to [_3].",$alias_name,$alias_id,$target);
             $self->add_message( 'error', $msg );
             $msg1 .= $msg . ' ';
         }
@@ -1803,8 +1783,7 @@ sub show_mailboxes {
     $sth->finish();
 
     my %params = (
-    # TODO localize: $self->{lh}->maketext( $str, @args );
-        'title'     => 'VBoxAdm Mailboxes',
+        'title'     => $self->{lh}->maketext( 'VBoxAdm Mailboxes'),
         'current'   => 'mailboxes',
         'mailboxes' => \@mailboxes,
         'search'    => $search,
@@ -1847,8 +1826,7 @@ sub show_create_mailbox {
     }
 
     my %params = (
-    # TODO localize: $self->{lh}->maketext( $str, @args );
-        'title'   => 'Add Mailbox',
+        'title'   => $self->{lh}->maketext( 'Add Mailbox'),
         'domains' => \@domains,
         'current' => 'mailboxes',
     );
@@ -1903,6 +1881,10 @@ sub show_add_mailbox {
     }
 
     my $msg1 = '';
+    my $domain_name = 'localhost';
+    if($domain_id) {
+    	$domain_name = $self->get_domain_byid($domain_id) || 'localhost';
+    }
 
     # no pws given, generate one
     if ( !$password && !$password_2 ) {
@@ -1915,20 +1897,17 @@ sub show_add_mailbox {
     if ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
 
         # if domainadmin, verify that its his domain
-        # TODO localize: $self->{lh}->maketext( $str, @args );
-        my $msg = "You are not authorized to modify this domain!";
+        my $msg = $self->{lh}->maketext( "You are not authorized to modify this domain!");
         $self->add_message( 'error', $msg );
         $msg1 = $msg;
     }
     elsif ( $username && !&VBoxAdm::Utils::is_valid_localpart_rfc822($username) ) {
-    	# TODO localize: $self->{lh}->maketext( $str, @args );
-        my $msg = "Invalid local part. This address is not RFC822 compliant!";
+        my $msg = $self->{lh}->maketext( "Invalid local part. This address is not RFC822 compliant!");
         $self->add_message( 'error', $msg );
         $msg1 = $msg;
     }
     elsif ( $password && $password_2 && $password ne $password_2 ) {
-    	# TODO localize: $self->{lh}->maketext( $str, @args );
-        my $msg = "Passwords do not match.";
+        my $msg = $self->{lh}->maketext( "Passwords do not match.");
         $self->add_message( 'error', $msg );
         $msg1 = $msg;
     }
@@ -1937,24 +1916,21 @@ sub show_add_mailbox {
         my $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_add_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $domain_id, $username, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ), $is_active ) ) {
-        	# TODO get domain name for message
-        	# TODO localize: $self->{lh}->maketext( $str, @args );
-            my $msg = "Added Mailbox $username @ #$domain_id for $name";
+            my $msg = $self->{lh}->maketext( "Added Mailbox [_1] for [_2].","$username\@$domain_name",$name);
             $self->add_message( 'success', $msg );
             $msg1 .= $msg;
 
             # get domain name for sender
-            my $domain_name = $self->get_domain_byid($domain_id) || 'localhost';
+            
 
             # send_welcome_mail
             my $emsg = '';
             $emsg .= "Subject: Welcome\r\n";
             $emsg .= "Auto-Submitted: auto-generated\r\n";
-            $emsg .= "From: VBoxAdm <vboxadm\@" . $domain_name . ">\r\n";
-            # TODO get domain name for recipient
-            #$emsg .= "To: <"..">\r\n"; # TODO add recipient
+            $emsg .= "From: VBoxAdm <vboxadm\@" . $system_domain . ">\r\n";
+            $emsg .= "To: <$username\@$domain_name>\r\n";
             $emsg .= "\r\n";
-            $emsg .= "Welcome to your new mailbox.";
+            $emsg .= $self->{lh}->maketext( "Welcome to your new mailbox.");
             &VBoxAdm::Utils::sendmail( 'vboxadm@' . $system_domain, $emsg );
         }
         else {
@@ -1963,17 +1939,14 @@ sub show_add_mailbox {
                 $query, join( "-", ( $domain_id, $username, $password, $is_active ) ),
                 $sth->errstr
             );
-            # TODO get domain name for message
-            # TODO localize: $self->{lh}->maketext( $str, @args );
-            my $msg = "Failed to add Mailbox $username @ #$domain_id for $name. Database Error.";
+            my $msg = $self->{lh}->maketext( "Failed to add Mailbox [_1] for [_2]. Database Error.","$username\@$domain_name",$name);
             $self->add_message( 'error', $msg );
             $msg1 = $msg;
         }
         $sth->finish();
     }
     else {
-    	# TODO localize: $self->{lh}->maketext( $str, @args );
-        my $msg = "Failed to add Mailbox. Insufficient parameters.";
+        my $msg = $self->{lh}->maketext( "Failed to add Mailbox. Insufficient parameters.");
         $self->add_message( 'error', $msg );
         $msg1 = $msg;
     }
@@ -2005,30 +1978,33 @@ sub show_remove_mailbox {
     my $msg = '';
 
     if ($mailbox_id) {
-        my $query = "DELETE FROM mailboxes WHERE id = ?";
+    	  my $query = "SELECT CONCAT(m.local_part,'\@',d.name) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
+    	  my $sth = $dbh->prepare($query);
+    	  $sth->execute($mailbox_id);
+    	  my $mailbox_name = $sth->fetchrow_array();
+    	  $sth->finish();
+    	
+        $query = "DELETE FROM mailboxes WHERE id = ?";
         my @args  = ();
         push( @args, $mailbox_id );
         if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
             $query .= "AND domain_id = ?";
             push( @args, $self->get_users_domainid() );
         }
-        my $sth = $dbh->prepare($query)
+        $sth = $dbh->prepare($query)
           or syslog( 2, 'show_remove_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute(@args) ) {
-        	# TODO get name for message
-            $msg = "Mailbox #$mailbox_id removed";
+            $msg = $self->{lh}->maketext( "Mailbox [_1] (#[_2]) removed.",$mailbox_name,$mailbox_id);
             $self->add_message( 'success', $msg );
         }
         else {
             syslog( 2, 'show_remove_mailbox - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            # TODO get name for message
-            $msg = "Failed to remove Mailbox #$mailbox_id. Database Error.";
+            $msg = $self->{lh}->maketext( "Failed to remove Mailbox [_1] (#[_2]). Database Error.",$mailbox_name,$mailbox_id);
             $self->add_message( 'error', $msg );
         }
     }
     else {
-    	# TODO localize: $self->{lh}->maketext( $str, @args );
-        $msg = "Failed to remove mailbox. Insufficient parameters.";
+        $msg = $self->{lh}->maketext( "Failed to remove mailbox. Insufficient parameters.");
         $self->add_message( 'error', $msg );
     }
 
@@ -2106,7 +2082,7 @@ sub show_edit_mailbox {
     }
 
     my %params = (
-        title              => 'Edit Mailbox',
+        title              => $self->{lh}->maketext( 'Edit Mailbox'),
         mailbox_id         => $mailbox_id,
         local_part         => $row[0],
         domain             => $row[1],
@@ -2171,7 +2147,13 @@ sub show_update_mailbox {
     my $msg1 = '';
 
     if ($mailbox_id) {
-        my $query = "UPDATE mailboxes SET ";
+    		my $query = "SELECT CONCAT(m.local_part,'\@',d.name) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
+    	  my $sth = $dbh->prepare($query);
+    	  $sth->execute($mailbox_id);
+    	  my $mailbox_name = $sth->fetchrow_array();
+    	  $sth->finish();
+    	
+        $query = "UPDATE mailboxes SET ";
 
         # only execute query if scalar(@params) > 0, i.e. at least on valid option
         my @params = ();
@@ -2187,16 +2169,14 @@ sub show_update_mailbox {
 
                 # Check password length
                 if ( length($password) < 8 ) {
-                	# TODO localize: $self->{lh}->maketext( $str, @args );
-                    my $msg = 'Bad password - Password too short. Need at least 8 characters.';
+                    my $msg = $self->{lh}->maketext( 'Bad password - Password too short. Need at least 8 characters.');
                     $self->add_message( 'warning', $msg );
                     $msg1 .= $msg . ' ';
                 }
 
                 # Check password strength
                 if ( my $str = Data::Password::IsBadPassword($password) ) {
-                	# TODO localize: $self->{lh}->maketext( $str, @args );
-                    my $msg = 'Weak password - ' . $str . '.';
+                    my $msg = $self->{lh}->maketext('Weak password - [_1].',$str);
                     $self->add_message( 'warning', $msg );
                     $msg1 .= $msg . ' ';
                 }
@@ -2253,12 +2233,10 @@ sub show_update_mailbox {
             $query .= "sa_kill_score = ?, ";
             push( @params, $sa_kill_score );
             if ( $sa_kill_score > 10 ) {
-            	# TODO localize: $self->{lh}->maketext( $str, @args );
-                $self->add_message( 'warning', 'SpamAssassin kill score probably set too high! Should be below 10.' );
+                $self->add_message( 'warning', $self->{lh}->maketext( 'SpamAssassin kill score probably set too high! Should be below 10.') );
             }
             elsif ( $sa_kill_score < 5 ) {
-            	# TODO localize: $self->{lh}->maketext( $str, @args );
-                $self->add_message( 'warning', 'SpamAssassin kill score probably set too low! Should be above 5.' );
+                $self->add_message( 'warning', $self->{lh}->maketext( 'SpamAssassin kill score probably set too low! Should be above 5.') );
             }
         }
         if ( defined($sa_active) ) {
@@ -2276,24 +2254,21 @@ sub show_update_mailbox {
                 $is_on_vacation = 1;
             }
             else {
-            	# TODO localize: $self->{lh}->maketext( $str, @args );
-                $self->add_message( 'warning', 'Attempt to enable Vacation w/o vacation message or subject denied!' );
+                $self->add_message( 'warning', $self->{lh}->maketext( 'Attempt to enable Vacation w/o vacation message or subject denied!') );
             }
             if ( $vacation_start && $vacation_start =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
                 $vacation_start = "$3-$2-$1";
             }
             else {
                 $vacation_start = '0000-00-00';
-                # TODO localize: $self->{lh}->maketext( $str, @args );
-                $self->add_message( 'warning', 'Invalid vacation start date!' );
+                $self->add_message( 'warning', $self->{lh}->maketext( 'Invalid vacation start date!') );
             }
             if ( $vacation_end && $vacation_end =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
                 $vacation_end = "$3-$2-$1";
             }
             else {
                 $vacation_end = '0000-00-00';
-                # TODO localize: $self->{lh}->maketext( $str, @args );
-                $self->add_message( 'warning', 'Invalid vacation end date!' );
+                $self->add_message( 'warning', $self->{lh}->maketext( 'Invalid vacation end date!') );
             }
         }
         else {
@@ -2326,31 +2301,25 @@ sub show_update_mailbox {
               or syslog( 2, 'show_update_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
 
             if ( $sth->execute(@params) ) {
-            	# TODO get name for message
-            	# TODO localize: $self->{lh}->maketext( $str, @args );
-                my $msg = "Updated Mailbox #$mailbox_id.";
+                my $msg = $self->{lh}->maketext( "Updated Mailbox [_1] (#[_2]).",$mailbox_name,$mailbox_id);
                 $self->add_message( 'success', $msg );
                 $msg1 .= $msg . ' ';
             }
             else {
                 syslog( 2, 'show_update_mailbox - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @params ), $sth->errstr );
-                # TODO get name for message
-                # TODO localize: $self->{lh}->maketext( $str, @args );
-                my $msg = "Failed to update Mailbox #$mailbox_id. Database Error.";
+                my $msg = $self->{lh}->maketext( "Failed to update Mailbox [_1] (#[_2]). Database Error.",$mailbox_name,$mailbox_id);
                 $self->add_message( 'error', $msg );
                 $msg1 .= $msg . ' ';
             }
         }
         else {
-        	# TODO localize: $self->{lh}->maketext( $str, @args );
-            my $msg = "No Parameter changed. ";
+            my $msg = $self->{lh}->maketext( "No Parameter changed. ");
             $self->add_message( 'error', $msg );
             $msg1 .= $msg . ' ';
         }
     }
     else {
-    	# TODO localize: $self->{lh}->maketext( $str, @args );
-        my $msg = "Failed to update Mailbox. No Mailbox-ID given. ";
+        my $msg = $self->{lh}->maketext( "Failed to update Mailbox. No Mailbox-ID given. ");
         $self->add_message( 'error', $msg );
         $msg1 .= $msg . ' ';
     }
@@ -2403,8 +2372,7 @@ sub show_log {
     }
 
     my %params = (
-    # TODO localize: $self->{lh}->maketext( $str, @args );
-        'title'   => 'VBoxAdm Log',
+        'title'   => $self->{lh}->maketext( 'VBoxAdm Log'),
         'current' => 'log',
         'log'     => \@log,
         'search'  => $search,
@@ -2460,8 +2428,7 @@ sub show_admins {
     }
 
     my %params = (
-    # TODO localize: $self->{lh}->maketext( $str, @args );
-        'title'   => 'VBoxAdm Admins',
+        'title'   => $self->{lh}->maketext( 'VBoxAdm Admins'),
         'current' => 'admins',
         'admins'  => \@admins,
         'search'  => $search,
