@@ -99,7 +99,7 @@ sub setup {
 
         # Broadcast
         'broadcast'      => 'show_broadcast',
-        'send_broadcase' => 'show_send_broadcast',
+        'send_broadcast' => 'show_send_broadcast',
 
         # Log
         'log' => 'show_log',
@@ -585,12 +585,40 @@ sub show_send_broadcast {
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
+    
+    # Get our database connection
+    my $dbh = $self->dbh();
 
-    # TODO implement
+    # Get CGI Query object
+    my $q = $self->query();
+    
+    my $subject = $q->param('subject');
+    my $message = $q->param('message');
+    
+    my $system_domain = $self->{config}{'default'}{'domain'} || 'localhost';
+            
+    my $query = "SELECT m.local_part,d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.is_active AND d.is_active";
+    my $sth = $dbh->prepare($query);
+    $sth->execute();
+    my $num_sent = 0;
+    while(my ($local_part,$domain_name) = $sth->fetchrow_array()) {
+    	my $email = $local_part.'@'.$domain_name;
+    	my $emsg = '';
+      $emsg .= "Subject: ".$subject."\r\n";
+      $emsg .= "Auto-Submitted: auto-generated\r\n";
+      $emsg .= "From: VBoxAdm <vboxadm\@" . $system_domain . ">\r\n";
+      $emsg .= "To: <".$email.">\r\n";
+      $emsg .= "\r\n";
+      $emsg .= $message;
+      &VBoxAdm::Utils::sendmail( 'vboxadm@' . $system_domain, $emsg );
+      $num_sent++;
+    }
+    $sth->finish();
 
     my %params = (
         'title'   => 'VBoxAdm Sent Broadcast',
         'current' => 'broadcast',
+        'num_sent' => $num_sent,
     );
 
     return $self->tt_process( 'broadcast-result.tpl', \%params );
@@ -1066,6 +1094,7 @@ sub show_add_domain_alias {
         my $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_add_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $domain_alias, $domain_id ) ) {
+        	# TODO get domain name for message
             $msg = "Added domain alias '$domain_alias' to domain #$domain_id";
             $self->add_message( 'success', $msg );
         }
@@ -1075,6 +1104,7 @@ sub show_add_domain_alias {
                 $query, join( "-", ( $domain_alias, $domain_id ) ),
                 $sth->errstr
             );
+            # TODO get domain name for message
             $msg = "Failed to add domain alias '$domain_alias' to domain #$domain_id. Database Error.";
             $self->add_message( 'error', $msg );
         }
@@ -1120,11 +1150,13 @@ sub show_remove_domain_alias {
         my $sth = $dbh->prepare($query)
           or syslog( 2, 'show_remove_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute(@args) ) {
+        	# TODO get domain name for message
             $msg = "Domain-Alias #$domain_alias_id removed";
             $self->add_message( 'success', $msg );
         }
         else {
             syslog( 2, 'show_remove_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+            # TODO get domain name for message
             $msg = "Failed to remove Domain-Alias #$domain_alias_id. Database error.";
             $self->add_message( 'error', $msg );
         }
@@ -1243,12 +1275,14 @@ sub show_update_domain_alias {
             $is_active  = 1;
         }
         if ( $sth->execute(@args) ) {
+        	# TODO get domain name for message
             my $msg = "Domain-Alias #$domain_alias_id $status_str.";
             $self->add_message( 'success', $msg );
             $msg1 .= $msg . ' ';
         }
         else {
             syslog( 2, 'show_update_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+            # TODO get domain name for message
             my $msg = "Failed to set Domain-Alias #$domain_alias_id $status_str. Database Error.";
             $self->add_message( 'error', $msg );
             $msg1 .= $msg . ' ';
@@ -1267,6 +1301,7 @@ sub show_update_domain_alias {
         my $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_update_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $target, $domain_alias_id ) ) {
+        	# TODO get domain name for message
             my $msg = "Domain-Alias #$domain_alias_id redirected to Domain #$target";
             $self->add_message( 'success', $msg );
             $msg1 .= $msg . ' ';
@@ -1277,6 +1312,7 @@ sub show_update_domain_alias {
                 $query, join( "-", ( $target, $domain_alias_id ) ),
                 $sth->errstr
             );
+            # TODO get domain name for message
             my $msg = "Failed to redirect Domain-Alias #$domain_alias_id to #$target";
             $self->add_message( 'error', $msg );
             $msg1 .= $msg . ' ';
@@ -1428,6 +1464,7 @@ sub show_add_alias {
         my $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_add_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $domain_id, $local_part, $goto ) ) {
+        	# TODO get domain name for message
             $msg = "Alias $local_part @ $domain_id to $goto added";
             $self->add_message( 'success', $msg );
         }
@@ -1437,6 +1474,7 @@ sub show_add_alias {
                 $query, join( "-", ( $domain_id, $local_part, $goto ) ),
                 $sth->errstr
             );
+            # TODO get domain name for message
             $msg = "Failed to add alias $local_part @ $domain_id => $goto. Database Error.";
             $self->add_message( 'error', $msg );
         }
@@ -1595,12 +1633,14 @@ sub show_update_alias {
             $status_str = 'enabled';
         }
         if ( $sth->execute(@args) ) {
+        	# TODO get alias name for message
             my $msg = "Alias #$alias_id $status_str.";
             $self->add_message( 'success', $msg );
             $msg1 .= $msg . ' ';
         }
         else {
             syslog( 2, 'show_update_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+            # TODO get alias name for message
             my $msg = "Failed to set Alias #$alias_id $status_str.";
             $self->add_message( 'error', $msg );
             $msg1 .= $msg . ' ';
@@ -1621,12 +1661,14 @@ sub show_update_alias {
         my $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_mailboxes - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $target, $alias_id ) ) {
+        	# TODO get alias name for message
             my $msg .= "Alias #$alias_id redirected to $target";
             $self->add_message( 'success', $msg );
             $msg1 .= $msg . ' ';
         }
         else {
             syslog( 2, 'show_mailboxes - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $target, $alias_id ) ), $sth->errstr );
+            # TODO get alias name for message
             my $msg = "Failed to redirect Alias #$alias_id to $target";
             $self->add_message( 'error', $msg );
             $msg1 .= $msg . ' ';
@@ -1839,6 +1881,7 @@ sub show_add_mailbox {
         my $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_add_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $domain_id, $username, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ), $is_active ) ) {
+        	# TODO get domain name for message
             my $msg = "Added Mailbox $username @ #$domain_id for $name";
             $self->add_message( 'success', $msg );
             $msg1 .= $msg;
@@ -1851,6 +1894,8 @@ sub show_add_mailbox {
             $emsg .= "Subject: Welcome\r\n";
             $emsg .= "Auto-Submitted: auto-generated\r\n";
             $emsg .= "From: VBoxAdm <vboxadm\@" . $domain_name . ">\r\n";
+            # TODO get domain name for recipient
+            #$emsg .= "To: <"..">\r\n"; # TODO add recipient
             $emsg .= "\r\n";
             $emsg .= "Welcome to your new mailbox.";
             &VBoxAdm::Utils::sendmail( 'vboxadm@' . $system_domain, $emsg );
@@ -1861,6 +1906,7 @@ sub show_add_mailbox {
                 $query, join( "-", ( $domain_id, $username, $password, $is_active ) ),
                 $sth->errstr
             );
+            # TODO get domain name for message
             my $msg = "Failed to add Mailbox $username @ #$domain_id for $name. Database Error.";
             $self->add_message( 'error', $msg );
             $msg1 = $msg;
@@ -1910,11 +1956,13 @@ sub show_remove_mailbox {
         my $sth = $dbh->prepare($query)
           or syslog( 2, 'show_remove_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute(@args) ) {
+        	# TODO get name for message
             $msg = "Mailbox #$mailbox_id removed";
             $self->add_message( 'success', $msg );
         }
         else {
             syslog( 2, 'show_remove_mailbox - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+            # TODO get name for message
             $msg = "Failed to remove Mailbox #$mailbox_id. Database Error.";
             $self->add_message( 'error', $msg );
         }
@@ -2143,10 +2191,10 @@ sub show_update_mailbox {
             $query .= "sa_kill_score = ?, ";
             push( @params, $sa_kill_score );
             if ( $sa_kill_score > 10 ) {
-                $self->add_message( 'warning', 'SpamAssassin kill score probably set too high!' );
+                $self->add_message( 'warning', 'SpamAssassin kill score probably set too high! Should be below 10.' );
             }
             elsif ( $sa_kill_score < 5 ) {
-                $self->add_message( 'warning', 'SpamAssassin kill score probably set too low!' );
+                $self->add_message( 'warning', 'SpamAssassin kill score probably set too low! Should be above 5.' );
             }
         }
         if ( defined($sa_active) ) {
@@ -2211,12 +2259,14 @@ sub show_update_mailbox {
               or syslog( 2, 'show_update_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
 
             if ( $sth->execute(@params) ) {
+            	# TODO get name for message
                 my $msg = "Updated Mailbox #$mailbox_id.";
                 $self->add_message( 'success', $msg );
                 $msg1 .= $msg . ' ';
             }
             else {
                 syslog( 2, 'show_update_mailbox - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @params ), $sth->errstr );
+                # TODO get name for message
                 my $msg = "Failed to update Mailbox #$mailbox_id. Database Error.";
                 $self->add_message( 'error', $msg );
                 $msg1 .= $msg . ' ';
