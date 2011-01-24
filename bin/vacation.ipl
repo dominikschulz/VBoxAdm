@@ -297,13 +297,17 @@ sub is_blacklisted {
     my $dbh    = shift;
     my $sender = shift;
     
-    # check vacation_blacklist which lists senders (or parts thereof) which are never notified although they pass the tests above
-    # TODO create vacation_blacklist table
-    my $query = "SELECT COUNT(*) FROM vacation_blacklist WHERE email = ?";
+    my ($local_part,$domain) = split /@/, $sender;
     
+    # check vacation_blacklist which lists senders (or parts thereof) which are never notified although they pass the tests above
+    my $query = "SELECT COUNT(*) FROM vacation_blacklist WHERE domain = ? AND local_part = ?";
     my $sth = $dbh->prepare($query);
-    $sth->execute($sender);
+    # make exact query
+    $sth->execute($domain,$local_part);
     my $count = $sth->fetchrow_array();
+    # add wildcard query count
+    $sth->execute($domain,'*');
+    $count += $sth->fetchrow_array();
     $sth->finish();
     return $count;
 }

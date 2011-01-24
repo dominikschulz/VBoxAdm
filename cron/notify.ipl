@@ -3,13 +3,15 @@
 use strict;
 use warnings;
 
+use Template;
+
 foreach my $file ( glob("/home/tex/tmp/maillogs/mail.log*") ) {
-    &read_maillog($file);
+    &parse_postfix_maillog($file);
 }
 
-sub read_maillog {
+sub parse_postfix_maillog {
     my $file = shift;
-    print "read_maillog - Reading file $file\n";
+    print "parse_postfix_maillog - Reading file $file\n";
     if ( open( my $FH, "<", $file ) ) {
       LINE: while ( my $line = <$FH> ) {
             if ( $line =~ m/postfix\/smtpd/ && $line =~ m/NOQUEUE: reject:/ ) {
@@ -46,7 +48,6 @@ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d)
 
                     # msg: Client host rejected: cannot find your hostname -> no RDNS found, notify about missing RDNS
                     if($smtpmsg =~ m/Client host rejected: cannot find your hostname/) {
-
                     	print "WOULD Handle missing RDNS and send report to $notfiy_to.\n";
                     }
                     # msg: Helo command rejected: Host not found -> helo does not resolve to valid IP, notify about invalid helo
@@ -58,6 +59,7 @@ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d)
                     # fromdomain: domain part of "from"
                     # strippedhelodomain: helo stripped from ^(smtp|mail|mailout).
                     # TODO record sent mail in DB, only send twice. once when found and one reminder after one week
+                    # DB key: postmaster,date
                     else {
                     	print "ERROR Unknown Cause: $smtpmsg\n";
                     }
