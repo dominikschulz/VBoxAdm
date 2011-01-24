@@ -3,9 +3,71 @@
 use strict;
 use warnings;
 
+use DBI;
+use Config::Std;
+use Getopt::Long;
+use Sys::Syslog;
 use Template;
 
-foreach my $file ( glob("/home/tex/tmp/maillogs/mail.log*") ) {
+use VBoxAdm::Utils '@VERSION@';
+
+my ( $conffile_used, @hooks, %hook, %config, );
+
+# Valid config file locations to try
+my @conffile_locations = qw(
+  vboxadm.conf
+  conf/vboxadm.conf
+  /etc/vboxadm.conf
+  /etc/postfix/vboxadm.conf
+);
+
+GetOptions(
+    'verbose|v+'    => \$config{'verbose'},
+
+    # shift removes name of the option (config) and leaves the value for unshift
+    # unshift prepends to the list of valid config files so it is tried first
+    'config=s' => sub { shift; unshift( @conffile_locations, @_ ); },
+) or &usage();
+
+# Try all config file locations
+foreach my $loc (@conffile_locations) {
+    if ( -r $loc ) {
+        $conffile_used = $loc;
+        read_config $loc => %config;
+        last;
+    }
+}
+
+openlog( 'vboxadm-rfc-notify', 'ndelay,nofatal', 'mail' );
+
+# Determine options
+my $dbhost = $config{'default'}{'dbhost'} || 'localhost';
+my $dbuser = $config{'default'}{'dbuser'} || 'vboxadm';
+my $dbpass = $config{'default'}{'dbpass'} || 'vboxadm';
+my $dbport = $config{'default'}{'dbport'} || 3306;
+my $dbdb   = $config{'default'}{'dbdb'}   || 'vboxadm';
+
+my $dsn = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;password=$dbpass";
+my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 1, } );
+
+if ( !$dbh ) {
+    syslog( 2, 'Could not connect to database with DSN $dsn - From: %s - To: %s - Exiting', $config{'sender'}, $config{'recipient'} );
+    closelog();
+    die("Could not connect to database with DSN $dsn");
+}
+
+# Talk UTF-8 to the database
+# Prepare DB connection for utf8
+$dbh->do("SET NAMES utf8");
+
+my $tpl_config = {
+    INCLUDE_PATH => 'tpl',
+    POST_CHOMP   => 1,
+};
+
+my $tpl = Template->new($tpl_config);
+
+foreach my $file ( glob("/home/tex/tmp/maillogs/mail.log") ) {
     &parse_postfix_maillog($file);
 }
 
@@ -15,8 +77,6 @@ sub parse_postfix_maillog {
     if ( open( my $FH, "<", $file ) ) {
       LINE: while ( my $line = <$FH> ) {
             if ( $line =~ m/postfix\/smtpd/ && $line =~ m/NOQUEUE: reject:/ ) {
-
-                #print "found candidate line:\n\t".$line;
                 if ( $line =~
 m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d) ([^;]+); from=<([^>]+)> to=<([^>]+)> proto=([A-Z]+) helo=<([^>]+)>/
                   )
@@ -30,38 +90,109 @@ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d)
                         print "SKIPPED: GREYLISTED\n";
                         next LINE;
                     }
-                    elsif ( $from =~ m/@(yahoo|gmail|microsoft|hotmail|msn|live|aim|rolex|blizzard)\./ ) {
+                    elsif ( $from =~ m/@(yahoo|gmail|microsoft|hotmail|msn|live|aim|rolex|blizzard|gmx|web)\./ ) {
                         print "SKIPPED: SPAM from well-known domain\n";
                         next LINE;
                     }
+                    
+                    my $vars = {};
 
-                    # TODO do dns lookup on helo to see if we get an IP
-                    # check that ip -rdns-> rdns -fdns-> helo
                     print "REJECT - RDNS: $rdns - IP: $ip - SMTP-Code: $smtpcode - SMTP-Msg: $smtpmsg - From: $from - To: $to - Proto: $proto - Helo: $helo\n";
                     
-                    my $notfiy_to = $from;
-                    	if($from =~ m/@(.*)$/) {
-                    		my $from_domain = $1;
-                    		$notfiy_to .= ',postmaster@'.$from_domain;
-                    	}
-                    	$notfiy_to .= ",$to";
+                    $vars->{'to'} = $to;
+                    $vars->{'from'} = $from;
+                    $vars->{'rdns'} = $rdns;
+                    $vars->{'ip'} = $ip;
+                    $vars->{'system_domain'} = $config{'default'}{'domain'};
+
+                    my $from_domain;
+                    if ( $from =~ m/@(.*)$/ ) {
+                        $from_domain = $1;
+                        $vars->{'from_domain'} = $from_domain;
+                    }
+                    
+                    if(&is_notified($dbh,'postmaster@'.$from_domain)) {
+                    	print "SKIPPED: This postmaster (postmaster\@$from_domain) was already notified.\n";
+                    	next LINE;
+                    }
+                    
+                    if(&is_local_domain($dbh,$from_domain)) {
+                    	print "SKIPPED: Forged localdomain in sender ($from_domain may not be a local domain)!\n";
+                    	next LINE;
+                    }
+                    
+                    if(!&is_local_mailbox($dbh,$to)) {
+                    	print "SKIPPED: Invalid recipient ($to is no local mailbox)!\n";
+                    	next LINE;
+                    }
 
                     # msg: Client host rejected: cannot find your hostname -> no RDNS found, notify about missing RDNS
-                    if($smtpmsg =~ m/Client host rejected: cannot find your hostname/) {
-                    	print "WOULD Handle missing RDNS and send report to $notfiy_to.\n";
+                    if ( $smtpmsg =~ m/Client host rejected: cannot find your hostname/ ) {
+                        print "WOULD Handle missing RDNS and send report to $from, $to, postmaster\@$from_domain.\n";
+                        $vars->{'is_rdns'} = 1;
                     }
+
                     # msg: Helo command rejected: Host not found -> helo does not resolve to valid IP, notify about invalid helo
-                    elsif($smtpmsg =~ m/Helo command rejected: Host not found/) {
-                    	print "WOULD Handle invalid HELO and send report to $notfiy_to.\n";
+                    if ( $smtpmsg =~ m/Helo command rejected: Host not found/ ) {
+                        print "WOULD Handle invalid HELO and send report to $from, $to, postmaster\@$from_domain.\n";
+                        $vars->{'is_helo'} = 1;
                     }
-                    # send message from postmaster@<yourdomain.tld> to postmaster@<fromdomain> and postmaster@<strippedhelodomain>
-                    # set BCC to postmaster@<yourdomain.tld>
-                    # fromdomain: domain part of "from"
-                    # strippedhelodomain: helo stripped from ^(smtp|mail|mailout).
-                    # TODO record sent mail in DB, only send twice. once when found and one reminder after one week
-                    # DB key: postmaster,date
+
+                    if($vars->{'is_rdns'} || $vars->{'is_helo'}) {
+                    	my $postmaster_msg;
+	                    $tpl->process('rfc-notify-postmaster.tpl', $vars, \$postmaster_msg);
+	                    my $emsg = '';
+					            $emsg .= "Subject: MISCONFIGURED MAIL-SYSTEM NOTIFICATION\r\n";
+					            $emsg .= "Auto-Submitted: auto-generated\r\n";
+					            $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
+					            $emsg .= "To: <postmaster\@$from_domain>\r\n";
+					            $emsg .= "\r\n";
+					            $emsg .= $postmaster_msg;
+					            
+					            if($config{'rfc-notify'}{'dry'}) {
+					            	print "XXX - Would send message to POSTMASTER:\n".$emsg."\n";
+					            } else {
+					            	&VBoxAdm::Utils::sendmail( 'postmaster@'.$config{'default'}{'domain'}, $emsg );
+					            }
+	                    
+	                    my $recipient_msg;
+	                    $tpl->process('rfc-notify-recipient.tpl', $vars, \$recipient_msg);
+	                    $emsg = '';
+					            $emsg .= "Subject: MISCONFIGURED MAIL-SYSTEM NOTIFICATION\r\n";
+					            $emsg .= "Auto-Submitted: auto-generated\r\n";
+					            $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
+					            $emsg .= "To: <$to>\r\n";
+					            $emsg .= "\r\n";
+					            $emsg .= $recipient_msg;
+					            
+					            if($config{'rfc-notify'}{'dry'}) {
+					            	print "XXX - Would send message to RECIPIENT:\n".$emsg."\n";
+					            } else {
+					            	&VBoxAdm::Utils::sendmail( 'postmaster@'.$config{'default'}{'domain'}, $emsg );
+					            }
+	                    
+	                    my $sender_msg;
+	                    $tpl->process('rfc-notify-sender.tpl', $vars, \$sender_msg);
+	                    $emsg = '';
+					            $emsg .= "Subject: MISCONFIGURED MAIL-SYSTEM NOTIFICATION\r\n";
+					            $emsg .= "Auto-Submitted: auto-generated\r\n";
+					            $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
+					            $emsg .= "To: <$from>\r\n";
+					            $emsg .= "\r\n";
+					            $emsg .= $sender_msg;
+					            
+					            if($config{'rfc-notify'}{'dry'}) {
+					            	print "XXX - Would send message to SENDER:\n".$emsg."\n";
+					            } else {
+					            	&VBoxAdm::Utils::sendmail( 'postmaster@'.$config{'default'}{'domain'}, $emsg );
+					            }
+					            
+					            if(!$config{'rfc-notify'}{'dry'}) {
+					            	&set_notified($dbh,'postmaster@'.$from_domain);
+					            }
+                    }
                     else {
-                    	print "ERROR Unknown Cause: $smtpmsg\n";
+                        print "ERROR Unknown Cause: $smtpmsg\n";
                     }
                 }
             }
@@ -69,60 +200,61 @@ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d)
         close($FH);
     }
 }
-=begin invalid_rdns
-Dear Postmaster,
+$dbh->disconnect();
+closelog();
+exit 0;
+sub set_notified {
+	my $dbh = shift;
+	my $email = shift;
+	
+	my $query = "INSERT IGNORE INTO rfc_notify (email,ts) VALUES(?,NOW())";
+	my $sth = $dbh->prepare($query)
+		or die("Could not prepare Query $query: ".DBI->errstr);
+	$sth->execute($email)
+		or die("Could not execute Query $query: ".$sth->errstr);
+	$sth->finish();
+	
+	return 1;
+}
+sub is_notified {
+	my $dbh = shift;
+	my $email = shift;
+	
+	my $query = "SELECT COUNT(*) FROM rfc_notify WHERE email = ?";
+	my $sth = $dbh->prepare($query)
+		or die("Could not prepare Query $query: ".DBI->errstr);
+	$sth->execute($email)
+		or die("Could not execute Query $query: ".$sth->errstr);
+	my $count = $sth->fetchrow_array();
+	$sth->finish();
+	
+	return $count;
+}
+sub is_local_domain {
+	my $dbh = shift;
+	my $domain = shift;
+	
+	my $query = "SELECT COUNT(*) FROM domains WHERE name = ?";
+	my $sth = $dbh->prepare($query)
+		or die("Could not prepare Query $query: ".DBI->errstr);
+	$sth->execute($domain)
+		or die("Could not execute Query $query: ".$sth->errstr);
+	my $count = $sth->fetchrow_array();
+	$sth->finish();
 
-you are receiving this mail since your mailserver is probably misconfigured or someone is abusing your domainname.
-You will receive this mail only once. Please act acordingly to restore full service to your users.
-
-Below you will find detailed information about what is wrong with your mailserver and some pointers on how to fix this issue.
-
---- RDNS ---
-Your mailserver is using a IP address for sending that has no valid reverse DNS record. This makes it very hard to determine if this
-IP is eligible to send mail for your domain and thus many mailservers will reject mails coming from this IP.
-
-How to fix this:
-Contact your network department or ISP to setup a reverse DNS mapping from <IP> to <HELO>. 
---- RDNS END ---
-
---- HELO ---
-Your mailserver is using a HELO hostname during the greeting sequence of SMTP which does not resolve to a valid IP address. This is regarded bad style
-and should be fixed.
-
-How to fix this:
-Set your HELO hostname to <RDNS> or make the reverse DNS of <IP> match <HELO>.
---- HELO END ---
-
-Please don't make the misconeption that because some mailservers are accepting your mail everyone will do.
-
-You should alway make sure that the HELO name of your mailserver resolves to a valid IP whose reverse DNS resolves to your HELO name again.
-
-Best Regards,
-
-postmaster@DOMAIN.TLD
-
----
-
-Dear <designated recipient>,
-
-you are reciving this mail because XXX tried to send you a mail which you didn't receive due to their mailserver being misconfigured.
-In case you expect messages from XXX you should contact him by other means and make sure his ISP or employee fixes his mailserver.
-The sender and the postmaster of the sending mailserver have been contacted and will hopefully work to restore the service.
-Please note that the sender address may be forged to send you spam. In this case this should be regarded as a false alarm and be ignored.
-
-Best Regards,
-
-postmaster@DOMAIN.TLD
-
----
-
-Dear <sender>,
-
-you've tried to send mail to XXX. Unfortunately the mailserver you are using is misconfigured and the recipients mailserver is not accepting mail from
-misconfigured mailservers. Please contact the operator of your mailserver and make sure he fixes these issues. He has already been notified about this problem
-and should be aware of it already. Technical information on how to fix this issue have been sent as well.
-
-Best Regards,
-
-postmaster@DOMAIN.TLD
-=cut
+	return $count;
+}
+sub is_local_mailbox {
+	my $dbh = shift;
+	my $mailbox = shift;
+	
+	my $query = "SELECT COUNT(*) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,'\@',d.name) = ?";
+	my $sth = $dbh->prepare($query)
+		or die("Could not prepare Query $query: ".DBI->errstr);
+	$sth->execute($mailbox)
+		or die("Could not execute Query $query: ".$sth->errstr);
+	my $count = $sth->fetchrow_array();
+	$sth->finish();
+	
+	return $count;
+}
