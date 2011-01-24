@@ -4,6 +4,7 @@ use warnings;
 
 use DBI;
 use Config::Std;
+use Getopt::Long;
 use Sys::Syslog;
 
 my ( $conffile_used, @hooks, %hook, %config, );

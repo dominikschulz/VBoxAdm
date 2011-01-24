@@ -69,6 +69,15 @@ CREATE TABLE IF NOT EXISTS `mailboxes` (
   KEY `vacation_duration` (`vacation_start`,`vacation_end`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
 
+DROP TABLE IF EXISTS `rfc_notify`;
+CREATE TABLE IF NOT EXISTS `rfc_notify` (
+  `id` int(16) NOT NULL AUTO_INCREMENT,
+  `email` varchar(255) NOT NULL,
+  `ts` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `email` (`email`)
+) ENGINE=MyISAM  DEFAULT CHARSET=utf8;
+
 DROP TABLE IF EXISTS `vacation_blacklist`;
 CREATE TABLE IF NOT EXISTS `vacation_blacklist` (
   `id` int(16) NOT NULL AUTO_INCREMENT,

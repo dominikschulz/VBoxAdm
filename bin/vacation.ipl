@@ -55,12 +55,12 @@ if ( $config{'recipient'} ) {
     }
 }
 
-$db_host         = $config{'default'}{'dbhost'}           || $db_host;
-$db_user         = $config{'default'}{'dbuser'}           || $db_user;
-$db_pass         = $config{'default'}{'dbpass'}           || $db_pass;
-$db_port         = $config{'default'}{'dbport'}           || $db_port;
-$db_db           = $config{'default'}{'dbdb'}             || $db_db;
-my $notify_interval = $config{'vacation'}{'notify_interval'} || 7;          # default to seven days = one week
+$db_host = $config{'default'}{'dbhost'} || $db_host;
+$db_user = $config{'default'}{'dbuser'} || $db_user;
+$db_pass = $config{'default'}{'dbpass'} || $db_pass;
+$db_port = $config{'default'}{'dbport'} || $db_port;
+$db_db   = $config{'default'}{'dbdb'}   || $db_db;
+my $notify_interval = $config{'vacation'}{'notify_interval'} || 7;    # default to seven days = one week
 $notify_interval = $notify_interval * 24 * 3600;
 
 my $vacation_domain = $config{'vacation'}{'domain'} || 'autoreply.domain.tld';
@@ -296,17 +296,19 @@ exit 0;
 sub is_blacklisted {
     my $dbh    = shift;
     my $sender = shift;
-    
-    my ($local_part,$domain) = split /@/, $sender;
-    
+
+    my ( $local_part, $domain ) = split /@/, $sender;
+
     # check vacation_blacklist which lists senders (or parts thereof) which are never notified although they pass the tests above
     my $query = "SELECT COUNT(*) FROM vacation_blacklist WHERE domain = ? AND local_part = ?";
-    my $sth = $dbh->prepare($query);
+    my $sth   = $dbh->prepare($query);
+
     # make exact query
-    $sth->execute($domain,$local_part);
+    $sth->execute( $domain, $local_part );
     my $count = $sth->fetchrow_array();
+
     # add wildcard query count
-    $sth->execute($domain,'*');
+    $sth->execute( $domain, '*' );
     $count += $sth->fetchrow_array();
     $sth->finish();
     return $count;
@@ -315,7 +317,7 @@ sub is_blacklisted {
 sub is_on_vacation {
     my $dbh       = shift;
     my $recipient = shift;
-    
+
     my $query = "SELECT COUNT(*) FROM mailboxes AS ma LEFT JOIN domains AS d ON ma.domain_id = d.id ";
     $query .= "WHERE is_on_vacation AND CONCAT(ma.local_part,'\@',d.name) = ? ";
     $query .= "AND (ma.vacation_start = '0000-00-00' OR NOW() >= ma.vacation_start) AND (ma.vacation_end = '0000-00-00' OR ma.vacation_end <= NOW())";
