@@ -251,6 +251,8 @@ sub process_request {
                 $smtp_server->{data}->seek( 0, 0 );
                 $client->yammer( $smtp_server->{data} );
             }
+
+            # TODO log queue id, remote ip, if authed, etc. after message is accepted
             $smtp_server->print( $client->hear() . "\r\n" );
         }    # end-of-while-LINE
 

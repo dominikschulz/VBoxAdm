@@ -22,7 +22,7 @@ my @conffile_locations = qw(
 );
 
 GetOptions(
-    'verbose|v+'    => \$config{'verbose'},
+    'verbose|v+' => \$config{'verbose'},
 
     # shift removes name of the option (config) and leaves the value for unshift
     # unshift prepends to the list of valid config files so it is tried first
@@ -94,15 +94,15 @@ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d)
                         print "SKIPPED: SPAM from well-known domain\n";
                         next LINE;
                     }
-                    
+
                     my $vars = {};
 
                     print "REJECT - RDNS: $rdns - IP: $ip - SMTP-Code: $smtpcode - SMTP-Msg: $smtpmsg - From: $from - To: $to - Proto: $proto - Helo: $helo\n";
-                    
-                    $vars->{'to'} = $to;
-                    $vars->{'from'} = $from;
-                    $vars->{'rdns'} = $rdns;
-                    $vars->{'ip'} = $ip;
+
+                    $vars->{'to'}            = $to;
+                    $vars->{'from'}          = $from;
+                    $vars->{'rdns'}          = $rdns;
+                    $vars->{'ip'}            = $ip;
                     $vars->{'system_domain'} = $config{'default'}{'domain'};
 
                     my $from_domain;
@@ -110,20 +110,20 @@ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d)
                         $from_domain = $1;
                         $vars->{'from_domain'} = $from_domain;
                     }
-                    
-                    if(&is_notified($dbh,'postmaster@'.$from_domain)) {
-                    	print "SKIPPED: This postmaster (postmaster\@$from_domain) was already notified.\n";
-                    	next LINE;
+
+                    if ( &is_notified( $dbh, 'postmaster@' . $from_domain ) ) {
+                        print "SKIPPED: This postmaster (postmaster\@$from_domain) was already notified.\n";
+                        next LINE;
                     }
-                    
-                    if(&is_local_domain($dbh,$from_domain)) {
-                    	print "SKIPPED: Forged localdomain in sender ($from_domain may not be a local domain)!\n";
-                    	next LINE;
+
+                    if ( &is_local_domain( $dbh, $from_domain ) ) {
+                        print "SKIPPED: Forged localdomain in sender ($from_domain may not be a local domain)!\n";
+                        next LINE;
                     }
-                    
-                    if(!&is_local_mailbox($dbh,$to)) {
-                    	print "SKIPPED: Invalid recipient ($to is no local mailbox)!\n";
-                    	next LINE;
+
+                    if ( !&is_local_mailbox( $dbh, $to ) ) {
+                        print "SKIPPED: Invalid recipient ($to is no local mailbox)!\n";
+                        next LINE;
                     }
 
                     # msg: Client host rejected: cannot find your hostname -> no RDNS found, notify about missing RDNS
@@ -138,58 +138,61 @@ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d)
                         $vars->{'is_helo'} = 1;
                     }
 
-                    if($vars->{'is_rdns'} || $vars->{'is_helo'}) {
-                    	my $postmaster_msg;
-	                    $tpl->process('rfc-notify-postmaster.tpl', $vars, \$postmaster_msg);
-	                    my $emsg = '';
-					            $emsg .= "Subject: MISCONFIGURED MAIL-SYSTEM NOTIFICATION\r\n";
-					            $emsg .= "Auto-Submitted: auto-generated\r\n";
-					            $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
-					            $emsg .= "To: <postmaster\@$from_domain>\r\n";
-					            $emsg .= "\r\n";
-					            $emsg .= $postmaster_msg;
-					            
-					            if($config{'rfc-notify'}{'dry'}) {
-					            	print "XXX - Would send message to POSTMASTER:\n".$emsg."\n";
-					            } else {
-					            	&VBoxAdm::Utils::sendmail( 'postmaster@'.$config{'default'}{'domain'}, $emsg );
-					            }
-	                    
-	                    my $recipient_msg;
-	                    $tpl->process('rfc-notify-recipient.tpl', $vars, \$recipient_msg);
-	                    $emsg = '';
-					            $emsg .= "Subject: MISCONFIGURED MAIL-SYSTEM NOTIFICATION\r\n";
-					            $emsg .= "Auto-Submitted: auto-generated\r\n";
-					            $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
-					            $emsg .= "To: <$to>\r\n";
-					            $emsg .= "\r\n";
-					            $emsg .= $recipient_msg;
-					            
-					            if($config{'rfc-notify'}{'dry'}) {
-					            	print "XXX - Would send message to RECIPIENT:\n".$emsg."\n";
-					            } else {
-					            	&VBoxAdm::Utils::sendmail( 'postmaster@'.$config{'default'}{'domain'}, $emsg );
-					            }
-	                    
-	                    my $sender_msg;
-	                    $tpl->process('rfc-notify-sender.tpl', $vars, \$sender_msg);
-	                    $emsg = '';
-					            $emsg .= "Subject: MISCONFIGURED MAIL-SYSTEM NOTIFICATION\r\n";
-					            $emsg .= "Auto-Submitted: auto-generated\r\n";
-					            $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
-					            $emsg .= "To: <$from>\r\n";
-					            $emsg .= "\r\n";
-					            $emsg .= $sender_msg;
-					            
-					            if($config{'rfc-notify'}{'dry'}) {
-					            	print "XXX - Would send message to SENDER:\n".$emsg."\n";
-					            } else {
-					            	&VBoxAdm::Utils::sendmail( 'postmaster@'.$config{'default'}{'domain'}, $emsg );
-					            }
-					            
-					            if(!$config{'rfc-notify'}{'dry'}) {
-					            	&set_notified($dbh,'postmaster@'.$from_domain);
-					            }
+                    if ( $vars->{'is_rdns'} || $vars->{'is_helo'} ) {
+                        my $postmaster_msg;
+                        $tpl->process( 'rfc-notify-postmaster.tpl', $vars, \$postmaster_msg );
+                        my $emsg = '';
+                        $emsg .= "Subject: MISCONFIGURED MAIL-SYSTEM NOTIFICATION\r\n";
+                        $emsg .= "Auto-Submitted: auto-generated\r\n";
+                        $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
+                        $emsg .= "To: <postmaster\@$from_domain>\r\n";
+                        $emsg .= "\r\n";
+                        $emsg .= $postmaster_msg;
+
+                        if ( $config{'rfc-notify'}{'dry'} ) {
+                            print "XXX - Would send message to POSTMASTER:\n" . $emsg . "\n";
+                        }
+                        else {
+                            &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
+                        }
+
+                        my $recipient_msg;
+                        $tpl->process( 'rfc-notify-recipient.tpl', $vars, \$recipient_msg );
+                        $emsg = '';
+                        $emsg .= "Subject: MISCONFIGURED MAIL-SYSTEM NOTIFICATION\r\n";
+                        $emsg .= "Auto-Submitted: auto-generated\r\n";
+                        $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
+                        $emsg .= "To: <$to>\r\n";
+                        $emsg .= "\r\n";
+                        $emsg .= $recipient_msg;
+
+                        if ( $config{'rfc-notify'}{'dry'} ) {
+                            print "XXX - Would send message to RECIPIENT:\n" . $emsg . "\n";
+                        }
+                        else {
+                            &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
+                        }
+
+                        my $sender_msg;
+                        $tpl->process( 'rfc-notify-sender.tpl', $vars, \$sender_msg );
+                        $emsg = '';
+                        $emsg .= "Subject: MISCONFIGURED MAIL-SYSTEM NOTIFICATION\r\n";
+                        $emsg .= "Auto-Submitted: auto-generated\r\n";
+                        $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
+                        $emsg .= "To: <$from>\r\n";
+                        $emsg .= "\r\n";
+                        $emsg .= $sender_msg;
+
+                        if ( $config{'rfc-notify'}{'dry'} ) {
+                            print "XXX - Would send message to SENDER:\n" . $emsg . "\n";
+                        }
+                        else {
+                            &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
+                        }
+
+                        if ( !$config{'rfc-notify'}{'dry'} ) {
+                            &set_notified( $dbh, 'postmaster@' . $from_domain );
+                        }
                     }
                     else {
                         print "ERROR Unknown Cause: $smtpmsg\n";
@@ -203,58 +206,62 @@ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d)
 $dbh->disconnect();
 closelog();
 exit 0;
-sub set_notified {
-	my $dbh = shift;
-	my $email = shift;
-	
-	my $query = "INSERT IGNORE INTO rfc_notify (email,ts) VALUES(?,NOW())";
-	my $sth = $dbh->prepare($query)
-		or die("Could not prepare Query $query: ".DBI->errstr);
-	$sth->execute($email)
-		or die("Could not execute Query $query: ".$sth->errstr);
-	$sth->finish();
-	
-	return 1;
-}
-sub is_notified {
-	my $dbh = shift;
-	my $email = shift;
-	
-	my $query = "SELECT COUNT(*) FROM rfc_notify WHERE email = ?";
-	my $sth = $dbh->prepare($query)
-		or die("Could not prepare Query $query: ".DBI->errstr);
-	$sth->execute($email)
-		or die("Could not execute Query $query: ".$sth->errstr);
-	my $count = $sth->fetchrow_array();
-	$sth->finish();
-	
-	return $count;
-}
-sub is_local_domain {
-	my $dbh = shift;
-	my $domain = shift;
-	
-	my $query = "SELECT COUNT(*) FROM domains WHERE name = ?";
-	my $sth = $dbh->prepare($query)
-		or die("Could not prepare Query $query: ".DBI->errstr);
-	$sth->execute($domain)
-		or die("Could not execute Query $query: ".$sth->errstr);
-	my $count = $sth->fetchrow_array();
-	$sth->finish();
 
-	return $count;
+sub set_notified {
+    my $dbh   = shift;
+    my $email = shift;
+
+    my $query = "INSERT IGNORE INTO rfc_notify (email,ts) VALUES(?,NOW())";
+    my $sth   = $dbh->prepare($query)
+      or die( "Could not prepare Query $query: " . DBI->errstr );
+    $sth->execute($email)
+      or die( "Could not execute Query $query: " . $sth->errstr );
+    $sth->finish();
+
+    return 1;
 }
+
+sub is_notified {
+    my $dbh   = shift;
+    my $email = shift;
+
+    my $query = "SELECT COUNT(*) FROM rfc_notify WHERE email = ?";
+    my $sth   = $dbh->prepare($query)
+      or die( "Could not prepare Query $query: " . DBI->errstr );
+    $sth->execute($email)
+      or die( "Could not execute Query $query: " . $sth->errstr );
+    my $count = $sth->fetchrow_array();
+    $sth->finish();
+
+    return $count;
+}
+
+sub is_local_domain {
+    my $dbh    = shift;
+    my $domain = shift;
+
+    my $query = "SELECT COUNT(*) FROM domains WHERE name = ?";
+    my $sth   = $dbh->prepare($query)
+      or die( "Could not prepare Query $query: " . DBI->errstr );
+    $sth->execute($domain)
+      or die( "Could not execute Query $query: " . $sth->errstr );
+    my $count = $sth->fetchrow_array();
+    $sth->finish();
+
+    return $count;
+}
+
 sub is_local_mailbox {
-	my $dbh = shift;
-	my $mailbox = shift;
-	
-	my $query = "SELECT COUNT(*) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,'\@',d.name) = ?";
-	my $sth = $dbh->prepare($query)
-		or die("Could not prepare Query $query: ".DBI->errstr);
-	$sth->execute($mailbox)
-		or die("Could not execute Query $query: ".$sth->errstr);
-	my $count = $sth->fetchrow_array();
-	$sth->finish();
-	
-	return $count;
+    my $dbh     = shift;
+    my $mailbox = shift;
+
+    my $query = "SELECT COUNT(*) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,'\@',d.name) = ?";
+    my $sth   = $dbh->prepare($query)
+      or die( "Could not prepare Query $query: " . DBI->errstr );
+    $sth->execute($mailbox)
+      or die( "Could not execute Query $query: " . $sth->errstr );
+    my $count = $sth->fetchrow_array();
+    $sth->finish();
+
+    return $count;
 }
