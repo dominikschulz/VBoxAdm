@@ -17,6 +17,16 @@ CREATE TABLE IF NOT EXISTS `aliases` (
   KEY `active` (`is_active`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
 
+DROP TABLE IF EXISTS `awl`;
+CREATE TABLE IF NOT EXISTS `awl` (
+  `id` int(16) NOT NULL AUTO_INCREMENT,
+  `email` varchar(255) NOT NULL,
+  `last_seen` datetime NOT NULL,
+  `disabled` tinyint(1) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `email` (`email`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
 DROP TABLE IF EXISTS `domains`;
 CREATE TABLE IF NOT EXISTS `domains` (
   `id` int(16) NOT NULL AUTO_INCREMENT,
