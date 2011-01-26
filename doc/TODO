@@ -16,9 +16,8 @@ Make sure class-C ip subnet auto-whitelists are supported
 - SmtpProxy:
 -- Multiple target SMTP servers (fail over, load balancing)
 -- Finish/Test XFORWARD handling
--- Evaluate use of XCLIENT extension
 -- After process_request log After-Filter Postfix Queue ID, Remote IP, Helo, Auth-Type, etc.
--- Test XFORWARD w/ and w/o SMTP-AUTH
+-- Implement own SMTP Client/Server classes
 
 - All:
 -- Multiple databaser servers (fail over, load balancing)
