@@ -101,6 +101,16 @@ sub setup {
         'broadcast'      => 'show_broadcast',
         'send_broadcast' => 'show_send_broadcast',
 
+        # Vacation Blacklist
+        'vac_bl'        => 'show_vacation_blacklist',           # TODO implement
+        'create_vac_bl' => 'show_create_vacation_blacklist',    # TODO implement
+        'add_vac_bl'    => 'show_create_vacation_blacklist',    # TODO implement
+        'remove_vac_bl' => 'show_remove_vacation_blacklist',    # TODO implement
+
+        # Auto-Whitelist
+        'awl'        => 'show_awl',                             # TODO implement
+        'update_awl' => 'show_update_awl',                      # TODO implement
+
         # Log
         'log' => 'show_log',
 

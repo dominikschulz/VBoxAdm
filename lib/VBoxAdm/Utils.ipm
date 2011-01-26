@@ -212,6 +212,36 @@ sub string_to_hex {
     return $str;
 }
 
+sub is_local_domain {
+    my $dbh    = shift;
+    my $domain = shift;
+
+    my $query = "SELECT COUNT(*) FROM domains WHERE name = ?";
+    my $sth   = $dbh->prepare($query)
+      or die( "Could not prepare Query $query: " . DBI->errstr );
+    $sth->execute($domain)
+      or die( "Could not execute Query $query: " . $sth->errstr );
+    my $count = $sth->fetchrow_array();
+    $sth->finish();
+
+    return $count;
+}
+
+sub is_local_mailbox {
+    my $dbh     = shift;
+    my $mailbox = shift;
+
+    my $query = "SELECT COUNT(*) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,'\@',d.name) = ?";
+    my $sth   = $dbh->prepare($query)
+      or die( "Could not prepare Query $query: " . DBI->errstr );
+    $sth->execute($mailbox)
+      or die( "Could not execute Query $query: " . $sth->errstr );
+    my $count = $sth->fetchrow_array();
+    $sth->finish();
+
+    return $count;
+}
+
 1;
 
 __END__
