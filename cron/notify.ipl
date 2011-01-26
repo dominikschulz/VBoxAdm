@@ -69,7 +69,7 @@ my $tpl_config = {
 
 my $tpl = Template->new($tpl_config);
 
-if(-f $logfile) {
+if ( -f $logfile ) {
     &parse_postfix_maillog($logfile);
 }
 
@@ -118,12 +118,12 @@ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d)
                         next LINE;
                     }
 
-                    if ( &is_local_domain( $dbh, $from_domain ) ) {
+                    if ( &VBoxAdm::Utils::is_local_domain( $dbh, $from_domain ) ) {
                         print "SKIPPED: Forged localdomain in sender ($from_domain may not be a local domain)!\n";
                         next LINE;
                     }
 
-                    if ( !&is_local_mailbox( $dbh, $to ) ) {
+                    if ( !&VBoxAdm::Utils::is_local_mailbox( $dbh, $to ) ) {
                         print "SKIPPED: Invalid recipient ($to is no local mailbox)!\n";
                         next LINE;
                     }
@@ -231,36 +231,6 @@ sub is_notified {
     my $sth   = $dbh->prepare($query)
       or die( "Could not prepare Query $query: " . DBI->errstr );
     $sth->execute($email)
-      or die( "Could not execute Query $query: " . $sth->errstr );
-    my $count = $sth->fetchrow_array();
-    $sth->finish();
-
-    return $count;
-}
-
-sub is_local_domain {
-    my $dbh    = shift;
-    my $domain = shift;
-
-    my $query = "SELECT COUNT(*) FROM domains WHERE name = ?";
-    my $sth   = $dbh->prepare($query)
-      or die( "Could not prepare Query $query: " . DBI->errstr );
-    $sth->execute($domain)
-      or die( "Could not execute Query $query: " . $sth->errstr );
-    my $count = $sth->fetchrow_array();
-    $sth->finish();
-
-    return $count;
-}
-
-sub is_local_mailbox {
-    my $dbh     = shift;
-    my $mailbox = shift;
-
-    my $query = "SELECT COUNT(*) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,'\@',d.name) = ?";
-    my $sth   = $dbh->prepare($query)
-      or die( "Could not prepare Query $query: " . DBI->errstr );
-    $sth->execute($mailbox)
       or die( "Could not execute Query $query: " . $sth->errstr );
     my $count = $sth->fetchrow_array();
     $sth->finish();
