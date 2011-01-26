@@ -43,6 +43,8 @@ BINFILES = \
 	bin/smtpproxy.pl \
 	cgi-bin/vboxadm.pl \
 	cron/cleanup.pl \
+	cron/awl.pl \
+	cron/notify.pl \
 	contrib/migration.pl \
 	contrib/lexicons-export.pl \
 	contrib/lexicons-import.pl \
