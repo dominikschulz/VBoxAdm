@@ -14,8 +14,6 @@
 			<tr>
 				<th>[% "Email" | l10n %]</th>
 				<th>[% "Remove" | l10n %]</th>
-				<th></th>
-				<th></th>
 			</tr>
 			</thead>
 			<tbody>

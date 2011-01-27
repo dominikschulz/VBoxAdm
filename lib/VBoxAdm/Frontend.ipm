@@ -572,7 +572,7 @@ sub show_broadcast {
     if ( !$self->is_superadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -596,7 +596,7 @@ sub show_send_broadcast {
     if ( !$self->is_superadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -649,7 +649,7 @@ sub show_domains {
     if ( !$self->is_superadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -706,7 +706,7 @@ sub show_domain {
     if ( !$self->is_superadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -804,7 +804,7 @@ sub show_add_domain {
     if ( !$self->is_superadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -856,7 +856,7 @@ sub show_remove_domain {
     if ( !$self->is_superadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -910,7 +910,7 @@ sub show_update_domain {
     if ( !$self->is_superadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -980,7 +980,7 @@ sub show_domain_aliases {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1039,7 +1039,7 @@ sub show_create_domain_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1079,7 +1079,7 @@ sub show_add_domain_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1145,7 +1145,7 @@ sub show_remove_domain_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1200,7 +1200,7 @@ sub show_edit_domain_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1265,7 +1265,7 @@ sub show_update_domain_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1372,7 +1372,7 @@ sub show_aliases {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1427,7 +1427,7 @@ sub show_create_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1467,7 +1467,7 @@ sub show_add_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1538,7 +1538,7 @@ sub show_remove_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1596,7 +1596,7 @@ sub show_edit_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1641,7 +1641,7 @@ sub show_update_alias {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1736,7 +1736,7 @@ sub show_mailboxes {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1814,7 +1814,7 @@ sub show_create_mailbox {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1856,7 +1856,7 @@ sub show_add_mailbox {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -1907,24 +1907,24 @@ sub show_add_mailbox {
         $password = Crypt::GeneratePassword::word( 8, 12 );
         $password_2 = $password;
         my $msg = 'Generated Password: ' . $password . '. ';
-        $self->add_message( 'info', $msg ); # TODO localize here
+        $self->add_message( 'info', $msg );    # TODO localize here
     }
 
     if ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
 
         # if domainadmin, verify that its his domain
         my $msg = $self->{lh}->maketext("You are not authorized to modify this domain!");
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $msg1 = $msg;
     }
     elsif ( $username && !&VBoxAdm::Utils::is_valid_localpart_rfc822($username) ) {
         my $msg = $self->{lh}->maketext("Invalid local part. This address is not RFC822 compliant!");
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $msg1 = $msg;
     }
     elsif ( $password && $password_2 && $password ne $password_2 ) {
         my $msg = $self->{lh}->maketext("Passwords do not match.");
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $msg1 = $msg;
     }
     elsif ( $domain_id && $username && $password && $name && $password eq $password_2 ) {
@@ -1933,7 +1933,7 @@ sub show_add_mailbox {
           or syslog( 2, 'show_add_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $domain_id, $username, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ), $is_active ) ) {
             my $msg = $self->{lh}->maketext( "Added Mailbox [_1] for [_2].", "$username\@$domain_name", $name );
-            $self->add_message( 'success', $msg ); # TODO localize here
+            $self->add_message( 'success', $msg );    # TODO localize here
             $msg1 .= $msg;
 
             # get domain name for sender
@@ -1955,14 +1955,14 @@ sub show_add_mailbox {
                 $sth->errstr
             );
             my $msg = $self->{lh}->maketext( "Failed to add Mailbox [_1] for [_2]. Database Error.", "$username\@$domain_name", $name );
-            $self->add_message( 'error', $msg ); # TODO localize here
+            $self->add_message( 'error', $msg );    # TODO localize here
             $msg1 = $msg;
         }
         $sth->finish();
     }
     else {
         my $msg = $self->{lh}->maketext("Failed to add Mailbox. Insufficient parameters.");
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );        # TODO localize here
         $msg1 = $msg;
     }
 
@@ -1977,7 +1977,7 @@ sub show_remove_mailbox {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -2034,7 +2034,7 @@ sub show_edit_mailbox {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message($msg); # TODO localize here
+        $self->add_message($msg);    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -2129,7 +2129,7 @@ sub show_update_mailbox {
     if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -2185,7 +2185,7 @@ sub show_update_mailbox {
                 # Check password length
                 if ( length($password) < 8 ) {
                     my $msg = $self->{lh}->maketext('Bad password - Password too short. Need at least 8 characters.');
-                    $self->add_message( 'warning', $msg ); # TODO localize here
+                    $self->add_message( 'warning', $msg );    # TODO localize here
                     $msg1 .= $msg . ' ';
                 }
 
@@ -2323,19 +2323,19 @@ sub show_update_mailbox {
             else {
                 syslog( 2, 'show_update_mailbox - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @params ), $sth->errstr );
                 my $msg = $self->{lh}->maketext( "Failed to update Mailbox [_1] (#[_2]). Database Error.", $mailbox_name, $mailbox_id );
-                $self->add_message( 'error', $msg ); # TODO localize here
+                $self->add_message( 'error', $msg );    # TODO localize here
                 $msg1 .= $msg . ' ';
             }
         }
         else {
             my $msg = $self->{lh}->maketext("No Parameter changed. ");
-            $self->add_message( 'error', $msg ); # TODO localize here
+            $self->add_message( 'error', $msg );        # TODO localize here
             $msg1 .= $msg . ' ';
         }
     }
     else {
         my $msg = $self->{lh}->maketext("Failed to update Mailbox. No Mailbox-ID given. ");
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );            # TODO localize here
         $msg1 .= $msg . ' ';
     }
 
@@ -2354,7 +2354,7 @@ sub show_log {
     if ( !$self->is_superadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -2405,7 +2405,7 @@ sub show_vacation_blacklist {
     if ( !$self->is_superadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -2415,36 +2415,39 @@ sub show_vacation_blacklist {
 
     # Get our database connection
     my $dbh = $self->dbh();
-    
+
     my $query = "SELECT id,local_part,domain FROM vacation_blacklist ORDER BY domain,local_part";
-    my $sth = $dbh->prepare($query);
+    my $sth   = $dbh->prepare($query);
     $sth->execute();
     my @blacklist = ();
-    while(my ($id,$local_part,$domain) = $sth->fetchrow_array()) {
-        push(@blacklist, {
-           'id' => $id,
-           'local_part' => $local_part,
-           'domain' => $domain,
-        });
+    while ( my ( $id, $local_part, $domain ) = $sth->fetchrow_array() ) {
+        push(
+            @blacklist,
+            {
+                'id'         => $id,
+                'local_part' => $local_part,
+                'domain'     => $domain,
+            }
+        );
     }
     $sth->finish();
-    
+
     my %params = (
-        'title' => $self->{lh}->maketext('VBoxAdm Vacation Blacklist'),
-        'current' => 'vacation',
+        'title'     => $self->{lh}->maketext('VBoxAdm Vacation Blacklist'),
+        'current'   => 'vacation',
         'blacklist' => \@blacklist,
     );
-    
+
     return $self->tt_process( 'vacation_blacklist.tpl', \%params );
 }
 
 sub show_create_vacbl_entry {
     my $self = shift;
-    
+
     if ( !$self->is_superadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -2454,57 +2457,78 @@ sub show_create_vacbl_entry {
 
     # Get our database connection
     my $dbh = $self->dbh();
-    
-    # TODO implement
-    
+
     my %params = (
-        'title' => $self->{lh}->maketext('VBoxAdm Vacation Blacklist - Create Entry'),
+        'title'   => $self->{lh}->maketext('VBoxAdm Vacation Blacklist - Create Entry'),
         'current' => 'vacation',
     );
-    
-    return $self->tt_process( 'vacation_blacklist.tpl', \%params );
+
+    return $self->tt_process( 'vacation-blacklist-add.tpl', \%params );
 }
 
 sub show_add_vacbl_entry {
     my $self = shift;
-    # TODO implement
-    
+
     if ( !$self->is_superadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
-    
+
     # Get CGI Query object
     my $q = $self->query();
 
     # Get our database connection
     my $dbh = $self->dbh();
-    
+
+    my $email = $q->param('email') || undef;
+
+    if ( $email && &VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+        my $query = "INSERT INTO vacation_blacklist (local_part,domain) VALUES(?,?)";
+        my $sth   = $dbh->prepare($query);
+        my ( $local_part, $domain ) = split /@/, $email;
+        $sth->execute( $local_part, $domain );
+        $sth->finish();
+
+        # TODO logging
+        # TODO user feedback
+    }
+
     $self->redirect('vboxadm.pl?rm=vac_bl');
     return;
 }
 
 sub show_remove_vacbl_entry {
     my $self = shift;
-    # TODO implement
-    
+
     if ( !$self->is_superadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
-    
+
     # Get CGI Query object
     my $q = $self->query();
 
     # Get our database connection
     my $dbh = $self->dbh();
-    
+
+    my $entry_id = $q->param('entry_id') || undef;
+
+    if ($entry_id) {
+        my $query = "DELETE FROM vacation_blacklist WHERE id = ?";
+        my $sth   = $dbh->prepare($query);
+        $sth->execute($entry_id);
+        $sth->finish();
+
+        # TODO error handling
+        # TODO user message
+    }
+
     $self->redirect('vboxadm.pl?rm=vac_bl');
     return;
 }
@@ -2514,11 +2538,11 @@ sub show_remove_vacbl_entry {
 #
 sub show_awl {
     my $self = shift;
-    
+
     if ( !$self->is_superadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
@@ -2528,69 +2552,73 @@ sub show_awl {
 
     # Get our database connection
     my $dbh = $self->dbh();
-    
+
     my $query = "SELECT id,email,last_seen,disabled FROM awl ORDER BY email";
-    my $sth = $dbh->prepare($query);
+    my $sth   = $dbh->prepare($query);
     $sth->execute();
     my @awl = ();
-    while(my ($id,$email,$last_seen,$disabled) = $sth->fetchrow_array()) {
-        push(@awl, {
-           'id' => $id,
-           'email' => $email,
-           'last_seen' => $last_seen,
-           'disabled' => $disabled,
-        });
+    while ( my ( $id, $email, $last_seen, $disabled ) = $sth->fetchrow_array() ) {
+        push(
+            @awl,
+            {
+                'id'        => $id,
+                'email'     => $email,
+                'last_seen' => $last_seen,
+                'disabled'  => $disabled,
+            }
+        );
     }
     $sth->finish();
-    
+
     my %params = (
-        'title' => $self->{lh}->maketext('VBoxAdm Auto-Whitelist'),
+        'title'   => $self->{lh}->maketext('VBoxAdm Auto-Whitelist'),
         'current' => 'awl',
-        'awl' => \@awl,
+        'awl'     => \@awl,
     );
-    
+
     return $self->tt_process( 'awl.tpl', \%params );
 }
 
 sub show_update_awl {
     my $self = shift;
-    # TODO implement
-    
+
     if ( !$self->is_superadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
-    
+
     # Get CGI Query object
     my $q = $self->query();
 
     # Get our database connection
     my $dbh = $self->dbh();
-    
+
     my $entry_id = $q->param('entry_id') || undef;
     my $disabled = $q->param('disabled') || undef;
-    
-    if($entry_id && defined($disabled)) {
-        if($disabled =~ m/^(?:yes|1|true|on)$/i) {
+
+    if ( $entry_id && defined($disabled) ) {
+        if ( $disabled =~ m/^(?:yes|1|true|on)$/i ) {
             $disabled = 1;
-        } else {
+        }
+        else {
             $disabled = 0;
         }
         my $query = "UPDATE awl SET disabled = ? WHERE id = ?";
-        if(my $sth = $dbh->prepare($query)) {
-            $sth->execute($disabled,$entry_id);
+        if ( my $sth = $dbh->prepare($query) ) {
+            $sth->execute( $disabled, $entry_id );
             $sth->finish();
-        } else {
+        }
+        else {
             my $msg = "Unable to update awl. Database Error.";
             $self->add_message( 'error', $self->{lh}->maketext($msg) );
-            $msg .= " DBI-Errstr: ".DBI->errstr;
+            $msg .= " DBI-Errstr: " . DBI->errstr;
             $self->log( $msg . ". User: " . $self->authen->username );
         }
     }
-    
+
     $self->redirect('vboxadm.pl?rm=awl');
     return;
 }
@@ -2605,7 +2633,7 @@ sub show_admins {
     if ( !$self->is_superadmin() ) {
         my $msg = $self->{lh}->maketext("You are not authorized to access this page.");
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $msg ); # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
