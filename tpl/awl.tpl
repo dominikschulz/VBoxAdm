@@ -15,8 +15,6 @@
 				<th>[% "Email" | l10n %]</th>
 				<th>[% "Last Seen" | l10n %]</th>
 				<th>[% "Disable" | l10n %]</th>
-				<th></th>
-				<th></th>
 			</tr>
 			</thead>
 			<tbody>
