@@ -1,7 +1,11 @@
     <footer>
 	<a href="http://www.vboxadm.net/?version=[% version %]" target="_blank">VBoxAdm [% version %]</a>
 	&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+	[% IF username %]
 	[% "Logged in as [_1]" | l10n(username) %]
+	[% ELSE %]
+	[% "Not logged in" | l10n %]
+	[% END %]
 	&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 	<a href="http://www.vboxadm.net/?versioncheck=[% version %]">[% "Check for updates" | l10n %]</a>
 	&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;

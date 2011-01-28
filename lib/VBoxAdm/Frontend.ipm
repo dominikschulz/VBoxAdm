@@ -2494,6 +2494,10 @@ sub show_add_vacbl_entry {
 
         # TODO logging
         # TODO user feedback
+    } else {
+        my $msg = 'Invalid email given. Please provide a valid RFC822 email address.';
+        $self->add_message('error', $self->{lh}->maketext($msg));
+        $self->log( $msg . ". User: ".$self->authen->username );
     }
 
     $self->redirect('vboxadm.pl?rm=vac_bl');
@@ -2510,6 +2514,8 @@ sub show_remove_vacbl_entry {
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
+    
+    # TODO implement search
 
     # Get CGI Query object
     my $q = $self->query();
@@ -2546,6 +2552,8 @@ sub show_awl {
         $self->redirect('vboxadm.pl?rm=welcome');
         return;
     }
+    
+    # TODO implement search
 
     # Get CGI Query object
     my $q = $self->query();
@@ -2597,7 +2605,7 @@ sub show_update_awl {
     my $dbh = $self->dbh();
 
     my $entry_id = $q->param('entry_id') || undef;
-    my $disabled = $q->param('disabled') || undef;
+    my $disabled = $q->param('disabled');
 
     if ( $entry_id && defined($disabled) ) {
         if ( $disabled =~ m/^(?:yes|1|true|on)$/i ) {
