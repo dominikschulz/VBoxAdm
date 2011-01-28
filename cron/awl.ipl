@@ -328,11 +328,11 @@ sub parse_postfix {
             next unless $pid;
 
             if ( $pids{$pid} ) {
-                $pids{$pid}{'mid'}   = $mid;
-                $pids{$pid}{'from'}  = $from;
-                $pids{$pid}{'to'}{$to}  = 1;
-                $pids{$pid}{'proto'} = $proto;
-                $pids{$pid}{'helo'}  = $helo;
+                $pids{$pid}{'mid'}     = $mid;
+                $pids{$pid}{'from'}    = $from;
+                $pids{$pid}{'to'}{$to} = 1;
+                $pids{$pid}{'proto'}   = $proto;
+                $pids{$pid}{'helo'}    = $helo;
                 foreach my $key ( keys %{ $pids{$pid} } ) {
                     print "\t\textract message id - coyping $key => " . $pids{$pid}{$key} . " from PID $pid to MID $mid\n" if $verbose;
                     $mids{$mid}{$key} = $pids{$pid}{$key};
@@ -393,8 +393,8 @@ sub parse_postfix {
                         && &is_valid_domain( $mids{$mid}{'from'}, $config )
                       )
                     {
-                        foreach my $to (keys %{$mids{$mid}{'to'}}) {
-                            $whitelist->{ $to }++;
+                        foreach my $to ( keys %{ $mids{$mid}{'to'} } ) {
+                            $whitelist->{$to}++;
                             print "\t\tWHITELISTED: $to\n" if $verbose;
                         }
                     }
