@@ -15,8 +15,6 @@ use CGI::Application::Plugin::Redirect;
 # http://search.cpan.org/~ceeshek/CGI-Application-Plugin-Session-1.03/lib/CGI/Application/Plugin/Session.pm
 use CGI::Application::Plugin::Session;
 
-# access with $self->session->param();
-
 # http://search.cpan.org/~ceeshek/CGI-Application-Plugin-TT-1.05/lib/CGI/Application/Plugin/TT.pm
 use CGI::Application::Plugin::TT;
 
@@ -201,7 +199,8 @@ sub setup {
     #
     # L10N
     #
-    $self->{lh} = VBoxAdm::L10N->get_handle();
+    $self->{lh}    = VBoxAdm::L10N->get_handle();
+    $self->{lh_en} = VBoxAdm::L10N->get_handle('en');
 
     #
     # Templates
@@ -1916,25 +1915,25 @@ sub show_add_mailbox {
     if ( !$password && !$password_2 ) {
         $password = Crypt::GeneratePassword::word( 8, 12 );
         $password_2 = $password;
-        my $msg = 'Generated Password: ' . $password . '. ';
-        $self->add_message( 'info', $msg );    # TODO localize here
+        my $msg = 'Generated Password: [_1]. ';
+        $self->add_message( 'info', $self->{lh}->maketext( $msg, $password ) );
     }
 
     if ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
 
         # if domainadmin, verify that its his domain
-        my $msg = $self->{lh}->maketext("You are not authorized to modify this domain!");
-        $self->add_message( 'error', $msg );    # TODO localize here
+        my $msg = "You are not authorized to modify this domain!";
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
         $msg1 = $msg;
     }
     elsif ( $username && !&VBoxAdm::Utils::is_valid_localpart_rfc822($username) ) {
-        my $msg = $self->{lh}->maketext("Invalid local part. This address is not RFC822 compliant!");
-        $self->add_message( 'error', $msg );    # TODO localize here
+        my $msg = "Invalid local part. This address is not RFC822 compliant!";
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
         $msg1 = $msg;
     }
     elsif ( $password && $password_2 && $password ne $password_2 ) {
-        my $msg = $self->{lh}->maketext("Passwords do not match.");
-        $self->add_message( 'error', $msg );    # TODO localize here
+        my $msg = "Passwords do not match.";
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
         $msg1 = $msg;
     }
     elsif ( $domain_id && $username && $password && $name && $password eq $password_2 ) {
@@ -1942,15 +1941,15 @@ sub show_add_mailbox {
         my $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_add_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $domain_id, $username, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ), $is_active ) ) {
-            my $msg = $self->{lh}->maketext( "Added Mailbox [_1] for [_2].", "$username\@$domain_name", $name );
-            $self->add_message( 'success', $msg );    # TODO localize here
-            $msg1 .= $msg;
+            my $msg = "Added Mailbox [_1] for [_2].";
+            $self->add_message( 'success', $self->{lh}->maketext( $msg, "$username\@$domain_name", $name ) );
+            $msg1 .= $self->{lh_en}->maketext( $msg, "$username\@$domain_name", $name );
 
             # get domain name for sender
 
             # send_welcome_mail
             my $emsg = '';
-            $emsg .= "Subject: Welcome\r\n";
+            $emsg .= "Subject: " . $self->{lh}->maketext("Welcome") . "\r\n";
             $emsg .= "Auto-Submitted: auto-generated\r\n";
             $emsg .= "From: VBoxAdm <vboxadm\@" . $system_domain . ">\r\n";
             $emsg .= "To: <$username\@$domain_name>\r\n";
@@ -1964,15 +1963,15 @@ sub show_add_mailbox {
                 $query, join( "-", ( $domain_id, $username, $password, $is_active ) ),
                 $sth->errstr
             );
-            my $msg = $self->{lh}->maketext( "Failed to add Mailbox [_1] for [_2]. Database Error.", "$username\@$domain_name", $name );
-            $self->add_message( 'error', $msg );    # TODO localize here
-            $msg1 = $msg;
+            my $msg = "Failed to add Mailbox [_1] for [_2]. Database Error.";
+            $self->add_message( 'error', $self->{lh}->maketext( $msg, "$username\@$domain_name", $name ) );
+            $msg1 = $self->{lh_en}->maketext( $msg, "$username\@$domain_name", $name );
         }
         $sth->finish();
     }
     else {
         my $msg = $self->{lh}->maketext("Failed to add Mailbox. Insufficient parameters.");
-        $self->add_message( 'error', $msg );        # TODO localize here
+        $self->add_message( 'error', $msg );    # TODO localize here
         $msg1 = $msg;
     }
 
@@ -2359,6 +2358,8 @@ sub show_update_mailbox {
 #
 
 sub show_log {
+
+    # TODO LOW see http://cgi-app.org/index.cgi?PagingData
     my $self = shift;
 
     if ( !$self->is_superadmin() ) {
