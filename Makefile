@@ -110,6 +110,8 @@ all: $(LIBFILES) $(BINFILES) $(TESTFILES)
 
 lib: $(LIBFILES)
 
+re: clean all
+
 man:
 	mkdir -p doc/man/
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/DovecotPW.ipm > doc/man/VBoxAdm::DovecotPW.8
