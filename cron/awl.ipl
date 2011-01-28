@@ -18,7 +18,7 @@ my @conffile_locations = qw(
   vboxadm.conf
   conf/vboxadm.conf
   /etc/vboxadm.conf
-  /etc/postfix/vboxadm.conf
+  /etc/vboxadm/vboxadm.conf
 );
 
 GetOptions(
@@ -156,7 +156,7 @@ sub write_exim_whitelist {
     my $filename = shift;
 
     if ( open( my $FH, ">", $filename ) ) {
-        my $query = "SELECT email FROM awl WHERE IS NOT disabled ORDER BY email";
+        my $query = "SELECT email FROM awl WHERE NOT disabled ORDER BY email";
         my $sth   = $dbh->prepare($query);
         $sth->execute();
         while ( my $email = $sth->fetchrow_array() ) {
@@ -174,7 +174,7 @@ sub write_postfix_whitelist {
     my $filename = shift;
 
     if ( open( my $FH, ">", $filename ) ) {
-        my $query = "SELECT email FROM awl WHERE IS NOT disabled ORDER BY email";
+        my $query = "SELECT email FROM awl WHERE NOT disabled ORDER BY email";
         my $sth   = $dbh->prepare($query);
         $sth->execute();
         while ( my $email = $sth->fetchrow_array() ) {
@@ -330,7 +330,7 @@ sub parse_postfix {
             if ( $pids{$pid} ) {
                 $pids{$pid}{'mid'}   = $mid;
                 $pids{$pid}{'from'}  = $from;
-                $pids{$pid}{'to'}    = $to;
+                $pids{$pid}{'to'}{$to}  = 1;
                 $pids{$pid}{'proto'} = $proto;
                 $pids{$pid}{'helo'}  = $helo;
                 foreach my $key ( keys %{ $pids{$pid} } ) {
@@ -366,7 +366,7 @@ sub parse_postfix {
             next unless $pid;
             next unless $mid;
 
-            $mids{$mid}{'to'} = $to;
+            $mids{$mid}{'to'}{$to} = 1;
 
             print "\t\tto: $to\n" if $verbose;
         }
@@ -393,8 +393,10 @@ sub parse_postfix {
                         && &is_valid_domain( $mids{$mid}{'from'}, $config )
                       )
                     {
-                        $whitelist->{ $mids{$mid}{'to'} }++;
-                        print "\t\tWHITELISTED: $mids{$mid}{'to'}\n" if $verbose;
+                        foreach my $to (keys %{$mids{$mid}{'to'}}) {
+                            $whitelist->{ $to }++;
+                            print "\t\tWHITELISTED: $to\n" if $verbose;
+                        }
                     }
                 }
                 delete( $mids{$mid} );
