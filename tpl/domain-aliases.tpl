@@ -12,6 +12,7 @@
 		[% END %]
 		[% FOREACH line IN domains %]
 		[% IF loop.first %]
+		[% INCLUDE "page-navigation.tpl" %]
 		<table class="sortable hilight">
 			<thead>
 			<tr>
@@ -50,6 +51,7 @@
 		<tfoot>
 		</tfoot>
 		</table>
+		[% INCLUDE "page-navigation.tpl" %]
 		[% END %]
 		[% END %]
 		<br />

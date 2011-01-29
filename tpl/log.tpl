@@ -9,6 +9,7 @@
 	</div>
 		[% FOREACH line IN log %]
 		[% IF loop.first %]
+		[% INCLUDE "page-navigation.tpl" %]
 		<table class="hilight">
 			<thead>
 			<tr>
@@ -31,6 +32,7 @@
 		<tfoot>
 		</tfoot>
 		</table>
+		[% INCLUDE "page-navigation.tpl" %]
 		[% END %]
 		[% END %]
     </div>

@@ -28,12 +28,16 @@ use Config::Std;
 use Crypt::GeneratePassword;
 use Data::Password;
 use Sys::Syslog;
+use Data::Page;
+use Readonly;
 
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
 use VBoxAdm::DovecotPW '@VERSION@';
 
 our $VERSION = '@VERSION@';
+
+Readonly my $ENTRIES_PER_PAGE => 20;
 
 ############################################
 # Usage      : ????
@@ -670,26 +674,43 @@ sub show_domains {
     my $q = $self->query();
 
     my $search = $q->param('search') || undef;
+    my $page   = $q->param('page')   || 1;
 
     my $query = "SELECT id,name,is_active,";
     $query .= "(SELECT COUNT(*) FROM aliases WHERE domain_id = domains.id) AS num_aliases,";
     $query .= "(SELECT COUNT(*) FROM mailboxes WHERE domain_id = domains.id) AS num_mailboxes,";
     $query .= "(SELECT COUNT(*) FROM domain_aliases WHERE domain_id = domains.id) AS num_domainaliases";
-    $query .= " FROM domains WHERE 1 ";
-    my @args = ();
+    $query .= " FROM domains";
+    my $query_where = ' WHERE 1 ';
+    my @args        = ();
     if ($search) {
-        $query .= "AND (name LIKE ?) ";
+        $query_where .= "AND (name LIKE ?) ";
         $search =~ s/%//g;
         my $search_arg = "%" . $search . "%";
         push( @args, $search_arg );
     }
     if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
-        $query .= "AND a.domain_id = ?";
+        $query_where .= "AND a.domain_id = ?";
         push( @args, $self->get_users_domainid() );
     }
-    $query .= "ORDER BY name";
-    my $sth = $dbh->prepare($query)
+    $query .= $query_where . " ORDER BY name";
+
+    my $sth = $dbh->prepare( 'SELECT COUNT(*) FROM domains' . $query_where )
       or syslog( 2, 'show_domains - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+    $sth->execute(@args)
+      or syslog( 2, 'show_domains - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+    my $num_rows = $sth->fetchrow_array();
+    $sth->finish();
+
+    my $pager = Data::Page->new();
+    $pager->total_entries($num_rows);
+    $pager->entries_per_page($ENTRIES_PER_PAGE);
+    $pager->current_page($page);
+
+    $sth = $dbh->prepare( $query . ' LIMIT ?, ?' )
+      or syslog( 2, 'show_domains - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+    push( @args, $pager->skipped );
+    push( @args, $pager->entries_per_page );
     $sth->execute(@args)
       or syslog( 2, 'show_domains - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
 
@@ -698,12 +719,14 @@ sub show_domains {
         push( @domains,
             { id => $row[0], name => $row[1], is_active => $row[2], num_aliases => $row[3], num_mailboxes => $row[4], num_domainaliases => $row[5], } );
     }
+    $sth->finish();
 
     my %params = (
         'title'   => $self->{lh}->maketext('VBoxAdm Domains'),
         'current' => 'domains',
         'domains' => \@domains,
         'search'  => $search,
+        'page'    => $pager,
     );
 
     return $self->tt_process( 'domains.tpl', \%params );
@@ -1001,9 +1024,10 @@ sub show_domain_aliases {
     my $q = $self->query();
 
     my $search = $q->param('search') || undef;
+    my $page   = $q->param('page')   || 1;
 
-    my $query = "SELECT da.id,da.name,da.is_active,d.name FROM ";
-    $query .= "domain_aliases AS da LEFT JOIN domains AS d ON da.domain_id = d.id WHERE 1 ";
+    my $query = "FROM domain_aliases AS da LEFT JOIN domains AS d ON da.domain_id = d.id";
+    $query .= ' WHERE 1 ';
     my @args = ();
 
     # Search
@@ -1020,9 +1044,23 @@ sub show_domain_aliases {
         $query .= "AND da.domain_id = ? ";
         push( @args, $self->get_users_domainid() );
     }
-    $query .= "ORDER BY da.name";
-    my $sth = $dbh->prepare($query)
+
+    my $sth = $dbh->prepare( 'SELECT COUNT(*) ' . $query )
       or syslog( 2, 'show_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+    $sth->execute(@args)
+      or syslog( 2, 'show_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+    my $num_rows = $sth->fetchrow_array();
+    $sth->finish();
+
+    my $pager = Data::Page->new();
+    $pager->total_entries($num_rows);
+    $pager->entries_per_page($ENTRIES_PER_PAGE);
+    $pager->current_page($page);
+
+    $sth = $dbh->prepare( 'SELECT da.id,da.name,da.is_active,d.name ' . $query . ' ORDER BY da.name LIMIT ?, ?' )
+      or syslog( 2, 'show_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+    push( @args, $pager->skipped );
+    push( @args, $pager->entries_per_page );
     $sth->execute(@args)
       or syslog( 2, 'show_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
 
@@ -1037,6 +1075,7 @@ sub show_domain_aliases {
         'current' => 'domain_aliases',
         'domains' => \@domains,
         'search'  => $search,
+        'page'    => $pager,
     );
 
     return $self->tt_process( 'domain-aliases.tpl', \%params );
@@ -1393,10 +1432,10 @@ sub show_aliases {
     my $q = $self->query();
 
     my $search = $q->param('search') || undef;
+    my $page   = $q->param('page')   || 1;
 
-    my $query = "SELECT a.id,a.local_part,a.is_active,a.goto,d.name FROM ";
-    $query .= "aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE 1 ";
-    my @args = ();
+    my $query = "FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE 1 ";
+    my @args  = ();
     if ($search) {
         $query .= "AND (a.local_part LIKE ? OR d.name LIKE ? OR a.goto LIKE ?) ";
         $search =~ s/%//g;
@@ -1409,9 +1448,23 @@ sub show_aliases {
         $query .= "AND a.domain_id = ?";
         push( @args, $self->get_users_domainid() );
     }
-    $query .= "ORDER BY a.local_part,d.name";
-    my $sth = $dbh->prepare($query)
+
+    my $sth = $dbh->prepare( 'SELECT COUNT(*) ' . $query )
       or syslog( 2, 'show_aliases - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+    $sth->execute(@args)
+      or syslog( 2, 'show_aliases - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+    my $num_rows = $sth->fetchrow_array();
+    $sth->finish();
+
+    my $pager = Data::Page->new();
+    $pager->total_entries($num_rows);
+    $pager->entries_per_page($ENTRIES_PER_PAGE);
+    $pager->current_page($page);
+
+    $sth = $dbh->prepare( 'SELECT a.id,a.local_part,a.is_active,a.goto,d.name ' . $query . ' ORDER BY a.local_part,d.name LIMIT ?,?' )
+      or syslog( 2, 'show_aliases - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+    push( @args, $pager->skipped );
+    push( @args, $pager->entries_per_page );
     $sth->execute(@args)
       or syslog( 2, 'show_aliases - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
 
@@ -1419,12 +1472,14 @@ sub show_aliases {
     while ( my @row = $sth->fetchrow_array() ) {
         push( @aliases, { id => $row[0], local_part => $row[1], is_active => $row[2], target => $row[3], domain => $row[4], } );
     }
+    $sth->finish();
 
     my %params = (
         'title'   => $self->{lh}->maketext('VBoxAdm Aliases'),
         'current' => 'aliases',
         'aliases' => \@aliases,
         'search'  => $search,
+        'page'    => $pager,
     );
 
     return $self->tt_process( 'aliases.tpl', \%params );
@@ -1757,10 +1812,10 @@ sub show_mailboxes {
     my $q = $self->query();
 
     my $search = $q->param('search') || undef;
+    my $page   = $q->param('page')   || 1;
 
-    my $query = "SELECT m.id,m.local_part,m.is_active,d.name,m.max_msg_size,m.is_on_vacation,m.quota,m.name ";
-    $query .= "FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE 1 ";
-    my @args = ();
+    my $query = "FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE 1 ";
+    my @args  = ();
 
     # Search
     if ($search) {
@@ -1778,10 +1833,23 @@ sub show_mailboxes {
         push( @args, $self->get_users_domainid() );
     }
 
-    # finalize query
-    $query .= " ORDER BY m.local_part,d.name";
-    my $sth = $dbh->prepare($query)
+    my $sth = $dbh->prepare( 'SELECT COUNT(*) ' . $query )
       or syslog( 2, 'show_mailboxes - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+    $sth->execute(@args)
+      or syslog( 2, 'show_mailboxes - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+    my $num_rows = $sth->fetchrow_array();
+    $sth->finish();
+
+    my $pager = Data::Page->new();
+    $pager->total_entries($num_rows);
+    $pager->entries_per_page($ENTRIES_PER_PAGE);
+    $pager->current_page($page);
+
+    $sth = $dbh->prepare(
+        'SELECT m.id,m.local_part,m.is_active,d.name,m.max_msg_size,m.is_on_vacation,m.quota,m.name ' . $query . ' ORDER BY m.local_part,d.name LIMIT ?, ?' )
+      or syslog( 2, 'show_mailboxes - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+    push( @args, $pager->skipped );
+    push( @args, $pager->entries_per_page );
     $sth->execute(@args)
       or syslog( 2, 'show_mailboxes - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
 
@@ -1812,6 +1880,7 @@ sub show_mailboxes {
         'current'   => 'mailboxes',
         'mailboxes' => \@mailboxes,
         'search'    => $search,
+        'page'      => $pager,
     );
 
     return $self->tt_process( 'mailboxes.tpl', \%params );
@@ -1970,8 +2039,8 @@ sub show_add_mailbox {
         $sth->finish();
     }
     else {
-        my $msg = $self->{lh}->maketext("Failed to add Mailbox. Insufficient parameters.");
-        $self->add_message( 'error', $msg );    # TODO localize here
+        my $msg = "Failed to add Mailbox. Insufficient parameters.";
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
         $msg1 = $msg;
     }
 
@@ -2193,8 +2262,8 @@ sub show_update_mailbox {
 
                 # Check password length
                 if ( length($password) < 8 ) {
-                    my $msg = $self->{lh}->maketext('Bad password - Password too short. Need at least 8 characters.');
-                    $self->add_message( 'warning', $msg );    # TODO localize here
+                    my $msg = 'Bad password - Password too short. Need at least 8 characters.';
+                    $self->add_message( 'warning', $self->{lh}->maketext($msg) );
                     $msg1 .= $msg . ' ';
                 }
 
@@ -2359,7 +2428,7 @@ sub show_update_mailbox {
 
 sub show_log {
 
-    # TODO LOW see http://cgi-app.org/index.cgi?PagingData
+    # TODO debian-pkg: depend on libdata-page-perl
     my $self = shift;
 
     if ( !$self->is_superadmin() ) {
@@ -2377,18 +2446,36 @@ sub show_log {
     my $dbh = $self->dbh();
 
     my $search = $q->param('search') || undef;
+    my $page   = $q->param('page')   || 1;
 
     my @args  = ();
-    my $query = "SELECT * FROM log ";
+    my $query = "FROM log ";
     if ($search) {
         $query .= "WHERE msg LIKE ? ";
         $search =~ s/%//g;
         my $search_arg = "%" . $search . "%";
         push( @args, $search_arg );
     }
-    $query .= "ORDER BY ts DESC LIMIT 30";
-    my $sth = $dbh->prepare($query)
+    $query .= "ORDER BY ts DESC";
+
+    # Get number of entries for pager
+    my $sth = $dbh->prepare( 'SELECT COUNT(*) ' . $query )
       or syslog( 2, 'show_log - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+    $sth->execute(@args)
+      or syslog( 2, 'show_log - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+    my $num_rows = $sth->fetchrow_array();
+    $sth->finish();
+
+    my $pager = Data::Page->new();
+    $pager->total_entries($num_rows);
+    $pager->entries_per_page($ENTRIES_PER_PAGE);
+    $pager->current_page($page);
+
+    # Get the actual data
+    $sth = $dbh->prepare( 'SELECT ts,msg ' . $query . ' LIMIT ?, ?' )
+      or syslog( 2, 'show_log - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+    push( @args, $pager->skipped );
+    push( @args, $pager->entries_per_page );
     $sth->execute(@args)
       or syslog( 2, 'show_log - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
 
@@ -2396,12 +2483,14 @@ sub show_log {
     while ( my @row = $sth->fetchrow_array() ) {
         push( @log, { ts => $row[0], msg => $row[1], } );
     }
+    $sth->finish();
 
     my %params = (
         'title'   => $self->{lh}->maketext('VBoxAdm Log'),
         'current' => 'log',
         'log'     => \@log,
         'search'  => $search,
+        'page'    => $pager,
     );
 
     return $self->tt_process( 'log.tpl', \%params );
@@ -2507,22 +2596,33 @@ sub show_add_vacbl_entry {
 
     my $email = $q->param('email') || undef;
 
+    my $msg1 = '';
+
     if ( $email && &VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
         my $query = "INSERT INTO vacation_blacklist (local_part,domain) VALUES(?,?)";
-        my $sth   = $dbh->prepare($query);
+        my $sth   = $dbh->prepare($query)
+          or syslog( 2, 'show_add_vacbl_entry - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         my ( $local_part, $domain ) = split /@/, $email;
-        $sth->execute( $local_part, $domain );
-        $sth->finish();
-
-        # TODO logging
-        # TODO user feedback
+        if ( $sth->execute( $local_part, $domain ) ) {
+            $sth->finish();
+            my $msg = "Added Vacation Blacklist Entry [_1].";
+            $self->add_message( 'success', $self->{lh}->maketext( $msg, $email ) );
+            $msg1 .= $self->{lh_en}->maketext( $msg, $email );
+        }
+        else {
+            syslog( 2, 'show_add_vacbl_entry - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $local_part, $domain ) ), $sth->errstr );
+            my $msg = "Failed to add Vacation Blacklist Entry [_1]. Database Error.";
+            $self->add_message( 'error', $self->{lh}->maketext( $msg, $email ) );
+            $msg1 = $self->{lh_en}->maketext( $msg, $email );
+        }
     }
     else {
         my $msg = 'Invalid email given. Please provide a valid RFC822 email address.';
+        $msg1 .= $msg;
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->log( $msg . ". User: " . $self->authen->username );
     }
 
+    $self->log( $msg1 . ". User: " . $self->authen->username );
     $self->redirect('vboxadm.pl?rm=vac_bl');
     return;
 }
@@ -2548,9 +2648,11 @@ sub show_remove_vacbl_entry {
 
     if ($entry_id) {
         my $query = "DELETE FROM vacation_blacklist WHERE id = ?";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($entry_id);
-        $sth->finish();
+        my $sth   = $dbh->prepare($query)
+          or syslog( 2, 'show_remove_vacbl_entry - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+        if ( $sth->execute($entry_id) ) {
+            $sth->finish();
+        }
 
         # TODO error handling
         # TODO user message
@@ -2683,13 +2785,28 @@ sub show_admins {
     my $q = $self->query();
 
     my $search = $q->param('search') || undef;
+    my $page   = $q->param('page')   || 1;
 
-    my $query = "SELECT m.id,m.local_part,m.is_active,d.name,m.is_domainadmin,m.is_superadmin ";
-    $query .= "FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.is_superadmin ";
+    my @args  = ();
+    my $query = "FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.is_superadmin ";
     $query .= "OR m.is_domainadmin ORDER BY m.is_superadmin,m.is_domainadmin,m.local_part,d.name";
-    my $sth = $dbh->prepare($query)
+    my $sth = $dbh->prepare( "SELECT COUNT(*) " . $query )
       or syslog( 2, 'show_admins - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
     $sth->execute()
+      or syslog( 2, 'show_admins - Could not execute Query: %s, Args: none, Error: %s', $query, $sth->errstr );
+    my $num_rows = $sth->fetchrow_array();
+    $sth->finish();
+
+    my $pager = Data::Page->new();
+    $pager->total_entries($num_rows);
+    $pager->entries_per_page($ENTRIES_PER_PAGE);
+    $pager->current_page($page);
+
+    $sth = $dbh->prepare( "SELECT m.id,m.local_part,m.is_active,d.name,m.is_domainadmin,m.is_superadmin " . $query . ' LIMIT ?, ?' )
+      or syslog( 2, 'show_admins - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+    push( @args, $pager->skipped );
+    push( @args, $pager->entries_per_page );
+    $sth->execute(@args)
       or syslog( 2, 'show_admins - Could not execute Query: %s, Args: none, Error: %s', $query, $sth->errstr );
 
     my @admins = ();
@@ -2706,12 +2823,14 @@ sub show_admins {
             }
         );
     }
+    $sth->finish();
 
     my %params = (
         'title'   => $self->{lh}->maketext('VBoxAdm Admins'),
         'current' => 'admins',
         'admins'  => \@admins,
         'search'  => $search,
+        'page'    => $pager,
     );
 
     return $self->tt_process( 'admins.tpl', \%params );
