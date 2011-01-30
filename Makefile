@@ -214,7 +214,7 @@ git: tidy all clean
 	$(GIT) status
 	$(GIT) diff
 	$(GIT) commit -a || true
-	$(GIT) push kronos
+	$(GIT) push origin
 	test -d /projects/ && $(GIT) push projects || true
 
 help:
