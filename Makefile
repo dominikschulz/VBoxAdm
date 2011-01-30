@@ -162,7 +162,7 @@ real-install: all test man rcvboxadm
 	$(INSTALL_DATA) tpl/*.tpl $(VBOXLIBDIR)/tpl/
 	$(INSTALL_DATA) res/css/*.css $(VHDIR)/htdocs/css/
 	$(INSTALL_DATA) res/images/*.png $(VHDIR)/htdocs/images/
-	$(INSTALL_DATA) res/images/knob/*.png $(VHDIR)/htdocs/images/kob/
+	$(INSTALL_DATA) res/images/knob/*.png $(VHDIR)/htdocs/images/knob/
 	$(INSTALL_DATA) res/js/*.js $(VHDIR)/htdocs/js/
 	$(INSTALL_DATA) res/js/libs/*.js $(VHDIR)/htdocs/js/libs/
 #	$(INSTALL_DATA) res/js/mylibs/*.js $(VHDIR)/htdocs/js/mylibs/
