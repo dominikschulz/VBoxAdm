@@ -53,6 +53,7 @@ $dbi->{'db'}   = $config{'default'}{'dbdb'}   || $db_db;
 my $pwscheme = $config{'cgi'}{'pwscheme'} || 'sha256';
 
 # Most of this code is disabled since it is unfinished yet.
+# TODO rename to vboxadm.pl and move to bin when finished.
 if (0) {
 
     # Ask for options
