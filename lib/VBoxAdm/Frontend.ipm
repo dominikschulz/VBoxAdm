@@ -580,11 +580,6 @@ sub show_broadcast {
         return;
     }
 
-    # TODO show select fields:
-    # - all mailboxes
-    # - all aliases
-    # - ... ?
-
     # Get our database connection
     my $dbh = $self->dbh();
 
@@ -2427,8 +2422,6 @@ sub show_update_mailbox {
 #
 
 sub show_log {
-
-    # TODO debian-pkg: depend on libdata-page-perl
     my $self = shift;
 
     if ( !$self->is_superadmin() ) {
@@ -2646,18 +2639,38 @@ sub show_remove_vacbl_entry {
 
     my $entry_id = $q->param('entry_id') || undef;
 
+    my $msg1 = '';
+
     if ($entry_id) {
-        my $query = "DELETE FROM vacation_blacklist WHERE id = ?";
-        my $sth   = $dbh->prepare($query)
+        my $query = "SELECT local_part,domain FROM vacation_blacklist WHERE id = ?";
+        my $sth   = $dbh->prepare($query);
+        $sth->execute($entry_id);
+        my $email = $sth->fetchrow_array();
+        $sth->finish();
+
+        $query = "DELETE FROM vacation_blacklist WHERE id = ?";
+        $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_remove_vacbl_entry - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute($entry_id) ) {
             $sth->finish();
+            my $msg = "Delete Vacation Blacklist Entry [_1].";
+            $self->add_message( 'success', $self->{lh}->maketext( $msg, $email ) );
+            $msg1 .= $self->{lh_en}->maketext( $msg, $email );
         }
-
-        # TODO error handling
-        # TODO user message
+        else {
+            syslog( 2, 'show_remove_vacbl_entry - Could not execute Query: %s, Args: %s, Error: %s', $query, $entry_id, $sth->errstr );
+            my $msg = "Failed to remove Vacation Blacklist Entry [_1]. Database Error.";
+            $self->add_message( 'error', $self->{lh}->maketext( $msg, $email ) );
+            $msg1 .= $self->{lh_en}->maketext( $msg, $email );
+        }
+    }
+    else {
+        my $msg = 'Invalid id given. Please provide a valid id.';
+        $msg1 .= $msg;
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
     }
 
+    $self->log( $msg1 . ". User: " . $self->authen->username );
     $self->redirect('vboxadm.pl?rm=vac_bl');
     return;
 }

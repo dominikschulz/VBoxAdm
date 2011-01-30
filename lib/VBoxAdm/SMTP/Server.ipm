@@ -5,6 +5,7 @@ use warnings;
 
 use IO::Socket;
 use IO::File;
+use Carp qw(carp croak);
 
 our $VERSION = '@VERSION@';
 
@@ -17,7 +18,38 @@ our $VERSION = '@VERSION@';
 # Comments   : none
 # See Also   : n/a
 sub new {
-    return;
+    my $this = shift;
+    my @opts = @_;
+
+    my $class = ref($this) || $this;
+    my $self = bless {@opts}, $class;
+
+    # TODO as soon as this class is working & tested switch to INET6
+    if ( !$self->{sock} ) {
+        $self->{sock} = IO::Socket::INET->new(
+            LocalAddr => $self->{interface},
+            LocalPort => $self->{port},
+            Proto     => 'tcp',
+            Type      => SOCK_STREAM,
+            Listen    => 65536,
+            Reuse     => 1,
+        );
+        $self->{sockmode} = 'accept';
+    }
+    else {
+        $self->{sockmode} = 'direct', $self->{'s'} = $self->{sock};
+    }
+
+    if ( !defined( $self->{sock} ) ) {
+        croak("$0: Socket bind failure: $!\n");
+    }
+    if ( $self->{sockmode} eq 'accept' ) {
+        $self->{state} = 'just bound';
+    }
+    else {
+        $self->{state} = 'accepted';
+    }
+    return $self;
 }
 
 ############################################
@@ -29,7 +61,21 @@ sub new {
 # Comments   : none
 # See Also   : n/a
 sub accept {
-    return;
+    my $self = shift;
+    my @opts = @_;
+
+    if ( $self->{sockmode} ne 'accept' ) {
+        carp( "Accept not available in this mode (" . $self->{sockmode} . ")!\n" );
+        return;
+    }
+
+    %{$self} = ( %{$self}, @opts );
+
+    ( $self->{'s'}, $self->{peeraddr} ) = $self->{sock}->accept
+      or croak("$0: Socket accept failure: $!\n");
+    $self->{state} = 'accepted';
+
+    return 1;
 }
 
 ############################################
@@ -41,6 +87,38 @@ sub accept {
 # Comments   : none
 # See Also   : n/a
 sub chat {
+    my $self = shift;
+
+    my $line;
+    if ( $self->{state} !~ /^data/i ) {
+        return 0 unless defined( $line = $self->getline );
+
+        # strip any kind of newlines
+        $line =~ s/[\r\n]*$//;
+        $self->{state} = $line;
+
+        if ( $line =~ s/^(he|eh|lh)lo\s+//i ) {
+
+            # trim and unify spacings
+            $line =~ s/\s*$//;
+            $line =~ s/\s+/ /g;
+            $self->{helo} = $line;
+        }
+        elsif ( $line =~ m/^rset\b/i ) {
+            delete $self->{to};
+            delete $self->{data};
+            delete $self->{recipients};
+            delete $self->{xforward};
+        }
+        elsif ( $line =~ s/^mail\s+from:\s*//i ) {
+            delete $self->{to};
+            delete $self->{data};
+            delete $self->{recipients};
+            delete $self->{xforward};
+            $line =~ s/\s*$//;
+            $self->{from} = $line;
+        }
+    }
     return;
 }
 

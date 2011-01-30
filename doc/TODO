@@ -36,13 +36,11 @@ Make sure class-C ip subnet auto-whitelists are supported
 
 - Extensions:
 -- Add "customer extension"
--- Add multi-ip sendout extension
 
 - Translation:
 -- Translate status messages*
 
 - CGI::Application:
 -- add ActionDispatch when Bug #65224 is fixed
--- add Data::Page for Paging
 
 * - in progress
