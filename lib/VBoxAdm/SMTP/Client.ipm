@@ -3,6 +3,7 @@ package VBoxAdm::SMTP::Client;
 use strict;
 use warnings;
 
+use Carp qw(croak);
 use IO::Socket;
 
 our $VERSION = '@VERSION@';
@@ -16,7 +17,32 @@ our $VERSION = '@VERSION@';
 # Comments   : none
 # See Also   : n/a
 sub new {
-    return;
+    my $this = shift;
+    my @opts = @_;
+
+    my $class = ref($this) || $this;
+    my $self = bless { timeout => 300, @opts }, $class;
+
+    # TODO as soon as this class is working & tested switch to INET6
+    $self->{sock} = IO::Socket::INET->new(
+        PeerAddr => $self->{interface},
+        PeerPort => $self->{port},
+        Timeout  => $self->{timeout},
+        Proto    => 'tcp',
+        Type     => SOCK_STREAM,
+    );
+
+    if ( !defined( $self->{sock} ) ) {
+        if ( $self->{RaiseError} ) {
+            croak("$0: Socket connection failure: $!\n");    # unless defined?
+        }
+        else {
+            return;
+        }
+    }
+    else {
+        return $self;
+    }
 }
 
 ############################################
@@ -28,7 +54,19 @@ sub new {
 # Comments   : none
 # See Also   : n/a
 sub hear {
-    return;
+    my $self = shift;
+
+    my $line  = undef;
+    my $reply = undef;
+
+    return undef unless $line = $self->{sock}->getline;
+    while ( $line =~ /^\d{3}-/ ) {
+        $reply .= $line;
+        return undef unless $line = $self->{sock}->getline;
+    }
+    $reply .= $line;
+    $reply =~ s/\r\n$//;
+    return $reply;
 }
 
 ############################################
@@ -40,7 +78,12 @@ sub hear {
 # Comments   : none
 # See Also   : n/a
 sub say {
-    return;
+    my $self = shift;
+    my @msg  = @_;
+
+    return unless @msg;
+
+    $self->{sock}->print( "@msg", "\r\n" ) or croak("$0: Socket write error: $!");
 }
 
 ############################################
@@ -52,7 +95,22 @@ sub say {
 # Comments   : none
 # See Also   : n/a
 sub yammer {
-    return;
+    my $self = shift;
+    my $fh   = shift;
+
+    # default to SMTP-linebreaks for newlines
+    local $/ = "\r\n";
+
+    while ( my $line = <$fh> ) {
+
+        # escape single dots at the beginning of a line
+        # SMTP requires this. a single dot would end the data stage.
+        $line =~ s/^\./../;
+        $self->{sock}->print($line) or croak("$0: Socket write error: $!\n");
+    }
+
+    # end the data stage
+    $self->{sock}->print(".\r\n") or croak("$0: Socket write error: $!\n");
 }
 
 1;
