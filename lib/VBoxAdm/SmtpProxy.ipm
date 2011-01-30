@@ -684,7 +684,7 @@ the number of requests per instance reasonably low.
 =head1 CONFIGURATION AND ENVIRONMENT
 
 The configuration file should be place either in /etc/vboxadm.conf or
-in /etc/postfix/vboxadm.conf. This is a common configuration file
+in /etc/vboxadm/vboxadm.conf. This is a common configuration file
 for the whole suite of VBoxAdm applications. Each part of this suite
 has its own section in the config file and all use the values
 from the default section when appropriate.

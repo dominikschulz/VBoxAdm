@@ -31,6 +31,9 @@ Make sure class-C ip subnet auto-whitelists are supported
 -- finish 'you've been blocked' RFC notify cronjob*
 -- test rfc notify
 
+- Setup:
+-- finish mkadmin.pl/rename to vboxadm.pl
+
 - AWL Cron:
 -- add auto whitelist cron + DB + GUI*
 
