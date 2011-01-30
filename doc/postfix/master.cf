@@ -122,4 +122,4 @@ smtp-proxy unix -       -       n       -       15  	smtp
 dovecot   unix  -       n       n       -       -       pipe
   flags=DRhu user=vmail:vmail argv=/usr/lib/dovecot/deliver -d ${user}@${domain}
 vacation  unix	-		n		n		-		-		pipe
-  flags=Rq user=vboxadm:vboxadm argv=/usr/lib/vboxadm/vacation -s ${sender} -r ${recipient}
+  flags=Rq user=vboxadm:vboxadm argv=/usr/lib/vboxadm/bin/vacation -s ${sender} -r ${recipient}
