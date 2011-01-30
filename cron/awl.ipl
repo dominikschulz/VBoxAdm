@@ -125,7 +125,7 @@ sub store_whitelist {
 }
 
 sub write_exim_whitelist {
-    my $dbh      = shift;
+    my $dbh    = shift;
     my $config = shift;
 
     if ( open( my $FH, ">", $config->{'awl'}{'whitelist'} ) ) {
@@ -143,7 +143,7 @@ sub write_exim_whitelist {
 }
 
 sub write_postfix_whitelist {
-    my $dbh      = shift;
+    my $dbh    = shift;
     my $config = shift;
 
     if ( open( my $FH, ">", $config->{'awl'}{'whitelist'} ) ) {
@@ -156,23 +156,23 @@ sub write_postfix_whitelist {
         $sth->finish();
         close($FH);
         my $postmap = '/usr/sbin/postmap';
-        my $cmd = $postmap.' btree:' . $config->{'awl'}{'whitelist'};
-      	if(-x $postmap) {
-	        my $rv  = system($cmd) >> 8;
-	        if ( $rv == 0 ) {
-	            return 1;
-	        }
-	        else {
-	            return;
-	        }
-      	}
+        my $cmd     = $postmap . ' btree:' . $config->{'awl'}{'whitelist'};
+        if ( -x $postmap ) {
+            my $rv = system($cmd) >> 8;
+            if ( $rv == 0 ) {
+                return 1;
+            }
+            else {
+                return;
+            }
+        }
     }
     return;
 }
 
 sub parse_exim {
-	my $dbh = shift;
-    my $config    = shift;
+    my $dbh    = shift;
+    my $config = shift;
 
     my %msgs = ();
     open( my $IN, "<", $config->{'awl'}{'logfile'} ) or die("Could not open file $config->{'awl'}{'logfile'}: $!");
@@ -208,7 +208,7 @@ sub parse_exim {
             next unless $ip;
             next if $from eq '<>';
             next if &is_ignored_network($ip);
-            next if($config->{'awl'}{'only_local_domains'} &&  !&is_local_domain($dbh, $from));
+            next if ( $config->{'awl'}{'only_local_domains'} && !&is_local_domain( $dbh, $from ) );
             next unless &is_valid_domain($from);
 
             #print "IP-Authed - From: $from - Helo: $helo - IP: $ip\n";
@@ -246,20 +246,20 @@ sub is_valid_domain {
 }
 
 sub is_local_domain {
-	my $dbh = shift;
-	my $from = shift;
-	
-	my ($local_part, $domain ) = split /@/, $from;
-	
-	return unless $domain;
-	
-	my $query = "SELECT COUNT(*) FROM domains WHERE name = ?";
-	my $sth = $dbh->prepare($query);
-	$sth->execute($domain);
-	my $count = $sth->fetchrow_array();
-	$sth->finish();
-	
-	return $count;
+    my $dbh  = shift;
+    my $from = shift;
+
+    my ( $local_part, $domain ) = split /@/, $from;
+
+    return unless $domain;
+
+    my $query = "SELECT COUNT(*) FROM domains WHERE name = ?";
+    my $sth   = $dbh->prepare($query);
+    $sth->execute($domain);
+    my $count = $sth->fetchrow_array();
+    $sth->finish();
+
+    return $count;
 }
 
 sub is_ignored_network {
@@ -273,8 +273,8 @@ sub is_ignored_network {
 }
 
 sub parse_postfix {
-	my $dbh = shift;
-    my $config    = shift;
+    my $dbh    = shift;
+    my $config = shift;
 
     my %pids = ();
     my %qids = ();
@@ -308,7 +308,7 @@ sub parse_postfix {
             print "\t\trdns: $rdns - ip: $ip - sasl_method: $sasl_method - sasl_username: $sasl_username\n" if $config->{'awl'}{'verbose'};
         }
         elsif (m/postfix\/smtpd\[(\d+)\]: proxy-accept: END-OF-MESSAGE: .*: queued as (\w{10,12}); from=<([^>]+)> to=<([^>]+)> proto=([A-Z]+) helo=<([^>]+)>/) {
-        	print "\tproxy-accept: $_\n";
+            print "\tproxy-accept: $_\n";
             my $pid   = $1;
             my $qid   = $2;
             my $from  = $3;
@@ -376,12 +376,10 @@ sub parse_postfix {
 
             if ( $qids{$qid} ) {
                 if ( $qids{$qid}{'from'} && $qids{$qid}{'to'} && $qids{$qid}{'ip'} ) {
-                    if (
-                        $qids{$qid}{'from'} ne '<>'
+                    if (   $qids{$qid}{'from'} ne '<>'
                         && ( ( $qids{$qid}{'sasl_username'} && $qids{$qid}{'sasl_method'} ) || !&is_ignored_network( $qids{$qid}{'ip'}, $config ) )
                         && &is_valid_domain( $qids{$qid}{'from'}, $config )
-                        && (!$config->{'awl'}{'only_local_domains'} || &is_local_domain($dbh, $qids{$qid}{'from'}))
-                      )
+                        && ( !$config->{'awl'}{'only_local_domains'} || &is_local_domain( $dbh, $qids{$qid}{'from'} ) ) )
                     {
                         foreach my $to ( keys %{ $qids{$qid}{'to'} } ) {
                             $whitelist->{$to}++;

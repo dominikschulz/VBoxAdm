@@ -70,11 +70,11 @@ my $tpl_config = {
 my $tpl = Template->new($tpl_config);
 
 if ( -f $logfile ) {
-    &parse_postfix_maillog($logfile,\%config);
+    &parse_postfix_maillog( $logfile, \%config );
 }
 
 sub parse_postfix_maillog {
-    my $file = shift;
+    my $file   = shift;
     my $config = shift;
     print "parse_postfix_maillog - Reading file $file\n" if $config{'notify'}{'verbose'};
     if ( open( my $FH, "<", $file ) ) {
@@ -100,7 +100,8 @@ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d)
 
                     my $vars = {};
 
-                    print "REJECT - RDNS: $rdns - IP: $ip - SMTP-Code: $smtpcode - SMTP-Msg: $smtpmsg - From: $from - To: $to - Proto: $proto - Helo: $helo\n" if $config{'notify'}{'verbose'};
+                    print "REJECT - RDNS: $rdns - IP: $ip - SMTP-Code: $smtpcode - SMTP-Msg: $smtpmsg - From: $from - To: $to - Proto: $proto - Helo: $helo\n"
+                      if $config{'notify'}{'verbose'};
 
                     $vars->{'to'}            = $to;
                     $vars->{'from'}          = $from;

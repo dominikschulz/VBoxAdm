@@ -15,27 +15,24 @@ Make sure class-C ip subnet auto-whitelists are supported
 
 - SmtpProxy:
 -- Multiple target SMTP servers (fail over, load balancing)
--- Finish/Test XFORWARD handling*
+-- Test XFORWARD handling*
 -- After process_request log After-Filter Postfix Queue ID, Remote IP, Helo, Auth-Type, etc.
--- Implement own SMTP Client/Server classes*
+-- Implement own SMTP Client/Server classes - done, now test these classes
 
 - All:
--- Multiple database servers (fail over, load balancing)
+-- Multiple database servers (fail over, load balancing)*
 
 - Vacation:
--- add vacation blacklist to list senders which never get an reply
 -- Test new vacation query
--- add vacation blacklist GUI*
 
 - RFC Notfiy:
--- finish 'you've been blocked' RFC notify cronjob*
 -- test rfc notify
 
 - Setup:
 -- finish mkadmin.pl/rename to vboxadm.pl
 
 - AWL Cron:
--- add auto whitelist cron + DB + GUI*
+-- test AWL cron with different log formats
 
 - Extensions:
 -- Add "customer extension"

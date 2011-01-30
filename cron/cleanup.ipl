@@ -36,16 +36,16 @@ foreach my $loc (@conffile_locations) {
     }
 }
 
-openlog( 'vboxadm-vacation', 'ndelay,nofatal', 'mail' );
+openlog( 'vboxadm-cleanup', 'ndelay,nofatal', 'mail' );
 
 # Determine options
-my $dbhost = $config{'smtpproxy'}{'dbhost'} || $config{'default'}{'dbhost'} || 'localhost';
-my $dbuser = $config{'smtpproxy'}{'dbuser'} || $config{'default'}{'dbuser'} || 'vboxadm';
-my $dbpass = $config{'smtpproxy'}{'dbpass'} || $config{'default'}{'dbpass'} || 'vboxadm';
-my $dbport = $config{'smtpproxy'}{'dbport'} || $config{'default'}{'dbport'} || 3306;
-my $dbdb   = $config{'smtpproxy'}{'dbdb'}   || $config{'default'}{'dbdb'}   || 'vboxadm';
-$config{'vacation'}{'notify_interval'} 			||= 3600 * 24 * 7;
-$config{'awl'}{'lifetime'}   								||= 365;
+my $dbhost = $config{'default'}{'dbhost'} || 'localhost';
+my $dbuser = $config{'default'}{'dbuser'} || 'vboxadm';
+my $dbpass = $config{'default'}{'dbpass'} || 'vboxadm';
+my $dbport = $config{'default'}{'dbport'} || 3306;
+my $dbdb   = $config{'default'}{'dbdb'}   || 'vboxadm';
+$config{'vacation'}{'notify_interval'} ||= 3600 * 24 * 7;
+$config{'awl'}{'lifetime'} ||= 365;
 
 my $dsn = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;password=$dbpass";
 my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 1, } );
@@ -60,16 +60,16 @@ if ( !$dbh ) {
 # Prepare DB connection for utf8
 $dbh->do("SET NAMES utf8");
 
-# TODO cronjob which does this:
-# - create uncreated mailboxes
+# cronjob which does this:
 # - remove deleted mailboxes
-# -- get all mailboxes from db into hash
-# -- traverse over maildirs and remove all maildirs not in hash
+&purge_mailboxes( $dbh, \%config );
+
 # - remove expired vacation_notify entries
-&clean_vacation($dbh, \%config);
-# - remove mails marked as deleted
+&clean_vacation( $dbh, \%config );
+
+# - TODO remove mails marked as deleted
 # remove expired AWL entries
-&clean_awl($dbh, \%config);
+&clean_awl( $dbh, \%config );
 
 $dbh->disconnect();
 closelog();
@@ -79,77 +79,93 @@ exit 0;
 # Subs
 ###########################################################################
 sub purge_mailboxes {
-	my $dbh = shift;
-	my $config = shift;
-	
-	if(!$config->{'default'}{'mail_location'}) {
-		syslog( 2, 'mail_location is not set. Aborting!');
-		return; 
-	}
-	elsif(!-d $config->{'default'}{'mail_location'}) {
-		syslog( 2, 'mail_location ('.$config->{'default'}{'mail_location'}.') is no directory. Aborting!');
-		return;
-	}
-	
-	my $query = "SELECT m.local_part,d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id";
-	my $sth = $dbh->prepare($query);
-	$sth->execute();
-	my %mailboxes = ();
-	while(my ($local_part, $domain) = $sth->fetchrow_array()) {
-		$mailboxes{$domain}{$local_part} = 1;
-	}
-	$sth->finish();
-	
-	my $basedir = $config->{'default'}{'mail_location'};
-	if(opendir(my $DH, $basedir)) {
-		while(my $domain = readdir($DH)) {
-			next if $domain =~ m/^\./;
-			my $domain_dir = $basedir.'/'.$domain;
-			next unless -d $domain_dir;
-			if(opendir(my $MH, $domain_dir)) {
-				while(my $mailbox = readdir($MH)) {
-					next if $mailbox =~ m/^\./;
-					my $mailbox_dir = $domain_dir.'/'.$mailbox;
-					next unless -d $mailbox_dir;
-					next if $mailboxes{$domain}{$mailbox};
-					my $cmd = 'rm -rf '.$mailbox_dir;
-					my $rv = 0;
-					print "purge_mailboxes - CMD: $cmd\n" if $config->{'cleanup'}{'verbose'};
-					$rv = system($cmd) >> 8 unless $config->{'cleanup'}{'dry'};
-					if($rv != 0) {
-						print STDERR "$0 - Could not execute '$cmd': $!\n";
-					}
-				}
-				closedir($MH);
-			}
-		}
-		closedir($DH);
-	}
-	
-	return 1;
+
+    # - remove deleted mailboxes
+    # -- get all mailboxes from db into hash
+    # -- traverse over maildirs and remove all maildirs not in hash
+    my $dbh    = shift;
+    my $config = shift;
+
+    if ( !$config->{'default'}{'mail_location'} ) {
+        my $msg = 'mail_location is not set. Aborting!';
+        syslog( 2, $msg );
+        print STDERR $msg . "\n";
+        return;
+    }
+    elsif ( !-d $config->{'default'}{'mail_location'} ) {
+        my $msg = 'mail_location (' . $config->{'default'}{'mail_location'} . ') is no directory. Aborting!';
+        syslog( 2, $msg );
+        print STDERR $msg . "\n";
+        return;
+    }
+
+    my $query = "SELECT m.local_part,d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id";
+    my $sth   = $dbh->prepare($query);
+    $sth->execute();
+    my %mailboxes = ();
+    while ( my ( $local_part, $domain ) = $sth->fetchrow_array() ) {
+        $mailboxes{$domain}{$local_part} = 1;
+    }
+    $sth->finish();
+
+    my $basedir = $config->{'default'}{'mail_location'};
+    if ( opendir( my $DH, $basedir ) ) {
+        while ( my $domain = readdir($DH) ) {
+            next if $domain =~ m/^\./;
+            my $domain_dir = $basedir . '/' . $domain;
+            next unless -d $domain_dir;
+            if ( opendir( my $MH, $domain_dir ) ) {
+                while ( my $mailbox = readdir($MH) ) {
+                    next if $mailbox =~ m/^\./;
+                    my $mailbox_dir = $domain_dir . '/' . $mailbox;
+                    next unless -d $mailbox_dir;
+                    next if $mailboxes{$domain}{$mailbox};
+                    my $cmd = 'rm -rf ' . $mailbox_dir;
+                    my $rv  = 0;
+                    print "purge_mailboxes - CMD: $cmd\n" if $config->{'cleanup'}{'verbose'};
+                    $rv = system($cmd) >> 8 unless $config->{'cleanup'}{'dry'};
+
+                    if ( $rv != 0 ) {
+                        print STDERR "$0 - Could not execute '$cmd': $!\n";
+                    }
+                    else {
+                        syslog( 2, 'Purged Mailbox $mailbox\@$domain' );
+                    }
+                }
+                closedir($MH);
+            }
+        }
+        closedir($DH);
+    }
+
+    return 1;
 }
 
 sub clean_vacation {
-	my $dbh = shift;
-	my $config = shift;
-	my $sql = "DELETE FROM vacation_notify WHERE notified_at < NOW() - ?";
-	my $sth = $dbh->prepare($sql);
-	$sth->execute( $config->{'vacation'}{'notify_interval'} * 2 );
-	$sth->finish();
-	
-	return 1;
+    my $dbh    = shift;
+    my $config = shift;
+    my $sql    = "DELETE FROM vacation_notify WHERE notified_at < NOW() - ?";
+    my $sth    = $dbh->prepare($sql);
+    $sth->execute( $config->{'vacation'}{'notify_interval'} * 2 );
+    $sth->finish();
+
+    return 1;
 }
 
 sub clean_awl {
-    my $dbh      = shift;
+    my $dbh    = shift;
     my $config = shift;
 
     my $query = "DELETE FROM awl WHERE last_seen <= NOW() - INTERVAL ? DAY";
     my $sth   = $dbh->prepare($query)
       or return;
-    $sth->execute($config->{'awl'}{'lifetime'})
+    $sth->execute( $config->{'awl'}{'lifetime'} )
       or return;
     $sth->finish();
 
     return 1;
 }
+
+__END__
+
+This cronjob should run once a day.

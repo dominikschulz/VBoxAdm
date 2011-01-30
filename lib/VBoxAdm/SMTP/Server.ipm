@@ -118,58 +118,60 @@ sub chat {
             $line =~ s/\s*$//;
             $self->{from} = $line;
         }
-        elsif ( $line =~ s/^rcpt\s+to:\s*//i) {
-        	$line =~ s/\s*$//;
-        	$line =~ s/\s+/ /g;
-        	$self->{to} = $line;
-        	push(@{$self->{recipients}}, $line);
+        elsif ( $line =~ s/^rcpt\s+to:\s*//i ) {
+            $line =~ s/\s*$//;
+            $line =~ s/\s+/ /g;
+            $self->{to} = $line;
+            push( @{ $self->{recipients} }, $line );
         }
-        elsif($line =~ m/^data/i) {
-        	$self->{to} = $self->{recipients};
+        elsif ( $line =~ m/^data/i ) {
+            $self->{to} = $self->{recipients};
         }
-        elsif($line =~ m/^xforward/i) {
-        	if ($line =~ m/name=(\S+)\b/i) {
+        elsif ( $line =~ m/^xforward/i ) {
+            if ( $line =~ m/name=(\S+)\b/i ) {
                 $self->{xforward}{name} = $1;
             }
-            if ($line =~ m/addr=(\S+)\b/i) {
+            if ( $line =~ m/addr=(\S+)\b/i ) {
                 $self->{xforward}{addr} = $1;
             }
-            if ($line =~ m/port=(\d+)\b/i) {
+            if ( $line =~ m/port=(\d+)\b/i ) {
                 $self->{xforward}{port} = $1;
             }
-            if ($line =~ m/helo=(\S+)\b/i) {
+            if ( $line =~ m/helo=(\S+)\b/i ) {
                 $self->{xforward}{helo} = $1;
             }
-            if ($line =~ m/proto=(\S+)\b/i) {
+            if ( $line =~ m/proto=(\S+)\b/i ) {
                 $self->{xforward}{proto} = $1;
             }
-            if ($line =~ m/source=(\S+)\b/i) {
+            if ( $line =~ m/source=(\S+)\b/i ) {
                 $self->{xforward}{source} = $1;
             }
         }
     }
     else {
-    	if( defined($self->{data})) {
-    		$self->{data}->seek(0, 0);
-    		$self->{data}->truncate(0);
-    	}
-    	else {
-    		# TODO allow the location of the tmpfile to be configured
-    		# this should be on a ramdisk an maybe /tmp on ramdisk is
-    		# undesirable
-    		$self->{data} = IO::File->new_tmpfile;
-    	}
-    	while( defined(my $line = $self->getline)) {
-    		if( $line eq ".\r\n") {
-    			$self->{data}->seek(0,0);
-    			return $self->{state} = '.';
-    		}
-    		# unescape dot on beginning of the line
-    		$line =~ s/^\.\./\./;
-    		$self->{data}->print($line)
-    			or croak("$0: Write error while saving data\n");
-    	}
-    	return 0;
+        if ( defined( $self->{data} ) ) {
+            $self->{data}->seek( 0, 0 );
+            $self->{data}->truncate(0);
+        }
+        else {
+
+            # TODO allow the location of the tmpfile to be configured
+            # this should be on a ramdisk an maybe /tmp on ramdisk is
+            # undesirable
+            $self->{data} = IO::File->new_tmpfile;
+        }
+        while ( defined( my $line = $self->getline ) ) {
+            if ( $line eq ".\r\n" ) {
+                $self->{data}->seek( 0, 0 );
+                return $self->{state} = '.';
+            }
+
+            # unescape dot on beginning of the line
+            $line =~ s/^\.\./\./;
+            $self->{data}->print($line)
+              or croak("$0: Write error while saving data\n");
+        }
+        return 0;
     }
     return $self->{state};
 }
@@ -183,14 +185,14 @@ sub chat {
 # Comments   : none
 # See Also   : n/a
 sub getline {
-	my $self = shift;
-	local $/ = "\r\n";
-	
-	return $self->{'s'}->getline unless defined $self->{debug};
-	
-	my $line = $self->{'s'}->getline;
-	$self->{debug}->print($line) if $line;
-	return $line;
+    my $self = shift;
+    local $/ = "\r\n";
+
+    return $self->{'s'}->getline unless defined $self->{debug};
+
+    my $line = $self->{'s'}->getline;
+    $self->{debug}->print($line) if $line;
+    return $line;
 }
 
 ############################################
@@ -202,12 +204,12 @@ sub getline {
 # Comments   : none
 # See Also   : n/a
 sub print {
-	my $self = shift;
-	my @msg = @_;
-	
-	$self->{debug}->print(@msg) if defined $self->{debug};
-	$self->{'s'}->print(@msg);
-  return 1;
+    my $self = shift;
+    my @msg  = @_;
+
+    $self->{debug}->print(@msg) if defined $self->{debug};
+    $self->{'s'}->print(@msg);
+    return 1;
 }
 
 ############################################
@@ -219,14 +221,14 @@ sub print {
 # Comments   : none
 # See Also   : n/a
 sub ok {
-	my $self = shift;
-	my @msg = @_;
-	
-	@msg = ("ok.") unless @msg;
-	
-	$self->print("250 @msg\r\n")
-		or croak("$0: Socket write error acknowledging $self->{state}: $!\n");
-  return 1;
+    my $self = shift;
+    my @msg  = @_;
+
+    @msg = ("ok.") unless @msg;
+
+    $self->print("250 @msg\r\n")
+      or croak("$0: Socket write error acknowledging $self->{state}: $!\n");
+    return 1;
 }
 
 ############################################
@@ -238,14 +240,14 @@ sub ok {
 # Comments   : none
 # See Also   : n/a
 sub tempfail {
-	my $self = shift;
-	my @msg = @_;
-	
-	@msg = ("temporary failure.") unless @msg;
-	
-	$self->print("450 @msg\r\n")
-		or croak("$0: Socket write error acknowledging $self->{state}: $!\n");
-  return 1;
+    my $self = shift;
+    my @msg  = @_;
+
+    @msg = ("temporary failure.") unless @msg;
+
+    $self->print("450 @msg\r\n")
+      or croak("$0: Socket write error acknowledging $self->{state}: $!\n");
+    return 1;
 }
 
 ############################################
@@ -257,14 +259,14 @@ sub tempfail {
 # Comments   : none
 # See Also   : n/a
 sub fail {
-	my $self = shift;
-	my @msg = @_;
-	
-	@msg = ("no.") unless @msg;
-	
-	$self->print("550 @msg\r\n")
-		or croak("$0: Socket write error acknowledging $self->{state}: $!\n");
-  return 1;
+    my $self = shift;
+    my @msg  = @_;
+
+    @msg = ("no.") unless @msg;
+
+    $self->print("550 @msg\r\n")
+      or croak("$0: Socket write error acknowledging $self->{state}: $!\n");
+    return 1;
 }
 1;
 
