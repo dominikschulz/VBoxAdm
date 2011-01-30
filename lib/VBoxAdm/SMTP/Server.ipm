@@ -118,8 +118,60 @@ sub chat {
             $line =~ s/\s*$//;
             $self->{from} = $line;
         }
+        elsif ( $line =~ s/^rcpt\s+to:\s*//i) {
+        	$line =~ s/\s*$//;
+        	$line =~ s/\s+/ /g;
+        	$self->{to} = $line;
+        	push(@{$self->{recipients}}, $line);
+        }
+        elsif($line =~ m/^data/i) {
+        	$self->{to} = $self->{recipients};
+        }
+        elsif($line =~ m/^xforward/i) {
+        	if ($line =~ m/name=(\S+)\b/i) {
+                $self->{xforward}{name} = $1;
+            }
+            if ($line =~ m/addr=(\S+)\b/i) {
+                $self->{xforward}{addr} = $1;
+            }
+            if ($line =~ m/port=(\d+)\b/i) {
+                $self->{xforward}{port} = $1;
+            }
+            if ($line =~ m/helo=(\S+)\b/i) {
+                $self->{xforward}{helo} = $1;
+            }
+            if ($line =~ m/proto=(\S+)\b/i) {
+                $self->{xforward}{proto} = $1;
+            }
+            if ($line =~ m/source=(\S+)\b/i) {
+                $self->{xforward}{source} = $1;
+            }
+        }
     }
-    return;
+    else {
+    	if( defined($self->{data})) {
+    		$self->{data}->seek(0, 0);
+    		$self->{data}->truncate(0);
+    	}
+    	else {
+    		# TODO allow the location of the tmpfile to be configured
+    		# this should be on a ramdisk an maybe /tmp on ramdisk is
+    		# undesirable
+    		$self->{data} = IO::File->new_tmpfile;
+    	}
+    	while( defined(my $line = $self->getline)) {
+    		if( $line eq ".\r\n") {
+    			$self->{data}->seek(0,0);
+    			return $self->{state} = '.';
+    		}
+    		# unescape dot on beginning of the line
+    		$line =~ s/^\.\./\./;
+    		$self->{data}->print($line)
+    			or croak("$0: Write error while saving data\n");
+    	}
+    	return 0;
+    }
+    return $self->{state};
 }
 
 ############################################
@@ -131,7 +183,14 @@ sub chat {
 # Comments   : none
 # See Also   : n/a
 sub getline {
-    return;
+	my $self = shift;
+	local $/ = "\r\n";
+	
+	return $self->{'s'}->getline unless defined $self->{debug};
+	
+	my $line = $self->{'s'}->getline;
+	$self->{debug}->print($line) if $line;
+	return $line;
 }
 
 ############################################
@@ -143,7 +202,12 @@ sub getline {
 # Comments   : none
 # See Also   : n/a
 sub print {
-    return;
+	my $self = shift;
+	my @msg = @_;
+	
+	$self->{debug}->print(@msg) if defined $self->{debug};
+	$self->{'s'}->print(@msg);
+  return 1;
 }
 
 ############################################
@@ -155,7 +219,14 @@ sub print {
 # Comments   : none
 # See Also   : n/a
 sub ok {
-    return;
+	my $self = shift;
+	my @msg = @_;
+	
+	@msg = ("ok.") unless @msg;
+	
+	$self->print("250 @msg\r\n")
+		or croak("$0: Socket write error acknowledging $self->{state}: $!\n");
+  return 1;
 }
 
 ############################################
@@ -167,7 +238,14 @@ sub ok {
 # Comments   : none
 # See Also   : n/a
 sub tempfail {
-    return;
+	my $self = shift;
+	my @msg = @_;
+	
+	@msg = ("temporary failure.") unless @msg;
+	
+	$self->print("450 @msg\r\n")
+		or croak("$0: Socket write error acknowledging $self->{state}: $!\n");
+  return 1;
 }
 
 ############################################
@@ -179,7 +257,14 @@ sub tempfail {
 # Comments   : none
 # See Also   : n/a
 sub fail {
-    return;
+	my $self = shift;
+	my @msg = @_;
+	
+	@msg = ("no.") unless @msg;
+	
+	$self->print("550 @msg\r\n")
+		or croak("$0: Socket write error acknowledging $self->{state}: $!\n");
+  return 1;
 }
 1;
 
@@ -187,90 +272,68 @@ __END__
 
 =head1 NAME
 
-<Module::Name> - <One-line description of module's purpose>
+VBoxAdm::SMTP::Server - An SMTP Server.
 
 =head1 VERSION
 
-This documentation refers to <Module::Name> version 0.0.1.
+This documentation refers to VBoxAdm::SMTP::Server version @VERSION@
+built on @BUILDDATE@.
 
 =head1 SYNOPSIS
 
-    use <Module::Name>;
-
-# Brief but working code example(s) here showing the most common usage(s)
-
-    # This section will be as far as many users bother reading,
-    # so make it as educational and exemplary as possible.
+    use VBoxAdm::SMTP::Server;
+		my $server = VBoxAdm::SMTP::Server->new(
+			interface => $interface,
+			port			=> $port,
+		);
 
 =head1 DESCRIPTION
 
-A full description of the module and its features.
-May include numerous subsections (i.e., =head2, =head3, etc.).
+This class implements the protocol stage necessary to implement a minimal SMTP server.
 
 =head1 SUBROUTINES/METHODS
 
-A separate section listing the public components of the module's interface.
-These normally consist of either subroutines that may be exported, or methods
-that may be called on objects belonging to the classes that the module provides.
-Name the section accordingly.
+=head2 accept
 
-In an object-oriented module, this section should begin with a sentence of the
-form "An object of this class represents...", to give the reader a high-level
-context to help them understand the methods that are subsequently described.
+=head2 chat
+
+=head2 fail
+
+=head2 getline
+
+=head2 new
+
+=head2 ok
+
+=head2 print
+
+=head2 tempfail
 
 =head1 DIAGNOSTICS
 
-A list of every error and warning message that the module can generate
-(even the ones that will "never happen"), with a full explanation of each
-problem, one or more likely causes, and any suggested remedies.
-(See also "Documenting Errors" in Chapter 13.)
-
-=head1 CONFIGURATION AND ENVIRONMENT
-
-A full explanation of any configuration system(s) used by the module,
-including the names and locations of any configuration files, and the
-meaning of any environment variables or properties that can be set. These
-descriptions must also include details of any configuration language used.
-(See also "Configuration Files" in Chapter 19.)
+TODO
 
 =head1 DEPENDENCIES
 
-A list of all the other modules that this module relies upon, including any
-restrictions on versions, and an indication of whether these required modules are
-part of the standard Perl distribution, part of the module's distribution,
-or must be installed separately.
+IO::Socket and IO::File.
 
 =head1 INCOMPATIBILITIES
 
-A list of any modules that this module cannot be used in conjunction with.
-This may be due to name conflicts in the interface, or competition for
-system or program resources, or due to internal limitations of Perl
-(for example, many modules that use source code filters are mutually
-incompatible).
+None known.
 
 =head1 BUGS AND LIMITATIONS
 
-A list of known problems with the module, together with some indication of
-whether they are likely to be fixed in an upcoming release.
-
-Also a list of restrictions on the features the module does provide:
-data types that cannot be handled, performance issues and the circumstances
-in which they may arise, practical limitations on the size of data sets,
-special cases that are not (yet) handled, etc.
-
 There are no known bugs in this module.
-Please report problems to 
-
-Dominik Schulz (dominik.schulz@)
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
 Patches are welcome.
 
 =head1 AUTHOR
 
-Dominik Schulz (dominik.schulz@)
+Dominik Schulz (dominik.schulz@gauner.org)
 
 =head1 LICENCE AND COPYRIGHT
 
-Copyright (c) 2010 Dominik Schulz (dominik.schulz@). All rights reserved.
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
 
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself. See L<perlartistic>.

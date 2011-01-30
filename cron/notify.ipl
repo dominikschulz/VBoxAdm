@@ -70,12 +70,13 @@ my $tpl_config = {
 my $tpl = Template->new($tpl_config);
 
 if ( -f $logfile ) {
-    &parse_postfix_maillog($logfile);
+    &parse_postfix_maillog($logfile,\%config);
 }
 
 sub parse_postfix_maillog {
     my $file = shift;
-    print "parse_postfix_maillog - Reading file $file\n";
+    my $config = shift;
+    print "parse_postfix_maillog - Reading file $file\n" if $config{'notify'}{'verbose'};
     if ( open( my $FH, "<", $file ) ) {
       LINE: while ( my $line = <$FH> ) {
             if ( $line =~ m/postfix\/smtpd/ && $line =~ m/NOQUEUE: reject:/ ) {
@@ -85,21 +86,21 @@ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d)
                 {
                     my ( $rdns, $ip, $smtpcode, $smtpmsg, $from, $to, $proto, $helo ) = ( $1, $2, $3, $4, $5, $6, $7, $8 );
                     if ( $from eq $to ) {
-                        print "SKIPPED: SPAM - from=to\n";
+                        print "SKIPPED: SPAM - from=to\n" if $config{'notify'}{'verbose'};
                         next LINE;
                     }
                     elsif ( $smtpmsg =~ m/Greylisted/ ) {
-                        print "SKIPPED: GREYLISTED\n";
+                        print "SKIPPED: GREYLISTED\n" if $config{'notify'}{'verbose'};
                         next LINE;
                     }
                     elsif ( $from =~ m/@(yahoo|gmail|microsoft|hotmail|msn|live|aim|rolex|blizzard|gmx|web)\./ ) {
-                        print "SKIPPED: SPAM from well-known domain\n";
+                        print "SKIPPED: SPAM from well-known domain\n" if $config{'notify'}{'verbose'};
                         next LINE;
                     }
 
                     my $vars = {};
 
-                    print "REJECT - RDNS: $rdns - IP: $ip - SMTP-Code: $smtpcode - SMTP-Msg: $smtpmsg - From: $from - To: $to - Proto: $proto - Helo: $helo\n";
+                    print "REJECT - RDNS: $rdns - IP: $ip - SMTP-Code: $smtpcode - SMTP-Msg: $smtpmsg - From: $from - To: $to - Proto: $proto - Helo: $helo\n" if $config{'notify'}{'verbose'};
 
                     $vars->{'to'}            = $to;
                     $vars->{'from'}          = $from;
@@ -114,29 +115,29 @@ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d)
                     }
 
                     if ( &is_notified( $dbh, 'postmaster@' . $from_domain ) ) {
-                        print "SKIPPED: This postmaster (postmaster\@$from_domain) was already notified.\n";
+                        print "SKIPPED: This postmaster (postmaster\@$from_domain) was already notified.\n" if $config{'notify'}{'verbose'};
                         next LINE;
                     }
 
                     if ( &VBoxAdm::Utils::is_local_domain( $dbh, $from_domain ) ) {
-                        print "SKIPPED: Forged localdomain in sender ($from_domain may not be a local domain)!\n";
+                        print "SKIPPED: Forged localdomain in sender ($from_domain may not be a local domain)!\n" if $config{'notify'}{'verbose'};
                         next LINE;
                     }
 
                     if ( !&VBoxAdm::Utils::is_local_mailbox( $dbh, $to ) ) {
-                        print "SKIPPED: Invalid recipient ($to is no local mailbox)!\n";
+                        print "SKIPPED: Invalid recipient ($to is no local mailbox)!\n" if $config{'notify'}{'verbose'};
                         next LINE;
                     }
 
                     # msg: Client host rejected: cannot find your hostname -> no RDNS found, notify about missing RDNS
                     if ( $smtpmsg =~ m/Client host rejected: cannot find your hostname/ ) {
-                        print "WOULD Handle missing RDNS and send report to $from, $to, postmaster\@$from_domain.\n";
+                        print "WOULD Handle missing RDNS and send report to $from, $to, postmaster\@$from_domain.\n" if $config{'notify'}{'verbose'};
                         $vars->{'is_rdns'} = 1;
                     }
 
                     # msg: Helo command rejected: Host not found -> helo does not resolve to valid IP, notify about invalid helo
                     if ( $smtpmsg =~ m/Helo command rejected: Host not found/ ) {
-                        print "WOULD Handle invalid HELO and send report to $from, $to, postmaster\@$from_domain.\n";
+                        print "WOULD Handle invalid HELO and send report to $from, $to, postmaster\@$from_domain.\n" if $config{'notify'}{'verbose'};
                         $vars->{'is_helo'} = 1;
                     }
 
@@ -151,8 +152,8 @@ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d)
                         $emsg .= "\r\n";
                         $emsg .= $postmaster_msg;
 
-                        if ( $config{'rfc-notify'}{'dry'} ) {
-                            print "XXX - Would send message to POSTMASTER:\n" . $emsg . "\n";
+                        if ( $config{'notify'}{'dry'} ) {
+                            print "XXX - Would send message to POSTMASTER:\n" . $emsg . "\n" if $config{'notify'}{'verbose'};
                         }
                         else {
                             &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
@@ -168,8 +169,8 @@ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d)
                         $emsg .= "\r\n";
                         $emsg .= $recipient_msg;
 
-                        if ( $config{'rfc-notify'}{'dry'} ) {
-                            print "XXX - Would send message to RECIPIENT:\n" . $emsg . "\n";
+                        if ( $config{'notify'}{'dry'} ) {
+                            print "XXX - Would send message to RECIPIENT:\n" . $emsg . "\n" if $config{'notify'}{'verbose'};
                         }
                         else {
                             &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
@@ -185,19 +186,19 @@ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d)
                         $emsg .= "\r\n";
                         $emsg .= $sender_msg;
 
-                        if ( $config{'rfc-notify'}{'dry'} ) {
-                            print "XXX - Would send message to SENDER:\n" . $emsg . "\n";
+                        if ( $config{'notify'}{'dry'} ) {
+                            print "XXX - Would send message to SENDER:\n" . $emsg . "\n" if $config{'notify'}{'verbose'};
                         }
                         else {
                             &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
                         }
 
-                        if ( !$config{'rfc-notify'}{'dry'} ) {
+                        if ( !$config{'notify'}{'dry'} ) {
                             &set_notified( $dbh, 'postmaster@' . $from_domain );
                         }
                     }
                     else {
-                        print "ERROR Unknown Cause: $smtpmsg\n";
+                        print "ERROR Unknown Cause: $smtpmsg\n" if $config{'notify'}{'verbose'};
                     }
                 }
             }

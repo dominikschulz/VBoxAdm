@@ -6,6 +6,8 @@ You will receive this mail only once. Please act acordingly to restore full serv
 Below you will find detailed information about what is wrong with your mailserver and some pointers on how to fix this issue.
 
 [% IF is_rdns %]
+INVALID REVERSE DNS RECORD
+
 Your mailserver is using a IP address for sending that has no valid reverse DNS record. This makes it very hard to determine if this
 IP is eligible to send mail for your domain and thus many mailservers will reject mails coming from this IP.
 
@@ -14,6 +16,8 @@ Contact your network department or ISP to setup a reverse DNS mapping from the I
 [% END %]
 
 [% IF is_helo %]
+INVALID HELO HOSTNAME
+
 Your mailserver is using a HELO hostname during the greeting sequence of SMTP which does not resolve to a valid IP address.
 This is regarded bad style and should be fixed.
 

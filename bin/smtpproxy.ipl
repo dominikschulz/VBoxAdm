@@ -22,7 +22,6 @@ my @conffile_locations = qw(
   conf/vboxadm.conf
   /etc/vboxadm.conf
   /etc/vboxadm/vboxadm.conf
-  /etc/postfix/vboxadm.conf
 );
 GetOptions(
     'verbose|v+' => \$config{'verbose'},
