@@ -58,6 +58,3 @@ max_spare_servers=20
 max_requests=250
 nsloglevel=2
 logsock=unix
-
-[rfc-notify]
-dry=0
