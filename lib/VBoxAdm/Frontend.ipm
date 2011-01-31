@@ -543,7 +543,10 @@ sub show_login {
 
     $self->session_delete();
 
-    my %params = ( title => 'VBoxAdm Login', nonavigation => 1, );
+    my %params = (
+        title        => $self->{lh}->maketext('VBoxAdm Login'),
+        nonavigation => 1,
+    );
 
     return $self->tt_process( 'login.tpl', \%params );
 }
@@ -559,7 +562,7 @@ sub show_welcome {
     my $self = shift;
 
     my %params = (
-        'title'   => 'VBoxAdm Overview',
+        'title'   => $self->{lh}->maketext('VBoxAdm Overview'),
         'current' => 'welcome',
     );
 

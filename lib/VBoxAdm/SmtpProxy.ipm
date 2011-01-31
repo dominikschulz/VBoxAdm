@@ -206,6 +206,8 @@ sub process_request {
         # Pass the inital welcome
         $smtp_server->print( $client->hear() . "\r\n" );
 
+        my $queue_id;    # for logging
+
       LINE: while ( my $what = $smtp_server->chat() ) {
             if ( $what ne '.' ) {
 
@@ -252,9 +254,23 @@ sub process_request {
                 $client->yammer( $smtp_server->{data} );
             }
 
-            # TODO log queue id, remote ip, if authed, etc. after message is accepted
-            $smtp_server->print( $client->hear() . "\r\n" );
+            # extract queue id for logging
+            my $msg = $client->hear();
+
+            # http://archives.neohapsis.com/archives/postfix/2010-12/0728.html
+            if ( $what eq '.' && $msg =~ m/^250 .* queued as ([0-9A-F]+)/ ) {
+                $queue_id = $1;
+            }
+            $smtp_server->print( $msg . "\r\n" );
         }    # end-of-while-LINE
+             # TODO log queue id, remote ip, if authed, etc. after message is accepted
+        if ($queue_id) {
+
+            # TODO fix log format
+            $self->log( 2,
+"Queue-ID: $queue_id, Remote-Add: $smtp_server->{xforward}{addr}, Helo: $smtp_server->{xforward}{helo}, Proto: $smtp_server->{xforward}{proto}, Source: $smtp_server->{xforward}{source}"
+            );
+        }
 
         # Close open connections
         $client->{sock}->close()

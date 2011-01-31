@@ -5,6 +5,7 @@ BEGIN { use_ok( 'VBoxAdm::Frontend', '@VERSION@' ); }
 
 # Test is_shell
 {
+
     #ok(VBoxAdm::Frontend::is_shell(),'Is Shell');
     # TODO setup local ENV and test CGI case
 }
