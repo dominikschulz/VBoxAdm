@@ -308,7 +308,7 @@ sub parse_postfix {
             print "\t\trdns: $rdns - ip: $ip - sasl_method: $sasl_method - sasl_username: $sasl_username\n" if $config->{'awl'}{'verbose'};
         }
         elsif (m/postfix\/smtpd\[(\d+)\]: proxy-accept: END-OF-MESSAGE: .*: queued as (\w{10,12}); from=<([^>]+)> to=<([^>]+)> proto=([A-Z]+) helo=<([^>]+)>/) {
-            print "\tproxy-accept: $_\n";
+            print "\tproxy-accept: $_\n" if $config->{'awl'}{'verbose'};
             my $pid   = $1;
             my $qid   = $2;
             my $from  = $3;
