@@ -5,6 +5,7 @@ BEGIN { use_ok( 'VBoxAdm::SmtpProxy', '@VERSION@' ); }
 
 # Test is_spam
 {
+
     # TODO setup mockup objects
     #my $p = VBoxAdm::SmtpProxy->new();
     # TODO test spam
@@ -12,6 +13,7 @@ BEGIN { use_ok( 'VBoxAdm::SmtpProxy', '@VERSION@' ); }
     # TODO test ham
     #ok(!$p->is_spam(),'Is Ham');
 }
+
 # Test max_msg_size
 # Test sa_block_score
 # Test want_sa

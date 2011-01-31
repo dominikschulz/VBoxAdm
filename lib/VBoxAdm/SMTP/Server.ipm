@@ -127,6 +127,8 @@ sub chat {
         elsif ( $line =~ m/^data/i ) {
             $self->{to} = $self->{recipients};
         }
+
+        # TODO debug why xforward fields are not set
         elsif ( $line =~ m/^xforward/i ) {
             if ( $line =~ m/name=(\S+)\b/i ) {
                 $self->{xforward}{name} = $1;

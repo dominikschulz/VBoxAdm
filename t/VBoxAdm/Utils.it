@@ -15,13 +15,14 @@ is( VBoxAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", '"  
 
 # Test extract_recipients
 {
-	my $recipients = 'user1@domain.tld, <user2@domain.tld>, Mr. USer <User3@domain.tld>, <root@localhost>';
-	my @expect = qw(user1@domain.tld user2@domain.tld User3@domain.tld root@localhost);
-	my @emails = VBoxAdm::Utils::extract_recipients($recipients);
-	foreach my $i (1..$#expect) {
-		is(lc($emails[$i]),lc($expect[$i]),$expect[$i].' equals');
-	}
+    my $recipients = 'user1@domain.tld, <user2@domain.tld>, Mr. USer <User3@domain.tld>, <root@localhost>';
+    my @expect     = qw(user1@domain.tld user2@domain.tld User3@domain.tld root@localhost);
+    my @emails     = VBoxAdm::Utils::extract_recipients($recipients);
+    foreach my $i ( 1 .. $#expect ) {
+        is( lc( $emails[$i] ), lc( $expect[$i] ), $expect[$i] . ' equals' );
+    }
 }
+
 # Test slurp
 # Test is_valid_address_rfc822
 # Test is_valid_addresses_rfc822

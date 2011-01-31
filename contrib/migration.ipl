@@ -15,7 +15,7 @@ my $db_pass = '';
 my $db_port = 3306;
 my $db_db   = 'vboxadm';
 
-my ( $conffile_used, @hooks, %hook, %config, );
+my ( $conffile_used, %config, );
 
 # Valid config file locations to try
 my @conffile_locations = qw(

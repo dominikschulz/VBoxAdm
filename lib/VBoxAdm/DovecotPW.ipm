@@ -76,7 +76,8 @@ sub ssha512 {
 sub make_pass {
     my $pw     = shift;
     my $scheme = shift;
-    my $salt   = shift || &make_salt();
+    $scheme = lc($scheme);
+    my $salt = shift || &make_salt();
     if ( $scheme eq 'ldap_md5' ) {
         return &ldap_md5($pw);
     }

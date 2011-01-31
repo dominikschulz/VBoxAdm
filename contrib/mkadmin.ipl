@@ -10,20 +10,13 @@ use Crypt::GeneratePassword;
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::DovecotPW '@VERSION@';
 
-my $db_host = 'localhost';
-my $db_user = 'vacation';
-my $db_pass = '';
-my $db_port = 3306;
-my $db_db   = 'vboxadm';
-
-my ( $conffile_used, @hooks, %hook, %config, $email, %do );
+my ( $conffile_used, %config, $email );
 
 # Valid config file locations to try
 my @conffile_locations = qw(
   vboxadm.conf
   conf/vboxadm.conf
   /etc/vboxadm/vboxadm.conf
-  /etc/postfix/vboxadm.conf
 );
 
 GetOptions(
@@ -44,17 +37,23 @@ foreach my $loc (@conffile_locations) {
         last;
     }
 }
-my $dbi = {};
-$dbi->{'host'} = $config{'default'}{'dbhost'} || $db_host;
-$dbi->{'user'} = $config{'default'}{'dbuser'} || $db_user;
-$dbi->{'pass'} = $config{'default'}{'dbpass'} || $db_pass;
-$dbi->{'port'} = $config{'default'}{'dbport'} || $db_port;
-$dbi->{'db'}   = $config{'default'}{'dbdb'}   || $db_db;
-my $pwscheme = $config{'cgi'}{'pwscheme'} || 'sha256';
+
+$config{'default'}{'dbhost'} ||= 'localhost';
+$config{'default'}{'dbuser'} ||= 'vboxadm';
+$config{'default'}{'dbpass'} ||= '';
+$config{'default'}{'dbport'} ||= 3306;
+$config{'default'}{'dbdb'}   ||= 'vboxadm';
+$config{'cgi'}{'pwscheme'}   ||= 'sha256';
+
+&create_siteadmin( \%config );
+
+#&interactive(\%config);
 
 # Most of this code is disabled since it is unfinished yet.
 # TODO rename to vboxadm.pl and move to bin when finished.
-if (0) {
+sub interactive {
+    my $config = shift;
+    my %do     = ();
 
     # Ask for options
     if ( !$do{'create-database'} ) {
@@ -87,73 +86,93 @@ if (0) {
     if ( !$do{'configure-dovecot'} ) {
         $do{'configure-dovecot'} = &ask_yesno('Configure Dovecot?');
     }
+
+    ###
+    # BASIC
+    ###
+    # Create Database
+    # --db-root-user, --db-root-pass, --db-user, --db-pass, --db-name
+    # - CREATE DATABASE
+    # - GRANT
+    # - initialize
+    my $dbh;    # TODO connect to DB as root
+    my %dbi_root;
+    my $vboxadm_db;
+    my $roundcube_db;
+    my $user_ref;
+
+    if ( $do{'create-database'} || $do{'create-database-grants'} ) {
+        print "### MySQL Root Password required ###\n";
+        print "You've asked for database operations that require root privileges.\n";
+        print "Please enter the Username of an administrative database user or press enter to abort:\n";
+        $dbi_root{'user'} = &ask_string("Username");
+        if ( !$dbi_root{'user'} ) {
+            print "User aborted.\n";
+            exit 1;
+        }
+        $dbi_root{'pass'} = &ask_string("Password");
+    }
+    else {
+
+        # TODO ask for user pw
+    }
+    if ( $do{'create-database'} ) {
+        $vboxadm_db   = &create_database( $dbh, 'vboxadm' );
+        $roundcube_db = &create_database( $dbh, 'roundcube' );
+    }
+    if ( $do{'create-database-grants'} && $vboxadm_db && $roundcube_db ) {
+        $user_ref = &create_database_grants( $dbh, $vboxadm_db, $roundcube_db );
+    }
+    if ( $do{'init-db'} ) {
+        &initialize_database( \%config );
+    }
+
+    # TODO write configuration
+    # write_config %config, $other_file_name;
+
+    # Select pwscheme
+    # --pwscheme
+
+    # Create Site-Admin
+    # --create-site-admin
+
+    # Configure SMTP-Proxy
+    # --configure-smtpproxy
+
+    # Enable SMTP-Proxy
+    # --enable-smtpproxy
+
+    ###
+    # ADVANCED
+    ###
+    # Create self-signed ssl cert
+    # --create-ssl
+
+    # Create Postfix Maps
+    # --create-postfix-maps
+
+    # Configure Postfix
+    # --configure-postfix
+
+    # Configure Dovecot
+    # --configure-dovecot
+
+    # Mirgrate existing installation
+    # --migrate-vexim
+    # --migrate-debmin
+    # --migrate-postfixadmin
+
+    ###
+    # TESTS
+    ###
+    # Check DNS setting
+    # - hostname + domain -> one of this hosts ips
+    # - reverse of this ip -> hostname + domain
+    # Test SMTP (+Auth)
+    # Test POP3
+    # Test IMAP
+    return 1;
 }
-else {
-    &create_siteadmin();
-}
-
-###
-# BASIC
-###
-# Create Database
-# --db-root-user, --db-root-pass, --db-user, --db-pass, --db-name
-# - CREATE DATABASE
-# - GRANT
-# - initialize
-my $dbh;    # TODO connect to DB as root
-my $vboxadm_db;
-my $roundcube_db;
-my $user_ref;
-if ( $do{'create-database'} ) {
-    my $vboxadm_db   = &create_database( $dbh, 'vboxadm' );
-    my $roundcube_db = &create_database( $dbh, 'roundcube' );
-}
-if ( $do{'create-database-grants'} && $vboxadm_db && $roundcube_db ) {
-    $user_ref = &create_database_grants( $dbh, $vboxadm_db, $roundcube_db );
-}
-if ( $do{'init-db'} ) {
-    &initialize_database($dbi);    # TODO set $dbi
-}
-
-# TODO write configuration
-
-# Select pwscheme
-# --pwscheme
-
-# Create Site-Admin
-# --create-site-admin
-
-# Configure SMTP-Proxy
-# --configure-smtpproxy
-
-# Enable SMTP-Proxy
-# --enable-smtpproxy
-
-###
-# ADVANCED
-###
-# Create self-signed ssl cert
-# --create-ssl
-
-# Create Postfix Maps
-# --create-postfix-maps
-
-# Configure Postfix
-# --configure-postfix
-
-# Configure Dovecot
-# --configure-dovecot
-
-###
-# TESTS
-###
-# Check DNS setting
-# - hostname + domain -> one of this hosts ips
-# - reverse of this ip -> hostname + domain
-# Test SMTP (+Auth)
-# Test POP3
-# Test IMAP
-
 ####
 # SUBS
 ####
@@ -244,10 +263,12 @@ sub create_database_grants {
 }
 
 sub create_siteadmin {
+    my $config = shift;
     if ( !$email ) {
         print "Please enter the username (as user\@domain.tld) for the designated site-admin:\n";
         $email = <STDIN>;
         chomp($email);
+        $email = &VBoxAdm::Utils::trim($email);
     }
     if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
         die("Invalid Email-Address given: $email\n");
@@ -255,7 +276,8 @@ sub create_siteadmin {
     my ( $local_part, $domain ) = split( /@/, $email );
 
     # if all these preconditions succeed:
-    my $dsn = "DBI:mysql:host=$db_host;database=$db_db;port=$db_port;user=$db_user;password=$db_pass";
+    my $dsn =
+"DBI:mysql:host=$config->{'default'}{'dbhost'};database=$config->{'default'}{'dbdb'};port=$config->{'default'}{'dbport'};user=$config->{'default'}{'dbuser'};password=$config->{'default'}{'dbpass'}";
     my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 0, } );
     if ( !$dbh ) {
         print STDERR "Could not connect to database. Aborting.\n";
@@ -263,7 +285,7 @@ sub create_siteadmin {
     }
 
     # Create Domain
-    my $sql = "INSERT INTO domains (name,is_active) VALUES(?,1)";
+    my $sql = "INSERT IGNORE INTO domains (name,is_active) VALUES(?,1)";
     my $sth = $dbh->prepare($sql);
     $sth->execute($domain);
     $sth->finish();
@@ -275,18 +297,30 @@ sub create_siteadmin {
     $sth->finish();
 
     my $password = Crypt::GeneratePassword::word( 8, 12 );
+    my $salt     = Crypt::GeneratePassword::word( 4, 6 );
 
-    $sql = "INSERT INTO mailboxes (domain_id,local_part,password,is_active,is_superadmin) VALUES(?,?,?,1,1)";
+    $sql = "INSERT INTO mailboxes (domain_id,local_part,password,is_active,is_superadmin) VALUES(?,?,?,1,1) ON DUPLICATE KEY UPDATE password = ?";
     $sth = $dbh->prepare($sql);
-    $sth->execute( $domain_id, $local_part, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ) );
+    my $pwhash = &VBoxAdm::DovecotPW::make_pass( $password, $config->{'cgi'}{'pwscheme'}, $salt );
+    $sth->execute( $domain_id, $local_part, $pwhash, $pwhash );
     $sth->finish();
 
     print "User $email created. Your password is '$password'.\n";
 
+    if ( &VBoxAdm::DovecotPW::verify_pass( $password, $pwhash ) ) {
+        print "Password verified.\n";
+    }
+    else {
+        print "Password verification failed.\n";
+    }
+
     $dbh->disconnect();
 }
 
-exit 0;
+sub migrate {
+
+    # TODO move code from migration.pl here
+}
 
 sub ask_yesno {
     my $msg = shift;
