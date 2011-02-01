@@ -1571,7 +1571,7 @@ sub show_add_alias {
         $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_add_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $domain_id, $local_part, $goto ) ) {
-            $msg = $self->{lh}->maketext( "Alias [_1] to [_2] added.", "$local_part@$domain_name", $goto );
+            $msg = $self->{lh}->maketext( "Alias [_1] to [_2] added.", "$local_part\@$domain_name", $goto );
             $self->add_message( 'success', $msg );
         }
         else {
