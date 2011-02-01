@@ -15,8 +15,8 @@ use Mail::SpamAssassin;
 
 use Digest::SHA;
 
-use MSDW::SMTP::Server '@VERSION@';
-use MSDW::SMTP::Client '@VERSION@';
+use VBoxAdm::SMTP::Server '@VERSION@';
+use VBoxAdm::SMTP::Client '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
 our $VERSION = '@VERSION@';
@@ -181,7 +181,7 @@ sub process_request {
 
         # Start the SMTP-Server part which listens to the incoming
         # transaction
-        my $smtp_server = MSDW::SMTP::Server->new( sock => $self->{server}->{client} )
+        my $smtp_server = VBoxAdm::SMTP::Server->new( sock => $self->{server}->{client} )
           or die "Failed to create a listening server: $!\n";
 
         # Start the SMTP-Client part which talks to the internal
@@ -191,7 +191,7 @@ sub process_request {
         my $client = undef;
         foreach my $node ( shuffle @{ $self->{vbox}->{relayhosts} } ) {
             my ( $host, $port ) = split( /:/, $node );
-            $client = MSDW::SMTP::Client->new(
+            $client = VBoxAdm::SMTP::Client->new(
                 interface  => $host,
                 port       => $port,
                 timeout    => 10,
@@ -212,7 +212,7 @@ sub process_request {
             if ( $what ne '.' ) {
 
                 # Do nothing but pass on the output from the server
-                # MSDW::SMTP::Server will cache all interesting data for us
+                # VBoxAdm::SMTP::Server will cache all interesting data for us
                 $client->say($what);
             }
             else {
@@ -257,19 +257,22 @@ sub process_request {
             # extract queue id for logging
             my $msg = $client->hear();
 
-            # http://archives.neohapsis.com/archives/postfix/2010-12/0728.html
+            # Queue-ID format: http://archives.neohapsis.com/archives/postfix/2010-12/0728.html
             if ( $what eq '.' && $msg =~ m/^250 .* queued as ([0-9A-F]+)/ ) {
                 $queue_id = $1;
             }
             $smtp_server->print( $msg . "\r\n" );
         }    # end-of-while-LINE
-             # TODO log queue id, remote ip, if authed, etc. after message is accepted
+
         if ($queue_id) {
 
-            # TODO fix log format
-            $self->log( 2,
-"Queue-ID: $queue_id, Remote-Add: $smtp_server->{xforward}{addr}, Helo: $smtp_server->{xforward}{helo}, Proto: $smtp_server->{xforward}{proto}, Source: $smtp_server->{xforward}{source}"
-            );
+            # log queue id, remote ip, if authed, etc. after message is accepted
+            my $default = '[UNKNOWN]';
+            my $client  = $smtp_server->{xforward}{addr} || $default;
+            my $helo    = $smtp_server->{xforward}{helo} || $default;
+            my $proto   = $smtp_server->{xforward}{proto} || $default;
+            my $source  = $smtp_server->{xforward}{source} || $default;
+            $self->log( 2, "message-accepted - queued as $queue_id; client=$client helo=$helo proto=$proto source=$source" );
         }
 
         # Close open connections
@@ -733,7 +736,7 @@ max_requests - Each children will complete this much requests and than exit.
 
 =head1 DEPENDENCIES
 
-VBoxAdm::Utils, VBoxAdm::SmtpProxy, MSDW::SMTP::Client, MSDW::SMTP::Server.
+VBoxAdm::Utils, VBoxAdm::SmtpProxy, VBoxAdm::SMTP::Client, VBoxAdm::SMTP::Server.
 
 =head1 INCOMPATIBILITIES
 
@@ -753,8 +756,8 @@ Dominik Schulz (dominik.schulz@gauner.org)
 
 This implementation was previously based on smtpproxy but switched to
 Net::Server::PreFork later. Large parts of this code are based on the ideas
-of SpamPD, which is itself based on smtpprox, but all code,
-except MSDW::SMTP::*, was written by myself.
+of SpamPD, which is itself based on smtpprox, but all code was written by myself.
+The SMTP Classes are modeled closely after MSDW::SMTP::*.
 
 Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
 

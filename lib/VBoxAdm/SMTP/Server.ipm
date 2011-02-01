@@ -25,6 +25,7 @@ sub new {
     my $self = bless {@opts}, $class;
 
     # TODO as soon as this class is working & tested switch to INET6
+    # TODO add logging to syslog
     if ( !$self->{sock} ) {
         $self->{sock} = IO::Socket::INET->new(
             LocalAddr => $self->{interface},
@@ -114,7 +115,6 @@ sub chat {
             delete $self->{to};
             delete $self->{data};
             delete $self->{recipients};
-            delete $self->{xforward};
             $line =~ s/\s*$//;
             $self->{from} = $line;
         }
@@ -130,22 +130,22 @@ sub chat {
 
         # TODO debug why xforward fields are not set
         elsif ( $line =~ m/^xforward/i ) {
-            if ( $line =~ m/name=(\S+)\b/i ) {
+            if ( $line =~ m/name=\[?(\S+)\b/i ) {
                 $self->{xforward}{name} = $1;
             }
-            if ( $line =~ m/addr=(\S+)\b/i ) {
+            if ( $line =~ m/addr=\[?(\S+)\b/i ) {
                 $self->{xforward}{addr} = $1;
             }
-            if ( $line =~ m/port=(\d+)\b/i ) {
+            if ( $line =~ m/port=\[?(\d+)\b/i ) {
                 $self->{xforward}{port} = $1;
             }
-            if ( $line =~ m/helo=(\S+)\b/i ) {
+            if ( $line =~ m/helo=\[?(\S+)\b/i ) {
                 $self->{xforward}{helo} = $1;
             }
-            if ( $line =~ m/proto=(\S+)\b/i ) {
+            if ( $line =~ m/proto=\[?(\S+)\b/i ) {
                 $self->{xforward}{proto} = $1;
             }
-            if ( $line =~ m/source=(\S+)\b/i ) {
+            if ( $line =~ m/source=\[?(\S+)\b/i ) {
                 $self->{xforward}{source} = $1;
             }
         }
@@ -165,6 +165,8 @@ sub chat {
         while ( defined( my $line = $self->getline ) ) {
             if ( $line eq ".\r\n" ) {
                 $self->{data}->seek( 0, 0 );
+
+                # TODO reset xforward info here
                 return $self->{state} = '.';
             }
 
