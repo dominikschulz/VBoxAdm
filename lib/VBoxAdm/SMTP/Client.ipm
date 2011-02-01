@@ -24,6 +24,7 @@ sub new {
     my $self = bless { timeout => 300, @opts }, $class;
 
     # TODO as soon as this class is working & tested switch to INET6
+    # TODO add logging to syslog
     $self->{sock} = IO::Socket::INET->new(
         PeerAddr => $self->{interface},
         PeerPort => $self->{port},
