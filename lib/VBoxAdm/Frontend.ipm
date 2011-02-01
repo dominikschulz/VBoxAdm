@@ -55,8 +55,7 @@ sub setup {
         #
         # Public
         #
-        'public_login'          => 'show_login',
-        'public_create_captcha' => 'show_captcha',
+        'public_login' => 'show_login',
 
         #
         # Private
@@ -118,6 +117,9 @@ sub setup {
 
         # Admins
         'admins' => 'show_admins',
+
+        # API
+        'api' => 'show_api',
     );
 
     # Authentication
@@ -156,7 +158,7 @@ sub setup {
 
     # only enable authen if called as CGI
     if ( !$self->is_shell() ) {
-        $self->authen->protected_runmodes(qr/^(?!public_)/);
+        $self->authen->protected_runmodes(qr/^(?!public_|api)/);
     }
 
     #
@@ -549,6 +551,38 @@ sub show_login {
     );
 
     return $self->tt_process( 'login.tpl', \%params );
+}
+
+sub show_api {
+    my $self = shift;
+
+    # TODO implement the API here
+    # Warning: every method accessible through
+    # the API must be protected on its own since the api runmode
+    # is public.
+
+    # TODO as a first step allow the vacation responder to be
+    # set via the API
+
+    # ?rm=api&version=1&action=update_mailbox&vacation_start=x&vacation_end=y&apikey=DEADBEEF
+    # apikey really is sha256(querystring w/o apikey + secret apikey)
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $api_version = $q->param('version');
+
+    my $str = "API\n";
+    $str .= "Version: $api_version\n";
+
+    if ( $api_version == 1 ) {
+        &VBoxAdm::API::handle_v1($self);    # TODO implement this
+    }
+    else {
+        $self->header_add( -status => 400 );
+    }
+
+    return $str;
 }
 
 #
@@ -2361,20 +2395,22 @@ sub show_update_mailbox {
                 $vacation_end = '0000-00-00';
                 $self->add_message( 'warning', $self->{lh}->maketext('Invalid vacation end date!') );
             }
+            $query .= "is_on_vacation = ?, vacation_msg = ?, vacation_subj = ?, vacation_start = ?, vacation_end = ? ";
+            push( @params, $is_on_vacation );
+            push( @params, $vacation_msg );
+            push( @params, $vacation_subj );
+            push( @params, $vacation_start );
+            push( @params, $vacation_end );
         }
         else {
             $is_on_vacation = 0;
-            $vacation_msg   = '';
-            $vacation_subj  = '';
             $vacation_start = '0000-00-00';
             $vacation_end   = '0000-00-00';
+            $query .= "is_on_vacation = ?, vacation_start = ?, vacation_end = ? ";
+            push( @params, $is_on_vacation );
+            push( @params, $vacation_start );
+            push( @params, $vacation_end );
         }
-        $query .= "is_on_vacation = ?, vacation_msg = ?, vacation_subj = ?, vacation_start = ?, vacation_end = ? ";
-        push( @params, $is_on_vacation );
-        push( @params, $vacation_msg );
-        push( @params, $vacation_subj );
-        push( @params, $vacation_start );
-        push( @params, $vacation_end );
 
         # finialize query
         $query .= " WHERE id = ?";
