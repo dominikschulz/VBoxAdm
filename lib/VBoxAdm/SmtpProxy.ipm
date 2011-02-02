@@ -107,12 +107,18 @@ sub prepare_queries {
     my $self = shift;
 
     # prepare statements
-    # TODO postfix won't/can't do address expansion before, so
+    # postfix won't/can't do address expansion before, so
     # we should check if we can resolve the alias locally and retreive the
     # settings from there!
-    my $sql_userinfo =
-q{SELECT m.id,d.id,m.max_msg_size,m.sa_active,m.sa_kill_score FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,'@',d.name) = ?};
-    $self->{vbox}->{sth}->{userinfo} = $self->{vbox}->{dbh}->prepare($sql_userinfo);
+    # TODO handle mailboxes at alias domains and aliases at alias domains
+    my $sql_userinfo = q{SELECT m.id,d.id,m.max_msg_size,m.sa_active,m.sa_kill_score 
+FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id 
+WHERE CONCAT(m.local_part,'@',d.name) IN 
+(?,
+SELECT a1.goto FROM aliases AS a1 LEFT JOIN domains AS d1 ON a1.domain_id = d1.id WHERE CONCAT(a1.local_part,'@',d1.name) = ?
+)};
+    $self->{vbox}->{queries}->{userinfo} = $sql_userinfo;
+    $self->{vbox}->{sth}->{userinfo}     = $self->{vbox}->{dbh}->prepare($sql_userinfo);
 
     return 1;
 }
@@ -312,7 +318,7 @@ sub max_msg_size {
     if ( $self->{vbox}->{caching} && $self->{cache}->{max_msg_size}->{$email} ) {
         $max_msg_size = $self->{cache}->{max_msg_size}->{$email};
     }
-    elsif ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
+    elsif ( $self->{vbox}->{sth}->{userinfo}->execute( $email, $email ) ) {
         my @userinfo = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
         $max_msg_size = $userinfo[2] || $max_msg_size;
         $self->{cache}->{max_msg_size}->{$email} = $max_msg_size if $self->{vbox}->{caching};
@@ -349,7 +355,7 @@ sub sa_block_score {
                 $lowest_kill_score = $sa_kill_score;
             }
         }
-        elsif ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
+        elsif ( $self->{vbox}->{sth}->{userinfo}->execute( $email, $email ) ) {
             my @userinfo      = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
             my $sa_kill_score = $userinfo[4];
             $self->{cache}->{sa_block_score}->{$email} = $sa_kill_score if $self->{vbox}->{caching};
@@ -384,13 +390,13 @@ sub want_sa {
         if ( $self->{vbox}->{caching} && defined( $self->{cache}->{want_sa} ) ) {
             $want_sa = $want_sa || $self->{cache}->{want_sa}->{$email} || 0;
         }
-        elsif ( $self->{vbox}->{sth}->{userinfo}->execute($email) ) {
+        elsif ( $self->{vbox}->{sth}->{userinfo}->execute( $email, $email ) ) {
             my @userinfo = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
             $want_sa = $want_sa || $userinfo[3] || 0;
             $self->{cache}->{want_sa}->{$email} = $userinfo[3] if $self->{vbox}->{caching};
         }
         else {
-            $self->log( 2, "want_sa - Excuting userinfo query failed: " . DBI->errstr );
+            $self->log( 2, "want_sa - Excuting userinfo query (" . $self->{vbox}->{queries}->{userinfo} . ") failed: " . DBI->errstr );
         }
 
     }

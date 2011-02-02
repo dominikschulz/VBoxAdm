@@ -69,6 +69,7 @@ my $sa_local_only = $config{'smtpproxy'}{'sa_local_tests_only'} || 0;
 my $nsloglevel = $config{'smtpproxy'}{'nsloglevel'} // 2;
 my $logsock = $config{'smtpproxy'}{'logsock'} || 'unix';
 my $background = $config{'no-fork'} ? 0 : 1;
+my $logfile = $config{'smtpproxy'}{'logfile'} || '/var/log/vboxadm-sa.log';
 
 # Database Hosts
 my @dbhosts = ();
@@ -176,6 +177,19 @@ if ( $server->db_connect() ) {
 else {
     die("Could not connect to database!");
 }
+
+# redirect STDOUT and STDERR to logfile
+# every output should go to the syslog but in case
+# something behaves badly, e.g. a module used,
+# we redirect the remaining output to a logfile
+# for further investigation.
+close(STDOUT);
+close(STDERR);
+close(STDIN);
+open STDIN,  '<', '/dev/null';
+open STDOUT, '>', $logfile;
+open STDERR, '>&STDOUT';
+
 $server->run();
 
 exit 1;

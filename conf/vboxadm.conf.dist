@@ -33,6 +33,7 @@ caching=1
 listen=localhost:10024
 connect=localhost:10025
 pidfile=/var/run/vboxadm-smtpproxy.pid
+logfile=/var/log/vboxadm-sa.log
 user=vboxadm
 group=vboxadm
 max_msg_size=25
