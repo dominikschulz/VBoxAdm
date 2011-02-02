@@ -7,8 +7,7 @@ domain=domain.tld
 
 # config for webfrontend
 [cgi]
-pwscheme=sha256
-# change to ssh256 after installation
+pwscheme=ssha256
 no_ssl=1
 
 # config for vacation autoresonder
