@@ -576,7 +576,28 @@ sub show_api {
     $str .= "Version: $api_version\n";
 
     if ( $api_version == 1 ) {
-        &VBoxAdm::API::handle_v1($self);    # TODO implement this
+
+        #&VBoxAdm::API::handle_v1($self);    # TODO move to VBoxAdm::API
+        my $action = $q->param('action');
+        my $apikey = $q->param('apikey');    # TODO verfiy API key
+        if ( !$action ) {
+            $self->header_add( -status => 400 );
+            return $str;
+        }
+        if ( $action eq 'update_mailbox' ) {
+            my $vacation_start = $q->param('vacation_start');
+            my $vacation_end   = $q->param('vacation_end');
+
+            # TODO add other opts here
+            my $local_part = $q->param('local_part');
+            my $domain     = $q->param('domain');
+            &VBoxAdm::API::mailbox_update(
+                'local_part'     => $local_part,
+                'domain'         => $domain,
+                'vacation_start' => $vacation_start,
+                'vacation_end'   => $vacation_end,
+            ) or $self->header_add( -status => 400 );
+        }
     }
     else {
         $self->header_add( -status => 400 );
