@@ -117,8 +117,7 @@ WHERE CONCAT(m.local_part,'@',d.name) IN
 (?,
 SELECT a1.goto FROM aliases AS a1 LEFT JOIN domains AS d1 ON a1.domain_id = d1.id WHERE CONCAT(a1.local_part,'@',d1.name) = ?
 )};
-    $self->{vbox}->{queries}->{userinfo} = $sql_userinfo;
-    $self->{vbox}->{sth}->{userinfo}     = $self->{vbox}->{dbh}->prepare($sql_userinfo);
+    $self->{vbox}->{sth}->{userinfo} = $self->{vbox}->{dbh}->prepare($sql_userinfo);
 
     return 1;
 }
@@ -324,7 +323,7 @@ sub max_msg_size {
         $self->{cache}->{max_msg_size}->{$email} = $max_msg_size if $self->{vbox}->{caching};
     }
     else {
-        $self->log( 2, "max_msg_size - Excuting userinfo query failed: " . DBI->errstr );
+        $self->log( 2, "max_msg_size - Excuting userinfo query (" . $self->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr );
     }
 
     return $max_msg_size;
@@ -365,7 +364,7 @@ sub sa_block_score {
             }
         }
         else {
-            $self->log( 2, "sa_block_score - Excuting userinfo query failed: " . DBI->errstr );
+            $self->log( 2, "sa_block_score - Excuting userinfo query (" . $self->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr );
         }
     }
 
@@ -396,7 +395,7 @@ sub want_sa {
             $self->{cache}->{want_sa}->{$email} = $userinfo[3] if $self->{vbox}->{caching};
         }
         else {
-            $self->log( 2, "want_sa - Excuting userinfo query (" . $self->{vbox}->{queries}->{userinfo} . ") failed: " . DBI->errstr );
+            $self->log( 2, "want_sa - Excuting userinfo query (" . $self->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr );
         }
 
     }
