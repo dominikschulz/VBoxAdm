@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS `vacation_notify` (
   `notified_at` datetime NOT NULL,
   PRIMARY KEY (`on_vacation`,`notified`),
   KEY `notified_at` (`notified_at`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 ALTER TABLE `aliases`
   ADD CONSTRAINT `aliases_ibfk_1` FOREIGN KEY (`domain_id`) REFERENCES `domains` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
