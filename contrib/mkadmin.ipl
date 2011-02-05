@@ -2,6 +2,7 @@
 use strict;
 use warnings;
 
+use CPAN;
 use DBI;
 use Getopt::Long;
 use Config::Std;
@@ -10,7 +11,7 @@ use Crypt::GeneratePassword;
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::DovecotPW '@VERSION@';
 
-my ( $conffile_used, %config, $email );
+my ( $conffile_used, %config, $email, $mode );
 
 # Valid config file locations to try
 my @conffile_locations = qw(
@@ -22,7 +23,9 @@ my @conffile_locations = qw(
 GetOptions(
     'verbose|v+'   => \$config{'verbose'},
     'dry|d!'       => \$config{'dry'},
+    'quiet|q!'     => \$config{'quiet'},
     'username|u=s' => \$email,
+    '<>'           => sub { my $m = shift; $mode = $m; },
 
     # shift removes name of the option (config) and leaves the value for unshift
     # unshift prepends to the list of valid config files so it is tried first
@@ -44,10 +47,34 @@ $config{'default'}{'dbpass'} ||= '';
 $config{'default'}{'dbport'} ||= 3306;
 $config{'default'}{'dbdb'}   ||= 'vboxadm';
 $config{'cgi'}{'pwscheme'}   ||= 'sha256';
+$mode                        ||= '';
 
-&create_siteadmin( \%config );
+print "#########################\n";
+print ">>>>>>> VBoxAdm <<<<<<<<<\n";
+print "#########################\n";
 
-#&interactive(\%config);
+if ( $email || $mode eq 'newadmin' ) {
+    my $dbh;    # TODO connect to DB
+    &create_siteadmin( $dbh, \%config, undef, $email );
+}
+elsif ( $mode eq 'migrate' ) {
+
+    # TODO migration
+}
+else {
+    if ( $config{'default'}{'setup_done'} ) {
+        print "This application was already setup. Remove the 'setup_done = 1' line from the config\n";
+        print "if you want to run the setup again.\n";
+    }
+    else {
+        print "No mode selected. Running interactive setup ...\n";
+        &interactive( \%config );
+    }
+}
+
+###########################################################################
+# SUBS
+###########################################################################
 
 # Most of this code is disabled since it is unfinished yet.
 # TODO rename to vboxadm.pl and move to bin when finished.
@@ -56,6 +83,9 @@ sub interactive {
     my %do     = ();
 
     # Ask for options
+    if ( !$do{'install-depends'} ) {
+        $do{'install-depends'} = &ask_yesno('Install required packages and perl modules?');
+    }
     if ( !$do{'create-database'} ) {
         $do{'create-database'} = &ask_yesno('Create Database?');
     }
@@ -86,6 +116,9 @@ sub interactive {
     if ( !$do{'configure-dovecot'} ) {
         $do{'configure-dovecot'} = &ask_yesno('Configure Dovecot?');
     }
+    if ( !$do{'migrate'} ) {
+        $do{'migrate'} = &ask_yesno('Migrate existing users?');
+    }
 
     ###
     # BASIC
@@ -111,56 +144,126 @@ sub interactive {
             exit 1;
         }
         $dbi_root{'pass'} = &ask_string("Password");
+        $config{'dbhost'} = &ask_string('Host');
+        $config{'dbport'} = &ask_number('Port');
     }
     else {
+        print "### MySQL User Credentials required ###\n";
+        print "Since you've opted not to have the required users create you'll have to\n";
+        print "create the users yourself and provide the crentials here.\n";
+        $vboxadm_db   = &ask_string('VBoxAdm-Database');
+        $roundcube_db = &ask_string('Roundcube-Database');
+        foreach my $user (qw(vboxadm vboxadm_user dovecot postfix)) {
+            print ">>> User: $user <<<\n";
+            $user_ref->{$user}{'username'} = &ask_string('Username');
+            $user_ref->{$user}{'password'} = &ask_string('Password');
+        }
+        $config{'dbhost'} = &ask_string('Host');
+        $config{'dbport'} = &ask_number('Port');
+    }
 
-        # TODO ask for user pw
+    # Do we have root access to create DB and grants?
+    if ( $dbi_root{'user'} && ( $do{'create-database'} || $do{'create-database-grants'} ) ) {
+        my ( $dbuser, $dbpass, $dbhost, $dbport, $dbdb );
+        $dbhost = $config{'dbhost'};
+        $dbport = $config{'dbport'};
+        $dbuser = $dbi_root{'user'};
+        $dbpass = $dbi_root{'pass'};
+        $dbdb   = 'mysql';
+        my $dsn = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;password=$dbpass";
+        my $dbh_root = DBI->connect( $dsn, undef, undef, { RaiseError => 0, } );
+
+        if ( !$dbh_root ) {
+            print STDERR "Could not connect to database as root ($dsn). Aborting.\n";
+            return;
+        }
+        if ( $do{'create-database'} ) {
+            $vboxadm_db   = &create_database( \%config, $dbh_root, 'vboxadm' );
+            $roundcube_db = &create_database( \%config, $dbh_root, 'roundcube' );
+        }
+        if ( $do{'create-database-grants'} && $vboxadm_db && $roundcube_db ) {
+            $user_ref = &create_database_grants( \%config, $dbh_root, $vboxadm_db, $roundcube_db );
+        }
+        $dbh_root->disconnect();
     }
-    if ( $do{'create-database'} ) {
-        $vboxadm_db   = &create_database( $dbh, 'vboxadm' );
-        $roundcube_db = &create_database( $dbh, 'roundcube' );
+    else {
+        print "Could not do root stuff on DB!\n";
     }
-    if ( $do{'create-database-grants'} && $vboxadm_db && $roundcube_db ) {
-        $user_ref = &create_database_grants( $dbh, $vboxadm_db, $roundcube_db );
+
+    $config{'dbuser'} = $user_ref->{'vboxadm'}{'username'};
+    $config{'dbpass'} = $user_ref->{'vboxadm'}{'password'};
+    $config{'dbdb'}   = $vboxadm_db;
+
+    # Connect to DB
+    my $dsn = "DBI:mysql:host=$config{'dbhost'};database=$config{'dbdb'};port=$config{'dbport'};user=$config{'dbuser'};password=$config{'dbpass'}";
+    $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 0, } );
+    if ( !$dbh ) {
+        print STDERR "Could not connect to database as vboxadm user ($dsn). Aborting.\n";
+        return;
     }
+
     if ( $do{'init-db'} ) {
         &initialize_database( \%config );
     }
 
-    # TODO write configuration
-    # write_config %config, $other_file_name;
-
     # Select pwscheme
     # --pwscheme
+    print "### Password Scheme for User-Passwords ###\n";
+    $config{'cgi'}{'pwscheme'} = &ask_select( 'Select the desired password scheme', qw(plain_md5 ldap_md5 smd5 sha ssha sha256 ssha256) );
 
     # Create Site-Admin
     # --create-site-admin
+    if ( $do{'create-site-admin'} ) {
+        print "### Create a Site-Admin ###\n";
+        &create_siteadmin( $dbh, \%config, $user_ref );
+    }
 
     # Configure SMTP-Proxy
     # --configure-smtpproxy
+    if ( $do{'configure-smtpproxy'} ) {
+        &configure_smtpproxy( \%config );    # TODO implement
+    }
 
     # Enable SMTP-Proxy
     # --enable-smtpproxy
+    if ( $do{'enable-smtpproxy'} ) {
+        &enable_smtpproxy( \%config );       # TODO implement
+    }
 
     ###
     # ADVANCED
     ###
     # Create self-signed ssl cert
     # --create-ssl
+    if ( $do{'create-ssl'} ) {
+        &create_ssl( \%config );             # TODO implement
+    }
 
     # Create Postfix Maps
     # --create-postfix-maps
+    if ( $do{'init-postfix-maps'} ) {
+        &init_postfix_maps( \%config, $user_ref );    # TODO implement
+    }
 
     # Configure Postfix
     # --configure-postfix
+    if ( $do{'configure-postfix'} ) {
+        &configure_postfix( \%config, $user_ref );    # TODO implement
+    }
 
     # Configure Dovecot
     # --configure-dovecot
+    if ( $do{'configure-dovecot'} ) {
+        &configure_dovecot( \%config, $user_ref );    # TODO implement
+    }
 
     # Mirgrate existing installation
     # --migrate-vexim
     # --migrate-debmin
     # --migrate-postfixadmin
+    if ( $do{'migrate'} ) {
+        &migrate( $dbh, \%config );
+    }
 
     ###
     # TESTS
@@ -168,19 +271,57 @@ sub interactive {
     # Check DNS setting
     # - hostname + domain -> one of this hosts ips
     # - reverse of this ip -> hostname + domain
+    # Use siteadmin login
     # Test SMTP (+Auth)
+    &test_smtp( \%config, $user_ref );
+
     # Test POP3
+    &test_pop3( \%config, $user_ref );
+
     # Test IMAP
+    &test_imap( \%config, $user_ref );
+
+    ###
+    # SAVE CONFIG
+    ###
+    # TODO set all credentials to config file
+    # write configuration
+    # write_config %config, $other_file_name;
+    $config{'default'}{'setup_done'} = 1;
+    my $config_filename = $conffile_used || '/etc/vboxadm/vboxadm.conf';
+    write_config %config, $config_filename;
+
+    ###
+    # DONE
+    ###
+    $dbh->disconnect();
     return 1;
 }
 ####
 # SUBS
 ####
 sub initialize_database {
-    my $dbi      = shift;
-    my $database = shift;
+    my $config = shift;
 
-    my $cmd = "mysql -f -u$dbi->{'user'} -p$dbi->{'pass'} -h$dbi->{'host'} --port=$dbi->{'port'} $database < doc/schema.sql";
+    # find path to schema.sql!
+    my @schema_locations = qw(
+      schema.sql
+      doc/mysql/schema.sql
+      /usr/share/doc/vboxadm-common/examples/mysql/schema.sql
+    );
+    my $schemafile = undef;
+    foreach my $loc (@schema_locations) {
+        if ( -r $loc ) {
+            $schemafile = $loc;
+        }
+    }
+
+    if ( !$schemafile ) {
+        print STDERR "MySQL Schema file not found!\n";
+        return;
+    }
+
+    my $cmd = "/usr/bin/mysql -f -u$config->{'dbuser'} -p$config->{'dbpass'} -h$config->{'dbhost'} --port=$config->{'dbport'} $config->{'dbdb'} < $schemafile";
 
     my $rv = system($cmd) >> 8;
 
@@ -191,10 +332,12 @@ sub initialize_database {
 }
 
 sub create_database {
+    my $config   = shift;
     my $dbh      = shift;
     my $database = shift;
 
     my $sql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ?";
+    print "create_database - Query: $sql\n" if $config->{'verbose'};
     my $sth = $dbh->prepare($sql);
     $sth->execute($database);
     my $num = $sth->fetchrow_array();
@@ -214,7 +357,32 @@ sub create_database {
     return $database;
 }
 
+sub install_depends_cpan {
+    my @modules = qw();    # TODO set required perl modules here
+    foreach my $module (@modules) {
+        CPAN::Shell->install($module);
+    }
+    return 1;
+}
+
+sub install_depends_apt {
+
+    # this method should no be necessary since the ones installing on debian
+    # should have used the debian package. but in case you install on debian
+    # from source we provide this as courtesy.
+    my @packages = qw();                                                        # TODO set depian depends here
+    my $cmd      = "aptitude --assume-yes install " . join( " ", @packages );
+    my $rv       = system($cmd) >> 8;
+    if ( $rv == 0 ) {
+        return 1;
+    }
+    else {
+        return;
+    }
+}
+
 sub create_database_grants {
+    my $config      = shift;
     my $dbh         = shift;
     my $database    = shift;
     my $rc_database = shift;
@@ -224,36 +392,47 @@ sub create_database_grants {
     # User: vboxadm@localhost
     my $password = Crypt::GeneratePassword::word( 8, 12 );
     my $sql = "GRANT ALL ON \`$database\`.* TO 'vboxadm'\@'localhost' IDENTIFIED BY '$password'";
+    print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
     $dbh->do($sql);
-    $user{'vboxadm'} = $password;
+    $user{'vboxadm'}{'username'} = 'vboxadm';
+    $user{'vboxadm'}{'password'} = $password;
 
     # User: postfix@localhost
     $password = Crypt::GeneratePassword::word( 8, 12 );
     $sql = "GRANT SELECT ON \`$database\`.* TO 'postfix'\@'localhost' IDENTIFIED BY '$password'";
+    print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
     $dbh->do($sql);
     $user{'postfix'} = $password;
 
     # User: dovecot@localhost
     $password = Crypt::GeneratePassword::word( 8, 12 );
     $sql = "GRANT ALL ON \`$database\`.mailboxes TO 'dovecot'\@'localhost' IDENTIFIED BY '$password'";
+    print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
     $dbh->do($sql);
     $sql = "GRANT ALL ON \`$database\`.domains TO 'dovecot'\@'localhost' IDENTIFIED BY '$password'";
+    print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
     $dbh->do($sql);
-    $user{'dovecot'} = $password;
+    $user{'dovecot'}{'username'} = 'dovecot';
+    $user{'dovecot'}{'password'} = $password;
 
     # User: roundcube@localhost
     $password = Crypt::GeneratePassword::word( 8, 12 );
     $sql = "GRANT ALL ON \`$rc_database\`.* TO 'roundcube'\@'localhost' IDENTIFIED BY '$password'";
+    print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
     $dbh->do($sql);
-    $user{'roundcube'} = $password;
+    $user{'roundcube'}{'username'} = 'roundcube';
+    $user{'roundcube'}{'password'} = $password;
 
     # User: vboxadm_user@localhost
     $password = Crypt::GeneratePassword::word( 8, 12 );
     $sql = "GRANT SELECT,UPDATE ON \`$database\`.mailboxes TO 'vboxadm_user'\@'localhost' IDENTIFIED BY '$password'";
+    print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
     $dbh->do($sql);
     $sql = "GRANT SELECT ON \`$database\`.domains TO 'vboxadm_user'\@'localhost' IDENTIFIED BY '$password'";
+    print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
     $dbh->do($sql);
-    $user{'vboxadm_user'} = $password;
+    $user{'vboxadm_user'}{'username'} = 'vboxadm_user';
+    $user{'vboxadm_user'}{'password'} = $password;
 
     # Flush privileges
     $sql = "FLUSH PRIVILEGES";
@@ -263,7 +442,11 @@ sub create_database_grants {
 }
 
 sub create_siteadmin {
-    my $config = shift;
+    my $dbh      = shift;
+    my $config   = shift;
+    my $user_ref = shift;
+    my $email    = shift;
+
     if ( !$email ) {
         print "Please enter the username (as user\@domain.tld) for the designated site-admin:\n";
         $email = <STDIN>;
@@ -274,15 +457,6 @@ sub create_siteadmin {
         die("Invalid Email-Address given: $email\n");
     }
     my ( $local_part, $domain ) = split( /@/, $email );
-
-    # if all these preconditions succeed:
-    my $dsn =
-"DBI:mysql:host=$config->{'default'}{'dbhost'};database=$config->{'default'}{'dbdb'};port=$config->{'default'}{'dbport'};user=$config->{'default'}{'dbuser'};password=$config->{'default'}{'dbpass'}";
-    my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 0, } );
-    if ( !$dbh ) {
-        print STDERR "Could not connect to database. Aborting.\n";
-        return;
-    }
 
     # Create Domain
     my $sql = "INSERT IGNORE INTO domains (name,is_active) VALUES(?,1)";
@@ -307,19 +481,42 @@ sub create_siteadmin {
 
     print "User $email created. Your password is '$password'.\n";
 
+    $user_ref->{'siteadmin'}{'username'} = $email;
+    $user_ref->{'siteadmin'}{'password'} = $password;
+
     if ( &VBoxAdm::DovecotPW::verify_pass( $password, $pwhash ) ) {
         print "Password verified.\n";
     }
     else {
         print "Password verification failed.\n";
     }
-
-    $dbh->disconnect();
 }
 
 sub migrate {
 
-    # TODO move code from migration.pl here
+    # TODO move code from migration.pl to VBoxAdm::Migration and call that code here
+}
+
+sub ask_select {
+    my $msg     = shift;
+    my @options = @_;
+
+    # let user select on of the options provided
+    while (1) {
+        print $msg. "\n";
+        my $i = 0;
+        foreach my $opt (@options) {
+            print "[$i] $opt\n";
+            $i++;
+        }
+        my $num = &ask_number( 'Print enter any number between 0 and ' . $i . '. Press enter to abort' );
+        if ( defined($num) && $options[$num] ) {
+            return $options[$num];
+        }
+        else {
+            return;
+        }
+    }
 }
 
 sub ask_yesno {
