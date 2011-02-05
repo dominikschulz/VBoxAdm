@@ -38,7 +38,7 @@ sub extract_recipients {
 }
 
 ############################################
-# Usage      : my $content = MTK::Common::slurp($file);
+# Usage      : my $content = VBoxAdm::Utils::slurp($file);
 # Purpose    : Read a whole file in a string
 # See Also   : Perl6::Slurp
 sub slurp {
@@ -62,7 +62,23 @@ sub slurp {
 }
 
 ############################################
-# Usage      : MTK::Common->sendmail($envelope-from,$message);
+# Usage      : VBoxAdm::Utils::blarf($file,'a string');
+# Purpose    : Write a string to a file
+sub blarf {
+    my $file = shift;
+    my $str  = shift;
+
+    if ( open( my $FH, ">", $file ) ) {
+        print $FH $str;
+        close($FH);
+    }
+    else {
+        return;
+    }
+}
+
+############################################
+# Usage      : VBoxAdm::Utils::sendmail($envelope-from,$message);
 # Purpose    : Send a text/plain mail via /usr/sbin/sendmail
 # Returns    : true on success
 # Parameters : From, To, Subject and Message
@@ -89,7 +105,7 @@ sub sendmail {
 }
 
 ############################################
-# Usage      : my $trimmed_str = MTK::Common->trim()
+# Usage      : my $trimmed_str = VBoxAdm::Utils::trim($untrimmed_str)
 # Purpose    : Remove leading and trailing whitespaces from a string
 # Returns    : the trimmed string
 # Parameters : a string
@@ -107,7 +123,7 @@ sub trim {
 }
 
 ############################################
-# Usage      : my $trimmed_str = MTK::Common->trim()
+# Usage      : my $trimmed_str = VBoxAdm::Utils::trim($untrimmed_str)
 # Purpose    : Same as trim, additionally removes on-line comments (everything after a #)
 # Returns    : the trimmed string
 # Parameters : a string

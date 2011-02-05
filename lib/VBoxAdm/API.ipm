@@ -1,1 +1,12 @@
+package VBoxAdm::API;
+
+use strict;
+use warnings;
+
+use Carp;
+
+our $VERSION = '@VERSION@';
+
 # TODO create an API for manipulating the DB
+1;
+__END__

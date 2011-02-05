@@ -2,6 +2,8 @@
 use strict;
 use warnings;
 
+use English qw(-no_match_vars);
+
 use CPAN;
 use DBI;
 use Getopt::Long;
@@ -53,22 +55,45 @@ print "#########################\n";
 print ">>>>>>> VBoxAdm <<<<<<<<<\n";
 print "#########################\n";
 
+# allow more modes:
+# user {add,edit,remove}
+# domain {add,edit,remove}
+# domain_alias {add,edit,remove}
+# ...
+
 if ( $email || $mode eq 'newadmin' ) {
     my $dbh;    # TODO connect to DB
-    &create_siteadmin( $dbh, \%config, undef, $email );
+    if ( &create_siteadmin( $dbh, \%config, undef, $email ) ) {
+        exit 0;
+    }
+    else {
+        exit 1;
+    }
 }
 elsif ( $mode eq 'migrate' ) {
 
     # TODO migration
+    if ( &migrate() ) {
+        exit 0;
+    }
+    else {
+        exit 1;
+    }
 }
 else {
     if ( $config{'default'}{'setup_done'} ) {
         print "This application was already setup. Remove the 'setup_done = 1' line from the config\n";
         print "if you want to run the setup again.\n";
+        exit 1;
     }
     else {
         print "No mode selected. Running interactive setup ...\n";
-        &interactive( \%config );
+        if ( &interactive( \%config ) ) {
+            exit 0;
+        }
+        else {
+            exit 1;
+        }
     }
 }
 
@@ -123,12 +148,41 @@ sub interactive {
     ###
     # BASIC
     ###
+    # Install dependecies - only root should attempt that
+    if ( $do{'install-depends'} && $EFFECTIVE_USER_ID == 0 ) {
+        if ( -f '/etc/debian_version' || -f '/etc/ubuntu_version' ) {
+            &install_depends_apt();
+        }
+        elsif ( -f '/etc/SuSE-release' ) {
+
+            # TODO use zypper where possible
+            &install_depends_cpan();
+        }
+        elsif ( -f '/etc/redhat-release' ) {
+
+            # TODO use yum where possible
+            &install_depends_cpan();
+        }
+        elsif ( -f '/etc/fedora-release' ) {
+
+            # TODO use yum where possible
+            &install_depends_cpan();
+        }
+        elsif ( -f '/etc/gentoo-release' ) {
+
+            # TODO use emgere where possible
+            &install_depends_cpan();
+        }
+    }
+
+    # TODO create system user and groups (if necessary)
+
     # Create Database
     # --db-root-user, --db-root-pass, --db-user, --db-pass, --db-name
     # - CREATE DATABASE
     # - GRANT
     # - initialize
-    my $dbh;    # TODO connect to DB as root
+    my $dbh;
     my %dbi_root;
     my $vboxadm_db;
     my $roundcube_db;
@@ -221,13 +275,13 @@ sub interactive {
     # Configure SMTP-Proxy
     # --configure-smtpproxy
     if ( $do{'configure-smtpproxy'} ) {
-        &configure_smtpproxy( \%config );    # TODO implement
+        &configure_smtpproxy( \%config );
     }
 
     # Enable SMTP-Proxy
     # --enable-smtpproxy
     if ( $do{'enable-smtpproxy'} ) {
-        &enable_smtpproxy( \%config );       # TODO implement
+        &enable_smtpproxy( \%config );
     }
 
     ###
@@ -236,25 +290,25 @@ sub interactive {
     # Create self-signed ssl cert
     # --create-ssl
     if ( $do{'create-ssl'} ) {
-        &create_ssl( \%config );             # TODO implement
+        &create_ssl( \%config );
     }
 
     # Create Postfix Maps
     # --create-postfix-maps
     if ( $do{'init-postfix-maps'} ) {
-        &init_postfix_maps( \%config, $user_ref );    # TODO implement
+        &init_postfix_maps( \%config, $user_ref );
     }
 
     # Configure Postfix
     # --configure-postfix
     if ( $do{'configure-postfix'} ) {
-        &configure_postfix( \%config, $user_ref );    # TODO implement
+        &configure_postfix( \%config, $user_ref );
     }
 
     # Configure Dovecot
     # --configure-dovecot
     if ( $do{'configure-dovecot'} ) {
-        &configure_dovecot( \%config, $user_ref );    # TODO implement
+        &configure_dovecot( \%config, $user_ref );
     }
 
     # Mirgrate existing installation
@@ -262,7 +316,11 @@ sub interactive {
     # --migrate-debmin
     # --migrate-postfixadmin
     if ( $do{'migrate'} ) {
-        &migrate( $dbh, \%config );
+        my $source_type = &ask_select( 'What kind of database schema do you want to migrate?', qw(debmin2 vexim postfixadmin) );
+        my $source_db = &ask_string('Which Database is the source ');
+        if ( $source_type && $source_db ) {
+            &VBoxAdm::Migration::migrate( $dbh, $source_type, $source_db, $config{'default'}{'dbdb'} );
+        }
     }
 
     ###
@@ -284,7 +342,7 @@ sub interactive {
     ###
     # SAVE CONFIG
     ###
-    # TODO set all credentials to config file
+    # set all credentials to config file
     # write configuration
     # write_config %config, $other_file_name;
     $config{'default'}{'setup_done'} = 1;
@@ -300,6 +358,115 @@ sub interactive {
 ####
 # SUBS
 ####
+sub test_smtp {
+    my $config   = shift;
+    my $user_ref = shift;
+
+    # TODO implement
+}
+
+sub test_pop3 {
+    my $config   = shift;
+    my $user_ref = shift;
+
+    # TODO implement
+}
+
+sub test_imap {
+    my $config   = shift;
+    my $user_ref = shift;
+
+    # TODO implement
+}
+
+sub configure_smtpproxy {
+    my $config = shift;
+    my %saopts = ();
+    $saopts{'caching'}{'default'}               = 1;
+    $saopts{'caching'}{'description'}           = 'Enable caching of SpamAssassin results';
+    $saopts{'max_msg_size'}{'default'}          = 25;
+    $saopts{'max_msg_size'}{'description'}      = 'Global maximum message size in MB';
+    $saopts{'childtimeout'}{'default'}          = 60;
+    $saopts{'childtimeout'}{'description'}      = 'Timeout for scanning a message';
+    $saopts{'sa_max_msg_size'}{'default'}       = 10;
+    $saopts{'sa_max_msg_size'}{'description'}   = 'Maximum message size for scanning with SpamAssassin';
+    $saopts{'sa_timeout'}{'default'}            = 30;
+    $saopts{'sa_timeout'}{'description'}        = 'Timeout for scanning a message for Spam';
+    $saopts{'min_servers'}{'default'}           = 20;
+    $saopts{'min_servers'}{'description'}       = 'Minimal number of forks of the SMTP-Proxy running';
+    $saopts{'max_servers'}{'default'}           = 80;
+    $saopts{'max_servers'}{'description'}       = 'Maximum number of forks of the SMTP-Proxy running';
+    $saopts{'min_spare_servers'}{'default'}     = 10;
+    $saopts{'min_spare_servers'}{'description'} = 'Minimal number of idle forks running';
+    $saopts{'max_spare_servers'}{'default'}     = 20;
+    $saopts{'max_spare_servers'}{'description'} = 'Maximum number of idle forks running';
+    $saopts{'max_requests'}{'default'}          = 30;
+    $saopts{'max_requests'}{'description'}      = 'Messages processed per child';
+
+    foreach my $opt ( keys %saopts ) {
+        $config->{$opt} = &ask_number( $saopts{$opt}{'description'} . '[' . $saopts{$opt}{'default'} . ']' ) || $saopts{$opt}{'default'};
+    }
+    return 1;
+}
+
+sub enable_smtpproxy {
+    my $sa_default_file = '/etc/default/vboxadm-sa';
+    if ( -f $sa_default_file ) {
+
+        # edit it
+        my $content = VBoxAdm::Utils::slurp($sa_default_file);
+        $content =~ s/^START_SMTPPROXY=.*$/START_SMTPPROXY="true"/;
+        VBoxAdm::Utils::blarf( $sa_default_file, $content );
+    }
+}
+
+sub create_ssl {
+
+    # TODO implement
+    # TODO create tempdir
+    my $cmd;
+    $cmd = 'openssl genrsa -out private.key 2048';
+    $cmd = 'openssl req -new -key private.key -out server.domain.csr';
+
+    # Create CSR or self sign?
+    my $selfsign = &ask_yesno('Do you want to create a self-signed certificate?');
+    if ($selfsign) {
+
+        # self-sign:
+        $cmd = 'openssl x509 -req -days 365 -in server.domain.csr -signkey private.key -out server.domain.crt';
+    }
+    else {
+
+        # csr: noop
+        print "Find your CSR at CSRPATH\n";    # TODO set csrpath
+    }
+
+    # TODO move files:
+    # private.key to /etc/ssl/private/hostname.domain.tld-YYYY.key
+    # hostname.domain.tld.csr to /root/
+    # hostname.domain.tld.crt to /etc/ssl/certs/hostname.domain.tld-YYYY.crt
+    # hostname.domain.tld.crt + hostname.domain.tld.key > /etc/lighttpd/hostname.domain.tld-YYYY.pem
+}
+
+sub init_postfix_maps {
+
+    # TODO implement
+    # copy maps
+    # replace username, password and db
+}
+
+sub configure_postfix {
+
+    # TODO implement
+    # use postconf for main.cf
+    # master.cf?
+}
+
+sub configure_dovecot {
+
+    # TODO implement
+}
+
 sub initialize_database {
     my $config = shift;
 
@@ -358,7 +525,15 @@ sub create_database {
 }
 
 sub install_depends_cpan {
-    my @modules = qw();    # TODO set required perl modules here
+    my @modules = qw(
+      Carp
+      CGI::Application::Plugin::Authentication CGI::Application::Plugin::DBH CGI::Application::Plugin::Redirect
+      CGI::Application::Plugin::RequireSSL CGI::Application::Plugin::Session CGI::Application::Plugin::TT
+      CGI::Carp Config::Std CPAN Crypt::GeneratePassword Cwd Data::Dumper Data::Page Data::Password
+      DBI Devel::Peek Digest::MD5 Digest::SHA File::Basename File::Temp Getopt::Long IO::File IO::Socket
+      List::Util Mail::SpamAssassin MIME::Base64 Readonly Sys::Syslog Template Test::More Text::CSV_XS Time::HiRes
+    );
+
     foreach my $module (@modules) {
         CPAN::Shell->install($module);
     }
@@ -370,9 +545,15 @@ sub install_depends_apt {
     # this method should no be necessary since the ones installing on debian
     # should have used the debian package. but in case you install on debian
     # from source we provide this as courtesy.
-    my @packages = qw();                                                        # TODO set depian depends here
-    my $cmd      = "aptitude --assume-yes install " . join( " ", @packages );
-    my $rv       = system($cmd) >> 8;
+    my @packages = qw(
+      perl libdbi-perl libdbd-mysql-perl libconfig-std-perl libmail-sender-perl libtext-csv-xs-perl liblocale-maketext-perl
+      libcgi-application-perl libcgi-application-basic-plugin-bundle-perl libcgi-application-extra-plugin-bundle-perl
+      famfamfam-silk-png libtemplate-perl libhtml-clean-perl libcrypt-generatepassword-perl libdata-password-perl lighttpd
+      libdigest-sha-perl libdata-page-perl
+    );
+    my $cmd = "aptitude --assume-yes install " . join( " ", @packages );
+    my $rv = system($cmd) >> 8;
+
     if ( $rv == 0 ) {
         return 1;
     }
@@ -490,11 +671,6 @@ sub create_siteadmin {
     else {
         print "Password verification failed.\n";
     }
-}
-
-sub migrate {
-
-    # TODO move code from migration.pl to VBoxAdm::Migration and call that code here
 }
 
 sub ask_select {
