@@ -7,8 +7,13 @@ use English qw(-no_match_vars);
 use CPAN;
 use DBI;
 use Getopt::Long;
+use File::Temp;
 use Config::Std;
 use Crypt::GeneratePassword;
+use Net::Domain;
+use Net::SMTP;
+use Net::POP3;
+use Net::IMAP::Client;
 
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::DovecotPW '@VERSION@';
@@ -361,22 +366,72 @@ sub interactive {
 sub test_smtp {
     my $config   = shift;
     my $user_ref = shift;
-
-    # TODO implement
+    {
+        my $ip   = '127.0.0.1';
+        my $port = 25;
+        my ( $status, $msg ) = &check_smtp( $ip, $port, $user_ref->{'siteadmin'}{'username'}, $user_ref->{'siteadmin'}{'password'}, 30 );
+        if ($status) {
+            print "TEST-SMTP: Connection to $ip:$port OK\n";
+        }
+        else {
+            print "TEST-SMTP: Connection to $ip:$port FAILED: $msg\n";
+        }
+    }
+    {
+        my $ip   = '127.0.0.1';
+        my $port = 587;
+        my ( $status, $msg ) = &check_smtp( $ip, $port, $user_ref->{'siteadmin'}{'username'}, $user_ref->{'siteadmin'}{'password'}, 30 );
+        if ($status) {
+            print "TEST-SMTP: Connection to $ip:$port OK\n";
+        }
+        else {
+            print "TEST-SMTP: Connection to $ip:$port FAILED: $msg\n";
+        }
+    }
 }
 
 sub test_pop3 {
     my $config   = shift;
     my $user_ref = shift;
 
-    # TODO implement
+    {
+        my $ip   = '127.0.0.1';
+        my $port = 110;
+        my ( $status, $msg ) = &check_pop3( $ip, $port, $user_ref->{'siteadmin'}{'username'}, $user_ref->{'siteadmin'}{'password'}, 30 );
+        if ($status) {
+            print "TEST-POP3: Connection to $ip:$port OK\n";
+        }
+        else {
+            print "TEST-POP3: Connection to $ip:$port FAILED: $msg\n";
+        }
+    }
 }
 
 sub test_imap {
     my $config   = shift;
     my $user_ref = shift;
-
-    # TODO implement
+    {
+        my $ip   = '127.0.0.1';
+        my $port = 143;
+        my ( $status, $msg ) = &check_imap( $ip, $port, $user_ref->{'siteadmin'}{'username'}, $user_ref->{'siteadmin'}{'password'}, 30, 0 );
+        if ($status) {
+            print "TEST-IMAP: Connection to $ip:$port OK\n";
+        }
+        else {
+            print "TEST-IMAP: Connection to $ip:$port FAILED: $msg\n";
+        }
+    }
+    {
+        my $ip   = '127.0.0.1';
+        my $port = 993;
+        my ( $status, $msg ) = &check_imap( $ip, $port, $user_ref->{'siteadmin'}{'username'}, $user_ref->{'siteadmin'}{'password'}, 30, 1 );
+        if ($status) {
+            print "TEST-IMAP: Connection to $ip:$port OK\n";
+        }
+        else {
+            print "TEST-IMAP: Connection to $ip:$port FAILED: $msg\n";
+        }
+    }
 }
 
 sub configure_smtpproxy {
@@ -423,29 +478,42 @@ sub enable_smtpproxy {
 sub create_ssl {
 
     # TODO implement
-    # TODO create tempdir
+    my ( $csrpath, $hostname, $domain );    # TODO set these
+                                            # create tempdir for certs and keys
+    my $tempdir = File::Temp::tempdir( CLEANUP => 1 );
     my $cmd;
-    $cmd = 'openssl genrsa -out private.key 2048';
-    $cmd = 'openssl req -new -key private.key -out server.domain.csr';
+    $cmd = 'openssl genrsa -out ' . $tempdir . '/private.key 2048';
+    $cmd = 'openssl req -new -key ' . $tempdir . '/private.key -out ' . $tempdir . '/server.domain.csr';
 
     # Create CSR or self sign?
     my $selfsign = &ask_yesno('Do you want to create a self-signed certificate?');
     if ($selfsign) {
 
         # self-sign:
-        $cmd = 'openssl x509 -req -days 365 -in server.domain.csr -signkey private.key -out server.domain.crt';
+        $cmd =
+          'openssl x509 -req -days 365 -in ' . $tempdir . '/server.domain.csr -signkey ' . $tempdir . '/private.key -out ' . $tempdir . '/server.domain.crt';
     }
     else {
 
         # csr: noop
-        print "Find your CSR at CSRPATH\n";    # TODO set csrpath
+        print "Find your CSR at $csrpath\n";    # TODO set csrpath
     }
 
-    # TODO move files:
+    # move files:
+    my $year = ( localtime(time) )[5];
+    $year += 1900;
+
     # private.key to /etc/ssl/private/hostname.domain.tld-YYYY.key
+    $cmd = "mv $tempdir/private.key /etc/ssl/private/$hostname.$domain-$year.key";
+
     # hostname.domain.tld.csr to /root/
+    $cmd = "mv $tempdir/$hostname.$domain.csr /root/";
+
     # hostname.domain.tld.crt to /etc/ssl/certs/hostname.domain.tld-YYYY.crt
+    $cmd = "mv $tempdir/$hostname.$domain.crt /etc/ssl/certs/$hostname.$domain-$year.crt";
+
     # hostname.domain.tld.crt + hostname.domain.tld.key > /etc/lighttpd/hostname.domain.tld-YYYY.pem
+    $cmd = "mv $tempdir/$hostname.$domain.crt /etc/ssl/certs/$hostname.$domain-$year.crt";
 }
 
 sub init_postfix_maps {
@@ -723,5 +791,126 @@ sub ask_string {
     my $resp = <STDIN>;
     chomp($resp);
     return $resp;
+}
+
+sub check_pop3 {
+    my $ip      = shift;
+    my $port    = shift || 110;
+    my $user    = shift;
+    my $pass    = shift;
+    my $timeout = shift;
+
+    my $status = 0;
+    my $msg    = '';
+    my $pop    = undef;
+    if ( $pop = Net::POP3->new( $ip, Timeout => $timeout, Port => $port, ) ) {
+        if ( $user && $pass ) {
+            if ( $pop->login( $user, $pass ) ) {
+                my $msg = $pop->list;
+                $msg .= "Connected to $ip. Got " . scalar( keys %$msg ) . " messages.";
+                $status = 1;
+                $pop->quit();
+            }
+            else {
+                $status = 0;
+                $msg .= "Connected to $ip but could not login.";
+            }
+        }
+        else {
+            $status = 1;
+            $msg .= "Connected to $ip but no credentials given.";
+        }
+    }
+    else {
+        $status = 0;
+        $msg .= "Can not connect to $ip.";
+    }
+    return ( $status, $msg );
+}
+
+sub check_imap {
+    my $ip      = shift;
+    my $port    = shift || 143;
+    my $user    = shift;
+    my $pass    = shift;
+    my $timeout = shift || 30;
+    my $ssl     = shift || 0;
+
+    my $status = 0;
+    my $msg    = '';
+    my $imap   = undef;
+    if (
+        $imap = Net::IMAP::Client->new(
+            server => $ip,
+            user   => $user,
+            pass   => $pass,
+            ssl    => $ssl,
+            port   => $port,
+        )
+      )
+    {
+
+        if ( $imap->login ) {
+            my @folders = $imap->folders;
+            my $istatus = $imap->status(@folders);
+            $msg .= "Login ok. Number of messages: " . $$istatus{MESSAGES} . "\n";
+            $status = 1;
+            eval { $imap->logout; };
+        }
+        else {
+            $status = 0;
+            $msg .= "Connected to $ip but can not login as $user";
+        }
+    }
+    else {
+        $status = 0;
+        $msg .= "Can not connect to $ip: " . $imap->last_error;
+    }
+    return ( $status, $msg );
+}
+
+sub check_smtp {
+    my $ip      = shift;
+    my $port    = shift || 25;
+    my $user    = shift;
+    my $pass    = shift;
+    my $timeout = shift;
+
+    my $status = 0;
+    my $msg    = '';
+    my $fail   = 0;
+    my $smtp   = Net::SMTP->new( $ip, Timeout => $timeout, Port => $port, )
+      || ( $fail = 1 );
+    if ($fail) {
+        $status = 0;
+        $msg    = "Can not connect to SMTP Server $ip";
+    }
+    else {
+        if ( $smtp->domain() ) {
+            if ( $user && $pass ) {
+                $smtp->auth( $user, $pass );
+                my $code = $smtp->code();
+
+                #print "SMTP-Code: " . $smtp->code() . "\n" if $verbose;
+                if ( $code < 400 ) {
+                    $status = 1;
+                    $msg .= "SMTP Server $ip is ok. Login successfull.";
+                }
+                else {
+                    $status = 0;
+                    $msg .= "SMTP Server $ip is up but login failed.";
+                }
+            }
+            else {
+                $status = 1;
+                $msg .= "SMTP Server $ip is ok: " . $smtp->domain();
+            }
+        }
+        else {
+            $status = 0;
+            $msg .= "SMTP Server $ip is not ok.";
+        }
+    }
+    return ( $status, $msg );
 }
 __END__
