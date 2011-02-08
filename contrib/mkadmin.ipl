@@ -116,6 +116,9 @@ sub interactive {
     if ( !$do{'install-depends'} ) {
         $do{'install-depends'} = &ask_yesno('Install required packages and perl modules?');
     }
+    if ( !$do{'create-system-accounts'} ) {
+        $do{'create-system-accounts'} = &ask_yesno('Create System Accounts?');
+    }
     if ( !$do{'create-database'} ) {
         $do{'create-database'} = &ask_yesno('Create Database?');
     }
@@ -179,8 +182,12 @@ sub interactive {
             &install_depends_cpan();
         }
     }
+    my $user_ref;
 
     # TODO create system user and groups (if necessary)
+    if ( $do{'create-system-accounts'} ) {
+        &create_system_accounts( \%config, $user_ref );
+    }
 
     # Create Database
     # --db-root-user, --db-root-pass, --db-user, --db-pass, --db-name
@@ -191,7 +198,6 @@ sub interactive {
     my %dbi_root;
     my $vboxadm_db;
     my $roundcube_db;
-    my $user_ref;
 
     if ( $do{'create-database'} || $do{'create-database-grants'} ) {
         print "### MySQL Root Password required ###\n";
@@ -214,8 +220,8 @@ sub interactive {
         $roundcube_db = &ask_string('Roundcube-Database');
         foreach my $user (qw(vboxadm vboxadm_user dovecot postfix)) {
             print ">>> User: $user <<<\n";
-            $user_ref->{$user}{'username'} = &ask_string('Username');
-            $user_ref->{$user}{'password'} = &ask_string('Password');
+            $user_ref->{'db'}{$user}{'username'} = &ask_string('Username');
+            $user_ref->{'db'}{$user}{'password'} = &ask_string('Password');
         }
         $config{'dbhost'} = &ask_string('Host');
         $config{'dbport'} = &ask_number('Port');
@@ -241,7 +247,7 @@ sub interactive {
             $roundcube_db = &create_database( \%config, $dbh_root, 'roundcube' );
         }
         if ( $do{'create-database-grants'} && $vboxadm_db && $roundcube_db ) {
-            $user_ref = &create_database_grants( \%config, $dbh_root, $vboxadm_db, $roundcube_db );
+            &create_database_grants( \%config, $dbh_root, $vboxadm_db, $roundcube_db, $user_ref );
         }
         $dbh_root->disconnect();
     }
@@ -249,8 +255,8 @@ sub interactive {
         print "Could not do root stuff on DB!\n";
     }
 
-    $config{'dbuser'} = $user_ref->{'vboxadm'}{'username'};
-    $config{'dbpass'} = $user_ref->{'vboxadm'}{'password'};
+    $config{'dbuser'} = $user_ref->{'db'}{'vboxadm'}{'username'};
+    $config{'dbpass'} = $user_ref->{'db'}{'vboxadm'}{'password'};
     $config{'dbdb'}   = $vboxadm_db;
 
     # Connect to DB
@@ -476,14 +482,25 @@ sub enable_smtpproxy {
 }
 
 sub create_ssl {
+    my $hostname = Net::Domain::hostname();
+    my $domain   = Net::Domain::hostdomain();
+    my $csrpath  = '/root/' . $hostname . '.' . $domain . '.csr';
 
-    # TODO implement
-    my ( $csrpath, $hostname, $domain );    # TODO set these
-                                            # create tempdir for certs and keys
+    # create tempdir for certs and keys
     my $tempdir = File::Temp::tempdir( CLEANUP => 1 );
-    my $cmd;
+    my ( $cmd, $rv );
     $cmd = 'openssl genrsa -out ' . $tempdir . '/private.key 2048';
+    $rv  = system($cmd) >> 8;
+    if ( $rv != 0 ) {
+        print "create_ssl - Command ($cmd) failed: $!\n";
+        return;
+    }
     $cmd = 'openssl req -new -key ' . $tempdir . '/private.key -out ' . $tempdir . '/server.domain.csr';
+    $rv  = system($cmd) >> 8;
+    if ( $rv != 0 ) {
+        print "create_ssl - Command ($cmd) failed: $!\n";
+        return;
+    }
 
     # Create CSR or self sign?
     my $selfsign = &ask_yesno('Do you want to create a self-signed certificate?');
@@ -492,11 +509,24 @@ sub create_ssl {
         # self-sign:
         $cmd =
           'openssl x509 -req -days 365 -in ' . $tempdir . '/server.domain.csr -signkey ' . $tempdir . '/private.key -out ' . $tempdir . '/server.domain.crt';
+        $rv = system($cmd) >> 8;
+        if ( $rv != 0 ) {
+            print "create_ssl - Command ($cmd) failed: $!\n";
+            return;
+        }
     }
     else {
 
         # csr: noop
-        print "Find your CSR at $csrpath\n";    # TODO set csrpath
+        print "Find your CSR at $csrpath\n";
+
+        # hostname.domain.tld.csr to /root/
+        $cmd = "mv $tempdir/$hostname.$domain.csr $csrpath";
+        $rv  = system($cmd) >> 8;
+        if ( $rv != 0 ) {
+            print "create_ssl - Command ($cmd) failed: $!\n";
+            return;
+        }
     }
 
     # move files:
@@ -505,29 +535,111 @@ sub create_ssl {
 
     # private.key to /etc/ssl/private/hostname.domain.tld-YYYY.key
     $cmd = "mv $tempdir/private.key /etc/ssl/private/$hostname.$domain-$year.key";
-
-    # hostname.domain.tld.csr to /root/
-    $cmd = "mv $tempdir/$hostname.$domain.csr /root/";
+    $rv  = system($cmd) >> 8;
+    if ( $rv != 0 ) {
+        print "create_ssl - Command ($cmd) failed: $!\n";
+        return;
+    }
 
     # hostname.domain.tld.crt to /etc/ssl/certs/hostname.domain.tld-YYYY.crt
     $cmd = "mv $tempdir/$hostname.$domain.crt /etc/ssl/certs/$hostname.$domain-$year.crt";
+    $rv  = system($cmd) >> 8;
+    if ( $rv != 0 ) {
+        print "create_ssl - Command ($cmd) failed: $!\n";
+        return;
+    }
 
     # hostname.domain.tld.crt + hostname.domain.tld.key > /etc/lighttpd/hostname.domain.tld-YYYY.pem
     $cmd = "mv $tempdir/$hostname.$domain.crt /etc/ssl/certs/$hostname.$domain-$year.crt";
+    $rv  = system($cmd) >> 8;
+    if ( $rv != 0 ) {
+        print "create_ssl - Command ($cmd) failed: $!\n";
+        return;
+    }
+    return 1;
 }
 
 sub init_postfix_maps {
+    my $vboxadm_db = shift;
+    my $user_ref   = shift;
+
+    my ( $cmd, $rv );
+    my $mapdir = '/etc/postfix/maps';
 
     # TODO implement
-    # copy maps
+    # TODO find maps - try doc/postfix/maps, /usr/share/doc/vboxadm-common/examples/postfix/maps/
+    # makedir /etc/postfix/maps
+    $cmd = "mkdir -p $mapdir";
+    $rv  = system($cmd) >> 8;
+    if ( $rv != 0 ) {
+        print "init_postfix_maps - Failed to create $mapdir: $!\n";
+        return;
+    }
+
+    # TODO copy maps to /etc/postfix/maps
     # replace username, password and db
+    if ( opendir( my $DH, $mapdir ) ) {
+        while ( my $dir_entry = readdir($DH) ) {
+            next if $dir_entry =~ m/^\./;
+            next unless $dir_entry =~ m/^virtual_/;
+            my $file = $mapdir . '/' . $dir_entry;
+
+            # edit file
+            if ( open( my $OLD, "<", $file ) ) {
+                if ( open( my $NEW, ">", $file . '.new' ) ) {
+                    while ( my $line = <$OLD> ) {
+                        $line =~ s/^user = postfix\b/user = $user_ref->{'postfix'}{'username'}/;
+                        $line =~ s/^password = PASSWORD\b/password = $user_ref->{'postfix'}{'password'}/;
+                        $line =~ s/^dbname = vboxadm\b/dbname = $vboxadm_db/;
+                        print $NEW $line;
+                    }
+                    close($NEW);
+                    close($OLD);
+                    unlink($file);
+                    rename( $file . '.new', $file );
+                }
+            }
+        }
+        closedir($DH);
+    }
 }
 
 sub configure_postfix {
+    my $user_ref = shift;
 
+    my $hostname = Net::Domain::hostname();
+    my $domain   = Net::Domain::hostdomain();
+
+    my ( $cmd, $rv );
+
+    # TODO get mynetworks
+    # TODO get userids
     # TODO implement
     # use postconf for main.cf
-    # master.cf?
+    # TODO find template dir
+    # TODO copy main.cf and master.cf
+    # TODO use postconf -e parameter=value to edit those:
+    # myhostname = host.domain.tld << CHANGEME
+    $cmd = "postconf -e myhostname=$hostname.$domain";
+
+    # mynetworks = 192.168.XX.0/24 10.8.0.0/16 [::1]/128 << CHANGEME
+    # virtual_minimum_uid = <CHANGEME>
+    $cmd = "postconf -e virtual_minimum_uid=" . $user_ref->{'system'}{'min_uid'};
+
+    # virtual_uid_maps = static:XX << CHANGEME
+    $cmd = "postconf -e virtual_uid_maps=static:" . $user_ref->{'system'}{'vmail'}{'uid'};
+
+    # virtual_gid_maps = static:XX << CHANGEME
+    $cmd = "postconf -e virtual_gid_maps=static:" . $user_ref->{'system'}{'vmail'}{'gid'};
+
+    # mydestination = host.domain.tld, localhost << CHANGEME
+    $cmd = "postconf -e mydestination=$hostname.$domain, localhost";
+
+    # relayhost =
+    $cmd = "postconf -e relayhosts=";
+
+    # inet_protocols = all
+    $cmd = "postconf -e inet_protocols=all";
 }
 
 sub configure_dovecot {
@@ -564,6 +676,15 @@ sub initialize_database {
         return 1;
     }
     return;
+}
+
+sub create_system_accounts {
+    my $config   = shift;
+    my $user_ref = shift;
+
+    # TODO create vboxadm user for sa and vacation
+    # TODO create vmail user for mails
+    # TODO set $user_ref->{'system'}{'min_uid'} and min_gid
 }
 
 sub create_database {
@@ -635,23 +756,23 @@ sub create_database_grants {
     my $dbh         = shift;
     my $database    = shift;
     my $rc_database = shift;
-
-    my %user = ();
+    my $user_ref    = shift || {};
 
     # User: vboxadm@localhost
     my $password = Crypt::GeneratePassword::word( 8, 12 );
     my $sql = "GRANT ALL ON \`$database\`.* TO 'vboxadm'\@'localhost' IDENTIFIED BY '$password'";
     print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
     $dbh->do($sql);
-    $user{'vboxadm'}{'username'} = 'vboxadm';
-    $user{'vboxadm'}{'password'} = $password;
+    $user_ref->{'db'}{'vboxadm'}{'username'} = 'vboxadm';
+    $user_ref->{'db'}{'vboxadm'}{'password'} = $password;
 
     # User: postfix@localhost
     $password = Crypt::GeneratePassword::word( 8, 12 );
     $sql = "GRANT SELECT ON \`$database\`.* TO 'postfix'\@'localhost' IDENTIFIED BY '$password'";
     print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
     $dbh->do($sql);
-    $user{'postfix'} = $password;
+    $user_ref->{'db'}{'postfix'}{'username'} = 'postfix';
+    $user_ref->{'db'}{'postfix'}{'password'} = $password;
 
     # User: dovecot@localhost
     $password = Crypt::GeneratePassword::word( 8, 12 );
@@ -661,16 +782,16 @@ sub create_database_grants {
     $sql = "GRANT ALL ON \`$database\`.domains TO 'dovecot'\@'localhost' IDENTIFIED BY '$password'";
     print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
     $dbh->do($sql);
-    $user{'dovecot'}{'username'} = 'dovecot';
-    $user{'dovecot'}{'password'} = $password;
+    $user_ref->{'db'}{'dovecot'}{'username'} = 'dovecot';
+    $user_ref->{'db'}{'dovecot'}{'password'} = $password;
 
     # User: roundcube@localhost
     $password = Crypt::GeneratePassword::word( 8, 12 );
     $sql = "GRANT ALL ON \`$rc_database\`.* TO 'roundcube'\@'localhost' IDENTIFIED BY '$password'";
     print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
     $dbh->do($sql);
-    $user{'roundcube'}{'username'} = 'roundcube';
-    $user{'roundcube'}{'password'} = $password;
+    $user_ref->{'db'}{'roundcube'}{'username'} = 'roundcube';
+    $user_ref->{'db'}{'roundcube'}{'password'} = $password;
 
     # User: vboxadm_user@localhost
     $password = Crypt::GeneratePassword::word( 8, 12 );
@@ -680,14 +801,14 @@ sub create_database_grants {
     $sql = "GRANT SELECT ON \`$database\`.domains TO 'vboxadm_user'\@'localhost' IDENTIFIED BY '$password'";
     print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
     $dbh->do($sql);
-    $user{'vboxadm_user'}{'username'} = 'vboxadm_user';
-    $user{'vboxadm_user'}{'password'} = $password;
+    $user_ref->{'db'}{'vboxadm_user'}{'username'} = 'vboxadm_user';
+    $user_ref->{'db'}{'vboxadm_user'}{'password'} = $password;
 
     # Flush privileges
     $sql = "FLUSH PRIVILEGES";
     $dbh->do($sql);
 
-    return \%user;
+    return $user_ref;
 }
 
 sub create_siteadmin {
