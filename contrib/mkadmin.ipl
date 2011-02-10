@@ -566,8 +566,19 @@ sub init_postfix_maps {
     my ( $cmd, $rv );
     my $mapdir = '/etc/postfix/maps';
 
-    # TODO implement
-    # TODO find maps - try doc/postfix/maps, /usr/share/doc/vboxadm-common/examples/postfix/maps/
+    # find maps - try doc/postfix/maps, /usr/share/doc/vboxadm-common/examples/postfix/maps/
+    my $conf_source  = undef;
+    my @conf_sources = qw(doc/postfix /usr/share/doc/vboxadm-common/examples/postfix);
+    foreach my $dir (@conf_sources) {
+        if ( -d $dir && -f $dir . '/main.cf' && -d $dir . '/maps/' ) {
+            $conf_source = $dir;
+        }
+    }
+    if ( !$conf_source ) {
+        print "init_postfix_maps - Failed to find configuration file source!\n";
+        return;
+    }
+
     # makedir /etc/postfix/maps
     $cmd = "mkdir -p $mapdir";
     $rv  = system($cmd) >> 8;
@@ -577,6 +588,28 @@ sub init_postfix_maps {
     }
 
     # TODO copy maps to /etc/postfix/maps
+    $cmd = "mv -f /etc/postfix/main.cf /etc/postfix/main.cf.dist";
+    $rv  = system($cmd) >> 8;
+
+    # TODO error handling
+    $cmd = "mv -f /etc/postfix/master.cf /etc/postfix/master.cf.dist";
+    $rv  = system($cmd) >> 8;
+
+    # TODO error handling
+    if ( -d '/etc/postfix/maps' ) {
+        $cmd = "mv /etc/postfix/maps /etc/postfix/maps.dist";
+        $rv  = system($cmd) >> 8;
+
+        # TODO error handling
+    }
+    $cmd = "cp $conf_source/main.cf /etc/postfix/main.cf";
+    $rv  = system($cmd) >> 8;
+
+    # TODO error handling
+    $cmd = "cp $conf_source/master.cf /etc/postfix/master.cf";
+    $rv  = system($cmd) >> 8;
+
+    # TODO error handling
     # replace username, password and db
     if ( opendir( my $DH, $mapdir ) ) {
         while ( my $dir_entry = readdir($DH) ) {
