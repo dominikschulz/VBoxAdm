@@ -140,8 +140,8 @@ sub interactive {
     if ( !$do{'create-ssl'} ) {
         $do{'create-ssl'} = &ask_yesno('Create self-signed SSL cert?');
     }
-    if ( !$do{'init-postfix-maps'} ) {
-        $do{'init-postfix-maps'} = &ask_yesno('Initilize Postfix Maps files?');
+    if ( !$do{'init-postfix-config'} ) {
+        $do{'init-postfix-config'} = &ask_yesno('Initialize Postfix Config files?');
     }
     if ( !$do{'configure-postfix'} ) {
         $do{'configure-postfix'} = &ask_yesno('Configure Postfix?');
@@ -306,8 +306,8 @@ sub interactive {
 
     # Create Postfix Maps
     # --create-postfix-maps
-    if ( $do{'init-postfix-maps'} ) {
-        &init_postfix_maps( \%config, $user_ref );
+    if ( $do{'init-postfix-config'} ) {
+        &init_postfix_config( \%config, $user_ref );
     }
 
     # Configure Postfix
@@ -495,7 +495,7 @@ sub create_ssl {
         print "create_ssl - Command ($cmd) failed: $!\n";
         return;
     }
-    $cmd = 'openssl req -new -key ' . $tempdir . '/private.key -out ' . $tempdir . '/server.domain.csr';
+    $cmd = 'openssl req -new -key ' . $tempdir . '/private.key -out ' . $tempdir . '/' . $hostname . '.' . $domain . '.csr';
     $rv  = system($cmd) >> 8;
     if ( $rv != 0 ) {
         print "create_ssl - Command ($cmd) failed: $!\n";
@@ -508,7 +508,16 @@ sub create_ssl {
 
         # self-sign:
         $cmd =
-          'openssl x509 -req -days 365 -in ' . $tempdir . '/server.domain.csr -signkey ' . $tempdir . '/private.key -out ' . $tempdir . '/server.domain.crt';
+            'openssl x509 -req -days 365 -in ' 
+          . $tempdir . '/'
+          . $hostname . '.'
+          . $domain
+          . '.csr -signkey '
+          . $tempdir
+          . '/private.key -out '
+          . $tempdir . '/'
+          . $hostname . '.'
+          . $domain . '.crt';
         $rv = system($cmd) >> 8;
         if ( $rv != 0 ) {
             print "create_ssl - Command ($cmd) failed: $!\n";
@@ -559,57 +568,108 @@ sub create_ssl {
     return 1;
 }
 
-sub init_postfix_maps {
+sub find_conf_source {
+    my $user_ref = shift;
+
+    if ( !$user_ref->{'conf_source'} ) {
+
+        # find maps - try doc/postfix/maps, /usr/share/doc/vboxadm-common/examples/postfix/maps/
+        my @conf_sources = qw(doc/postfix /usr/share/doc/vboxadm-common/examples/postfix);
+        foreach my $dir (@conf_sources) {
+            if ( -d $dir && -f $dir . '/main.cf' && -d $dir . '/maps/' ) {
+                $dir =~ s#/postfix/?$##;
+                $user_ref->{'conf_source'} = $dir;
+            }
+        }
+    }
+}
+
+sub init_postfix_config {
     my $vboxadm_db = shift;
     my $user_ref   = shift;
 
     my ( $cmd, $rv );
     my $mapdir = '/etc/postfix/maps';
 
-    # find maps - try doc/postfix/maps, /usr/share/doc/vboxadm-common/examples/postfix/maps/
-    my $conf_source  = undef;
-    my @conf_sources = qw(doc/postfix /usr/share/doc/vboxadm-common/examples/postfix);
-    foreach my $dir (@conf_sources) {
-        if ( -d $dir && -f $dir . '/main.cf' && -d $dir . '/maps/' ) {
-            $conf_source = $dir;
-        }
-    }
-    if ( !$conf_source ) {
+    &find_conf_source($user_ref);
+    my $conf_source = $user_ref->{'conf_source'} . '/postfix';
+    if ( !$conf_source || !-d $conf_source ) {
         print "init_postfix_maps - Failed to find configuration file source!\n";
         return;
     }
 
+    $cmd = "mv -f /etc/postfix/main.cf /etc/postfix/main.cf.dist";
+    print "CMD: $cmd\n";
+    $rv = system($cmd) >> 8;
+    if ( $rv == 0 ) {
+        print "OK\n";
+    }
+    else {
+        print "ERROR: $!\n";
+    }
+
+    $cmd = "mv -f /etc/postfix/master.cf /etc/postfix/master.cf.dist";
+    print "CMD: $cmd - ";
+    $rv = system($cmd) >> 8;
+    if ( $rv == 0 ) {
+        print "OK\n";
+    }
+    else {
+        print "ERROR: $!\n";
+    }
+
+    if ( -d '/etc/postfix/maps' ) {
+        $cmd = "mv /etc/postfix/maps /etc/postfix/maps.dist";
+        print "CMD: $cmd\n";
+        $rv = system($cmd) >> 8;
+        if ( $rv == 0 ) {
+            print "OK\n";
+        }
+        else {
+            print "ERROR: $!\n";
+        }
+    }
+
     # makedir /etc/postfix/maps
     $cmd = "mkdir -p $mapdir";
-    $rv  = system($cmd) >> 8;
+    print "CMD: $cmd\n";
+    $rv = system($cmd) >> 8;
     if ( $rv != 0 ) {
         print "init_postfix_maps - Failed to create $mapdir: $!\n";
         return;
     }
 
-    # TODO copy maps to /etc/postfix/maps
-    $cmd = "mv -f /etc/postfix/main.cf /etc/postfix/main.cf.dist";
-    $rv  = system($cmd) >> 8;
-
-    # TODO error handling
-    $cmd = "mv -f /etc/postfix/master.cf /etc/postfix/master.cf.dist";
-    $rv  = system($cmd) >> 8;
-
-    # TODO error handling
-    if ( -d '/etc/postfix/maps' ) {
-        $cmd = "mv /etc/postfix/maps /etc/postfix/maps.dist";
-        $rv  = system($cmd) >> 8;
-
-        # TODO error handling
+    # copy maps to /etc/postfix/maps
+    $cmd = "cp $conf_source/maps/* /etc/postfix/maps/";
+    print "CMD: $cmd - ";
+    $rv = system($cmd) >> 8;
+    if ( $rv == 0 ) {
+        print "OK\n";
     }
+    else {
+        print "ERROR: $!\n";
+    }
+
     $cmd = "cp $conf_source/main.cf /etc/postfix/main.cf";
-    $rv  = system($cmd) >> 8;
+    print "CMD: $cmd - ";
+    $rv = system($cmd) >> 8;
+    if ( $rv == 0 ) {
+        print "OK\n";
+    }
+    else {
+        print "ERROR: $!\n";
+    }
 
-    # TODO error handling
     $cmd = "cp $conf_source/master.cf /etc/postfix/master.cf";
-    $rv  = system($cmd) >> 8;
+    print "CMD: $cmd - ";
+    $rv = system($cmd) >> 8;
+    if ( $rv == 0 ) {
+        print "OK\n";
+    }
+    else {
+        print "ERROR: $!\n";
+    }
 
-    # TODO error handling
     # replace username, password and db
     if ( opendir( my $DH, $mapdir ) ) {
         while ( my $dir_entry = readdir($DH) ) {
@@ -645,39 +705,79 @@ sub configure_postfix {
 
     my ( $cmd, $rv );
 
-    # TODO get mynetworks
-    # TODO get userids
-    # TODO implement
+    # get mynetworks
+    my @mynets = ();
+    my @ips    = `/bin/ip addr`;
+    foreach my $line (@ips) {
+
+        # inet 192.168.23.11/24
+        if ( $line =~ m/\s*inet\s+(\d+\.\d+\.\d+\.\d+)\/(\d+)/ ) {
+            push( @mynets, "$1/$2" );
+        }
+    }
+
     # use postconf for main.cf
-    # TODO find template dir
-    # TODO copy main.cf and master.cf
-    # TODO use postconf -e parameter=value to edit those:
     # myhostname = host.domain.tld << CHANGEME
     $cmd = "postconf -e myhostname=$hostname.$domain";
+    print "CMD: $cmd\n";
+    $rv = system($cmd) >> 8;
 
     # mynetworks = 192.168.XX.0/24 10.8.0.0/16 [::1]/128 << CHANGEME
+    $cmd = "postconf -e mynetworks = \"[::1]/128 " . join( " ", @mynets ) . "\"";
+    print "CMD: $cmd\n";
+    $rv = system($cmd) >> 8;
+
     # virtual_minimum_uid = <CHANGEME>
     $cmd = "postconf -e virtual_minimum_uid=" . $user_ref->{'system'}{'min_uid'};
+    print "CMD: $cmd\n";
+    $rv = system($cmd) >> 8;
 
     # virtual_uid_maps = static:XX << CHANGEME
     $cmd = "postconf -e virtual_uid_maps=static:" . $user_ref->{'system'}{'vmail'}{'uid'};
+    print "CMD: $cmd\n";
+    $rv = system($cmd) >> 8;
 
     # virtual_gid_maps = static:XX << CHANGEME
     $cmd = "postconf -e virtual_gid_maps=static:" . $user_ref->{'system'}{'vmail'}{'gid'};
+    print "CMD: $cmd\n";
+    $rv = system($cmd) >> 8;
 
     # mydestination = host.domain.tld, localhost << CHANGEME
     $cmd = "postconf -e mydestination=$hostname.$domain, localhost";
+    print "CMD: $cmd\n";
+    $rv = system($cmd) >> 8;
 
     # relayhost =
     $cmd = "postconf -e relayhosts=";
+    print "CMD: $cmd\n";
+    $rv = system($cmd) >> 8;
 
     # inet_protocols = all
     $cmd = "postconf -e inet_protocols=all";
+    print "CMD: $cmd\n";
+    $rv = system($cmd) >> 8;
+
+    return 1;
 }
 
 sub configure_dovecot {
+    my $user_ref = shift;
+
+    &find_conf_source($user_ref);
+    my $conf_source = $user_ref->{'conf_source'} . '/dovecot';
+    if ( !$conf_source || !-d $conf_source ) {
+        print "configure_dovecot - Failed to find configuration file source!\n";
+        return;
+    }
 
     # TODO implement
+    my $dovecot_conf_file = $conf_source . '/dovecot.conf';
+    my $dovecot_conf      = undef;
+    if ( open( my $FH, "<", $dovecot_conf_file ) ) {
+
+        # ...
+        close($FH);
+    }
 }
 
 sub initialize_database {
@@ -715,9 +815,59 @@ sub create_system_accounts {
     my $config   = shift;
     my $user_ref = shift;
 
-    # TODO create vboxadm user for sa and vacation
-    # TODO create vmail user for mails
-    # TODO set $user_ref->{'system'}{'min_uid'} and min_gid
+    $user_ref->{'system'}{'min_uid'} = 65534;
+    $user_ref->{'system'}{'min_gid'} = 65534;
+
+    my ( $cmd, $rv, $uid, $gid );
+
+    # create vboxadm user for sa and vacation
+    # make sure that the user exists. the simplest portable way to check that
+    # is to chown something.
+    $cmd = "makedir /tmp/vboxadm root:root 700";
+    $rv  = system($cmd) >> 8;
+    $cmd = "chgrp vboxadm /tmp/vboxadm 2>/dev/null";
+    $rv  = system($cmd) >> 8;
+    if ( $rv != 0 ) {
+        $cmd = "addgroup --system vboxadm";
+        $rv  = system($cmd) >> 8;
+    }
+    $cmd = "chown vboxadm /tmp/vboxadm 2>/dev/null";
+    $rv  = system($cmd) >> 8;
+    if ( $rv != 0 ) {
+        $cmd = "adduser --system --home /var/lib/vboxadm --no-create-home --ingroup vboxadm --disabled-password vboxadm";
+        $rv  = system($cmd) >> 8;
+    }
+    $user_ref->{'system'}{'vboxadm'}{'uid'} = getpwnam('vboxadm');
+    $user_ref->{'system'}{'min_uid'} =
+      $user_ref->{'system'}{'vboxadm'}{'uid'} > $user_ref->{'system'}{'min_uid'} ? $user_ref->{'system'}{'min_uid'} : $user_ref->{'system'}{'vboxadm'}{'uid'};
+    $user_ref->{'system'}{'vboxadm'}{'gid'} = getgrnam('vboxadm');
+    $user_ref->{'system'}{'min_gid'} =
+      $user_ref->{'system'}{'vboxadm'}{'gid'} > $user_ref->{'system'}{'min_gid'} ? $user_ref->{'system'}{'min_gid'} : $user_ref->{'system'}{'vboxadm'}{'gid'};
+
+    # create vmail user for mails
+    $cmd = "makedir /tmp/vmail root:root 700";
+    $rv  = system($cmd) >> 8;
+    $cmd = "chgrp vmail /tmp/vmail 2>/dev/null";
+    $rv  = system($cmd) >> 8;
+    if ( $rv != 0 ) {
+        $cmd = "addgroup --system vmail";
+        $rv  = system($cmd) >> 8;
+    }
+    $cmd = "chown vmail /tmp/vmail 2>/dev/null";
+    $rv  = system($cmd) >> 8;
+    if ( $rv != 0 ) {
+        $cmd = "adduser --system --home /var/vmail --no-create-home --ingroup vmail --disabled-password vmail";
+        $rv  = system($cmd) >> 8;
+    }
+    $user_ref->{'system'}{'vmail'}{'uid'} = getpwnam('vmail');
+    $user_ref->{'system'}{'min_uid'} =
+      $user_ref->{'system'}{'vmail'}{'uid'} > $user_ref->{'system'}{'min_uid'} ? $user_ref->{'system'}{'min_uid'} : $user_ref->{'system'}{'vmail'}{'uid'};
+    $user_ref->{'system'}{'vmail'}{'gid'} = getgrnam('vmail');
+    $user_ref->{'system'}{'min_gid'} =
+      $user_ref->{'system'}{'vmail'}{'gid'} > $user_ref->{'system'}{'min_gid'} ? $user_ref->{'system'}{'min_gid'} : $user_ref->{'system'}{'vmail'}{'gid'};
+
+    # set $user_ref->{'system'}{'min_uid'} and min_gid
+    return 1;
 }
 
 sub create_database {
