@@ -237,9 +237,6 @@ sub chat {
             $self->{to} = $self->{recipients};
         }
         elsif (/^xforward/i) {
-
-            # TODO Test XFORWARD parsing!
-            # XFORWARD NAME=[UNAVAILABLE] ADDR=192.168.23.11 PORT=57929 HELO=iowa PROTO=ESMTP SOURCE=REMOTE
             if (/name=(\S+)\b/i) {
                 $self->{xforward}{name} = $1;
             }

@@ -186,8 +186,10 @@ sub process_request {
 
         # Start the SMTP-Server part which listens to the incoming
         # transaction
-        my $smtp_server = VBoxAdm::SMTP::Server->new( sock => $self->{server}->{client} )
-          or die "Failed to create a listening server: $!\n";
+        my $smtp_server = VBoxAdm::SMTP::Server->new(
+            sock    => $self->{server}->{client},
+            tempdir => $self->{vbox}->{tempdir},
+        ) or die "Failed to create a listening server: $!\n";
 
         # Start the SMTP-Client part which talks to the internal
         # mta (postfix) instance
