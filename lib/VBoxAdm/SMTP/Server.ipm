@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use IO::Socket;
-use IO::File;
+use File::Temp;
 use Carp qw(carp croak);
 
 our $VERSION = '@VERSION@';
@@ -23,11 +23,8 @@ sub new {
 
     my $class = ref($this) || $this;
     my $self = bless {@opts}, $class;
-
-    # TODO as soon as this class is working & tested switch to INET6
-    # TODO add logging to syslog
     if ( !$self->{sock} ) {
-        $self->{sock} = IO::Socket::INET->new(
+        $self->{sock} = IO::Socket::INET6->new(
             LocalAddr => $self->{interface},
             LocalPort => $self->{port},
             Proto     => 'tcp',
@@ -155,16 +152,17 @@ sub chat {
         }
         else {
 
-            # TODO allow the location of the tmpfile to be configured
-            # this should be on a ramdisk an maybe /tmp on ramdisk is
+            # tempdir should be on a ramdisk an maybe /tmp on ramdisk is
             # undesirable
-            $self->{data} = IO::File->new_tmpfile;
+            $self->{data} = File::Temp::tempfile( DIR => $self->{tempdir} );
         }
         while ( defined( my $line = $self->getline ) ) {
             if ( $line eq ".\r\n" ) {
                 $self->{data}->seek( 0, 0 );
 
-                # TODO reset xforward info here
+                # reset xforward as defined by the spec.
+                delete $self->{xforward};
+
                 return $self->{state} = '.';
             }
 
