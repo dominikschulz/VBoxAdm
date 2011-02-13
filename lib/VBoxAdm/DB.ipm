@@ -72,6 +72,9 @@ sub connect {
 
     # No eval error handling. If the connection timed out $dbh will be undef anyway ...
     if ($dbh) {
+        if ( !$opts->{NoUTF8} ) {
+            $dbh->do('SET NAMES utf8');
+        }
         return $dbh;
     }
     else {

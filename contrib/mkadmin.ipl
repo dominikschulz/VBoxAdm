@@ -804,52 +804,14 @@ sub configure_dovecot {
 
     my $dovecot_conf_file     = $conf_source . '/dovecot.conf';
     my $dovecot_sql_conf_file = $conf_source . '/dovecot-sql.conf';
-    my $dovecot_conf          = slurp($dovecot_conf_file);
-    my $dovecot_sql_conf      = slurp($dovecot_sql_conf_file);
+    my $dovecot_conf          = VBoxAdm::Utils::slurp($dovecot_conf_file);
+    my $dovecot_sql_conf      = VBoxAdm::Utils::slurp($dovecot_sql_conf_file);
     foreach my $key ( keys %dovopts ) {
         $dovecot_conf     =~ s/{{$key}}/$dovopts{$key}/g;
         $dovecot_sql_conf =~ s/{{$key}}/$dovopts{$key}/g;
     }
-    blarf( '/etc/dovecot/dovecot.conf',     $dovecot_conf );
-    blarf( '/etc/dovecot/dovecot-sql.conf', $dovecot_sql_conf );
-}
-
-sub blarf {
-    my $file = shift;
-    my $str  = shift;
-    my $opts = shift || {};
-
-    my $mode = '>';
-    if ( $opts->{Append} ) {
-        $mode = '>>';
-    }
-    if ( open( my $FH, $mode, $file ) ) {
-        print $FH $str;
-        close($FH);
-    }
-    else {
-        return;
-    }
-}
-
-sub slurp {
-    my $file = shift;
-    my $opts = shift || {};
-
-    if ( -f $file && open( my $FH, "<", $file ) ) {
-        my $buf = "";
-        while ( my $line = <$FH> ) {
-            $buf .= $line;
-        }
-        close($FH);
-        if ( $opts->{Chomp} ) {
-            chomp($buf);
-        }
-        return $buf;
-    }
-    else {
-        return;
-    }
+    VBoxAdm::Utils::blarf( '/etc/dovecot/dovecot.conf',     $dovecot_conf );
+    VBoxAdm::Utils::blarf( '/etc/dovecot/dovecot-sql.conf', $dovecot_sql_conf );
 }
 
 sub initialize_database {
