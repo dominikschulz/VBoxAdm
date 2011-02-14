@@ -15,6 +15,8 @@ mydestination = host.domain.tld, localhost << CHANGEME
 relayhost = 
 inet_protocols = all
 #inet_protocols = ipv4
+smtpd_tls_cert_file = /etc/ssl/certs/hostname.pem << CHANGEME
+smtpd_tls_key_file = /etc/ssl/private/hostname.key << CHANGEME
 ### NO NEED TO EDIT AFTER THIS LINE ###
 # (except smtpd_recipient_restrictions perhaps)
 
@@ -38,8 +40,6 @@ message_size_limit = 26214400
 # SSL/TLS
 # See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for
 # information on enabling SSL in the smtp client.
-smtpd_tls_cert_file = /etc/ssl/certs/hostname.pem << CHANGEME
-smtpd_tls_key_file = /etc/ssl/private/hostname.key << CHANGEME
 smtpd_use_tls = yes
 smtp_use_tls = yes
 smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
@@ -124,6 +124,10 @@ smtpd_client_connection_rate_limit = 60
 smtpd_client_connection_count_limit = 25
 smtpd_client_message_rate_limit = 1000
 smtpd_client_recipient_rate_limit = 1000
+
 # Vacation
 transport_maps = btree:/etc/postfix/maps/transport
 vacation_destination_recipient_limit = 1
+
+# Dyn. Recipient Verification
+address_verify_maps=btree:/var/spool/postfix/data/verify
