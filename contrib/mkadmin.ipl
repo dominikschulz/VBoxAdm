@@ -599,8 +599,8 @@ sub find_conf_source {
 }
 
 sub init_postfix_config {
-    my $vboxadm_db = shift;
-    my $user_ref   = shift;
+    my $config   = shift;
+    my $user_ref = shift;
 
     my ( $cmd, $rv );
     my $mapdir = '/etc/postfix/maps';
@@ -697,7 +697,7 @@ sub init_postfix_config {
                     while ( my $line = <$OLD> ) {
                         $line =~ s/^user = postfix\b/user = $user_ref->{'postfix'}{'username'}/;
                         $line =~ s/^password = PASSWORD\b/password = $user_ref->{'postfix'}{'password'}/;
-                        $line =~ s/^dbname = vboxadm\b/dbname = $vboxadm_db/;
+                        $line =~ s/^dbname = vboxadm\b/dbname = $config{'dbdb'}/;
                         print $NEW $line;
                     }
                     close($NEW);
@@ -712,6 +712,7 @@ sub init_postfix_config {
 }
 
 sub configure_postfix {
+    my $config   = shift;
     my $user_ref = shift;
 
     my $hostname = Net::Domain::hostname();
@@ -730,53 +731,36 @@ sub configure_postfix {
         }
     }
 
-    # use postconf for main.cf
-    # myhostname = host.domain.tld << CHANGEME
-    $cmd = "postconf -e myhostname=$hostname.$domain";
-    print "CMD: $cmd\n";
-    $rv = system($cmd) >> 8;
+    my %postopts = (
+        'myhostname'          => "$hostname.$domain",
+        'mynetworks'          => "[::1]/128 " . join( " ", @mynets ),
+        'virtual_minimum_uid' => $user_ref->{'system'}{'min_uid'},
+        'virtual_uid_maps'    => "static:" . $user_ref->{'system'}{'vmail'}{'uid'},
+        'virtual_gid_maps'    => "static:" . $user_ref->{'system'}{'vmail'}{'gid'},
+        'mydestination'       => "$hostname.$domain, localhost",
+        'relayhosts'          => '',
+        'inet_protocols'      => 'all',
+        'smtpd_tls_cert_file' => $user_ref->{'ssl'}{'cert'},
+        'smtpd_tls_key_file'  => $user_ref->{'ssl'}{'key'},
+    );
 
-    # mynetworks = 192.168.XX.0/24 10.8.0.0/16 [::1]/128 << CHANGEME
-    $cmd = "postconf -e mynetworks = \"[::1]/128 " . join( " ", @mynets ) . "\"";
-    print "CMD: $cmd\n";
-    $rv = system($cmd) >> 8;
-
-    # virtual_minimum_uid = <CHANGEME>
-    $cmd = "postconf -e virtual_minimum_uid=" . $user_ref->{'system'}{'min_uid'};
-    print "CMD: $cmd\n";
-    $rv = system($cmd) >> 8;
-
-    # virtual_uid_maps = static:XX << CHANGEME
-    $cmd = "postconf -e virtual_uid_maps=static:" . $user_ref->{'system'}{'vmail'}{'uid'};
-    print "CMD: $cmd\n";
-    $rv = system($cmd) >> 8;
-
-    # virtual_gid_maps = static:XX << CHANGEME
-    $cmd = "postconf -e virtual_gid_maps=static:" . $user_ref->{'system'}{'vmail'}{'gid'};
-    print "CMD: $cmd\n";
-    $rv = system($cmd) >> 8;
-
-    # mydestination = host.domain.tld, localhost << CHANGEME
-    $cmd = "postconf -e mydestination=$hostname.$domain, localhost";
-    print "CMD: $cmd\n";
-    $rv = system($cmd) >> 8;
-
-    # relayhost =
-    $cmd = "postconf -e relayhosts=";
-    print "CMD: $cmd\n";
-    $rv = system($cmd) >> 8;
-
-    # inet_protocols = all
-    $cmd = "postconf -e inet_protocols=all";
-    print "CMD: $cmd\n";
-    $rv = system($cmd) >> 8;
-
-    # TODO SSL/TLS config!
+    foreach my $key ( keys %postopts ) {
+        $cmd = "postconf -e $key=\"" . $postopts{$key} . "\"";
+        print "CMD: $cmd - ";
+        $rv = system($cmd) >> 8;
+        if ( $rv == 0 ) {
+            print "OK\n";
+        }
+        else {
+            print "ERROR\n";
+        }
+    }
 
     return 1;
 }
 
 sub configure_dovecot {
+    my $config   = shift;
     my $user_ref = shift;
 
     &find_conf_source($user_ref);
@@ -786,7 +770,6 @@ sub configure_dovecot {
         return;
     }
 
-    # TODO set values ;)
     my %dovopts = ();
     $dovopts{'ssl_cert_file'}   = $user_ref->{'ssl'}{'cert'};
     $dovopts{'ssl_key_file'}    = $user_ref->{'ssl'}{'key'};
@@ -797,10 +780,10 @@ sub configure_dovecot {
     $dovopts{'vmail_gid'}       = $user_ref->{'system'}{'vmail'}{'gid'};
     $dovopts{'vboxadm_uid'}     = $user_ref->{'system'}{'vboxadm'}{'uid'};
     $dovopts{'vboxadm_gid'}     = $user_ref->{'system'}{'vboxadm'}{'gid'};
-    $dovopts{'dbhost'}          = '';
-    $dovopts{'dbname'}          = '';
-    $dovopts{'dbuser'}          = '';
-    $dovopts{'dbpass'}          = '';
+    $dovopts{'dbhost'}          = $config->{'dbhost'};
+    $dovopts{'dbname'}          = $config->{'dbdb'};
+    $dovopts{'dbuser'}          = $user_ref->{'db'}{'dovecot'}{'username'};
+    $dovopts{'dbpass'}          = $user_ref->{'db'}{'dovecot'}{'password'};
 
     my $dovecot_conf_file     = $conf_source . '/dovecot.conf';
     my $dovecot_sql_conf_file = $conf_source . '/dovecot-sql.conf';
