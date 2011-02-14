@@ -67,7 +67,7 @@ $dbh->do("SET NAMES utf8");
 # - remove expired vacation_notify entries
 &clean_vacation( $dbh, \%config );
 
-# - TODO remove mails marked as deleted
+# TODO remove mails marked as deleted
 # remove expired AWL entries
 &clean_awl( $dbh, \%config );
 
