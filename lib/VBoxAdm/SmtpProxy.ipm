@@ -110,12 +110,19 @@ sub prepare_queries {
     # postfix won't/can't do address expansion before, so
     # we should check if we can resolve the alias locally and retreive the
     # settings from there!
-    # TODO handle mailboxes at alias domains and aliases at alias domains
+    # the subqueryies inside the IN clause:
+    # - a straight forward mailbox
+    # - a straight forward alias
+    # - a mailbox on an alias domain
+    # - an alias on an alias domain
+    # This is a pretty huge and expensive query. I haven't found a better way to do this yet.
     my $sql_userinfo = q{SELECT m.id,d.id,m.max_msg_size,m.sa_active,m.sa_kill_score 
 FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id 
 WHERE CONCAT(m.local_part,'@',d.name) IN 
 (?,
-SELECT a1.goto FROM aliases AS a1 LEFT JOIN domains AS d1 ON a1.domain_id = d1.id WHERE CONCAT(a1.local_part,'@',d1.name) = ?
+(SELECT a1.goto FROM aliases AS a1 LEFT JOIN domains AS d1 ON a1.domain_id = d1.id WHERE CONCAT(a1.local_part,'@',d1.name) = ?),
+(SELECT CONCAT(m2.local_part,'@',d2.name) FROM mailboxes AS m2 LEFT JOIN domains AS d2 ON m2.domain_id = d2.id LEFT JOIN domain_aliases AS da2 ON da2.domain_id = d2.id WHERE CONCAT(m2.local_part,'@',da2.name) = ?),
+(SELECT a3.goto FROM aliases AS a3 LEFT JOIN domains AS d3 ON a3.domain_id = d3.id LEFT JOIN domain_aliases AS da3 ON da3.domain_id = d3.id WHERE CONCAT(a3.local_part,'@',da3.name) = ?)
 )};
     $self->{vbox}->{sth}->{userinfo} = $self->{vbox}->{dbh}->prepare($sql_userinfo);
 
@@ -279,7 +286,11 @@ sub process_request {
             my $helo    = $smtp_server->{xforward}{helo} || $default;
             my $proto   = $smtp_server->{xforward}{proto} || $default;
             my $source  = $smtp_server->{xforward}{source} || $default;
-            $self->log( 2, "message-accepted - queued as $queue_id; client=$client helo=$helo proto=$proto source=$source" );
+            $self->log( 2,
+                    "message-accepted - queued as $queue_id; from="
+                  . $smtp_server->{from} . "; to="
+                  . @{ $smtp_server->{recipients} }
+                  . "; client=$client; helo=$helo; proto=$proto; source=$source;" );
         }
 
         # Close open connections
@@ -419,8 +430,6 @@ sub want_sa {
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
-# TODO set SA options
-# TODO fix SA locking permissions problem
 sub is_spam {
     my $self   = shift;
     my $sa     = $self->{vbox}->{sa};
@@ -538,8 +547,6 @@ sub is_spam {
         # check if this message is spam
         eval {
             local $SIG{ALRM} = sub { die "Timed out!\n"; };
-
-            # TODO evaluate IO::CaptureOutput and/or IO::Capture
 
             # save the prev. setting of the alarm timer and start our own
             my $prev_alarm = alarm( $self->{vbox}->{sa_timeout} );
