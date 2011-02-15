@@ -289,7 +289,7 @@ sub process_request {
             $self->log( 2,
                     "message-accepted - queued as $queue_id; from="
                   . $smtp_server->{from} . "; to="
-                  . @{ $smtp_server->{recipients} }
+                  . join(",",@{ $smtp_server->{recipients} })
                   . "; client=$client; helo=$helo; proto=$proto; source=$source;" );
         }
 
@@ -330,7 +330,7 @@ sub max_msg_size {
     if ( $self->{vbox}->{caching} && $self->{cache}->{max_msg_size}->{$email} ) {
         $max_msg_size = $self->{cache}->{max_msg_size}->{$email};
     }
-    elsif ( $self->{vbox}->{sth}->{userinfo}->execute( $email, $email ) ) {
+    elsif ( $self->{vbox}->{sth}->{userinfo}->execute( $email, $email, $email, $email ) ) {
         my @userinfo = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
         $max_msg_size = $userinfo[2] || $max_msg_size;
         $self->{cache}->{max_msg_size}->{$email} = $max_msg_size if $self->{vbox}->{caching};
@@ -367,7 +367,7 @@ sub sa_block_score {
                 $lowest_kill_score = $sa_kill_score;
             }
         }
-        elsif ( $self->{vbox}->{sth}->{userinfo}->execute( $email, $email ) ) {
+        elsif ( $self->{vbox}->{sth}->{userinfo}->execute( $email, $email, $email, $email ) ) {
             my @userinfo      = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
             my $sa_kill_score = $userinfo[4];
             $self->{cache}->{sa_block_score}->{$email} = $sa_kill_score if $self->{vbox}->{caching};
@@ -402,7 +402,7 @@ sub want_sa {
         if ( $self->{vbox}->{caching} && defined( $self->{cache}->{want_sa} ) ) {
             $want_sa = $want_sa || $self->{cache}->{want_sa}->{$email} || 0;
         }
-        elsif ( $self->{vbox}->{sth}->{userinfo}->execute( $email, $email ) ) {
+        elsif ( $self->{vbox}->{sth}->{userinfo}->execute( $email, $email, $email, $email ) ) {
             my @userinfo = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
             $want_sa = $want_sa || $userinfo[3] || 0;
             $self->{cache}->{want_sa}->{$email} = $userinfo[3] if $self->{vbox}->{caching};
