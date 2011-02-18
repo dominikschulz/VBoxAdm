@@ -88,6 +88,13 @@ $> mysql -uroot -p<MYSQL-ROOT-PW>
 mysql> CREATE DATABASE vboxadm;
 mysql> CREATE DATABASE roundcube;
 
+* Initialize the Database
+-------------------------
+Initialize the Database:
+	$> mysql -uroot -p<PASSWORD> vboxadm < doc/mysql/schema.sql
+
+Debian: The schema is located at /usr/share/doc/vboxadm-common/examples/mysql/schema.sql!
+
 * Create Database Accounts
 --------------------------
 - vboxadm
@@ -178,13 +185,6 @@ dbpass=<PASSWORD>
 dbdb=vboxadm
 dbhost=localhost
 
-* Initialize the Database
--------------------------
-Initialize the Database:
-	$> mysql -uvboxadm -p<PASSWORD> vboxadm < doc/mysql/schema.sql
-
-Debian: The schema is located at /usr/share/doc/vboxadm-common/examples/mysql/schema.sql!
-
 * Configure Vacation
 --------------------
 The vacation script is called from within Postfix's master.cf.
@@ -244,7 +244,7 @@ To satisfy the requirements you'll need to install a few aditional packages:
 
 (Debian) $> aptitude install php5-cgi php5-mysql php5-mcrypt php5-imap php5-intl
 
-On Debian system you have to modify the suhosin settings. Edit the file /etc/php5/conf.d/suhosin.ini
+On Debian systems you have to modify the suhosin settings. Edit the file /etc/php5/conf.d/suhosin.ini
 and change the value suhosin.session.encrypt to off. Make sure the line is no longer commented.
 
 The use the installer access http://roundcube.domain.tld/installer/ and follow the instructions of the installer. Use the database
