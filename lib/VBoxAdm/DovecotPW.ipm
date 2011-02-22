@@ -6,6 +6,7 @@ use warnings;
 use MIME::Base64;
 use Digest::MD5;
 use Digest::SHA;
+use Crypt::GeneratePassword;
 
 our $VERSION = '@VERSION@';
 
@@ -29,50 +30,122 @@ sub plain_md5 {
     return "{PLAIN-MD5}" . Digest::MD5::md5_hex($pw);
 }
 
+############################################
+# Usage      : my $hash = VBoxAdm::DovecotPW::plain_md5('pwclear');
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : http://wiki.dovecot.org/Authentication/PasswordSchemes
 sub ldap_md5 {
     my $pw = shift;
     return "{LDAP-MD5}" . pad_base64( Digest::MD5::md5_base64($pw) );
 }
 
+############################################
+# Usage      : my $hash = VBoxAdm::DovecotPW::plain_md5('pwclear');
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : http://wiki.dovecot.org/Authentication/PasswordSchemes
 sub smd5 {
     my $pw = shift;
     my $salt = shift || &make_salt();
     return "{SMD5}" . pad_base64( MIME::Base64::encode( Digest::MD5::md5( $pw . $salt ) . $salt, '' ) );
 }
 
+############################################
+# Usage      : my $hash = VBoxAdm::DovecotPW::plain_md5('pwclear');
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : http://wiki.dovecot.org/Authentication/PasswordSchemes
 sub sha {
     my $pw = shift;
     return "{SHA}" . MIME::Base64::encode( Digest::SHA::sha1($pw), '' );
 }
 
+############################################
+# Usage      : my $hash = VBoxAdm::DovecotPW::plain_md5('pwclear');
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : http://wiki.dovecot.org/Authentication/PasswordSchemes
 sub ssha {
     my $pw = shift;
     my $salt = shift || &make_salt();
     return "{SSHA}" . MIME::Base64::encode( Digest::SHA::sha1( $pw . $salt ) . $salt, '' );
 }
 
+############################################
+# Usage      : my $hash = VBoxAdm::DovecotPW::plain_md5('pwclear');
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : http://wiki.dovecot.org/Authentication/PasswordSchemes
 sub sha256 {
     my $pw = shift;
     return "{SHA256}" . MIME::Base64::encode( Digest::SHA::sha256($pw), '' );
 }
 
+############################################
+# Usage      : my $hash = VBoxAdm::DovecotPW::plain_md5('pwclear');
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : http://wiki.dovecot.org/Authentication/PasswordSchemes
 sub ssha256 {
     my $pw = shift;
     my $salt = shift || &make_salt();
     return "{SSHA256}" . MIME::Base64::encode( Digest::SHA::sha256( $pw . $salt ) . $salt, '' );
 }
 
+############################################
+# Usage      : my $hash = VBoxAdm::DovecotPW::plain_md5('pwclear');
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : http://wiki.dovecot.org/Authentication/PasswordSchemes
 sub sha512 {
     my $pw = shift;
     return "{SHA512}" . MIME::Base64::encode( Digest::SHA::sha512($pw), '' );
 }
 
+############################################
+# Usage      : my $hash = VBoxAdm::DovecotPW::plain_md5('pwclear');
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : http://wiki.dovecot.org/Authentication/PasswordSchemes
 sub ssha512 {
     my $pw = shift;
     my $salt = shift || &make_salt();
     return "{SSHA512}" . MIME::Base64::encode( Digest::SHA::sha512( $pw . $salt ) . $salt, '' );
 }
 
+############################################
+# Usage      : my $hash = VBoxAdm::DovecotPW::plain_md5('pwclear');
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : http://wiki.dovecot.org/Authentication/PasswordSchemes
 sub make_pass {
     my $pw     = shift;
     my $scheme = shift;
@@ -110,7 +183,20 @@ sub make_pass {
     }
 }
 
+############################################
+# Usage      : my $hash = VBoxAdm::DovecotPW::plain_md5('pwclear');
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : http://wiki.dovecot.org/Authentication/PasswordSchemes
 sub make_salt {
+    return Crypt::GeneratePassword::word( 8, 12 );
+}
+
+# This does not always whats expected.
+sub _make_salt {
     my $len   = 8 + int( rand(8) );
     my @bytes = ();
     for my $i ( 1 .. $len ) {
@@ -119,6 +205,14 @@ sub make_salt {
     return pack( 'C*', @bytes );
 }
 
+############################################
+# Usage      : my $hash = VBoxAdm::DovecotPW::plain_md5('pwclear');
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : http://wiki.dovecot.org/Authentication/PasswordSchemes
 # this method was copied from some module on CPAN, I just don't remember which one right now
 sub pad_base64 {
     my $b64_digest = shift;
@@ -128,6 +222,14 @@ sub pad_base64 {
     return $b64_digest;
 }
 
+############################################
+# Usage      : my $hash = VBoxAdm::DovecotPW::plain_md5('pwclear');
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : http://wiki.dovecot.org/Authentication/PasswordSchemes
 sub verify_pass {
 
     # cleartext password
@@ -148,6 +250,14 @@ sub verify_pass {
     }
 }
 
+############################################
+# Usage      : my $hash = VBoxAdm::DovecotPW::plain_md5('pwclear');
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : http://wiki.dovecot.org/Authentication/PasswordSchemes
 sub split_pass {
     my $pw       = shift;
     my $pwscheme = 'cleartext';
