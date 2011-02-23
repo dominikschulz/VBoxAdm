@@ -2002,7 +2002,7 @@ sub show_add_mailbox {
     my $username          = &VBoxAdm::Utils::trim( lc( $q->param('username') ) );
     my $password          = $q->param('password');
     my $password_2        = $q->param('password_2');
-    my $name              = lc( $q->param('name') );
+    my $name              = $q->param('name');
     my $is_active         = $q->param('is_active');
     my $send_welcome_mail = $q->param('send_welcome_mail');
     my $msg_max_size_mb   = $q->param('max_msg_size_mb');
@@ -2059,15 +2059,20 @@ sub show_add_mailbox {
         $msg1 = $msg;
     }
     elsif ( $domain_id && $username && $password && $name && $password eq $password_2 ) {
-        my $query = "INSERT INTO mailboxes (domain_id,local_part,password,is_active) VALUES(?,?,?,?)";
-        my $sth   = $dbh->prepare($query)
+        my $query =
+          "INSERT INTO mailboxes (domain_id,local_part,password,is_active,name,sa_active,sa_kill_score,is_domainadmin,is_superadmin) VALUES(?,?,?,?,?,?,?,?,?)";
+        my $sth = $dbh->prepare($query)
           or syslog( 2, 'show_add_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        if ( $sth->execute( $domain_id, $username, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ), $is_active ) ) {
+        if (
+            $sth->execute(
+                $domain_id, $username, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ),
+                $is_active, $name, $sa_active, $sa_kill_score, $is_domainadmin, $is_superadmin
+            )
+          )
+        {
             my $msg = "Added Mailbox [_1] for [_2].";
             $self->add_message( 'success', $self->{lh}->maketext( $msg, "$username\@$domain_name", $name ) );
             $msg1 .= $self->{lh_en}->maketext( $msg, "$username\@$domain_name", $name );
-
-            # get domain name for sender
 
             # send_welcome_mail
             my $emsg = '';
