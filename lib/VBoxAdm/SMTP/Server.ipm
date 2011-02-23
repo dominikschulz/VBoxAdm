@@ -112,12 +112,14 @@ sub chat {
             delete $self->{to};
             delete $self->{data};
             delete $self->{recipients};
+
             #$line =~ s/\s*$//;
             $line =~ s/.*</</;
             $line =~ s/>.*$/>/;
             $self->{from} = $line;
         }
         elsif ( $line =~ s/^rcpt\s+to:\s*//i ) {
+
             #$line =~ s/\s*$//;
             #$line =~ s/\s+/ /g;
             $line =~ s/.*</</;
