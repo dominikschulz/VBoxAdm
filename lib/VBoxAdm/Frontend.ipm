@@ -2021,10 +2021,10 @@ sub show_add_mailbox {
     my $system_domain = $self->{config}{'default'}{'domain'} || 'localhost';
 
     if ( $self->is_superadmin() ) {
-        $is_superadmin = $q->param('is_superadmin');
+        $is_superadmin = $q->param('is_superadmin') || 0;
     }
     elsif ( $self->is_domainadmin() && $domain_id == $self->get_users_domainid() ) {
-        $is_domainadmin = $q->param('is_domainadmin');
+        $is_domainadmin = $q->param('is_domainadmin') || 0;
     }
 
     my $msg1        = '';
