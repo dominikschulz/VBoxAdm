@@ -1635,7 +1635,7 @@ sub show_add_alias {
                 $query, join( "-", ( $domain_id, $local_part, $goto ) ),
                 $sth->errstr
             );
-            $msg = $self->{lh}->maketext( "Failed to add alias [_1] => [_2]. Database Error.", "$local_part@$domain_name", $goto );
+            $msg = $self->{lh}->maketext( "Failed to add alias [_1] => [_2]. Database Error.", "$local_part\@$domain_name", $goto );
             $self->add_message( 'error', $msg );
         }
         $sth->finish();
