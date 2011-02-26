@@ -201,8 +201,17 @@ sub setup {
     my $dsn  = "DBI:mysql:database=$db;user=$user;password=$pass;host=$host;port=$port";
 
     # Connect to DBI database, same args as DBI->connect();
-    $self->dbh_config($dsn)
-      or syslog( 2, "setup - Failed to establish DB connection!" );
+    $self->dbh_config(
+        sub {
+            DBI->connect_cached(
+                $dsn, undef, undef,
+                {
+                    PrintError => 0,
+                    RaiseError => 0,
+                }
+            );
+        }
+    ) or syslog( 2, "setup - Failed to establish DB connection!" );
 
     # Prepare connection for UTF-8
     $self->dbh->do("SET NAMES utf8")
