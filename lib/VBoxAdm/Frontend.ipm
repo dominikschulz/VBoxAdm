@@ -171,6 +171,10 @@ sub setup {
       /etc/vboxadm/vboxadm.conf
     );
 
+    if ( -f $ENV{CGIAPP_CONFIG_FILE} ) {
+        push( @conffile_locations, $ENV{CGIAPP_CONFIG_FILE} );
+    }
+
     my ( %config, $conffile_used );
 
     # Try all config file locations
@@ -182,7 +186,7 @@ sub setup {
         }
     }
     if ( !$conffile_used ) {
-        syslog( 2, "Warning: No config file found!" );
+        syslog( 2, "setup - Warning: No config file found!" );
     }
     $self->{config} = \%config;
 
@@ -197,10 +201,12 @@ sub setup {
     my $dsn  = "DBI:mysql:database=$db;user=$user;password=$pass;host=$host;port=$port";
 
     # Connect to DBI database, same args as DBI->connect();
-    $self->dbh_config($dsn);
+    $self->dbh_config($dsn)
+      or syslog( 2, "setup - Failed to establish DB connection!" );
 
     # Prepare connection for UTF-8
-    $self->dbh->do("SET NAMES utf8");
+    $self->dbh->do("SET NAMES utf8")
+      or syslog( 2, "setup - Failed to set DB connection to UTF-8!" );
 
     #
     # L10N
@@ -330,6 +336,7 @@ sub log {
     my $dbh = $self->dbh();
 
     if ($msg) {
+        syslog( 2, $msg );
         my $query = "INSERT INTO log (ts,msg) VALUES(NOW(),?)";
         my $sth   = $dbh->prepare($query)
           or syslog( 2, 'log - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );

@@ -42,6 +42,7 @@ BINFILES = \
 	bin/vacation.pl \
 	bin/smtpproxy.pl \
 	cgi-bin/vboxadm.pl \
+	cgi-bin/vboxadm.fcgi \
 	cron/cleanup.pl \
 	cron/awl.pl \
 	cron/notify.pl \
@@ -102,6 +103,14 @@ TESTFILES = \
 	$(CHMOD) +x $@
 	$(PERL) -I lib/ -c $@
 
+%.fcgi: %.ifcgi
+	$(SED) -e s/@BUILDDATE@/$(BUILDDATE)/ \
+		   -e s/@VERSION@/$(VERSION)/ < $< > $@
+	$(CHMOD) 755 $@
+	$(PERLTIDY) $@
+	$(CHMOD) +x $@
+	$(PERL) -I lib/ -c $@
+
 %.pm: %.ipm
 	$(SED) -e s/@BUILDDATE@/$(BUILDDATE)/ \
 		   -e s/@VERSION@/$(VERSION)/ < $< > $@
@@ -154,6 +163,7 @@ real-install: all test man rcvboxadm
 	$(INSTALL_PROGRAM) bin/vacation.pl $(VBOXLIBDIR)/bin/vacation
 	$(INSTALL_PROGRAM) bin/smtpproxy.pl $(SBINDIR)/vboxadm-smtpproxy
 	$(INSTALL_PROGRAM) cgi-bin/vboxadm.pl $(VHDIR)/cgi-bin/vboxadm.pl
+	$(INSTALL_PROGRAM) cgi-bin/vboxadm.fcgi $(VHDIR)/cgi-bin/vboxadm.fcgi
 	$(INSTALL_PROGRAM) cron/cleanup.pl $(VBOXLIBDIR)/bin/cleanup
 	$(INSTALL_PROGRAM) cron/awl.pl $(VBOXLIBDIR)/bin/awl
 	$(INSTALL_PROGRAM) cron/notify.pl $(VBOXLIBDIR)/bin/notify
@@ -209,6 +219,7 @@ tidy:
 	$(PERLTIDY) t/VBoxAdm/L10N/*.it
 	$(PERLTIDY) bin/*.ipl
 	$(PERLTIDY) cgi-bin/*.ipl
+	$(PERLTIDY) cgi-bin/*.ifcgi
 	$(PERLTIDY) cron/*.ipl
 	$(PERLTIDY) contrib/*.ipl
 
@@ -219,6 +230,7 @@ clean:
 	$(RM) -f bin/*.ERR
 	$(RM) -f cgi-bin/*.bak
 	$(RM) -f cgi-bin/*.pl
+	$(RM) -f cgi-bin/*.fcgi
 	$(RM) -f contrib/*.bak
 	$(RM) -f contrib/*.pl
 	$(RM) -f cron/*.bak
