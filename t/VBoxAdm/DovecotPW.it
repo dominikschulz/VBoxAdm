@@ -28,20 +28,12 @@ BEGIN { use_ok( 'VBoxAdm::DovecotPW', '@VERSION@' ); }
 {
     is( VBoxAdm::DovecotPW::plain_md5('plain_md5'), '{PLAIN-MD5}b8d4619ba568b9abbeff69a2b84bc84e', 'PLAIN-MD5' );
     isnt( VBoxAdm::DovecotPW::plain_md5('plain_md5'), '{PLAIN-MD5}b8d4619ba568b9abbeff69a2b84bc84f', 'PLAIN-MD5' );
-
-    #foreach my $i ( 1 .. 100 ) {
-    #    ok( VBoxAdm::DovecotPW::verify_pass( 'pw' . $i, VBoxAdm::DovecotPW::make_pass( 'pw' . $i, 'plain_md5' ) ), 'Test plain_md5 #'.$i );
-    #}
 }
 
 # Test ldap_md5
 {
     is( VBoxAdm::DovecotPW::ldap_md5('ldap_md5'), '{LDAP-MD5}f5qbmNGVSc2q51JwcVSo2A==', 'LDAP-MD5' );
     isnt( VBoxAdm::DovecotPW::ldap_md5('ldap_md5'), '{LDAP-MD5}f5qbmNGVSc2q51JwcVSo2B==', 'LDAP-MD5' );
-
-    #foreach my $i ( 1 .. 100 ) {
-    #    ok( VBoxAdm::DovecotPW::verify_pass( 'pw' . $i, VBoxAdm::DovecotPW::make_pass( 'pw' . $i, 'ldap_md5' ) ), 'Test ldap_md5 #'.$i );
-    #}
 }
 
 # Test smd5
@@ -49,8 +41,17 @@ BEGIN { use_ok( 'VBoxAdm::DovecotPW', '@VERSION@' ); }
     is( VBoxAdm::DovecotPW::smd5( 'smd5', pack( 'C*', ( 0x31, 0x65, 0x2f, 0x05 ) ) ), '{SMD5}RGcFE9Xfx77QK2zhTyh+rzFlLwU=', 'SMD5' );
     isnt( VBoxAdm::DovecotPW::smd5( 'smd5', pack( 'C*', ( 0x31, 0x65, 0x2c, 0x05 ) ) ), '{SMD5}RGcFE9Xfx77QK2zhTyh+rzFlLwU=', 'SMD5' );
     isnt( VBoxAdm::DovecotPW::smd5( 'smd5', pack( 'C*', ( 0x31, 0x65, 0x2f, 0x05 ) ) ), '{SMD5}RGcFE9Xfx77QK2zhTyh+rzFlLLU=', 'SMD5' );
-    foreach my $i ( 1 .. 100 ) {
+    foreach my $i ( 1 .. 50 ) {
         ok( VBoxAdm::DovecotPW::verify_pass( 'pw' . $i, VBoxAdm::DovecotPW::make_pass( 'pw' . $i, 'smd5' ) ), 'Test smd5 #' . $i );
+    }
+}
+
+# Test cram-md5
+{
+    is( VBoxAdm::DovecotPW::cram_md5('cram_md5'), '{CRAM-MD5}5c1541ba0b54c6eaae6d596033c7308af245b27f6d01741a0b5c8f1bb57be546', 'CRAM-MD5' );
+    isnt( VBoxAdm::DovecotPW::cram_md5('cram_md5'), '{CRAM-MD5}5c1541ba1b54c6eaae6d596033c7308af245b27f6d01741a0b5c8f1bb57be546', 'CRAM-MD5' );
+    foreach my $i ( 1 .. 20 ) {
+        ok( VBoxAdm::DovecotPW::verify_pass( 'pw' . $i, VBoxAdm::DovecotPW::make_pass( 'pw' . $i, 'cram_md5' ) ), 'Test cram_md5 #' . $i );
     }
 }
 
@@ -58,7 +59,7 @@ BEGIN { use_ok( 'VBoxAdm::DovecotPW', '@VERSION@' ); }
 {
     is( VBoxAdm::DovecotPW::sha('sha'), '{SHA}2PRZAyDhNDqRW2OUFwZQqPNdaSY=', 'SHA' );
     isnt( VBoxAdm::DovecotPW::sha('sha'), '{SHA}2PRZAyDhNDqRW2OUFwZsqPNdaSY=', 'SHA' );
-    foreach my $i ( 1 .. 100 ) {
+    foreach my $i ( 1 .. 50 ) {
         ok( VBoxAdm::DovecotPW::verify_pass( 'pw' . $i, VBoxAdm::DovecotPW::make_pass( 'pw' . $i, 'sha' ) ), 'Test sha #' . $i );
     }
 }
@@ -68,7 +69,7 @@ BEGIN { use_ok( 'VBoxAdm::DovecotPW', '@VERSION@' ); }
     is( VBoxAdm::DovecotPW::ssha( 'ssha', pack( 'C*', ( 0x0c, 0xa6, 0x37, 0xd1 ) ) ), '{SSHA}ZVtWBxu5DZfomKKiR5R+TYYemzsMpjfR', 'SSHA' );
     isnt( VBoxAdm::DovecotPW::ssha( 'ssha', pack( 'C*', ( 0x0c, 0xa6, 0x34, 0xd1 ) ) ), '{SSHA}ZVtWBxu5DZfomKKiR5R+TYYemzsMpjfR', 'SSHA' );
     isnt( VBoxAdm::DovecotPW::ssha( 'ssha', pack( 'C*', ( 0x0c, 0xa6, 0x37, 0xd1 ) ) ), '{SSHA}ZatWBxu5DZfomKKiR5R+TYYemzsMpjfR', 'SSHA' );
-    foreach my $i ( 1 .. 100 ) {
+    foreach my $i ( 1 .. 50 ) {
         ok( VBoxAdm::DovecotPW::verify_pass( 'pw' . $i, VBoxAdm::DovecotPW::make_pass( 'pw' . $i, 'ssha' ) ), 'Test ssha #' . $i );
     }
 }
@@ -77,7 +78,7 @@ BEGIN { use_ok( 'VBoxAdm::DovecotPW', '@VERSION@' ); }
 {
     is( VBoxAdm::DovecotPW::sha256('sha256'), '{SHA256}XVsJ9tyy1Tpf/8YMSsDVX6vfVWBp1mMVRfQqpuNQDy4=', 'SHA256' );
     isnt( VBoxAdm::DovecotPW::sha256('sha256'), '{SHA256}XVaJ9tyy1Tpf/8YMSsDVX6vfVWBp1mMVRfQqpuNQDy4=', 'SHA256' );
-    foreach my $i ( 1 .. 100 ) {
+    foreach my $i ( 1 .. 50 ) {
         ok( VBoxAdm::DovecotPW::verify_pass( 'pw' . $i, VBoxAdm::DovecotPW::make_pass( 'pw' . $i, 'sha256' ) ), 'Test sha256 #' . $i );
     }
 }
@@ -90,7 +91,7 @@ BEGIN { use_ok( 'VBoxAdm::DovecotPW', '@VERSION@' ); }
         '{SSHA256}pJBnkoz8dh7xoiQL1eRMYQqnPD190Ni/xVMGwnbcG2sTft+e', 'SSHA256' );
     isnt( VBoxAdm::DovecotPW::ssha256( 'ssha256', pack( 'C*', ( 0x13, 0x7e, 0xdf, 0x9e ) ) ),
         '{SSHA256}aJBnkoz8dh7xoiQL1eRMYQqnPD190Ni/xVMGwnbcG2sTft+e', 'SSHA256' );
-    foreach my $i ( 1 .. 100 ) {
+    foreach my $i ( 1 .. 50 ) {
         ok( VBoxAdm::DovecotPW::verify_pass( 'pw' . $i, VBoxAdm::DovecotPW::make_pass( 'pw' . $i, 'ssha256' ) ), 'Test ssha256 #' . $i );
     }
 }
@@ -99,7 +100,7 @@ BEGIN { use_ok( 'VBoxAdm::DovecotPW', '@VERSION@' ); }
 {
 
     #is(VBoxAdm::DovecotPW::sha('sha512'),'','SHA512');
-    foreach my $i ( 1 .. 100 ) {
+    foreach my $i ( 1 .. 50 ) {
         ok( VBoxAdm::DovecotPW::verify_pass( 'pw' . $i, VBoxAdm::DovecotPW::make_pass( 'pw' . $i, 'sha512' ) ), 'Test sha512 #' . $i );
     }
 }
@@ -108,13 +109,15 @@ BEGIN { use_ok( 'VBoxAdm::DovecotPW', '@VERSION@' ); }
 {
 
     #is(VBoxAdm::DovecotPW::sha('ssha512'),'','SSHA512');
-    ;
+    foreach my $i ( 1 .. 50 ) {
+        ok( VBoxAdm::DovecotPW::verify_pass( 'pw' . $i, VBoxAdm::DovecotPW::make_pass( 'pw' . $i, 'ssha512' ) ), 'Test ssha512 #' . $i );
+    }
 }
 
 # Test verify_pass
 {
     ok( VBoxAdm::DovecotPW::verify_pass( 'ssha256', '{SSHA256}pJBnkoz8dh7xoiQL1eRMYQqnPD190Ni/xVMGwnbcG2sTft+e' ), 'verify pass ssha256' );
-    foreach my $i ( 1 .. 100 ) {
+    foreach my $i ( 1 .. 50 ) {
         ok( VBoxAdm::DovecotPW::verify_pass( 'pw' . $i, VBoxAdm::DovecotPW::make_pass( 'pw' . $i, 'ssha512' ) ), 'Test ssha512 #' . $i );
     }
 }
