@@ -30,6 +30,7 @@ use Data::Password;
 use Sys::Syslog;
 use Data::Page;
 use Readonly;
+use HTML::Clean;
 
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
@@ -40,16 +41,20 @@ our $VERSION = '@VERSION@';
 Readonly my $ENTRIES_PER_PAGE => 20;
 
 ############################################
-# Usage      : ????
-# Purpose    : ????
-# Returns    : ????
-# Parameters : ????
+# Usage      : Invoked by CGIApp
+# Purpose    : Setup the Application
+# Returns    : Nothing
+# Parameters : None
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
 sub setup {
     my $self = shift;
+
+    # define the default run mode
     $self->start_mode('public_login');
+
+    # define the mappings between the rm parameter and the actual sub
     $self->run_modes(
 
         #
@@ -123,6 +128,24 @@ sub setup {
     );
 
     # Authentication
+    # Setup authentication using CGI::Application::Plugin::Authentication
+    # Since we want to be able to support salted passwords, this is a bit messy.
+    #
+    # Contraints:
+    # Only users who are either superadmin or domainadmin should be able to login
+    # and their account (= mailbox) must be active. Furthermore the username is
+    # local_part@domain but those are stored in two different tables. So
+    # we need to join those tables by specifying two tables and CONCAT the
+    # fields together.
+    #
+    # Since the plugin does not support OR contraints we have to work around that issue.
+    # In doubt I suggest to have a look the source code of the plugin.
+    #
+    # Filters:
+    # The filter receives the user supplied password and the content of the column it is
+    # applied to, extracts the pwscheme and salt, hashes the user supplied pass and returns
+    # the password hash computed with the old salt and pwscheme. The plugin compares
+    # the result with the unmodified column entry.
     $self->authen->config(
         DRIVER => [
             'DBI',
@@ -156,7 +179,7 @@ sub setup {
         POST_LOGIN_CALLBACK => \&post_login_callback,
     );
 
-    # only enable authen if called as CGI
+    # only enable authen if called as CGI, this helps with testing and debugging from the commandline
     if ( !$self->is_shell() ) {
         $self->authen->protected_runmodes(qr/^(?!public_|api)/);
     }
@@ -171,8 +194,11 @@ sub setup {
       /etc/vboxadm/vboxadm.conf
     );
 
+    # if the application if run as a FastCGI app, the server might
+    # provide an additional configuration location. if the points to file
+    # add it to the list of possible locations
     if ( -f $ENV{CGIAPP_CONFIG_FILE} ) {
-        push( @conffile_locations, $ENV{CGIAPP_CONFIG_FILE} );
+        unshift( @conffile_locations, $ENV{CGIAPP_CONFIG_FILE} );
     }
 
     my ( %config, $conffile_used );
@@ -201,6 +227,8 @@ sub setup {
     my $dsn  = "DBI:mysql:database=$db;user=$user;password=$pass;host=$host;port=$port";
 
     # Connect to DBI database, same args as DBI->connect();
+    # uses connect_cached for persistent connections
+    # this should have no effect for CGI and speed up FastCGI
     $self->dbh_config(
         sub {
             DBI->connect_cached(
@@ -214,18 +242,29 @@ sub setup {
     ) or syslog( 2, "setup - Failed to establish DB connection!" );
 
     # Prepare connection for UTF-8
+    # Scripts, Database, Sourcecode, Userdata ... everything should be in UTF-8
+    # the only point were we could deal with non-UTF-8 is when we output data to
+    # non-utf-8 capable browsers (are there any?)
     $self->dbh->do("SET NAMES utf8")
       or syslog( 2, "setup - Failed to set DB connection to UTF-8!" );
 
     #
     # L10N
     #
-    $self->{lh}    = VBoxAdm::L10N->get_handle();
+    # the user handle, will try to determine the appropriate language ... look at the docs of Locale::Maketext
+    $self->{lh} = VBoxAdm::L10N->get_handle();
+
+    # this handle is used for logging. logged messages should always be in english
     $self->{lh_en} = VBoxAdm::L10N->get_handle('en');
 
     #
-    # Templates
+    # Templating unsing the Template Toolkit
     #
+    # Filters:
+    # Have a look at the docs of the tt for info on dynamic filters.
+    # Short version: they allow filters with more than one argument.
+    # highlight provides syntax highlightning for the search
+    # l10n provides localization via Locale::Maketext
     $self->tt_config(
         TEMPLATE_OPTIONS => {
             INCLUDE_PATH => [ 'tpl', '../tpl', '/usr/lib/vboxadm/tpl' ],
@@ -310,12 +349,13 @@ sub cgiapp_init {
 #
 # Template::Toolkit Hooks
 #
+
+# during post processing minify html
 sub tt_post_process {
     my $self    = shift;
     my $htmlref = shift;
 
     # clean up the resulting HTML
-    require HTML::Clean;
     my $h = HTML::Clean->new($htmlref);
     $h->strip;
     my $newref = $h->data;
@@ -323,6 +363,7 @@ sub tt_post_process {
     return;
 }
 
+# pre processing set commonly used variables for the templates
 sub tt_pre_process {
     my ( $self, $file, $vars ) = @_;
     $vars->{username}       = $self->authen->username;
@@ -337,6 +378,15 @@ sub tt_pre_process {
 #
 # Misc. private Subs
 #
+
+############################################
+# Usage      : $self->log('message');
+# Purpose    : Log a message to the log table and syslog
+# Returns    : true on success
+# Parameters : a string
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub log {
     my $self = shift;
     my $msg  = shift;
@@ -364,6 +414,14 @@ sub log {
     }
 }
 
+############################################
+# Usage      : called by Authentication plugin after successfull login
+# Purpose    : log login and setup user env.
+# Returns    : always true
+# Parameters : none
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub post_login_callback {
     my $self = shift;
 
@@ -375,6 +433,14 @@ sub post_login_callback {
     return 1;
 }
 
+############################################
+# Usage      : $self->log_login();
+# Purpose    : convenience method for logging a user login event
+# Returns    : always true
+# Parameters : none
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub log_login {
     my $self = shift;
     return unless ( $self->authen->is_authenticated );
@@ -382,6 +448,14 @@ sub log_login {
     return 1;
 }
 
+############################################
+# Usage      : $self->add_message('warning','message');
+# Purpose    : Add a message to the notification message stack
+# Returns    : always true
+# Parameters : the type and the message
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 # add entry to notify
 sub add_message {
     my $self       = shift;
@@ -396,6 +470,14 @@ sub add_message {
     return 1;
 }
 
+############################################
+# Usage      : $self->get_messages();
+# Purpose    : Return all messages from the message stack and remove them
+# Returns    : a hashref w/ the messages by priority
+# Parameters : none
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 # get and reset notify
 sub get_messages {
     my $self = shift;
@@ -405,6 +487,14 @@ sub get_messages {
     return $notify_ref;
 }
 
+############################################
+# Usage      : $self->peek_message();
+# Purpose    : Return the message stack w/o removing the messages
+# Returns    : a hashref w/ the message by priority
+# Parameters : none
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 # get notify (no reset)
 sub peek_message {
     my $self       = shift;
@@ -412,7 +502,14 @@ sub peek_message {
     return $notify_ref;
 }
 
-# is the script run from a shell?
+############################################
+# Usage      : $self->is_shell()
+# Purpose    : is the script run from a shell?
+# Returns    : true if no CGI
+# Parameters : none
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub is_shell {
     my $self = shift;
     if ( $ENV{'DISPLAY'} && $ENV{'PS1'} && $ENV{'SHELL'} && $ENV{'USER'} ) {
@@ -434,6 +531,14 @@ sub is_shell {
     }
 }
 
+############################################
+# Usage      : $self->is_localnet()
+# Purpose    : tell if the user is on a local, i.e. somewhat trusted, network
+# Returns    : true if localnet or shell
+# Parameters : none
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub is_localnet {
     if ( !$ENV{'REMOTE_ADDR'} ) {
         return 1;    # shell, coz' local
@@ -448,6 +553,14 @@ sub is_localnet {
     }
 }
 
+############################################
+# Usage      :
+# Purpose    :
+# Returns    :
+# Parameters :
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub is_domainadmin {
     my $self = shift;
 
@@ -467,6 +580,14 @@ sub is_domainadmin {
     }
 }
 
+############################################
+# Usage      :
+# Purpose    :
+# Returns    :
+# Parameters :
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub is_superadmin {
     my $self = shift;
 
@@ -486,6 +607,14 @@ sub is_superadmin {
     }
 }
 
+############################################
+# Usage      :
+# Purpose    :
+# Returns    :
+# Parameters :
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub get_user_details {
     my $self = shift;
 
@@ -509,6 +638,14 @@ sub get_user_details {
     return ( $mailbox_id, $domain_id, $is_superadmin, $is_domainadmin );
 }
 
+############################################
+# Usage      :
+# Purpose    :
+# Returns    :
+# Parameters :
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub get_users_domainid {
     my $self = shift;
 
@@ -521,6 +658,14 @@ sub get_users_domainid {
     return $domain_id;
 }
 
+############################################
+# Usage      :
+# Purpose    :
+# Returns    :
+# Parameters :
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub get_users_mailboxid {
     my $self = shift;
 
@@ -533,6 +678,14 @@ sub get_users_mailboxid {
     return $mailbox_id;
 }
 
+############################################
+# Usage      :
+# Purpose    :
+# Returns    :
+# Parameters :
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub get_domain_byid {
     my $self      = shift;
     my $domain_id = shift;
@@ -3019,11 +3172,17 @@ Dominik Schulz (dominik.schulz@gauner.org)
 
 Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
 
-This module is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself. See L<perlartistic>.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 =cut

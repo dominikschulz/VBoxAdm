@@ -18,6 +18,7 @@ use Digest::SHA;
 use VBoxAdm::SMTP::Server '@VERSION@';
 use VBoxAdm::SMTP::Client '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
+use VBoxAdm::DB '@VERSION@';
 
 our $VERSION = '@VERSION@';
 
@@ -44,63 +45,13 @@ sub db_connect {
     # use guarding alarm timer
     my $dsn = "DBI:mysql:database=$db;user=$user;password=$pass;port=$port;host=";
     foreach my $host ( shuffle @{ $self->{vbox}->{dbhosts} } ) {
-        $self->{vbox}->{dbh} = DBI->connect( $dsn . $host, { RaiseError => 0, PrintError => 0, } ) and last;
+        $self->{vbox}->{dbh} = VBoxAdm::DB::connect( $dsn . $host, { ConnectTimeout => 10, } ) and last;
     }
     if ( !$self->{vbox}->{dbh} ) {
         croak "Could not connect to DB with DSN $dsn: " . DBI->errstr;
     }
 
-    # Prepare connection for UTF-8
-    $self->{vbox}->{dbh}->do("SET NAMES utf8");
-
     return 1;
-}
-
-############################################
-# Usage      : SmtpProxy::show_child_handles($dbh);
-# Purpose    : Recursively prints all child handles of the given handle.
-# Returns    : nothing
-# Parameters : One DBI handle
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : http://search.cpan.org/~timb/DBI-1.611/DBI.pm#ChildHandles_%28array_ref%29
-sub show_child_handles {
-    my $h = shift;
-    my $level = shift || 0;
-    printf "%sh %s %s\n", $h->{Type}, "\t" x $level, $h;
-    &show_child_handles( $_, $level + 1 ) for ( grep { defined } @{ $h->{ChildHandles} } );
-    return;
-}
-
-############################################
-# Usage      : SmtpProxy::finish_child_handles($dbh);
-# Purpose    : Recursivly (up to 10 levels of nesting) visit all child handles an call finish() on them.
-# Returns    : nothing
-# Parameters : One DBI handle
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : http://search.cpan.org/~timb/DBI-1.611/DBI.pm#ChildHandles_%28array_ref%29
-sub finish_child_handles {
-    my $handle = shift;
-    my $level = shift || 0;
-
-    # prevent infinite loops
-    return if $level > 10;
-    foreach my $child ( grep { defined } @{ $handle->{ChildHandles} } ) {
-
-        # st -> (prepared) Statement
-        if ( $child->{Type} eq "st" ) {
-
-            #print "Handle-Type = st\n";
-            $child->finish();
-        }
-        else {
-
-            #print "Handle-Type = ".$child->{Type}."\n";
-            &finish_child_handles( $child, $level + 1 );
-        }
-    }
-    return;
 }
 
 sub prepare_queries {
@@ -130,10 +81,10 @@ WHERE CONCAT(m.local_part,'@',d.name) IN
 }
 
 ############################################
-# Usage      : ????
-# Purpose    : ????
-# Returns    : ????
-# Parameters : ????
+# Usage      : invoked by Net::Server
+# Purpose    : called when a new child is created, setup db connections
+# Returns    : always true
+# Parameters : none
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
@@ -147,10 +98,10 @@ sub child_init_hook {
 }
 
 ############################################
-# Usage      : ????
-# Purpose    : ????
-# Returns    : ????
-# Parameters : ????
+# Usage      : invoked by Net::Server
+# Purpose    : called when a child has reached the end of its lifetime, tear down db connections
+# Returns    : always true
+# Parameters : none
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
@@ -168,10 +119,10 @@ sub child_finish_hook {
 }
 
 ############################################
-# Usage      : ????
-# Purpose    : ????
-# Returns    : ????
-# Parameters : ????
+# Usage      : invoked by Net::Server
+# Purpose    : handle a new incoming request
+# Returns    : true if the request was processed fine
+# Parameters : none
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
@@ -260,6 +211,7 @@ sub process_request {
                 }
 
                 # further checks if necessary ...
+                # this would be the right place to e.g. hook up a content (virus) scanner or another anti-spam engine
 
                 # done, send the whole DATA part to the destination
 
@@ -312,10 +264,10 @@ sub process_request {
 }
 
 ############################################
-# Usage      : ????
-# Purpose    : ????
-# Returns    : ????
-# Parameters : ????
+# Usage      : $self->max_msg_size('user@domain.tld')
+# Purpose    : get the max. message size for the given user
+# Returns    : the max. message size
+# Parameters : the username
 # Throws     : no exceptions
 # Comments   : Once cached the results are kept until this instance exits!
 # See Also   : n/a
@@ -398,6 +350,8 @@ sub want_sa {
     my $recipients = shift;
 
     my $want_sa = 0;
+
+    # iterate over all recipients, if one wants sa checking, the message will be checked
     foreach my $email ( &VBoxAdm::Utils::extract_recipients($recipients) ) {
         if ( $self->{vbox}->{caching} && defined( $self->{cache}->{want_sa} ) ) {
             $want_sa = $want_sa || $self->{cache}->{want_sa}->{$email} || 0;
@@ -423,10 +377,10 @@ sub want_sa {
 }
 
 ############################################
-# Usage      : ????
-# Purpose    : ????
-# Returns    : ????
-# Parameters : ????
+# Usage      : $self->is_spam($smtp_server)
+# Purpose    : check the current message body for spam
+# Returns    : true if this message is considered spam
+# Parameters : the smtp_server
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
@@ -472,11 +426,11 @@ sub is_spam {
     my $fh = $server->{data};
     $fh->seek( 0, 0 ) or die "Can't rewind message file: $!";
 
-    # Add Envelope-To/From and calculated checksum
+    # Add Envelope-To/From and calculated checksum for caching
     my $envto       = 0;
     my $envfrom     = 0;
-    my $in_header   = 1;
-    my $added_envto = 0;
+    my $in_header   = 1;                       # still inside the header?
+    my $added_envto = 0;                       # did we add an envelope-to?
     my $digest      = Digest::SHA->new(256);
     while ( my $line = <$fh> ) {
         if ( $line =~ m/^(?:X-)?Envelope-To:/i ) {
@@ -524,7 +478,10 @@ sub is_spam {
         }
     }
 
+    # only calculate checksum if caching is enabled
     my $checksum = $digest->hexdigest() if $self->{vbox}->{caching};
+
+    # destroy the digest object
     $digest = undef;
 
     # Check cached result, don't invoke SA if we have a cached result for this message
@@ -775,11 +732,17 @@ The SMTP Classes are modeled closely after MSDW::SMTP::*.
 
 Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
 
-This module is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself. See L<perlartistic>.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 =cut
