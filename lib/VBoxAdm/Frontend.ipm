@@ -26,6 +26,7 @@ use CGI::Application::Plugin::Authentication;
 
 use Config::Std;
 use Crypt::GeneratePassword;
+use DBI;
 use Data::Password;
 use Sys::Syslog;
 use Data::Page;
