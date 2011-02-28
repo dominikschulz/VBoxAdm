@@ -47,7 +47,7 @@ my $dbdb   = $config{'default'}{'dbdb'}   || 'vboxadm';
 
 $config{'awl'}{'mailserver'} ||= 'postfix';
 $config{'awl'}{'logfile'}    ||= '/var/log/mail.log';
-$config{'awl'}{'whitelist'}  ||= '/etc/postfix/maps/whitelist';
+$config{'awl'}{'whitelist'}  ||= '/etc/postgrey/postgrey_whitelist_clients.local';
 $config{'awl'}{'verbose'}    ||= 0;
 
 my @ignore_nets = ();    # list of our nets to ignore
@@ -103,10 +103,28 @@ if ( $config{'awl'}{'mailserver'} eq 'exim' ) {
 elsif ( $config{'awl'}{'mailserver'} eq 'postfix' ) {
     &write_postfix_whitelist( $dbh, \%config );
 }
+&reload_postgrey();
 exit 0;
 ###########################################################################
 # SUBS
 ###########################################################################
+
+sub reload_postgrey {
+    my $pidfile = '/var/run/postgrey.pid';
+    if ( -f $pidfile ) {
+        my $pid = &VBoxAdm::Utils::slurp($pidfile);
+        if ( $pid =~ m/^\d+$/ ) {
+            my $cmd = "kill -HUP $pid";
+            my $rv  = system($cmd) >> 8;
+            if ( $rv == 0 ) {
+                return 1;
+            }
+            else {
+                return;
+            }
+        }
+    }
+}
 
 sub store_whitelist {
     my $whitelist = shift;
@@ -151,21 +169,11 @@ sub write_postfix_whitelist {
         my $sth   = $dbh->prepare($query);
         $sth->execute();
         while ( my $email = $sth->fetchrow_array() ) {
-            print $FH $email . "\tOK\n";
+            print $FH $email . "\n";
         }
         $sth->finish();
         close($FH);
-        my $postmap = '/usr/sbin/postmap';
-        my $cmd     = $postmap . ' btree:' . $config->{'awl'}{'whitelist'};
-        if ( -x $postmap ) {
-            my $rv = system($cmd) >> 8;
-            if ( $rv == 0 ) {
-                return 1;
-            }
-            else {
-                return;
-            }
-        }
+        return 1;
     }
     return;
 }
