@@ -18,7 +18,7 @@ my @conffile_locations = qw(
   vboxadm.conf
   conf/vboxadm.conf
   /etc/vboxadm.conf
-  /etc/postfix/vboxadm.conf
+  /etc/vboxadm/vboxadm.conf
 );
 
 GetOptions(
@@ -113,7 +113,13 @@ m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d)
                     if ( $from =~ m/@(.*)$/ ) {
                         $from_domain = $1;
                         $vars->{'from_domain'} = $from_domain;
-                    }
+                    } else {
+			# Silently ignore this line.
+			# Seems like the sender is missing the domain
+			# part. Weird but not impossible.
+			# - sp
+			next LINE;
+		    }
 
                     if ( &is_notified( $dbh, 'postmaster@' . $from_domain ) ) {
                         print "SKIPPED: This postmaster (postmaster\@$from_domain) was already notified.\n" if $config{'notify'}{'verbose'};
