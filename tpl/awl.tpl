@@ -2,7 +2,7 @@
     <div id="main">
 	    <div id="overview">
 			[% "Search:" | l10n %]
-			<form name="search" method="GET" action="vboxadm.pl">
+			<form name="search" method="GET" action="[% base_url %]">
 			<input type="hidden" name="rm" value="awl" />
 			<input type="textbox" name="search" size="20" value="[% search %]" />
 			</form>
@@ -29,9 +29,9 @@
 				</td>
 				<td>
 					[% IF line.disabled %]
-					Yes. <a onClick="if(confirm('[% "Do you really want to enable the Entry [_1]?" | l10n(line.email) %]')) return true; else return false;" href="vboxadm.pl?rm=update_awl&entry_id=[% line.id %]&disabled=0">[% "enable" | l10n %]</a>
+					Yes. <a onClick="if(confirm('[% "Do you really want to enable the Entry [_1]?" | l10n(line.email) %]')) return true; else return false;" href="[% base_url %]?rm=update_awl&entry_id=[% line.id %]&disabled=0">[% "enable" | l10n %]</a>
 					[% ELSE %]
-					No. <a onClick="if(confirm('[% "Do you really want to disable the Entry [_1]?" | l10n(line.email) %]')) return true; else return false;" href="vboxadm.pl?rm=update_awl&entry_id=[% line.id %]&disabled=1">[% "disable" | l10n %]</a>
+					No. <a onClick="if(confirm('[% "Do you really want to disable the Entry [_1]?" | l10n(line.email) %]')) return true; else return false;" href="[% base_url %]?rm=update_awl&entry_id=[% line.id %]&disabled=1">[% "disable" | l10n %]</a>
 					[% END %]
 				</td>
 			</tr>

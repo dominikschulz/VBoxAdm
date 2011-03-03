@@ -1,7 +1,7 @@
 [% INCLUDE header.tpl %]
     <div id="main">
     <div id="edit_form">
-    	<form action="vboxadm.pl" method="POST">
+    	<form action="[% base_url %]" method="POST">
     	<input type="hidden" name="rm" value="send_broadcast" />
 	    	<table>
 		    	<thead>

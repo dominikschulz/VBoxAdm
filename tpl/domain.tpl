@@ -20,9 +20,9 @@
 				</td>
 				<td>
 					[% IF line.is_active == 1 %]
-					<a href="vboxadm.pl?rm=update_domain&domain_id=[% line.id %]&is_active=0">[% "Yes" | l10n %]</a>
+					<a href="[% base_url %]?rm=update_domain&domain_id=[% line.id %]&is_active=0">[% "Yes" | l10n %]</a>
 					[% ELSE %]
-					<a href="vboxadm.pl?rm=update_domain&domain_id=[% line.id %]&is_active=1">[% "No" | l10n %]</a>
+					<a href="[% base_url %]?rm=update_domain&domain_id=[% line.id %]&is_active=1">[% "No" | l10n %]</a>
 					[% END %]
 				</td>
 			</tr>
@@ -56,9 +56,9 @@
 				</td>
 				<td>
 					[% IF line.is_active == 1 %]
-					<a href="vboxadm.pl?rm=update_alias&alias_id=[% line.id %]&is_active=0">[% "Yes" | l10n %]</a>
+					<a href="[% base_url %]?rm=update_alias&alias_id=[% line.id %]&is_active=0">[% "Yes" | l10n %]</a>
 					[% ELSE %]
-					<a href="vboxadm.pl?rm=update_alias&alias_id=[% line.id %]&is_active=1">[% "No" | l10n %]</a>
+					<a href="[% base_url %]?rm=update_alias&alias_id=[% line.id %]&is_active=1">[% "No" | l10n %]</a>
 					[% END %]
 				</td>
 			</tr>
@@ -92,9 +92,9 @@
 				</td>
 				<td>
 					[% IF line.is_active == 1 %]
-					<a href="vboxadm.pl?rm=update_mailbox&mailbox_id=[% line.id %]&is_active=0">[% "Yes" | l10n %]</a>
+					<a href="[% base_url %]?rm=update_mailbox&mailbox_id=[% line.id %]&is_active=0">[% "Yes" | l10n %]</a>
 					[% ELSE %]
-					<a href="vboxadm.pl?rm=update_mailbox&mailbox_id=[% line.id %]&is_active=1">[% "No" | l10n %]</a>
+					<a href="[% base_url %]?rm=update_mailbox&mailbox_id=[% line.id %]&is_active=1">[% "No" | l10n %]</a>
 					[% END %]
 				</td>
 			</tr>

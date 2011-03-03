@@ -21,17 +21,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- Place favicon.ico & apple-touch-icon.png in the root of your domain and delete these references -->
-  <link rel="shortcut icon" href="/favicon.ico">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="shortcut icon" href="[% media_prefix %]/favicon.ico">
+  <link rel="apple-touch-icon" href="[% media_prefix %]/apple-touch-icon.png">
 
   <!-- CSS : implied media="all" -->
-  <link rel="stylesheet" href="/css/style.css?v=2">
+  <link rel="stylesheet" href="[% media_prefix %]/css/style.css?v=2">
 
   <!-- Uncomment if you are specifically targeting less enabled mobile browsers
-  <link rel="stylesheet" media="handheld" href="/css/handheld.css?v=2">  -->
+  <link rel="stylesheet" media="handheld" href="[% media_prefix %]/css/handheld.css?v=2">  -->
  
   <!-- All JavaScript at the bottom, except for Modernizr which enables HTML5 elements & feature detects -->
-  <script src="/js/libs/modernizr-1.6.min.js"></script>
+  <script src="[% media_prefix %]/js/libs/modernizr-1.6.min.js"></script>
 
 </head>
 
@@ -39,7 +39,7 @@
 
   <div id="container">
     <header>
-    <img src="/images/vboxadm-logo.png" alt="VBox.Adm - Virtual Mailbox Admin" /><br />
+    <img src="[% media_prefix %]/images/vboxadm-logo.png" alt="VBox.Adm - Virtual Mailbox Admin" /><br />
     <br />
     [% IF nonavigation != 1 %]
 	[% INCLUDE navigation.tpl %]

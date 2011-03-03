@@ -2,7 +2,7 @@
     <div id="main">
 	<div id="overview">
 		[% "Search:" | l10n %]
-		<form name="search" method="GET" action="vboxadm.pl">
+		<form name="search" method="GET" action="[% base_url %]">
 		<input type="hidden" name="rm" value="log" />
 		<input type="textbox" name="search" size="20" value="[% search %]" />
 		</form>

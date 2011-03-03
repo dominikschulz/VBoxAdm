@@ -9,6 +9,8 @@ domain=domain.tld
 [cgi]
 pwscheme=ssha256
 no_ssl=1
+base_url=/cgi-bin/vboxadm.pl
+media_prefix=
 
 # config for vacation autoresonder
 [vacation]

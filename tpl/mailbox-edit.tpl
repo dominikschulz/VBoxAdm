@@ -70,7 +70,7 @@
 			</tr>
 			<tr>
 				<td>[% "CC:" | l10n %]</td>
-				<td><a href="vboxadm.pl?rm=edit_alias&alias_id=[% cc_id %]">[% cc_goto %]</a></td>
+				<td><a href="[% base_url %]?rm=edit_alias&alias_id=[% cc_id %]">[% cc_goto %]</a></td>
 				<td></td>
 			</tr>
 			[% IF user_is_superadmin %]
