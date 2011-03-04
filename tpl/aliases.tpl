@@ -52,6 +52,6 @@
 		[% END %]
 		[% END %]
 		<br />
-		<a href="[% base_url %]?rm=create_alias"><img src="/icons/fffsilk/add.png" border="0" /> [% "Add Alias" | l10n %]</a>
+		<a href="[% base_url %]?rm=create_alias"><img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" /> [% "Add Alias" | l10n %]</a>
     </div>
 [% INCLUDE footer.tpl %]

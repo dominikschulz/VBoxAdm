@@ -27,7 +27,7 @@
 		    		<tr>
 			    		<td colspan="2" align="center">
 				    		<button class="button" type="submit" name="submit" onClick="if(confirm('[% "Do you really want to send a Broadcast Message to [_1] Users?" | l10n(count) %]')) return true; else return false;">
-				    			<img src="/icons/fffsilk/accept.png" border="0" />
+				    			<img src="[% media_prefix %]/icons/fffsilk/accept.png" border="0" />
 								[% "Send Broadcast Message to [_1] Users" | l10n(count) %]
 							</button>
 						</td>
