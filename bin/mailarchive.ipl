@@ -1,0 +1,194 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+use DBI;
+use Digest::SHA;
+use Getopt::Long;
+use Config::Std;
+
+use Sys::Syslog;
+
+use VBoxAdm::DB '@VERSION@';
+use VBoxAdm::Utils '@VERSION@';
+
+my $db_host = 'localhost';
+my $db_user = 'vacation';
+my $db_pass = '';
+my $db_port = 3306;
+my $db_db   = 'vboxadm';
+
+my ( $conffile_used, @hooks, %hook, %config, );
+
+# Valid config file locations to try
+my @conffile_locations = qw(
+  vboxadm.conf
+  conf/vboxadm.conf
+  /etc/vboxadm.conf
+  /etc/vboxadm/vboxadm.conf
+);
+
+GetOptions(
+    'sender|s=s'    => \$config{'sender'},
+    'recipient|r=s' => \$config{'recipient'},
+    'verbose|v+'    => \$config{'verbose'},
+
+    # shift removes name of the option (config) and leaves the value for unshift
+    # unshift prepends to the list of valid config files so it is tried first
+    'config=s' => sub { shift; unshift( @conffile_locations, @_ ); },
+) or &usage();
+
+# Try all config file locations
+foreach my $loc (@conffile_locations) {
+    if ( -r $loc ) {
+        $conffile_used = $loc;
+        read_config $loc => %config;
+        last;
+    }
+}
+
+$db_host = $config{'default'}{'dbhost'} || $db_host;
+$db_user = $config{'default'}{'dbuser'} || $db_user;
+$db_pass = $config{'default'}{'dbpass'} || $db_pass;
+$db_port = $config{'default'}{'dbport'} || $db_port;
+$db_db   = $config{'default'}{'dbdb'}   || $db_db;
+
+# Check options
+die("No sender given on command line!")    if !$config{'sender'};
+die("No recipient given on command line!") if !$config{'recipient'};
+
+binmode( STDIN, ':utf8' );
+
+openlog( 'vboxadm-mailarchive', 'ndelay,nofatal', 'mail' );
+
+###
+# Parse incoming mail
+###
+my %header = ();
+my %status = ();
+
+my $digest    = Digest::SHA->new(256);
+my $in_header = 1;
+
+while ( my $line = <STDIN> ) {
+    $digest->add($line);
+    $line =~ /^$/ and $in_header = 0;
+    if ($in_header) {
+        $line =~ /^From:\s+(.*)$/i                  and $header{'from'}              = $1;
+        $line =~ /^To:\s+(.*)$/i                    and $header{'to'}                = $1;
+        $line =~ /^CC:\s+(.*)$/i                    and $header{'cc'}                = $1;
+        $line =~ /^Bcc:\s+(.*)$/i                   and $header{'bcc'}               = $1;
+        $line =~ /^Resent-To:\s+(.*)$/i             and $header{'resent-to'}         = $1;
+        $line =~ /^Resent-CC:\s+(.*)$/i             and $header{'resent-cc'}         = $1;
+        $line =~ /^Resent-Bcc:\s+(.*)$/i            and $header{'resent-bcc'}        = $1;
+        $line =~ /^Reply-to:\s+(.*)$/i              and $header{'reply-to'}          = $1;
+        $line =~ /^Subject:\s+(.*)$/i               and $header{'subject'}           = $1;
+        $line =~ /^Return-Path:\s+<?([^>]+)>?$/i    and $header{'return-path'}       = $1;
+        $line =~ /^Auto-Submitted:\s+(.*)$/i        and $header{'auto-submitted'}    = lc($1);
+        $line =~ /^X-Loop:\s+VBoxAdm-Vacation\s+$/i and $status{'is-loop'}           = 1;
+        $line =~ /^List-.*:/i                       and $status{'is-list'}           = 1;
+        $line =~ /^Message-Id:\s+<([^>]+)>/i        and $header{'msg-id'}            = $1;
+        $line =~ /^X-Spam-(Flag|Status):\s+YES/i    and $header{'x-spam-status'}     = 1 and $status{'is-spam'} = 1;
+        $line =~ /^X-Facebook-Notify:/i             and $header{'x-facebook-notify'} = 1;
+        $line =~ /^Precedence:\s+(bulk|list|junk)/i and $header{'precedence'}        = $1;
+        $line =~ /^(X-(Barracuda-)?Spam-Status):\s+(Yes)/i                        and $header{$1} = $3 and $status{'is-spam'} = 1;
+        $line =~ /^(X-Dspam-Result):\s+(spam|bl[ao]cklisted)/i                    and $header{$1} = $3 and $status{'is-spam'} = 1;
+        $line =~ /^(X-(Anti|Avas-)?virus-status):\s+(infected)/i                  and $header{$1} = $3 and $status{'is-spam'} = 1;
+        $line =~ /^(X-(Avas-spam|Spamtest|CRM114|Razor|Pyzor)-status):\s+(Spam)/i and $header{$1} = $3 and $status{'is-spam'} = 1;
+        $line =~ /^(X-OSBF-LUA-Score):\s+[0-9\/\.\-\+]+\s+\[([-S])\]/i            and $header{$1} = $3 and $status{'is-spam'} = 1;
+    }
+
+    # TODO write to disk (or DB?)
+}
+my $checksum = $digest->hexdigest();
+
+#my $dsn = "DBI:mysql:host=$db_host;database=$db_db;port=$db_port;user=$db_user;password=$db_pass";
+#my $dbh = &VBoxAdm::DB::connect( $dsn );
+
+#if ( !$dbh ) {
+#    syslog( 2, 'Could not connect to database with DSN %s - From: %s - To: %s - Exiting', $dsn, $config{'sender'}, $config{'recipient'} );
+#    closelog();
+#    die("Could not connect to database with DSN $dsn");
+#}
+
+closelog();
+
+#$dbh->disconnect();
+exit 0;
+
+###########################################################################
+# Subs
+###########################################################################
+# None yet.
+
+__END__
+
+=head1 NAME
+
+mailarchive - Archival and meta-data indexing of incoming mail.
+
+=head1 VERSION
+
+This documentation refers to VBoxAdm mailarchive version @VERSION@
+built on @BUILDDATE@.
+
+=head1 DESCRIPTION
+
+TODO
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+The configuration file should be place either in /etc/vboxadm.conf or
+in /etc/vboxadm/vboxadm.conf. This is a common configuration file
+for the whole suite of VBoxAdm applications. Each part of this suite
+has its own section in the config file and all use the values
+from the default section when appropriate.
+
+=head2 default
+The default section should contain at least the database configuration.
+
+dbuser - The user used to connect to the MySQL database.
+dbpass - This users password.
+dbdb - The db used by this application.
+dbhost - The MySQL database host, usually localhost.
+
+=head2 mailarchive
+
+TODO
+
+=head1 DEPENDENCIES
+
+VBoxAdm::Utils, DBI.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut

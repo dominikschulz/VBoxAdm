@@ -6,6 +6,7 @@ use DBI;
 use Getopt::Long;
 use Config::Std;
 
+use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
 use Data::Dumper;
@@ -73,17 +74,13 @@ if ( $config{'awl'}{'only_domain'} ) {
 $config{'awl'}{'only_domains'} = \@only_domains;
 
 my $dsn = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;password=$dbpass";
-my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 1, } );
+my $dbh = &VBoxAdm::DB::connect( $dsn, undef, undef, { RaiseError => 1, } );
 
 if ( !$dbh ) {
     syslog( 2, 'Could not connect to database with DSN $dsn - From: %s - To: %s - Exiting', $config{'sender'}, $config{'recipient'} );
     closelog();
     die("Could not connect to database with DSN $dsn");
 }
-
-# Talk UTF-8 to the database
-# Prepare DB connection for utf8
-$dbh->do("SET NAMES utf8");
 
 my $whitelist = {};    # unique whitelist
 
@@ -109,6 +106,7 @@ exit 0;
 # SUBS
 ###########################################################################
 
+# We must HUP to tell postgrey to reload its whitelist
 sub reload_postgrey {
     my $pidfile = '/var/run/postgrey.pid';
     if ( -f $pidfile ) {
@@ -148,8 +146,7 @@ sub write_exim_whitelist {
 
     if ( open( my $FH, ">", $config->{'awl'}{'whitelist'} ) ) {
         my $query = "SELECT email FROM awl WHERE NOT disabled ORDER BY email";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute();
+        my $sth = &VBoxAdm::DB::prepxec( $dbh, $query );
         while ( my $email = $sth->fetchrow_array() ) {
             print $FH $email . "\n";
         }
@@ -166,8 +163,7 @@ sub write_postfix_whitelist {
 
     if ( open( my $FH, ">", $config->{'awl'}{'whitelist'} ) ) {
         my $query = "SELECT email FROM awl WHERE NOT disabled ORDER BY email";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute();
+        my $sth = &VBoxAdm::DB::prepxec( $dbh, $query );
         while ( my $email = $sth->fetchrow_array() ) {
             print $FH $email . "\n";
         }
@@ -245,12 +241,19 @@ sub is_valid_domain {
     my $from   = shift;
     my $config = shift;
 
-    foreach my $domain ( @{ $config->{'awl'}{'only_domains'} } ) {
-        if ( $from =~ m/\@$domain$/ ) {
-            return 1;
+    if ( scalar( @{ $config->{'awl'}{'only_domains'} } ) > 0 ) {
+        foreach my $domain ( @{ $config->{'awl'}{'only_domains'} } ) {
+            if ( $from =~ m/\@$domain$/ ) {
+                return 1;
+            }
         }
+        return;
     }
-    return;
+    else {
+
+        # no valid domains defined, so we assume that all are valid
+        return 1;
+    }
 }
 
 sub is_local_domain {
@@ -423,3 +426,83 @@ sub parse_postfix {
     }
     close($IN);
 }
+__END__
+
+=head1 NAME
+
+awl - Auto-Whitelist Cronjob.
+
+=head1 VERSION
+
+This documentation refers to VBoxAdm awl version @VERSION@
+built on @BUILDDATE@.
+
+=head1 DESCRIPTION
+
+This script will scan the postfix logfile and add each recipient of
+any outgoing mail to an auto-whitelist which will bypass greylisting. 
+
+This should reduce the impact of greylisting to the minimum.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+The configuration file should be place either in /etc/vboxadm.conf or
+in /etc/vboxadm/vboxadm.conf. This is a common configuration file
+for the whole suite of VBoxAdm applications. Each part of this suite
+has its own section in the config file and all use the values
+from the default section when appropriate.
+
+=head2 default
+The default section should contain at least the database configuration.
+
+dbuser - The user used to connect to the MySQL database.
+dbpass - This users password.
+dbdb - The db used by this application.
+dbhost - The MySQL database host, usually localhost.
+
+=head2 awl
+
+ignore_net - White subnets are ignore, e.g. because these hosts use this mailserver as an smart host
+and we don't want to whiteliste their recipients.
+only_domain - Only whitelist mails coming from this domain.
+mailserver - Our mailserver, either postfix or exim.
+lifetime - The lifetime of the awl entries in the db in days.
+logfile - The logfile to parse.
+whitelist - Where to write the whitelist to.
+
+=head1 DEPENDENCIES
+
+VBoxAdm::Utils, DBI.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut

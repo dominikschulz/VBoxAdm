@@ -1,4 +1,4 @@
 ### access_recipient-rfc ###
-# Allow RFC2142 Accounts                                                                                                                                                
-postmaster@             OK                                                                                                                                              
-abuse@                  OK
+# Allow RFC2142 Accounts
+postmaster@             permit_auth_destination
+abuse@                  permit_auth_destination

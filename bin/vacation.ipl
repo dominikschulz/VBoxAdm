@@ -5,9 +5,9 @@ use warnings;
 use DBI;
 use Getopt::Long;
 use Config::Std;
-
 use Sys::Syslog;
 
+use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
 my $db_host = 'localhost';
@@ -242,17 +242,13 @@ if ( $header{'msg-id'} ) {
 
 # if all these preconditions succeed:
 my $dsn = "DBI:mysql:host=$db_host;database=$db_db;port=$db_port;user=$db_user;password=$db_pass";
-my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 0, PrintError => 0, } );
+my $dbh = &VBoxAdm::DB::connect($dsn);
 
 if ( !$dbh ) {
     syslog( 2, 'Could not connect to database with DSN %s - From: %s - To: %s - Exiting', $dsn, $config{'sender'}, $config{'recipient'} );
     closelog();
     die("Could not connect to database with DSN $dsn");
 }
-
-# Talk UTF-8 to the database
-# Prepare DB connection for utf8
-$dbh->do("SET NAMES utf8");
 
 # check vacation_blacklist which lists senders (or parts thereof) which are never notified although they pass the tests above
 if ( &is_blacklisted( $dbh, $config{'sender'} ) ) {
@@ -300,10 +296,7 @@ sub is_blacklisted {
 
     # check vacation_blacklist which lists senders (or parts thereof) which are never notified although they pass the tests above
     my $query = "SELECT COUNT(*) FROM vacation_blacklist WHERE domain = ? AND local_part = ?";
-    my $sth   = $dbh->prepare($query);
-
-    # make exact query
-    $sth->execute( $domain, $local_part );
+    my $sth   = &VBoxAdm::DB::prepexec( $dbh, $query, $domain, $local_part );
     my $count = $sth->fetchrow_array();
 
     # add wildcard query count
@@ -320,9 +313,9 @@ sub is_on_vacation {
     my $query = "SELECT COUNT(*) FROM mailboxes AS ma LEFT JOIN domains AS d ON ma.domain_id = d.id ";
     $query .= "WHERE is_on_vacation AND CONCAT(ma.local_part,'\@',d.name) = ? ";
     $query .= "AND (ma.vacation_start = '0000-00-00' OR NOW() >= ma.vacation_start) AND (ma.vacation_end = '0000-00-00' OR ma.vacation_end <= NOW())";
-    my $sth = $dbh->prepare($query);
-    $sth->execute($recipient);
+    my $sth = &VBoxAdm::DB::prepexec( $dbh, $query, $recipient );
     my $count = $sth->fetchrow_array();
+
     $sth->finish();
     return $count;
 }
@@ -337,7 +330,7 @@ sub check_recipient {
 
     foreach my $hdr (qw(to cc bcc resent-to resent-cc resent-bcc)) {
         if ( $header{$hdr} ) {
-            foreach my $dest ( VBoxAdm::Utils::extract_recipients( $header{$hdr} ) ) {
+            foreach my $dest ( &VBoxAdm::Utils::extract_recipients( $header{$hdr} ) ) {
                 print "check_recipient - $recipient - $dest\n";
                 if ( $recipient =~ m/^$dest$/i ) {
                     return 1;
@@ -457,7 +450,7 @@ In-Reply-To, et. al.).
 =head1 CONFIGURATION AND ENVIRONMENT
 
 The configuration file should be place either in /etc/vboxadm.conf or
-in /etc/postfix/vboxadm.conf. This is a common configuration file
+in /etc/vboxadm/vboxadm.conf. This is a common configuration file
 for the whole suite of VBoxAdm applications. Each part of this suite
 has its own section in the config file and all use the values
 from the default section when appropriate.
@@ -493,11 +486,6 @@ Patches are welcome.
 Dominik Schulz (dominik.schulz@gauner.org)
 
 =head1 LICENCE AND COPYRIGHT
-
-This implementation was previously based on smtpproxy but switched to
-Net::Server::PreFork later. Large parts of this code are based on the ideas
-of SpamPD, which is itself based on smtpprox, but all code,
-except MSDW::SMTP::*, was written by myself.
 
 Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
 
