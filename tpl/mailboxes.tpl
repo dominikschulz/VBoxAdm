@@ -68,6 +68,6 @@
 		[% END %]
 		[% END %]
 		<br />
-		<a href="[% base_url %]?rm=create_mailbox"><img src="/icons/fffsilk/add.png" border="0" /> [% "Add Mailbox" | l10n %]</a>
+		<a href="[% base_url %]?rm=create_mailbox"><img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" /> [% "Add Mailbox" | l10n %]</a>
     </div>
 [% INCLUDE footer.tpl %]
