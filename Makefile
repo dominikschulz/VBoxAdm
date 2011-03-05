@@ -163,7 +163,7 @@ real-install: all test man rcvboxadm
 	$(INSTALL_DATA) doc/man/VBoxAdm::SMTP::Server.8 $(MANDIR)/man8/VBoxAdm::SMTP::Server.8
 	$(INSTALL_PROGRAM) bin/mailarchive.pl $(VBOXLIBDIR)/bin/mailarchive
 	$(INSTALL_PROGRAM) bin/vacation.pl $(VBOXLIBDIR)/bin/vacation
-	$(INSTALL_PROGRAM) bin/smtpproxy.pl $(SBINDIR)/vboxadm-smtpproxy
+	$(INSTALL_PROGRAM) bin/smtpproxy.pl $(SBINDIR)/vboxadm-sa
 	$(INSTALL_PROGRAM) cgi-bin/vboxadm.pl $(VHDIR)/cgi-bin/vboxadm.pl
 	$(INSTALL_PROGRAM) cgi-bin/vboxadm.fcgi $(VHDIR)/cgi-bin/vboxadm.fcgi
 	$(INSTALL_PROGRAM) cron/cleanup.pl $(VBOXLIBDIR)/bin/cleanup

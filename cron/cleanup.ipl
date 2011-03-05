@@ -71,12 +71,33 @@ if ( !$dbh ) {
 &clean_awl( $dbh, \%config );
 
 $dbh->disconnect();
+
+# TODO reconnect to db using the mailarchive credentials
+
+&create_archive_tables( $dbh, \%config );
+&optimize_archive_tables( $dbh, \%config );
+&expire_archive_tables( $dbh, \%config );
+
 closelog();
 exit 0;
 
 ###########################################################################
 # Subs
 ###########################################################################
+sub optimize_archive_tables {
+    my $dbh    = shift;
+    my $config = shift;
+
+    # TODO optimize all archiv tables no longer in use
+}
+
+sub expire_archive_table {
+    my $dbh    = shift;
+    my $config = shift;
+
+    # TODO delete archive tables which are expired
+}
+
 sub purge_mailboxes {
 
     # - remove deleted mailboxes
@@ -138,6 +159,45 @@ sub purge_mailboxes {
     }
 
     return 1;
+}
+
+sub create_archive_tables {
+    my $dbh    = shift;
+    my $config = shift;
+
+    # holdback time in years
+    my $holdback_years = $config->{'mailarchive'}{'holdback'} || 10;
+    my ( $sec, $min, $hour, $dom, $mon, $year, $wday, $yday, $isdst ) = localtime(time);
+    $year += 1900;
+    $mon++;
+
+    my $dbdb = $config->{'mailarchive'}{'dbdb'} || $config->{'default'}{'dbdb'};
+    my $table = 'archiv_' . ( $year + 1 ) . '_';
+
+    # We always make sure to create the tables for the next year
+    my $query = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME LIKE ?";
+    my $sth   = &VBoxAdm::DB::prepexec( $dbh, $query, $dbdb, $table );
+    my $count = $sth->fetchrow_array();
+    $sth->finish();
+
+    if ( $config->{'mailarchive'}{'rotate'} eq 'monthly' ) {
+
+        # TODO create monthly tables
+
+=begin sql
+CREATE TABLE IF NOT EXISTS `archive_YYYY_MM` (
+  `id` bigint(64) NOT NULL AUTO_INCREMENT,
+  `body` text NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=ARCHIVE DEFAULT CHARSET=utf8;
+TODO add cols for checksum and signature
+=cut
+
+    }
+    else {
+
+        # TODO create yearly tables
+    }
 }
 
 sub clean_vacation {

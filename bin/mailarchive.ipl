@@ -47,11 +47,11 @@ foreach my $loc (@conffile_locations) {
     }
 }
 
-$db_host = $config{'default'}{'dbhost'} || $db_host;
-$db_user = $config{'default'}{'dbuser'} || $db_user;
-$db_pass = $config{'default'}{'dbpass'} || $db_pass;
-$db_port = $config{'default'}{'dbport'} || $db_port;
-$db_db   = $config{'default'}{'dbdb'}   || $db_db;
+$db_host = $config{'mailarchive'}{'dbhost'} || $config{'default'}{'dbhost'} || $db_host;
+$db_user = $config{'mailarchive'}{'dbuser'} || $config{'default'}{'dbuser'} || $db_user;
+$db_pass = $config{'mailarchive'}{'dbpass'} || $config{'default'}{'dbpass'} || $db_pass;
+$db_port = $config{'mailarchive'}{'dbport'} || $config{'default'}{'dbport'} || $db_port;
+$db_db   = $config{'mailarchive'}{'dbdb'}   || $config{'default'}{'dbdb'}   || $db_db;
 
 # Check options
 die("No sender given on command line!")    if !$config{'sender'};
@@ -70,8 +70,10 @@ my %status = ();
 my $digest    = Digest::SHA->new(256);
 my $in_header = 1;
 
+my $body = '';
 while ( my $line = <STDIN> ) {
     $digest->add($line);
+    $body .= $line;
     $line =~ /^$/ and $in_header = 0;
     if ($in_header) {
         $line =~ /^From:\s+(.*)$/i                  and $header{'from'}              = $1;
@@ -110,6 +112,13 @@ my $checksum = $digest->hexdigest();
 #    closelog();
 #    die("Could not connect to database with DSN $dsn");
 #}
+
+# TODO add cols for checksum and signature
+# my $query = "INSERT DELAYED INTO archive_YYYY_MM (body) VALUES(?);
+# my $sth = &VBoxAdm::DB::prepexec($dbh, $query, $body);
+# $sth->finish;
+
+# TODO write metadata and log
 
 closelog();
 

@@ -92,8 +92,7 @@ sub child_init_hook {
     my $self = shift;
 
     # setup my env
-    my ( $name, $passwd, $uid, $gid, $quota, $comment, $gcos, $dir, $shell, $expire ) = getpwuid($>);
-    $ENV{'HOME'} = $dir;
+    $ENV{'HOME'} = ( getpwuid($>) )[7];
 
     $self->db_connect();
     $self->prepare_queries();
