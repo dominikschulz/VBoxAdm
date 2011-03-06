@@ -613,10 +613,10 @@ sub is_superadmin {
 }
 
 ############################################
-# Usage      :
-# Purpose    :
-# Returns    :
-# Parameters :
+# Usage      : $self->get_user_details();
+# Purpose    : Prefill the session with the essential information about this user.
+# Returns    : Mailbox-ID, Domain-ID, Superadmin- and Domainadmin- Flag.
+# Parameters : n/a (taken from session/auth-obj.)
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
@@ -645,7 +645,7 @@ sub get_user_details {
 
 ############################################
 # Usage      :
-# Purpose    :
+# Purpose    : Get the domain id of the currently logged in user.
 # Returns    :
 # Parameters :
 # Throws     : no exceptions
@@ -665,7 +665,7 @@ sub get_users_domainid {
 
 ############################################
 # Usage      :
-# Purpose    :
+# Purpose    : Get the mailbox id of the currently logged in user.
 # Returns    :
 # Parameters :
 # Throws     : no exceptions
@@ -685,7 +685,7 @@ sub get_users_mailboxid {
 
 ############################################
 # Usage      :
-# Purpose    :
+# Purpose    : Return the domain name to a given domain id.
 # Returns    :
 # Parameters :
 # Throws     : no exceptions
@@ -801,6 +801,7 @@ sub show_welcome {
 #
 # Broadcast
 #
+# Show the broadcast form
 sub show_broadcast {
     my $self = shift;
 
@@ -830,6 +831,7 @@ sub show_broadcast {
     return $self->tt_process( 'broadcast.tpl', \%params );
 }
 
+# Send the broadcast message and show confirmation page
 sub show_send_broadcast {
     my $self = shift;
 

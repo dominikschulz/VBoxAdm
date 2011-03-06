@@ -79,30 +79,30 @@ openlog( 'vboxadm-vacation', 'ndelay,nofatal', 'mail' );
 my %header = ();
 my %status = ();
 
-while (<STDIN>) {
-    last if (/^$/); # end of header, skip the body
-    /^From:\s+(.*)$/i                  and $header{'from'}              = $1;
-    /^To:\s+(.*)$/i                    and $header{'to'}                = $1;
-    /^CC:\s+(.*)$/i                    and $header{'cc'}                = $1;
-    /^Bcc:\s+(.*)$/i                   and $header{'bcc'}               = $1;
-    /^Resent-To:\s+(.*)$/i             and $header{'resent-to'}         = $1;
-    /^Resent-CC:\s+(.*)$/i             and $header{'resent-cc'}         = $1;
-    /^Resent-Bcc:\s+(.*)$/i            and $header{'resent-bcc'}        = $1;
-    /^Reply-to:\s+(.*)$/i              and $header{'reply-to'}          = $1;
-    /^Subject:\s+(.*)$/i               and $header{'subject'}           = $1;
-    /^Return-Path:\s+<?([^>]+)>?$/i    and $header{'return-path'}       = $1;
-    /^Auto-Submitted:\s+(.*)$/i        and $header{'auto-submitted'}    = lc($1);
-    /^X-Loop:\s+VBoxAdm-Vacation\s+$/i and $status{'is-loop'}           = 1;
-    /^List-.*:/i                       and $status{'is-list'}           = 1;
-    /^Message-Id:\s+<([^>]+)>/i        and $header{'msg-id'}            = $1;
-    /^X-Spam-(Flag|Status):\s+YES/i    and $header{'x-spam-status'}     = 1 and $status{'is-spam'} = 1;
-    /^X-Facebook-Notify:/i             and $header{'x-facebook-notify'} = 1;
-    /^Precedence:\s+(bulk|list|junk)/i and $header{'precedence'}        = $1;
-    /^(X-(Barracuda-)?Spam-Status):\s+(Yes)/i                        and $header{$1} = $3 and $status{'is-spam'} = 1;
-    /^(X-Dspam-Result):\s+(spam|bl[ao]cklisted)/i                    and $header{$1} = $3 and $status{'is-spam'} = 1;
-    /^(X-(Anti|Avas-)?virus-status):\s+(infected)/i                  and $header{$1} = $3 and $status{'is-spam'} = 1;
-    /^(X-(Avas-spam|Spamtest|CRM114|Razor|Pyzor)-status):\s+(Spam)/i and $header{$1} = $3 and $status{'is-spam'} = 1;
-    /^(X-OSBF-LUA-Score):\s+[0-9\/\.\-\+]+\s+\[([-S])\]/i            and $header{$1} = $3 and $status{'is-spam'} = 1;
+while ( my $line = <> ) {
+    last if ( $line =~ /^$/ );    # end of header, skip the body
+    $line =~ /^From:\s+(.*)$/i                  and $header{'from'}              = $1;
+    $line =~ /^To:\s+(.*)$/i                    and $header{'to'}                = $1;
+    $line =~ /^CC:\s+(.*)$/i                    and $header{'cc'}                = $1;
+    $line =~ /^Bcc:\s+(.*)$/i                   and $header{'bcc'}               = $1;
+    $line =~ /^Resent-To:\s+(.*)$/i             and $header{'resent-to'}         = $1;
+    $line =~ /^Resent-CC:\s+(.*)$/i             and $header{'resent-cc'}         = $1;
+    $line =~ /^Resent-Bcc:\s+(.*)$/i            and $header{'resent-bcc'}        = $1;
+    $line =~ /^Reply-to:\s+(.*)$/i              and $header{'reply-to'}          = $1;
+    $line =~ /^Subject:\s+(.*)$/i               and $header{'subject'}           = $1;
+    $line =~ /^Return-Path:\s+<?([^>]+)>?$/i    and $header{'return-path'}       = $1;
+    $line =~ /^Auto-Submitted:\s+(.*)$/i        and $header{'auto-submitted'}    = lc($1);
+    $line =~ /^X-Loop:\s+VBoxAdm-Vacation\s+$/i and $status{'is-loop'}           = 1;
+    $line =~ /^List-.*:/i                       and $status{'is-list'}           = 1;
+    $line =~ /^Message-Id:\s+<([^>]+)>/i        and $header{'msg-id'}            = $1;
+    $line =~ /^X-Spam-(Flag|Status):\s+YES/i    and $header{'x-spam-status'}     = 1 and $status{'is-spam'} = 1;
+    $line =~ /^X-Facebook-Notify:/i             and $header{'x-facebook-notify'} = 1;
+    $line =~ /^Precedence:\s+(bulk|list|junk)/i and $header{'precedence'}        = $1;
+    $line =~ /^(X-(Barracuda-)?Spam-Status):\s+(Yes)/i                        and $header{$1} = $3 and $status{'is-spam'} = 1;
+    $line =~ /^(X-Dspam-Result):\s+(spam|bl[ao]cklisted)/i                    and $header{$1} = $3 and $status{'is-spam'} = 1;
+    $line =~ /^(X-(Anti|Avas-)?virus-status):\s+(infected)/i                  and $header{$1} = $3 and $status{'is-spam'} = 1;
+    $line =~ /^(X-(Avas-spam|Spamtest|CRM114|Razor|Pyzor)-status):\s+(Spam)/i and $header{$1} = $3 and $status{'is-spam'} = 1;
+    $line =~ /^(X-OSBF-LUA-Score):\s+[0-9\/\.\-\+]+\s+\[([-S])\]/i            and $header{$1} = $3 and $status{'is-spam'} = 1;
 }
 
 ###
@@ -325,9 +325,10 @@ sub is_on_vacation {
     my $dbh       = shift;
     my $recipient = shift;
 
-		# if the user is not found or not on vacation count will be zero which is false wrt. to perl
+    # if the user is not found or not on vacation count will be zero which is false wrt. to perl
     my $query = "SELECT COUNT(*) FROM mailboxes AS ma LEFT JOIN domains AS d ON ma.domain_id = d.id ";
     $query .= "WHERE is_on_vacation AND CONCAT(ma.local_part,'\@',d.name) = ? ";
+
     # this part of the where clause covers a) infinite vacations, b) finite vacations w/ a lower bound and no upper bound and c)
     # finite vacations w/ a lower and upper bound
     $query .= "AND (ma.vacation_start = '0000-00-00' OR NOW() >= ma.vacation_start) AND (ma.vacation_end = '0000-00-00' OR ma.vacation_end <= NOW())";
@@ -355,10 +356,11 @@ sub check_recipient {
 
     my $found_recipient = 0;
 
-		# Check each header in question ...
+    # Check each header in question ...
     foreach my $hdr (qw(to cc bcc resent-to resent-cc resent-bcc)) {
         if ( $header{$hdr} ) {
-        	  # Each header may consist of several recipients, so unfold it first ...
+
+            # Each header may consist of several recipients, so unfold it first ...
             foreach my $dest ( &VBoxAdm::Utils::extract_recipients( $header{$hdr} ) ) {
                 if ( $recipient =~ m/^$dest$/i ) {
                     return 1;

@@ -71,7 +71,7 @@ my $digest    = Digest::SHA->new(256);
 my $in_header = 1;
 
 my $body = '';
-while ( my $line = <STDIN> ) {
+while ( my $line = <> ) {
     $digest->add($line);
     $body .= $line;
     $line =~ /^$/ and $in_header = 0;

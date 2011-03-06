@@ -287,6 +287,7 @@ dist-major: test-all git
 
 critic:
 	$(PERLCRITIC) --stern bin/
+	$(PERLCRITIC) --stern lib/
 
 test: all
 	rm -rf .pc/
