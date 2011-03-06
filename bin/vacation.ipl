@@ -75,11 +75,12 @@ openlog( 'vboxadm-vacation', 'ndelay,nofatal', 'mail' );
 ###
 # Parse incoming mail
 ###
+# Extract the interesting header values and abort processing when the header ends.
 my %header = ();
 my %status = ();
 
 while (<STDIN>) {
-    last if (/^$/);
+    last if (/^$/); # end of header, skip the body
     /^From:\s+(.*)$/i                  and $header{'from'}              = $1;
     /^To:\s+(.*)$/i                    and $header{'to'}                = $1;
     /^CC:\s+(.*)$/i                    and $header{'cc'}                = $1;
@@ -288,13 +289,20 @@ exit 0;
 ###########################################################################
 # Subs
 ###########################################################################
+# Usage      : my $status = &is_blacklisted($dbh, 'user@domain.tld');
+# Purpose    : Determine if this use should not get an reply.
+# Returns    : Returns true if this user is blacklisted.
+# Parameters : DBH and an email address.
+# Throws     : n/a
+# Comments   : This sub could be refactored to an Vacation module.
+# See Also   : n/a
 sub is_blacklisted {
     my $dbh    = shift;
     my $sender = shift;
 
     my ( $local_part, $domain ) = split /@/, $sender;
 
-    # check vacation_blacklist which lists senders (or parts thereof) which are never notified although they pass the tests above
+    # check vacation_blacklist which lists senders (or parts thereof) which are never notified although they pass the other tests before
     my $query = "SELECT COUNT(*) FROM vacation_blacklist WHERE domain = ? AND local_part = ?";
     my $sth   = &VBoxAdm::DB::prepexec( $dbh, $query, $domain, $local_part );
     my $count = $sth->fetchrow_array();
@@ -305,13 +313,23 @@ sub is_blacklisted {
     $sth->finish();
     return $count;
 }
-
+############################################
+# Usage      : my $status = &is_on_vacation($dbh, 'user@domain.tld');
+# Purpose    : Determine if a local user is on vacation.
+# Returns    : True if the user is question is known and on vacation.
+# Parameters : DBH and an email address of a local user.
+# Throws     : n/a
+# Comments   : This sub could be refactored to an User module.
+# See Also   : n/a
 sub is_on_vacation {
     my $dbh       = shift;
     my $recipient = shift;
 
+		# if the user is not found or not on vacation count will be zero which is false wrt. to perl
     my $query = "SELECT COUNT(*) FROM mailboxes AS ma LEFT JOIN domains AS d ON ma.domain_id = d.id ";
     $query .= "WHERE is_on_vacation AND CONCAT(ma.local_part,'\@',d.name) = ? ";
+    # this part of the where clause covers a) infinite vacations, b) finite vacations w/ a lower bound and no upper bound and c)
+    # finite vacations w/ a lower and upper bound
     $query .= "AND (ma.vacation_start = '0000-00-00' OR NOW() >= ma.vacation_start) AND (ma.vacation_end = '0000-00-00' OR ma.vacation_end <= NOW())";
     my $sth = &VBoxAdm::DB::prepexec( $dbh, $query, $recipient );
     my $count = $sth->fetchrow_array();
@@ -319,7 +337,16 @@ sub is_on_vacation {
     $sth->finish();
     return $count;
 }
-
+############################################
+# Usage      : my $status = &check_recipient('user@domain.tld', $header_ref);
+# Purpose    : Determine if the message we really adressed to this mailbox, i.e. do
+# not send replies to shady alias redirections et. al.
+# Returns    : True if the recipient is contained within one of the following headers:
+# To, CC, BCC, Resent-To, Resent-CC or Resent-BCC
+# Parameters : Recipient and reference to Header hash
+# Throws     : n/a
+# Comments   : This sub could be refactored to a Vacation/utility module.
+# See Also   : n/a
 sub check_recipient {
 
     # recipient address must be contained in either: to, cc, bcc, resent-to, resent-cc or resent-bcc
@@ -328,10 +355,11 @@ sub check_recipient {
 
     my $found_recipient = 0;
 
+		# Check each header in question ...
     foreach my $hdr (qw(to cc bcc resent-to resent-cc resent-bcc)) {
         if ( $header{$hdr} ) {
+        	  # Each header may consist of several recipients, so unfold it first ...
             foreach my $dest ( &VBoxAdm::Utils::extract_recipients( $header{$hdr} ) ) {
-                print "check_recipient - $recipient - $dest\n";
                 if ( $recipient =~ m/^$dest$/i ) {
                     return 1;
                 }
@@ -341,7 +369,15 @@ sub check_recipient {
 
     return;
 }
-
+############################################
+# Usage      : my $real_recipient = &unroll_recipient('user#domain.tld@autoreply.domain.tld');
+# Purpose    : Extract the real recipient from a 'rolled' recipient which includes the pseudo-domain
+# for the vacation transport.
+# Returns    : The recipient w/o the vacation domain if it could be unrolled.
+# Parameters : The rolled recipient.
+# Throws     : n/a
+# Comments   : n/a
+# See Also   : n/a
 sub unroll_recipient {
     my $rolled = shift;
 
@@ -354,7 +390,14 @@ sub unroll_recipient {
 
     return;
 }
-
+############################################
+# Usage      : my $status = &already_notified($dbh, $recipient, $sender, $interval);
+# Purpose    : Determine if this sender was already notified for this recipient.
+# Returns    : True if we did already send a notification within the interval.
+# Parameters : DBH, (local) recipient, (remote) sender and the re-notification interval.
+# Throws     : n/a
+# Comments   : n/a
+# See Also   : n/a
 sub already_notified {
     my $dbh             = shift;
     my $to              = shift;
@@ -383,7 +426,14 @@ sub already_notified {
         return 1;
     }
 }
-
+############################################
+# Usage      : &send_vacation_mail($dbh, $recipient, $header_ref)
+# Purpose    : Send a vacation mail to the given recipient (the former sender ;( )
+# Returns    : True if the mail could be sent.
+# Parameters : DBH, Recipient of the notification and the header hashref.
+# Throws     : n/a
+# Comments   : n/a
+# See Also   : n/a
 sub send_vacation_mail {
     my $dbh        = shift;
     my $recipient  = shift;
@@ -426,7 +476,7 @@ __END__
 
 =head1 NAME
 
-vacation - Vacation replies for VBoxAdm
+vacation - Vacation autoresponder for VBoxAdm
 
 =head1 VERSION
 

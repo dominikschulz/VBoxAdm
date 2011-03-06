@@ -30,7 +30,6 @@
   <script src="[% media_prefix %]/js/sorttable.js"></script>
   <!-- end concatenated and minified scripts-->
   
-  
   <!--[if lt IE 7 ]>
     <script src="[% media_prefix %]/js/libs/dd_belatedpng.js"></script>
     <script> DD_belatedPNG.fix('img, .png_bg'); //fix any <img> or .png_bg background-images </script>

@@ -134,7 +134,7 @@ my $server = bless {
         log_file        => 'Sys::Syslog',
         log_level       => $nsloglevel,
         syslog_logsock  => $logsock,
-        syslog_ident    => 'vboxadm-smtpproxy',
+        syslog_ident    => 'vboxadm-sa',
         syslog_facility => 'mail',
 
         # Misc
