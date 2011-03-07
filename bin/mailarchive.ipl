@@ -11,7 +11,14 @@ which would eliminate the need to spawn a new perl process for every mail
 - after mail is retrieved it is automatically signed
 - these signatures are re-signed/re-newed every n days/weeks/months
 - it aims to be compliant with the (german) law requiring business entities to
-store exact copy of so-called "geschäftsbriefe" (business mail)
+store exact copy of business mail
+- SQL Schema:
+-- one table for mails, per month/year: archive_body_YYYY_MM (id, blob, checksum)
+-- one table for signature: archive_sign_YYYY_MM (id, blob), i.e. signatures are not calculated "live", rather by a cron
+-- one table for meta-data and searching: archive_metadata (id, tbl, tbl_id, from, to, ...)
+-- maybe a full-text index
+- see http://de.wikipedia.org/wiki/E-Mail-Archivierung
+- see http://search.cpan.org/~frajulac/GnuPG-0.09/GnuPG.pm
 =cut
 
 use DBI;
