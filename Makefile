@@ -25,7 +25,7 @@ PROVE = /usr/bin/prove -l
 
 # some variables
 NAME = vboxadm
-VERSION = 0.0.37
+VERSION = 0.0.38
 BUILDDATE = $(shell date +%Y-%m-%d)
 
 # Directories
@@ -39,6 +39,7 @@ VHDIR=$(DESTDIR)/var/lib/vboxadm
 
 # Files
 BINFILES = \
+	bin/mailarchive.pl \
 	bin/vacation.pl \
 	bin/smtpproxy.pl \
 	cgi-bin/vboxadm.pl \
@@ -160,8 +161,9 @@ real-install: all test man rcvboxadm
 	$(INSTALL_DATA) doc/man/VBoxAdm::Utils.8 $(MANDIR)/man8/VBoxAdm::Utils.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::SMTP::Client.8 $(MANDIR)/man8/VBoxAdm::SMTP::Client.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::SMTP::Server.8 $(MANDIR)/man8/VBoxAdm::SMTP::Server.8
+	$(INSTALL_PROGRAM) bin/mailarchive.pl $(VBOXLIBDIR)/bin/mailarchive
 	$(INSTALL_PROGRAM) bin/vacation.pl $(VBOXLIBDIR)/bin/vacation
-	$(INSTALL_PROGRAM) bin/smtpproxy.pl $(SBINDIR)/vboxadm-smtpproxy
+	$(INSTALL_PROGRAM) bin/smtpproxy.pl $(SBINDIR)/vboxadm-sa
 	$(INSTALL_PROGRAM) cgi-bin/vboxadm.pl $(VHDIR)/cgi-bin/vboxadm.pl
 	$(INSTALL_PROGRAM) cgi-bin/vboxadm.fcgi $(VHDIR)/cgi-bin/vboxadm.fcgi
 	$(INSTALL_PROGRAM) cron/cleanup.pl $(VBOXLIBDIR)/bin/cleanup
@@ -255,7 +257,7 @@ rcvboxadm:
 git: tidy all clean
 	$(GIT) status
 	$(GIT) diff
-	$(GIT) commit -a || true
+	$(GIT) commit -a -s || true
 	$(GIT) push origin
 	test -d /projects/ && $(GIT) push projects || true
 
@@ -285,6 +287,7 @@ dist-major: test-all git
 
 critic:
 	$(PERLCRITIC) --stern bin/
+	$(PERLCRITIC) --stern lib/
 
 test: all
 	rm -rf .pc/

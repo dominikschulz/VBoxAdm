@@ -408,7 +408,63 @@ This module offers various password generation methods for the VBoxAdm suite.
 
 =head1 SUBROUTINES/METHODS
 
+=head2 cram_md5
+
+TODO
+
 =head2 ldap_md5
+
+TODO
+
+=head2 make_pass
+
+TODO
+
+=head2 make_salt
+
+TODO
+
+=head2 pad_base64
+
+TODO
+
+=head2 plain_md5
+
+TODO
+
+=head2 sha
+
+TODO
+
+=head2 sha256
+
+TODO
+
+=head2 sha512
+
+TODO
+
+=head2 smd5
+
+TODO
+
+=head2 split_pass
+
+TODO
+
+=head2 ssha
+
+TODO
+
+=head2 ssha256
+
+TODO
+
+=head2 ssha512
+
+TODO
+
+=head2 verify_pass
 
 TODO
 

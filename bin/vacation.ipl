@@ -5,9 +5,9 @@ use warnings;
 use DBI;
 use Getopt::Long;
 use Config::Std;
-
 use Sys::Syslog;
 
+use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
 my $db_host = 'localhost';
@@ -75,33 +75,34 @@ openlog( 'vboxadm-vacation', 'ndelay,nofatal', 'mail' );
 ###
 # Parse incoming mail
 ###
+# Extract the interesting header values and abort processing when the header ends.
 my %header = ();
 my %status = ();
 
-while (<STDIN>) {
-    last if (/^$/);
-    /^From:\s+(.*)$/i                  and $header{'from'}              = $1;
-    /^To:\s+(.*)$/i                    and $header{'to'}                = $1;
-    /^CC:\s+(.*)$/i                    and $header{'cc'}                = $1;
-    /^Bcc:\s+(.*)$/i                   and $header{'bcc'}               = $1;
-    /^Resent-To:\s+(.*)$/i             and $header{'resent-to'}         = $1;
-    /^Resent-CC:\s+(.*)$/i             and $header{'resent-cc'}         = $1;
-    /^Resent-Bcc:\s+(.*)$/i            and $header{'resent-bcc'}        = $1;
-    /^Reply-to:\s+(.*)$/i              and $header{'reply-to'}          = $1;
-    /^Subject:\s+(.*)$/i               and $header{'subject'}           = $1;
-    /^Return-Path:\s+<?([^>]+)>?$/i    and $header{'return-path'}       = $1;
-    /^Auto-Submitted:\s+(.*)$/i        and $header{'auto-submitted'}    = lc($1);
-    /^X-Loop:\s+VBoxAdm-Vacation\s+$/i and $status{'is-loop'}           = 1;
-    /^List-.*:/i                       and $status{'is-list'}           = 1;
-    /^Message-Id:\s+<([^>]+)>/i        and $header{'msg-id'}            = $1;
-    /^X-Spam-(Flag|Status):\s+YES/i    and $header{'x-spam-status'}     = 1 and $status{'is-spam'} = 1;
-    /^X-Facebook-Notify:/i             and $header{'x-facebook-notify'} = 1;
-    /^Precedence:\s+(bulk|list|junk)/i and $header{'precedence'}        = $1;
-    /^(X-(Barracuda-)?Spam-Status):\s+(Yes)/i                        and $header{$1} = $3 and $status{'is-spam'} = 1;
-    /^(X-Dspam-Result):\s+(spam|bl[ao]cklisted)/i                    and $header{$1} = $3 and $status{'is-spam'} = 1;
-    /^(X-(Anti|Avas-)?virus-status):\s+(infected)/i                  and $header{$1} = $3 and $status{'is-spam'} = 1;
-    /^(X-(Avas-spam|Spamtest|CRM114|Razor|Pyzor)-status):\s+(Spam)/i and $header{$1} = $3 and $status{'is-spam'} = 1;
-    /^(X-OSBF-LUA-Score):\s+[0-9\/\.\-\+]+\s+\[([-S])\]/i            and $header{$1} = $3 and $status{'is-spam'} = 1;
+while ( my $line = <> ) {
+    last if ( $line =~ /^$/ );    # end of header, skip the body
+    $line =~ /^From:\s+(.*)$/i                  and $header{'from'}              = $1;
+    $line =~ /^To:\s+(.*)$/i                    and $header{'to'}                = $1;
+    $line =~ /^CC:\s+(.*)$/i                    and $header{'cc'}                = $1;
+    $line =~ /^Bcc:\s+(.*)$/i                   and $header{'bcc'}               = $1;
+    $line =~ /^Resent-To:\s+(.*)$/i             and $header{'resent-to'}         = $1;
+    $line =~ /^Resent-CC:\s+(.*)$/i             and $header{'resent-cc'}         = $1;
+    $line =~ /^Resent-Bcc:\s+(.*)$/i            and $header{'resent-bcc'}        = $1;
+    $line =~ /^Reply-to:\s+(.*)$/i              and $header{'reply-to'}          = $1;
+    $line =~ /^Subject:\s+(.*)$/i               and $header{'subject'}           = $1;
+    $line =~ /^Return-Path:\s+<?([^>]+)>?$/i    and $header{'return-path'}       = $1;
+    $line =~ /^Auto-Submitted:\s+(.*)$/i        and $header{'auto-submitted'}    = lc($1);
+    $line =~ /^X-Loop:\s+VBoxAdm-Vacation\s+$/i and $status{'is-loop'}           = 1;
+    $line =~ /^List-.*:/i                       and $status{'is-list'}           = 1;
+    $line =~ /^Message-Id:\s+<([^>]+)>/i        and $header{'msg-id'}            = $1;
+    $line =~ /^X-Spam-(Flag|Status):\s+YES/i    and $header{'x-spam-status'}     = 1 and $status{'is-spam'} = 1;
+    $line =~ /^X-Facebook-Notify:/i             and $header{'x-facebook-notify'} = 1;
+    $line =~ /^Precedence:\s+(bulk|list|junk)/i and $header{'precedence'}        = $1;
+    $line =~ /^(X-(Barracuda-)?Spam-Status):\s+(Yes)/i                        and $header{$1} = $3 and $status{'is-spam'} = 1;
+    $line =~ /^(X-Dspam-Result):\s+(spam|bl[ao]cklisted)/i                    and $header{$1} = $3 and $status{'is-spam'} = 1;
+    $line =~ /^(X-(Anti|Avas-)?virus-status):\s+(infected)/i                  and $header{$1} = $3 and $status{'is-spam'} = 1;
+    $line =~ /^(X-(Avas-spam|Spamtest|CRM114|Razor|Pyzor)-status):\s+(Spam)/i and $header{$1} = $3 and $status{'is-spam'} = 1;
+    $line =~ /^(X-OSBF-LUA-Score):\s+[0-9\/\.\-\+]+\s+\[([-S])\]/i            and $header{$1} = $3 and $status{'is-spam'} = 1;
 }
 
 ###
@@ -242,17 +243,13 @@ if ( $header{'msg-id'} ) {
 
 # if all these preconditions succeed:
 my $dsn = "DBI:mysql:host=$db_host;database=$db_db;port=$db_port;user=$db_user;password=$db_pass";
-my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 0, PrintError => 0, } );
+my $dbh = &VBoxAdm::DB::connect($dsn);
 
 if ( !$dbh ) {
     syslog( 2, 'Could not connect to database with DSN %s - From: %s - To: %s - Exiting', $dsn, $config{'sender'}, $config{'recipient'} );
     closelog();
     die("Could not connect to database with DSN $dsn");
 }
-
-# Talk UTF-8 to the database
-# Prepare DB connection for utf8
-$dbh->do("SET NAMES utf8");
 
 # check vacation_blacklist which lists senders (or parts thereof) which are never notified although they pass the tests above
 if ( &is_blacklisted( $dbh, $config{'sender'} ) ) {
@@ -292,18 +289,22 @@ exit 0;
 ###########################################################################
 # Subs
 ###########################################################################
+# Usage      : my $status = &is_blacklisted($dbh, 'user@domain.tld');
+# Purpose    : Determine if this use should not get an reply.
+# Returns    : Returns true if this user is blacklisted.
+# Parameters : DBH and an email address.
+# Throws     : n/a
+# Comments   : This sub could be refactored to an Vacation module.
+# See Also   : n/a
 sub is_blacklisted {
     my $dbh    = shift;
     my $sender = shift;
 
     my ( $local_part, $domain ) = split /@/, $sender;
 
-    # check vacation_blacklist which lists senders (or parts thereof) which are never notified although they pass the tests above
+    # check vacation_blacklist which lists senders (or parts thereof) which are never notified although they pass the other tests before
     my $query = "SELECT COUNT(*) FROM vacation_blacklist WHERE domain = ? AND local_part = ?";
-    my $sth   = $dbh->prepare($query);
-
-    # make exact query
-    $sth->execute( $domain, $local_part );
+    my $sth   = &VBoxAdm::DB::prepexec( $dbh, $query, $domain, $local_part );
     my $count = $sth->fetchrow_array();
 
     # add wildcard query count
@@ -312,21 +313,41 @@ sub is_blacklisted {
     $sth->finish();
     return $count;
 }
-
+############################################
+# Usage      : my $status = &is_on_vacation($dbh, 'user@domain.tld');
+# Purpose    : Determine if a local user is on vacation.
+# Returns    : True if the user is question is known and on vacation.
+# Parameters : DBH and an email address of a local user.
+# Throws     : n/a
+# Comments   : This sub could be refactored to an User module.
+# See Also   : n/a
 sub is_on_vacation {
     my $dbh       = shift;
     my $recipient = shift;
 
+    # if the user is not found or not on vacation count will be zero which is false wrt. to perl
     my $query = "SELECT COUNT(*) FROM mailboxes AS ma LEFT JOIN domains AS d ON ma.domain_id = d.id ";
     $query .= "WHERE is_on_vacation AND CONCAT(ma.local_part,'\@',d.name) = ? ";
+
+    # this part of the where clause covers a) infinite vacations, b) finite vacations w/ a lower bound and no upper bound and c)
+    # finite vacations w/ a lower and upper bound
     $query .= "AND (ma.vacation_start = '0000-00-00' OR NOW() >= ma.vacation_start) AND (ma.vacation_end = '0000-00-00' OR ma.vacation_end <= NOW())";
-    my $sth = $dbh->prepare($query);
-    $sth->execute($recipient);
+    my $sth = &VBoxAdm::DB::prepexec( $dbh, $query, $recipient );
     my $count = $sth->fetchrow_array();
+
     $sth->finish();
     return $count;
 }
-
+############################################
+# Usage      : my $status = &check_recipient('user@domain.tld', $header_ref);
+# Purpose    : Determine if the message we really adressed to this mailbox, i.e. do
+# not send replies to shady alias redirections et. al.
+# Returns    : True if the recipient is contained within one of the following headers:
+# To, CC, BCC, Resent-To, Resent-CC or Resent-BCC
+# Parameters : Recipient and reference to Header hash
+# Throws     : n/a
+# Comments   : This sub could be refactored to a Vacation/utility module.
+# See Also   : n/a
 sub check_recipient {
 
     # recipient address must be contained in either: to, cc, bcc, resent-to, resent-cc or resent-bcc
@@ -335,10 +356,12 @@ sub check_recipient {
 
     my $found_recipient = 0;
 
+    # Check each header in question ...
     foreach my $hdr (qw(to cc bcc resent-to resent-cc resent-bcc)) {
         if ( $header{$hdr} ) {
-            foreach my $dest ( VBoxAdm::Utils::extract_recipients( $header{$hdr} ) ) {
-                print "check_recipient - $recipient - $dest\n";
+
+            # Each header may consist of several recipients, so unfold it first ...
+            foreach my $dest ( &VBoxAdm::Utils::extract_recipients( $header{$hdr} ) ) {
                 if ( $recipient =~ m/^$dest$/i ) {
                     return 1;
                 }
@@ -348,7 +371,15 @@ sub check_recipient {
 
     return;
 }
-
+############################################
+# Usage      : my $real_recipient = &unroll_recipient('user#domain.tld@autoreply.domain.tld');
+# Purpose    : Extract the real recipient from a 'rolled' recipient which includes the pseudo-domain
+# for the vacation transport.
+# Returns    : The recipient w/o the vacation domain if it could be unrolled.
+# Parameters : The rolled recipient.
+# Throws     : n/a
+# Comments   : n/a
+# See Also   : n/a
 sub unroll_recipient {
     my $rolled = shift;
 
@@ -361,7 +392,14 @@ sub unroll_recipient {
 
     return;
 }
-
+############################################
+# Usage      : my $status = &already_notified($dbh, $recipient, $sender, $interval);
+# Purpose    : Determine if this sender was already notified for this recipient.
+# Returns    : True if we did already send a notification within the interval.
+# Parameters : DBH, (local) recipient, (remote) sender and the re-notification interval.
+# Throws     : n/a
+# Comments   : n/a
+# See Also   : n/a
 sub already_notified {
     my $dbh             = shift;
     my $to              = shift;
@@ -390,7 +428,14 @@ sub already_notified {
         return 1;
     }
 }
-
+############################################
+# Usage      : &send_vacation_mail($dbh, $recipient, $header_ref)
+# Purpose    : Send a vacation mail to the given recipient (the former sender ;( )
+# Returns    : True if the mail could be sent.
+# Parameters : DBH, Recipient of the notification and the header hashref.
+# Throws     : n/a
+# Comments   : n/a
+# See Also   : n/a
 sub send_vacation_mail {
     my $dbh        = shift;
     my $recipient  = shift;
@@ -433,7 +478,7 @@ __END__
 
 =head1 NAME
 
-vacation - Vacation replies for VBoxAdm
+vacation - Vacation autoresponder for VBoxAdm
 
 =head1 VERSION
 
@@ -457,7 +502,7 @@ In-Reply-To, et. al.).
 =head1 CONFIGURATION AND ENVIRONMENT
 
 The configuration file should be place either in /etc/vboxadm.conf or
-in /etc/postfix/vboxadm.conf. This is a common configuration file
+in /etc/vboxadm/vboxadm.conf. This is a common configuration file
 for the whole suite of VBoxAdm applications. Each part of this suite
 has its own section in the config file and all use the values
 from the default section when appropriate.
@@ -493,11 +538,6 @@ Patches are welcome.
 Dominik Schulz (dominik.schulz@gauner.org)
 
 =head1 LICENCE AND COPYRIGHT
-
-This implementation was previously based on smtpproxy but switched to
-Net::Server::PreFork later. Large parts of this code are based on the ideas
-of SpamPD, which is itself based on smtpprox, but all code,
-except MSDW::SMTP::*, was written by myself.
 
 Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
 

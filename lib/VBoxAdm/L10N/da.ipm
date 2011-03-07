@@ -1,4 +1,6 @@
 package VBoxAdm::L10N::da;
+use strict;
+use warnings;
 use utf8;
 use base qw(VBoxAdm::L10N);
 

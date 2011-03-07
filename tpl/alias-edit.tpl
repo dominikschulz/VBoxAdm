@@ -31,7 +31,7 @@
 			<tr>
 				<td colspan="2" align="center">
 					<button class="button" type="submit" name="submit">
-					<img src="/icons/fffsilk/accept.png" border="0" />
+					<img src="[% media_prefix %]/icons/fffsilk/accept.png" border="0" />
 					[% "Modify Alias" | l10n %]
 					</button>
 				</td>

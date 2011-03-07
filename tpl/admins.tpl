@@ -18,7 +18,7 @@
 		[% END %]
 			<tr>
 				<td>
-					<a href="vboxadm.pl?rm=edit_mailbox&mailbox_id=[% line.id %]">[% line.local_part %]@[% line.domain %]</a>
+					<a href="[% base_url %]?rm=edit_mailbox&mailbox_id=[% line.id %]">[% line.local_part %]@[% line.domain %]</a>
 				</td>
 				<td>
 					[% IF line.is_active == 1 %]
@@ -42,10 +42,10 @@
 					[% END %]
 				</td>
 				<td>
-					<a href="vboxadm.pl?rm=edit_mailbox&mailbox_id=[% line.id %]">[% "edit" | l10n %]</a>
+					<a href="[% base_url %]?rm=edit_mailbox&mailbox_id=[% line.id %]">[% "edit" | l10n %]</a>
 				</td>
 				<td>
-					<a onClick="if(confirm('Do you really want to delete the Account [% line.local_part %]@[% line.domain %]?')) return true; else return false;" href="vboxadm.pl?rm=remove_mailbox&mailbox_id=[% line.id %]">[% "del" | l10n %]</a>
+					<a onClick="if(confirm('Do you really want to delete the Account [% line.local_part %]@[% line.domain %]?')) return true; else return false;" href="[% base_url %]?rm=remove_mailbox&mailbox_id=[% line.id %]">[% "del" | l10n %]</a>
 				</td>
 			</tr>
 		[% IF loop.last %]

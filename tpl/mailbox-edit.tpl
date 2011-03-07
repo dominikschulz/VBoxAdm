@@ -70,7 +70,7 @@
 			</tr>
 			<tr>
 				<td>[% "CC:" | l10n %]</td>
-				<td><a href="vboxadm.pl?rm=edit_alias&alias_id=[% cc_id %]">[% cc_goto %]</a></td>
+				<td><a href="[% base_url %]?rm=edit_alias&alias_id=[% cc_id %]">[% cc_goto %]</a></td>
 				<td></td>
 			</tr>
 			[% IF user_is_superadmin %]
@@ -98,7 +98,7 @@
 			<tr>
 				<td colspan="3" align="center">
 					<button class="button" type="submit" name="submit">
-					<img src="/icons/fffsilk/accept.png" border="0" />
+					<img src="[% media_prefix %]/icons/fffsilk/accept.png" border="0" />
 					[% "Modify Mailbox" | l10n %]
 					</button>
 				</td>

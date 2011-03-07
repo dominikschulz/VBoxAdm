@@ -136,4 +136,4 @@ vacation  unix	-		n		n		-		-		pipe
 #
 # Mailarchive
 mailarchive unix -      n       n       -       -       pipe
-  flags=DRhu user=vmail:vmail argv=/usr/lib/vboxadm/bin/mailarchive -s ${sender} -r ${recipient}
+  flags=ORhu user=vmail:vmail argv=/usr/lib/vboxadm/bin/mailarchive -s ${sender} -r ${recipient}

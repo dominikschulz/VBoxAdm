@@ -129,5 +129,9 @@ smtpd_client_recipient_rate_limit = 1000
 transport_maps = btree:/etc/postfix/maps/transport
 vacation_destination_recipient_limit = 1
 
+# Mailarchive
+mailarchive_destination_recipient_limit = 1
+# TODO delivery to the mailarchive should never fail. Make Postfix TEMPFAIL if the transport is broken?
+
 # Dyn. Recipient Verification
 address_verify_maps=btree:/var/spool/postfix/data/verify

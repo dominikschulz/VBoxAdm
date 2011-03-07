@@ -9,6 +9,7 @@ use Getopt::Long;
 use Sys::Syslog;
 use Template;
 
+use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
 my ( $conffile_used, @hooks, %hook, %config, );
@@ -18,7 +19,7 @@ my @conffile_locations = qw(
   vboxadm.conf
   conf/vboxadm.conf
   /etc/vboxadm.conf
-  /etc/postfix/vboxadm.conf
+  /etc/vboxadm/vboxadm.conf
 );
 
 GetOptions(
@@ -50,7 +51,7 @@ my $dbdb   = $config{'default'}{'dbdb'}   || 'vboxadm';
 my $logfile = $config{'notify'}{'logfile'} || '/var/log/mail.log';
 
 my $dsn = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;password=$dbpass";
-my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 1, } );
+my $dbh = &VBoxAdm::DB::connect($dsn);
 
 if ( !$dbh ) {
     syslog( 2, 'Could not connect to database with DSN $dsn - From: %s - To: %s - Exiting', $config{'sender'}, $config{'recipient'} );
@@ -58,10 +59,7 @@ if ( !$dbh ) {
     die("Could not connect to database with DSN $dsn");
 }
 
-# Talk UTF-8 to the database
-# Prepare DB connection for utf8
-$dbh->do("SET NAMES utf8");
-
+# Templates are used to build the mails sent
 my $tpl_config = {
     INCLUDE_PATH => 'tpl',
     POST_CHOMP   => 1,
@@ -73,6 +71,150 @@ if ( -f $logfile ) {
     &parse_postfix_maillog( $logfile, \%config );
 }
 
+$dbh->disconnect();
+closelog();
+exit 0;
+
+############################
+# Subs
+############################
+sub parse_reject_line {
+    my $line = shift;
+
+    if ( $line =~
+        m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d) ([^;]+); from=<([^>]+)> to=<([^>]+)> proto=([A-Z]+) helo=<([^>]+)>/ )
+    {
+        my ( $rdns, $ip, $smtpcode, $smtpmsg, $from, $to, $proto, $helo ) = ( $1, $2, $3, $4, $5, $6, $7, $8 );
+        if ( $from eq $to ) {
+            print "SKIPPED: SPAM - from=to\n" if $config{'notify'}{'verbose'};
+            next LINE;
+        }
+        elsif ( $smtpmsg =~ m/Greylisted/ ) {
+            print "SKIPPED: GREYLISTED\n" if $config{'notify'}{'verbose'};
+            next LINE;
+        }
+        elsif ( $from =~ m/@(yahoo|gmail|microsoft|hotmail|msn|live|aim|rolex|blizzard|gmx|web)\./ ) {
+            print "SKIPPED: SPAM from well-known domain\n" if $config{'notify'}{'verbose'};
+            next LINE;
+        }
+
+        my $vars = {};
+
+        print "REJECT - RDNS: $rdns - IP: $ip - SMTP-Code: $smtpcode - SMTP-Msg: $smtpmsg - From: $from - To: $to - Proto: $proto - Helo: $helo\n"
+          if $config{'notify'}{'verbose'};
+
+        $vars->{'to'}            = $to;
+        $vars->{'from'}          = $from;
+        $vars->{'rdns'}          = $rdns;
+        $vars->{'ip'}            = $ip;
+        $vars->{'system_domain'} = $config{'default'}{'domain'};
+
+        my $from_domain;
+        if ( $from =~ m/@(.*)$/ ) {
+            $from_domain = $1;
+            $vars->{'from_domain'} = $from_domain;
+        }
+        else {
+
+            # Silently ignore this line.
+            # Seems like the sender is missing the domain
+            # part. Weird but not impossible.
+            # - sp
+            next LINE;
+        }
+
+        if ( &is_notified( $dbh, 'postmaster@' . $from_domain ) ) {
+            print "SKIPPED: This postmaster (postmaster\@$from_domain) was already notified.\n" if $config{'notify'}{'verbose'};
+            next LINE;
+        }
+
+        if ( &VBoxAdm::Utils::is_local_domain( $dbh, $from_domain ) ) {
+            print "SKIPPED: Forged localdomain in sender ($from_domain may not be a local domain)!\n" if $config{'notify'}{'verbose'};
+            next LINE;
+        }
+
+        if ( !&VBoxAdm::Utils::is_local_mailbox( $dbh, $to ) ) {
+            print "SKIPPED: Invalid recipient ($to is no local mailbox)!\n" if $config{'notify'}{'verbose'};
+            next LINE;
+        }
+
+        # Log-Message: Client host rejected: cannot find your hostname
+        # Action: no RDNS found, notify about missing RDNS
+        if ( $smtpmsg =~ m/Client host rejected: cannot find your hostname/ ) {
+            print "WOULD Handle missing RDNS and send report to $from, $to, postmaster\@$from_domain.\n" if $config{'notify'}{'verbose'};
+            $vars->{'is_rdns'} = 1;
+        }
+
+        # Log-Message: Helo command rejected: Host not found
+        # Action: helo does not resolve to valid IP, notify about invalid helo
+        if ( $smtpmsg =~ m/Helo command rejected: Host not found/ ) {
+            print "WOULD Handle invalid HELO and send report to $from, $to, postmaster\@$from_domain.\n" if $config{'notify'}{'verbose'};
+            $vars->{'is_helo'} = 1;
+        }
+
+        if ( $vars->{'is_rdns'} || $vars->{'is_helo'} ) {
+            my $postmaster_msg;
+            $tpl->process( 'rfc-notify-postmaster.tpl', $vars, \$postmaster_msg );
+            my $emsg = '';
+            $emsg .= "Subject: MISCONFIGURED MAIL-SYSTEM NOTIFICATION\r\n";
+            $emsg .= "Auto-Submitted: auto-generated\r\n";
+            $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
+            $emsg .= "To: <postmaster\@$from_domain>\r\n";
+            $emsg .= "\r\n";
+            $emsg .= $postmaster_msg;
+
+            if ( $config{'notify'}{'dry'} ) {
+                print "DEBUG - Would send message to POSTMASTER:\n" . $emsg . "\n" if $config{'notify'}{'verbose'};
+            }
+            else {
+                &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
+            }
+
+            my $recipient_msg;
+            $tpl->process( 'rfc-notify-recipient.tpl', $vars, \$recipient_msg );
+            $emsg = '';
+            $emsg .= "Subject: MISCONFIGURED MAIL-SYSTEM NOTIFICATION\r\n";
+            $emsg .= "Auto-Submitted: auto-generated\r\n";
+            $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
+            $emsg .= "To: <$to>\r\n";
+            $emsg .= "\r\n";
+            $emsg .= $recipient_msg;
+
+            if ( $config{'notify'}{'dry'} ) {
+                print "DEBUG - Would send message to RECIPIENT:\n" . $emsg . "\n" if $config{'notify'}{'verbose'};
+            }
+            else {
+                &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
+            }
+
+            my $sender_msg;
+            $tpl->process( 'rfc-notify-sender.tpl', $vars, \$sender_msg );
+            $emsg = '';
+            $emsg .= "Subject: MISCONFIGURED MAIL-SYSTEM NOTIFICATION\r\n";
+            $emsg .= "Auto-Submitted: auto-generated\r\n";
+            $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
+            $emsg .= "To: <$from>\r\n";
+            $emsg .= "\r\n";
+            $emsg .= $sender_msg;
+
+            if ( $config{'notify'}{'dry'} ) {
+                print "DEBUG - Would send message to SENDER:\n" . $emsg . "\n" if $config{'notify'}{'verbose'};
+            }
+            else {
+                &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
+            }
+
+            if ( !$config{'notify'}{'dry'} ) {
+                &set_notified( $dbh, 'postmaster@' . $from_domain );
+            }
+        }
+        else {
+            print "ERROR Unknown Cause: $smtpmsg\n" if $config{'notify'}{'verbose'};
+        }
+    }
+    return 1;
+}
+
 sub parse_postfix_maillog {
     my $file   = shift;
     my $config = shift;
@@ -80,162 +222,119 @@ sub parse_postfix_maillog {
     if ( open( my $FH, "<", $file ) ) {
       LINE: while ( my $line = <$FH> ) {
             if ( $line =~ m/postfix\/smtpd/ && $line =~ m/NOQUEUE: reject:/ ) {
-                if ( $line =~
-m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d) ([^;]+); from=<([^>]+)> to=<([^>]+)> proto=([A-Z]+) helo=<([^>]+)>/
-                  )
-                {
-                    my ( $rdns, $ip, $smtpcode, $smtpmsg, $from, $to, $proto, $helo ) = ( $1, $2, $3, $4, $5, $6, $7, $8 );
-                    if ( $from eq $to ) {
-                        print "SKIPPED: SPAM - from=to\n" if $config{'notify'}{'verbose'};
-                        next LINE;
-                    }
-                    elsif ( $smtpmsg =~ m/Greylisted/ ) {
-                        print "SKIPPED: GREYLISTED\n" if $config{'notify'}{'verbose'};
-                        next LINE;
-                    }
-                    elsif ( $from =~ m/@(yahoo|gmail|microsoft|hotmail|msn|live|aim|rolex|blizzard|gmx|web)\./ ) {
-                        print "SKIPPED: SPAM from well-known domain\n" if $config{'notify'}{'verbose'};
-                        next LINE;
-                    }
-
-                    my $vars = {};
-
-                    print "REJECT - RDNS: $rdns - IP: $ip - SMTP-Code: $smtpcode - SMTP-Msg: $smtpmsg - From: $from - To: $to - Proto: $proto - Helo: $helo\n"
-                      if $config{'notify'}{'verbose'};
-
-                    $vars->{'to'}            = $to;
-                    $vars->{'from'}          = $from;
-                    $vars->{'rdns'}          = $rdns;
-                    $vars->{'ip'}            = $ip;
-                    $vars->{'system_domain'} = $config{'default'}{'domain'};
-
-                    my $from_domain;
-                    if ( $from =~ m/@(.*)$/ ) {
-                        $from_domain = $1;
-                        $vars->{'from_domain'} = $from_domain;
-                    }
-
-                    if ( &is_notified( $dbh, 'postmaster@' . $from_domain ) ) {
-                        print "SKIPPED: This postmaster (postmaster\@$from_domain) was already notified.\n" if $config{'notify'}{'verbose'};
-                        next LINE;
-                    }
-
-                    if ( &VBoxAdm::Utils::is_local_domain( $dbh, $from_domain ) ) {
-                        print "SKIPPED: Forged localdomain in sender ($from_domain may not be a local domain)!\n" if $config{'notify'}{'verbose'};
-                        next LINE;
-                    }
-
-                    if ( !&VBoxAdm::Utils::is_local_mailbox( $dbh, $to ) ) {
-                        print "SKIPPED: Invalid recipient ($to is no local mailbox)!\n" if $config{'notify'}{'verbose'};
-                        next LINE;
-                    }
-
-                    # msg: Client host rejected: cannot find your hostname -> no RDNS found, notify about missing RDNS
-                    if ( $smtpmsg =~ m/Client host rejected: cannot find your hostname/ ) {
-                        print "WOULD Handle missing RDNS and send report to $from, $to, postmaster\@$from_domain.\n" if $config{'notify'}{'verbose'};
-                        $vars->{'is_rdns'} = 1;
-                    }
-
-                    # msg: Helo command rejected: Host not found -> helo does not resolve to valid IP, notify about invalid helo
-                    if ( $smtpmsg =~ m/Helo command rejected: Host not found/ ) {
-                        print "WOULD Handle invalid HELO and send report to $from, $to, postmaster\@$from_domain.\n" if $config{'notify'}{'verbose'};
-                        $vars->{'is_helo'} = 1;
-                    }
-
-                    if ( $vars->{'is_rdns'} || $vars->{'is_helo'} ) {
-                        my $postmaster_msg;
-                        $tpl->process( 'rfc-notify-postmaster.tpl', $vars, \$postmaster_msg );
-                        my $emsg = '';
-                        $emsg .= "Subject: MISCONFIGURED MAIL-SYSTEM NOTIFICATION\r\n";
-                        $emsg .= "Auto-Submitted: auto-generated\r\n";
-                        $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
-                        $emsg .= "To: <postmaster\@$from_domain>\r\n";
-                        $emsg .= "\r\n";
-                        $emsg .= $postmaster_msg;
-
-                        if ( $config{'notify'}{'dry'} ) {
-                            print "XXX - Would send message to POSTMASTER:\n" . $emsg . "\n" if $config{'notify'}{'verbose'};
-                        }
-                        else {
-                            &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
-                        }
-
-                        my $recipient_msg;
-                        $tpl->process( 'rfc-notify-recipient.tpl', $vars, \$recipient_msg );
-                        $emsg = '';
-                        $emsg .= "Subject: MISCONFIGURED MAIL-SYSTEM NOTIFICATION\r\n";
-                        $emsg .= "Auto-Submitted: auto-generated\r\n";
-                        $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
-                        $emsg .= "To: <$to>\r\n";
-                        $emsg .= "\r\n";
-                        $emsg .= $recipient_msg;
-
-                        if ( $config{'notify'}{'dry'} ) {
-                            print "XXX - Would send message to RECIPIENT:\n" . $emsg . "\n" if $config{'notify'}{'verbose'};
-                        }
-                        else {
-                            &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
-                        }
-
-                        my $sender_msg;
-                        $tpl->process( 'rfc-notify-sender.tpl', $vars, \$sender_msg );
-                        $emsg = '';
-                        $emsg .= "Subject: MISCONFIGURED MAIL-SYSTEM NOTIFICATION\r\n";
-                        $emsg .= "Auto-Submitted: auto-generated\r\n";
-                        $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
-                        $emsg .= "To: <$from>\r\n";
-                        $emsg .= "\r\n";
-                        $emsg .= $sender_msg;
-
-                        if ( $config{'notify'}{'dry'} ) {
-                            print "XXX - Would send message to SENDER:\n" . $emsg . "\n" if $config{'notify'}{'verbose'};
-                        }
-                        else {
-                            &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
-                        }
-
-                        if ( !$config{'notify'}{'dry'} ) {
-                            &set_notified( $dbh, 'postmaster@' . $from_domain );
-                        }
-                    }
-                    else {
-                        print "ERROR Unknown Cause: $smtpmsg\n" if $config{'notify'}{'verbose'};
-                    }
-                }
+                &parse_reject_line($line);
             }
         }
         close($FH);
     }
 }
-$dbh->disconnect();
-closelog();
-exit 0;
 
+# Mark this recipient as already notified
 sub set_notified {
     my $dbh   = shift;
     my $email = shift;
 
     my $query = "INSERT IGNORE INTO rfc_notify (email,ts) VALUES(?,NOW())";
-    my $sth   = $dbh->prepare($query)
-      or die( "Could not prepare Query $query: " . DBI->errstr );
-    $sth->execute($email)
-      or die( "Could not execute Query $query: " . $sth->errstr );
+    my $sth = &VBoxAdm::DB::prepexec( $dbh, $query, $email );
     $sth->finish();
 
     return 1;
 }
 
+# Find out whether this recipient was already notified
 sub is_notified {
     my $dbh   = shift;
     my $email = shift;
 
     my $query = "SELECT COUNT(*) FROM rfc_notify WHERE email = ?";
-    my $sth   = $dbh->prepare($query)
-      or die( "Could not prepare Query $query: " . DBI->errstr );
-    $sth->execute($email)
-      or die( "Could not execute Query $query: " . $sth->errstr );
+    my $sth   = &VBoxAdm::DB::prepexec( $dbh, $query, $email );
     my $count = $sth->fetchrow_array();
     $sth->finish();
 
     return $count;
 }
+__END__
+
+=head1 NAME
+
+notify - Notify senders, postmaster and recipients about misconfigured mailservers.
+
+=head1 VERSION
+
+This documentation refers to VBoxAdm notify version @VERSION@
+built on @BUILDDATE@.
+
+=head1 DESCRIPTION
+
+This script implements notification of senders, postmaster
+and recipients of mail sent from misconfigured mailservers.
+Usually this mail is rejected our mailserver and as well the sender
+as the recipient wonder why their mail is not delivered.
+
+Most of the time the recjected messages may be spam, but some
+of them could be legitimated, important, messages which you don't want to
+loose. This script might make the involved parties aware of this
+situation by sending messages to (a) the original sender, (b) the
+designated recipient and (c) the postmaster of the sending mailserver.
+
+THIS SCRIPT MUST BE USED WITH CARE!
+
+This script could cause collateral damage, so please think
+about the consequences before using if and watch it closely.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+The configuration file should be place either in /etc/vboxadm.conf or
+in /etc/vboxadm/vboxadm.conf. This is a common configuration file
+for the whole suite of VBoxAdm applications. Each part of this suite
+has its own section in the config file and all use the values
+from the default section when appropriate.
+
+=head2 default
+The default section should contain at least the database configuration.
+
+dbuser - The user used to connect to the MySQL database.
+dbpass - This users password.
+dbdb - The db used by this application.
+dbhost - The MySQL database host, usually localhost.
+
+=head2 notify
+
+logfile - The logfile.
+
+=head1 DEPENDENCIES
+
+VBoxAdm::Utils, DBI.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut

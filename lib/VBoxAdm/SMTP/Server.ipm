@@ -35,7 +35,8 @@ sub new {
         $self->{sockmode} = 'accept';
     }
     else {
-        $self->{sockmode} = 'direct', $self->{'s'} = $self->{sock};
+        $self->{sockmode} = 'direct';
+        $self->{'s'} = $self->{sock};
     }
 
     if ( !defined( $self->{sock} ) ) {
@@ -87,9 +88,8 @@ sub accept {
 sub chat {
     my $self = shift;
 
-    my $line;
     if ( $self->{state} !~ /^data/i ) {
-        return 0 unless defined( $line = $self->getline );
+        return 0 unless defined( my $line = $self->getline );
 
         # strip any kind of newlines
         $line =~ s/[\r\n]*$//;
@@ -131,6 +131,8 @@ sub chat {
             $self->{to} = $self->{recipients};
         }
         elsif ( $line =~ m/^xforward/i ) {
+
+            # TODO xforward parsing is somehow broken ... fix it ;)
             if ( $line =~ m/name=\[?(\S+)\b/i ) {
                 $self->{xforward}{name} = $1;
             }

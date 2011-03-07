@@ -91,6 +91,9 @@ WHERE CONCAT(m.local_part,'@',d.name) IN
 sub child_init_hook {
     my $self = shift;
 
+    # setup my env
+    $ENV{'HOME'} = ( getpwuid($>) )[7];
+
     $self->db_connect();
     $self->prepare_queries();
 

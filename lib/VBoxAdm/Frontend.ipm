@@ -226,6 +226,8 @@ sub setup {
     my $port = $config{'default'}{'dbport'} || 3306;
     my $host = $config{'default'}{'dbhost'} || 'localhost';
     my $dsn  = "DBI:mysql:database=$db;user=$user;password=$pass;host=$host;port=$port";
+    $self->{base_url}     = $config{'cgi'}{'base_url'}     || '/cgi-bin/vboxadm.pl';
+    $self->{media_prefix} = $config{'cgi'}{'media_prefix'} || '';
 
     # Connect to DBI database, same args as DBI->connect();
     # uses connect_cached for persistent connections
@@ -302,6 +304,8 @@ sub setup {
             }
         }
     );
+    $self->tt_params( base_url     => $self->{base_url} );
+    $self->tt_params( media_prefix => $self->{media_prefix} );
 
     # to make perlcritic happy
     return 1;
@@ -609,10 +613,10 @@ sub is_superadmin {
 }
 
 ############################################
-# Usage      :
-# Purpose    :
-# Returns    :
-# Parameters :
+# Usage      : $self->get_user_details();
+# Purpose    : Prefill the session with the essential information about this user.
+# Returns    : Mailbox-ID, Domain-ID, Superadmin- and Domainadmin- Flag.
+# Parameters : n/a (taken from session/auth-obj.)
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
@@ -641,7 +645,7 @@ sub get_user_details {
 
 ############################################
 # Usage      :
-# Purpose    :
+# Purpose    : Get the domain id of the currently logged in user.
 # Returns    :
 # Parameters :
 # Throws     : no exceptions
@@ -661,7 +665,7 @@ sub get_users_domainid {
 
 ############################################
 # Usage      :
-# Purpose    :
+# Purpose    : Get the mailbox id of the currently logged in user.
 # Returns    :
 # Parameters :
 # Throws     : no exceptions
@@ -681,7 +685,7 @@ sub get_users_mailboxid {
 
 ############################################
 # Usage      :
-# Purpose    :
+# Purpose    : Return the domain name to a given domain id.
 # Returns    :
 # Parameters :
 # Throws     : no exceptions
@@ -797,6 +801,7 @@ sub show_welcome {
 #
 # Broadcast
 #
+# Show the broadcast form
 sub show_broadcast {
     my $self = shift;
 
@@ -804,7 +809,7 @@ sub show_broadcast {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -826,6 +831,7 @@ sub show_broadcast {
     return $self->tt_process( 'broadcast.tpl', \%params );
 }
 
+# Send the broadcast message and show confirmation page
 sub show_send_broadcast {
     my $self = shift;
 
@@ -833,7 +839,7 @@ sub show_send_broadcast {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -886,7 +892,7 @@ sub show_domains {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -962,7 +968,7 @@ sub show_domain {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -978,7 +984,7 @@ sub show_domain {
         my $msg = "Invalid Domain-ID.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $msg );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -1041,7 +1047,7 @@ sub show_create_domain {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -1060,7 +1066,7 @@ sub show_add_domain {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -1101,7 +1107,7 @@ sub show_add_domain {
     }
 
     $self->log( $msg . ". User: " . $self->authen->username );
-    $self->redirect('vboxadm.pl?rm=domains');
+    $self->redirect( $self->{base_url} . '?rm=domains' );
     return;
 }
 
@@ -1112,7 +1118,7 @@ sub show_remove_domain {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -1155,7 +1161,7 @@ sub show_remove_domain {
     }
 
     $self->log( $msg . ". User: " . $self->authen->username );
-    $self->redirect('vboxadm.pl?rm=domains');
+    $self->redirect( $self->{base_url} . '?rm=domains' );
     return;
 }
 
@@ -1166,7 +1172,7 @@ sub show_update_domain {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -1221,7 +1227,7 @@ sub show_update_domain {
     }
 
     $self->log( $msg . ". User: " . $self->authen->username );
-    $self->redirect('vboxadm.pl?rm=domains');
+    $self->redirect( $self->{base_url} . '?rm=domains' );
     return;
 }
 
@@ -1236,7 +1242,7 @@ sub show_domain_aliases {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -1311,7 +1317,7 @@ sub show_create_domain_alias {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -1351,7 +1357,7 @@ sub show_add_domain_alias {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -1406,7 +1412,7 @@ sub show_add_domain_alias {
         $self->add_message( 'error', $msg );
     }
     $self->log( $msg . ". User: " . $self->authen->username );
-    $self->redirect('vboxadm.pl?rm=domain_aliases');
+    $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
     return;
 }
 
@@ -1417,7 +1423,7 @@ sub show_remove_domain_alias {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -1461,7 +1467,7 @@ sub show_remove_domain_alias {
         $self->add_message( 'error', $msg );
     }
     $self->log( $msg . ". User: " . $self->authen->username );
-    $self->redirect('vboxadm.pl?rm=domain_aliases');
+    $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
     return;
 }
 
@@ -1472,7 +1478,7 @@ sub show_edit_domain_alias {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -1537,7 +1543,7 @@ sub show_update_domain_alias {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -1629,7 +1635,7 @@ sub show_update_domain_alias {
         }
     }
     $self->log( $msg1 . ". User: " . $self->authen->username );
-    $self->redirect('vboxadm.pl?rm=domain_aliases');
+    $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
     return;
 }
 
@@ -1644,7 +1650,7 @@ sub show_aliases {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -1715,7 +1721,7 @@ sub show_create_alias {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -1755,7 +1761,7 @@ sub show_add_alias {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -1815,7 +1821,7 @@ sub show_add_alias {
         $self->add_message( 'error', $msg );
     }
     $self->log( $msg . ". User: " . $self->authen->username );
-    $self->redirect('vboxadm.pl?rm=aliases');
+    $self->redirect( $self->{base_url} . '?rm=aliases' );
     return;
 }
 
@@ -1826,7 +1832,7 @@ sub show_remove_alias {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -1873,7 +1879,7 @@ sub show_remove_alias {
         $self->add_message( 'error', $msg );
     }
     $self->log( $msg . ". User: " . $self->authen->username );
-    $self->redirect('vboxadm.pl?rm=aliases');
+    $self->redirect( $self->{base_url} . '?rm=aliases' );
     return;
 }
 
@@ -1884,7 +1890,7 @@ sub show_edit_alias {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -1929,7 +1935,7 @@ sub show_update_alias {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -2009,7 +2015,7 @@ sub show_update_alias {
         }
     }
     $self->log( $msg1 . ". User: " . $self->authen->username );
-    $self->redirect('vboxadm.pl?rm=aliases');
+    $self->redirect( $self->{base_url} . '?rm=aliases' );
     return;
 }
 
@@ -2024,7 +2030,7 @@ sub show_mailboxes {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -2116,7 +2122,7 @@ sub show_create_mailbox {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -2158,7 +2164,7 @@ sub show_add_mailbox {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -2273,7 +2279,7 @@ sub show_add_mailbox {
     }
 
     $self->log( $msg1 . ". User: " . $self->authen->username );
-    $self->redirect('vboxadm.pl?rm=mailboxes');
+    $self->redirect( $self->{base_url} . '?rm=mailboxes' );
     return;
 }
 
@@ -2284,7 +2290,7 @@ sub show_remove_mailbox {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -2330,7 +2336,7 @@ sub show_remove_mailbox {
     }
 
     $self->log( $msg . ". User: " . $self->authen->username );
-    $self->redirect('vboxadm.pl?rm=mailboxes');
+    $self->redirect( $self->{base_url} . '?rm=mailboxes' );
     return;
 }
 
@@ -2341,7 +2347,7 @@ sub show_edit_mailbox {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -2436,7 +2442,7 @@ sub show_update_mailbox {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -2648,7 +2654,7 @@ sub show_update_mailbox {
     }
 
     $self->log( $msg1 . ". User: " . $self->authen->username );
-    $self->redirect('vboxadm.pl?rm=mailboxes');
+    $self->redirect( $self->{base_url} . '?rm=mailboxes' );
     return;
 }
 
@@ -2663,7 +2669,7 @@ sub show_log {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -2734,7 +2740,7 @@ sub show_vacation_blacklist {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -2787,7 +2793,7 @@ sub show_create_vacbl_entry {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -2812,7 +2818,7 @@ sub show_add_vacbl_entry {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -2851,7 +2857,7 @@ sub show_add_vacbl_entry {
     }
 
     $self->log( $msg1 . ". User: " . $self->authen->username );
-    $self->redirect('vboxadm.pl?rm=vac_bl');
+    $self->redirect( $self->{base_url} . '?rm=vac_bl' );
     return;
 }
 
@@ -2862,7 +2868,7 @@ sub show_remove_vacbl_entry {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -2906,7 +2912,7 @@ sub show_remove_vacbl_entry {
     }
 
     $self->log( $msg1 . ". User: " . $self->authen->username );
-    $self->redirect('vboxadm.pl?rm=vac_bl');
+    $self->redirect( $self->{base_url} . '?rm=vac_bl' );
     return;
 }
 
@@ -2920,7 +2926,7 @@ sub show_awl {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -2974,7 +2980,7 @@ sub show_update_awl {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 
@@ -3007,7 +3013,7 @@ sub show_update_awl {
         }
     }
 
-    $self->redirect('vboxadm.pl?rm=awl');
+    $self->redirect( $self->{base_url} . '?rm=awl' );
     return;
 }
 
@@ -3022,7 +3028,7 @@ sub show_admins {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect('vboxadm.pl?rm=welcome');
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
 

@@ -1,9 +1,13 @@
 package VBoxAdm::Migration;
 
+use strict;
+use warnings;
+
 our $VERSION = '@VERSION@';
 
 sub migrate {
     my $dbh         = shift;
+    my $config      = shift;
     my $source_type = shift;
     my $source_db   = shift;
     my $target_db   = shift;
@@ -24,7 +28,7 @@ sub migrate {
     $sql_set_admin .= "WHERE local_part = ? AND domain_id = (SELECT id FROM domains WHERE name = ?)";
     my $sth_set_admin = $dbh->prepare($sql_set_admin);
 
-    if ( $config{'truncate'} ) {
+    if ( $config->{'truncate'} ) {
         $dbh->do('TRUNCATE TABLE \`$target_db\`.aliases');
         $dbh->do('TRUNCATE TABLE \`$target_db\`.mailboxes');
         $dbh->do('TRUNCATE TABLE \`$target_db\`.domains');
@@ -55,7 +59,7 @@ sub migrate {
                 $domain_is_active = 0;
             }
             $domain_name = lc($domain_name);
-            if ( !$config{'dry'} && $sth_new_domain->execute( $domain_name, $domain_is_active ) ) {
+            if ( !$config->{'dry'} && $sth_new_domain->execute( $domain_name, $domain_is_active ) ) {
                 print "Created new Domain '$domain_name'\n";
             }
             else {
@@ -88,9 +92,9 @@ sub migrate {
 
                     # a real mailbox
                     if (
-                        !$config{'dry'}
+                        !$config->{'dry'}
                         && $sth_new_mailbox->execute(
-                            $new_domain_id, $local_part, VBoxAdm::DovecotPW::make_pass( $pwclear, $pwscheme ),
+                            $new_domain_id, $local_part, VBoxAdm::DovecotPW::make_pass( $pwclear, $config->{'cgi'}{'pwscheme'} ),
                             $name, $is_active, 15360, $is_on_vacation, 'On Vacation', $away_text, 0, 0, $sa_active, 6.31
                         )
                       )
@@ -104,7 +108,7 @@ sub migrate {
                 else {
 
                     # an alias
-                    if ( !$config{'dry'} && $sth_new_alias->execute( $new_domain_id, $local_part, $forward, $is_active ) ) {
+                    if ( !$config->{'dry'} && $sth_new_alias->execute( $new_domain_id, $local_part, $forward, $is_active ) ) {
                         print "\tCreated new Alias: $local_part\@$domain_name\n";
                     }
                     else {
@@ -114,7 +118,7 @@ sub migrate {
 
                 # handle cc, too (insert as alias)
                 if ($cc) {
-                    if ( !$config{'dry'} && $sth_new_alias->execute( $new_domain_id, $local_part, $cc, $is_active ) ) {
+                    if ( !$config->{'dry'} && $sth_new_alias->execute( $new_domain_id, $local_part, $cc, $is_active ) ) {
                         print "\tCreated new Alias (CC): $local_part\@$domain_name\n";
                     }
                     else {
@@ -153,7 +157,7 @@ sub migrate {
             #
             # Create new domain
             #
-            $sth_new_domain->execute( $domain, $is_active ) unless $config{'dry'};
+            $sth_new_domain->execute( $domain, $is_active ) unless $config->{'dry'};
             my $new_domain_id = $dbh->last_insert_id( undef, undef, undef, undef ) || 1;
 
             #
@@ -165,7 +169,7 @@ sub migrate {
                 #
                 # Create new domain alias
                 #
-                $sth_new_domain_alias->execute( $domain_alias, $new_domain_id ) unless $config{'dry'};
+                $sth_new_domain_alias->execute( $domain_alias, $new_domain_id ) unless $config->{'dry'};
             }
 
             #
@@ -202,15 +206,15 @@ sub migrate {
                     $is_alias = 1;
                 }
                 if ($is_alias) {
-                    $sth_new_alias->execute( $new_domain_id, $localpart, $forward, $enabled ) unless $config{'dry'};
+                    $sth_new_alias->execute( $new_domain_id, $localpart, $forward, $enabled ) unless $config->{'dry'};
                     print "New Alias: $new_domain_id, $localpart, $forward, $enabled\n";
                 }
                 if ($is_local) {
                     $sth_new_mailbox->execute(
-                        $new_domain_id, $localpart, VBoxAdm::DovecotPW::make_pass( $pwclear, $pwscheme ),
+                        $new_domain_id, $localpart, VBoxAdm::DovecotPW::make_pass( $pwclear, $config->{'cgi'}{'pwscheme'} ),
                         $realname, $enabled, $maxmsgsize, $on_vacation, 'Out of Office',
                         $vacation_msg, $quota, $is_domainadmin, $is_siteadmin, $sa_active, $sa_kill_score,
-                    ) unless $config{'dry'};
+                    ) unless $config->{'dry'};
                     print
 "New Mailbox: $new_domain_id, $localpart, $pwclear, $realname, $enabled, $maxmsgsize, $on_vacation,'$vacation_msg',$quota,$is_domainadmin,$is_siteadmin\n";
                 }
@@ -247,7 +251,7 @@ sub migrate {
         while ( my ( $domain, $is_active ) = $sth_domains->fetchrow_array() ) {
 
             # create a new domain
-            $sth_new_domain->execute( $domain, $is_active ) unless $config{'dry'};
+            $sth_new_domain->execute( $domain, $is_active ) unless $config->{'dry'};
             my $new_domain_id = $dbh->last_insert_id( undef, undef, undef, undef ) || 1;
             $sth_mailboxes->execute($domain);
             while ( my @row = $sth_mailboxes->fetchrow_array() ) {
@@ -272,10 +276,10 @@ sub migrate {
                         $vacation_msg   = $msg;
                     }
                 }
-                $sth_new_mailbox->execute( $new_domain_id, $local_part, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ),
+                $sth_new_mailbox->execute( $new_domain_id, $local_part, VBoxAdm::DovecotPW::make_pass( $password, $config->{'cgi'}{'pwscheme'} ),
                     $name, $is_active, $maxmsgsize, $is_on_vacation, $vacation_subj, $vacation_msg, $quota, $is_domainadmin, $is_siteadmin, $sa_active,
                     $sa_kill_score, )
-                  unless $config{'dry'};
+                  unless $config->{'dry'};
                 print
 "New Mailbox: $new_domain_id, $local_part, $password, $name, $is_active, $maxmsgsize, $is_on_vacation,'$vacation_msg',$quota,$is_domainadmin,$is_siteadmin\n";
             }
@@ -285,7 +289,7 @@ sub migrate {
             while ( my ( $domain_alias, $is_active ) = $sth_alias_domains->fetchrow_array() ) {
 
                 # create new alias domain
-                $sth_new_domain_alias->execute( $domain_alias, $new_domain_id ) unless $config{'dry'};
+                $sth_new_domain_alias->execute( $domain_alias, $new_domain_id ) unless $config->{'dry'};
             }
         }
 

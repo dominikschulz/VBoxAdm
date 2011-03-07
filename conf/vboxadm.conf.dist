@@ -9,6 +9,8 @@ domain=domain.tld
 [cgi]
 pwscheme=ssha256
 no_ssl=1
+base_url=/cgi-bin/vboxadm.pl
+media_prefix=
 
 # config for vacation autoresonder
 [vacation]
@@ -31,7 +33,7 @@ logfile=/var/log/mail.log
 caching=1
 listen=localhost:10024
 connect=localhost:10025
-pidfile=/var/run/vboxadm-smtpproxy.pid
+pidfile=/var/run/vboxadm-sa.pid
 logfile=/var/log/vboxadm-sa.log
 user=vboxadm
 group=vboxadm
