@@ -42,6 +42,7 @@ BINFILES = \
 	bin/mailarchive.pl \
 	bin/vacation.pl \
 	bin/smtpproxy.pl \
+	bin/vboxadm.pl \
 	cgi-bin/vboxadm.pl \
 	cgi-bin/vboxadm.fcgi \
 	cron/cleanup.pl \
@@ -50,8 +51,7 @@ BINFILES = \
 	contrib/migration.pl \
 	contrib/lexicons-export.pl \
 	contrib/lexicons-import.pl \
-	contrib/is_utf8.pl \
-	contrib/mkadmin.pl
+	contrib/is_utf8.pl
 
 LIBFILES = \
 	lib/VBoxAdm/API.pm \
@@ -78,9 +78,7 @@ LIBFILES = \
 	lib/VBoxAdm/L10N/zh.pm \
 	lib/VBoxAdm/Migration.pm \
 	lib/VBoxAdm/SMTP/Client.pm \
-	lib/VBoxAdm/SMTP/Server.pm \
-	lib/MSDW/SMTP/Client.pm \
-	lib/MSDW/SMTP/Server.pm
+	lib/VBoxAdm/SMTP/Server.pm
 
 TESTFILES = \
 	t/VBoxAdm/L10N/de.t \
@@ -147,7 +145,7 @@ install: clean real-install
 real-install: all test man rcvboxadm
 	$(INSTALL) -d $(BINDIR) $(SBINDIR) $(DESTDIR)/etc
 	$(INSTALL) -d $(CFGDIR)/vboxadm
-	$(INSTALL) -d $(LIBDIR)/VBoxAdm/L10N $(LIBDIR)/VBoxAdm/SMTP $(LIBDIR)/MSDW/SMTP
+	$(INSTALL) -d $(LIBDIR)/VBoxAdm/L10N $(LIBDIR)/VBoxAdm/SMTP
 	$(INSTALL) -d $(MANDIR)/man1 $(MANDIR)/man3 $(MANDIR)/man8
 	$(INSTALL) -d $(VBOXLIBDIR)/bin $(VBOXLIBDIR)/tpl
 	$(INSTALL) -g www-data -d $(VHDIR)/cgi-bin $(VHDIR)/htdocs/css $(VHDIR)/htdocs/images/knob
@@ -164,13 +162,12 @@ real-install: all test man rcvboxadm
 	$(INSTALL_PROGRAM) bin/mailarchive.pl $(VBOXLIBDIR)/bin/mailarchive
 	$(INSTALL_PROGRAM) bin/vacation.pl $(VBOXLIBDIR)/bin/vacation
 	$(INSTALL_PROGRAM) bin/smtpproxy.pl $(SBINDIR)/vboxadm-sa
+	$(INSTALL_PROGRAM) bin/vboxadm.pl $(SBINDIR)/vboxadm
 	$(INSTALL_PROGRAM) cgi-bin/vboxadm.pl $(VHDIR)/cgi-bin/vboxadm.pl
 	$(INSTALL_PROGRAM) cgi-bin/vboxadm.fcgi $(VHDIR)/cgi-bin/vboxadm.fcgi
 	$(INSTALL_PROGRAM) cron/cleanup.pl $(VBOXLIBDIR)/bin/cleanup
 	$(INSTALL_PROGRAM) cron/awl.pl $(VBOXLIBDIR)/bin/awl
 	$(INSTALL_PROGRAM) cron/notify.pl $(VBOXLIBDIR)/bin/notify
-	$(INSTALL_DATA) lib/MSDW/SMTP/Client.pm $(LIBDIR)/MSDW/SMTP/Client.pm
-	$(INSTALL_DATA) lib/MSDW/SMTP/Server.pm $(LIBDIR)/MSDW/SMTP/Server.pm
 	$(INSTALL_DATA) lib/VBoxAdm/API.pm $(LIBDIR)/VBoxAdm/API.pm
 	$(INSTALL_DATA) lib/VBoxAdm/DB.pm $(LIBDIR)/VBoxAdm/DB.pm
 	$(INSTALL_DATA) lib/VBoxAdm/DovecotPW.pm $(LIBDIR)/VBoxAdm/DovecotPW.pm
@@ -216,7 +213,6 @@ tidy:
 	$(PERLTIDY) lib/VBoxAdm/*.ipm
 	$(PERLTIDY) lib/VBoxAdm/L10N/*.ipm
 	$(PERLTIDY) lib/VBoxAdm/SMTP/*.ipm
-	$(PERLTIDY) lib/MSDW/SMTP/*.ipm
 	$(PERLTIDY) t/VBoxAdm/*.it
 	$(PERLTIDY) t/VBoxAdm/L10N/*.it
 	$(PERLTIDY) bin/*.ipl
@@ -247,8 +243,6 @@ clean:
 	$(RM) -f lib/VBoxAdm/SMTP/*.bak
 	$(RM) -f lib/VBoxAdm/SMTP/*.pm.LOG
 	$(RM) -f lib/VBoxAdm/SMTP/*.pm
-	$(RM) -f lib/MSDW/SMTP/*.bak
-	$(RM) -f lib/MSDW/SMTP/*.pm
 	$(RM) -f contrib/roundcube-plugin-vboxadm.tar.gz
 
 rcvboxadm:

@@ -28,11 +28,14 @@ my @conffile_locations = qw(
 );
 
 GetOptions(
-    'verbose|v+'   => \$config{'verbose'},
-    'dry|d!'       => \$config{'dry'},
-    'quiet|q!'     => \$config{'quiet'},
-    'username|u=s' => \$email,
-    '<>'           => sub { my $m = shift; $mode = $m; },
+    'verbose|v+'    => \$config{'verbose'},
+    'dry|d!'        => \$config{'dry'},
+    'quiet|q!'      => \$config{'quiet'},
+    'source|s=s'    => \$config{'source'},
+    'source-db|d=s' => \$config{'source-db'},
+    'truncate!'     => \$config{'truncate'},
+    'username|u=s'  => \$email,
+    '<>'            => sub { my $m = shift; $mode = $m; },
 
     # shift removes name of the option (config) and leaves the value for unshift
     # unshift prepends to the list of valid config files so it is tried first
@@ -67,7 +70,13 @@ print "#########################\n";
 # ...
 
 if ( $email || $mode eq 'newadmin' ) {
-    my $dbh;    # TODO connect to DB
+    my $dsn =
+"DBI:mysql:host=$config{'default'}{'dbhost'};database=$config{'default'}{'dbdb'};port=$config{'default'}{'dbport'};user=$config{'default'}{'dbuser'};password=$config{'default'}{'dbpass'}";
+    my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 0, } );
+    if ( !$dbh ) {
+        print STDERR "Could not connect to database with DSN $dsn. Aborting.\n";
+        exit 1;
+    }
     if ( &create_siteadmin( $dbh, \%config, undef, $email ) ) {
         exit 0;
     }
@@ -77,11 +86,16 @@ if ( $email || $mode eq 'newadmin' ) {
 }
 elsif ( $mode eq 'migrate' ) {
 
-    # TODO migration
-    if ( &migrate() ) {
+    my $dsn =
+"DBI:mysql:host=$config{'default'}{'dbhost'};database=$config{'default'}{'dbdb'};port=$config{'default'}{'dbport'};user=$config{'default'}{'dbuser'};password=$config{'default'}{'dbpass'}";
+    my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 0, } );
+
+    if ( &VBoxAdm::Migration::migrate( $dbh, \%config, $config{'source'}, $config{'source-db'}, 'vboxadm' ) ) {
+        print "Migration OK\n";
         exit 0;
     }
     else {
+        print "Migration FAILED\n";
         exit 1;
     }
 }
@@ -105,9 +119,6 @@ else {
 ###########################################################################
 # SUBS
 ###########################################################################
-
-# Most of this code is disabled since it is unfinished yet.
-# TODO rename to vboxadm.pl and move to bin when finished.
 sub interactive {
     my $config = shift;
     my %do     = ();

@@ -25,6 +25,13 @@ lifetime = 365
 logfile = /var/log/mail.log
 whitelist = /etc/postfix/maps/whitelist
 
+[mailarchive]
+dbuser=vboxadm_ma
+dbpass=vbxoadm_ma
+dbdb=vboxadm_ma
+dbhost=vbxoadm_ma
+enabled=0
+
 [notify]
 logfile=/var/log/mail.log
 

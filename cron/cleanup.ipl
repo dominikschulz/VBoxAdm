@@ -65,25 +65,68 @@ if ( !$dbh ) {
 # - remove expired vacation_notify entries
 &clean_vacation( $dbh, \%config );
 
-# TODO remove mails marked as deleted
+# remove mails marked as deleted
+#&purge_mails($config{'default'}{'mail_location'},0);
 
 # remove expired AWL entries
 &clean_awl( $dbh, \%config );
 
 $dbh->disconnect();
 
-# TODO reconnect to db using the mailarchive credentials
+# reconnect to db using the mailarchive credentials
+if ( $config{'mailarchive'}{'enabled'} ) {
+    $dbhost = $config{'mailarchive'}{'dbhost'} || $config{'default'}{'dbhost'} || 'localhost';
+    $dbuser = $config{'mailarchive'}{'dbuser'} || $config{'default'}{'dbuser'} || 'vboxadm';
+    $dbpass = $config{'mailarchive'}{'dbpass'} || $config{'default'}{'dbpass'} || 'vboxadm';
+    $dbport = $config{'mailarchive'}{'dbport'} || $config{'default'}{'dbport'} || 3306;
+    $dbdb   = $config{'mailarchive'}{'dbdb'}   || $config{'default'}{'dbdb'}   || 'vboxadm';
 
-&create_archive_tables( $dbh, \%config );
-&optimize_archive_tables( $dbh, \%config );
-&expire_archive_tables( $dbh, \%config );
+    $dsn = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;password=$dbpass";
+    $dbh = &VBoxAdm::DB::connect($dsn);
 
+    &create_archive_tables( $dbh, \%config );
+    &optimize_archive_tables( $dbh, \%config );
+    &expire_archive_tables( $dbh, \%config );
+
+    $dbh->disconnect();
+}
 closelog();
 exit 0;
 
 ###########################################################################
 # Subs
 ###########################################################################
+# See Also: http://cr.yp.to/proto/maildir.html
+sub purge_mails {
+    my $dir = shift;
+    my $is_maildir = shift || 0;
+    if ( opendir( my $DH, $dir ) ) {
+        my @dirs = ();
+        while ( my $dir_entry = readdir($DH) ) {
+            next if $dir_entry =~ m/^\./;
+            my $full_dir = $dir . '/' . $dir_entry;
+            if ( $dir_entry =~ m/^Maildir/ && -d $full_dir ) {
+                $is_maildir = 1;
+                &purge_mails( $full_dir, $is_maildir );
+            }
+            elsif ( -d $full_dir ) {
+                push( @dirs, $full_dir );
+            }
+            elsif ( -f $full_dir && $is_maildir && $dir_entry =~ m/^\d+\./ && $dir_entry =~ m/,ST$/ ) {
+                unlink($full_dir);
+            }
+        }
+        closedir($DH);
+        foreach my $d (@dirs) {
+            &purge_mails( $d, $is_maildir );
+        }
+        return 1;
+    }
+    else {
+        return;
+    }
+}
+
 sub optimize_archive_tables {
     my $dbh    = shift;
     my $config = shift;
