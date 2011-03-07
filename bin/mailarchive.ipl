@@ -1,0 +1,32 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+use Sys::Syslog;
+use Getopt::Long;
+
+my %config;
+GetOptions(
+        'sender|s=s'    => \$config{'sender'},
+        'recipient|r=s' => \$config{'recipient'},
+        'verbose|v+'    => \$config{'verbose'},
+);
+
+openlog( 'vboxadm-mailarchive', 'ndelay,nofatal', 'mail' );
+syslog(2, 'Received mail from sender '.$config{'sender'}.' to recipient '.$config{'recipient'});
+# TODO implement mailarchive
+=begin whatis
+What is the purpose of the mailarchive?
+- revision safe archival of all incoming and outgoing mails
+- search and retrieval of archived mails
+- probably this should later implemented as an local LMTP/SMTP server
+which would eliminate the need to spawn a new perl process for every mail
+- after mail is retrieved it is automatically signed
+- these signatures are re-signed/re-newed every n days/weeks/months
+- it aims to be compliant with the (german) law requiring business entities to
+store exact copy of so-called "geschäftsbriefe" (business mail)
+=cut
+# use LMTP?
+closelog();
+
+exit 0;
