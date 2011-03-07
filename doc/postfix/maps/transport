@@ -1,3 +1,7 @@
 ### transport ###
 # content of /etc/postfix/maps/transport
+# Vacation
 autoreply.domain.tld	vacation:
+# Mailarchive
+# TODO should later be smtp:[localhost]:10234
+mailarchive.domain.tld	mailarchive:

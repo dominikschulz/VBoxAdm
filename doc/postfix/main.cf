@@ -131,7 +131,7 @@ vacation_destination_recipient_limit = 1
 
 # Mailarchive
 mailarchive_destination_recipient_limit = 1
-# TODO delivery to the mailarchive should never fail. Make Postfix TEMPFAIL if the transport is broken?
+recipient_bcc_maps = pcre:/etc/postfix/maps/recipient_bcc
 
 # Dyn. Recipient Verification
 address_verify_maps=btree:/var/spool/postfix/data/verify

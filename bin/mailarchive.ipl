@@ -19,6 +19,11 @@ store exact copy of business mail
 -- maybe a full-text index
 - see http://de.wikipedia.org/wiki/E-Mail-Archivierung
 - see http://search.cpan.org/~frajulac/GnuPG-0.09/GnuPG.pm
+- this really should be an SMTP-Server implementation with VBoxAdm::SMTP::Server and Net::Server::PreFork
+  for these reasons:
+-- postfix will bounce the mail if the transport ever fails (maybe due to a bug or misconfiguration) but
+   will try at least for 5 days to deliver to an smtp server
+-- archival should be on another, secured, host
 =cut
 
 use DBI;
