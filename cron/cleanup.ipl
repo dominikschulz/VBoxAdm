@@ -230,6 +230,7 @@ sub create_archive_tables {
 =begin sql
 CREATE TABLE IF NOT EXISTS `archive_YYYY_MM` (
   `id` bigint(64) NOT NULL AUTO_INCREMENT,
+  `checksum` char(20) NOT NULL,
   `body` text NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=ARCHIVE DEFAULT CHARSET=utf8;

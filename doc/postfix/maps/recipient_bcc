@@ -1,2 +1,2 @@
 # Mailarchive
-/(.*)@(.*)$/	$1-$2@mailarchive.domain.tld
+/(.*)@(.*)$/	$1#$2@mailarchive.domain.tld

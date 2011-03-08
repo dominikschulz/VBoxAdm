@@ -36,7 +36,27 @@ sub extract_recipients {
     }
     return @emails;
 }
+############################################
+# Usage      : my $real_recipient = &unroll_recipient('user#domain.tld@autoreply.domain.tld');
+# Purpose    : Extract the real recipient from a 'rolled' recipient which includes the pseudo-domain
+# for the vacation transport.
+# Returns    : The recipient w/o the vacation/mailarchive domain if it could be unrolled.
+# Parameters : The rolled recipient.
+# Throws     : n/a
+# Comments   : n/a
+# See Also   : n/a
+sub unroll_recipient {
+    my $rolled = shift;
 
+    # recipient must be "unrolled", it's smth. like "user#domain.tld@vacation.domain.tld" -> "user@domain.tld"
+    if ( $rolled =~ m/^([^#]+)#([^@]+)\@(?:vacation|autoreply|mailarchive)\./ ) {
+        my $local_part = $1;
+        my $domain     = $2;
+        return $local_part . '@' . $domain;
+    }
+
+    return;
+}
 ############################################
 # Usage      : my $content = VBoxAdm::Utils::slurp($file);
 # Purpose    : Read a whole file in a string

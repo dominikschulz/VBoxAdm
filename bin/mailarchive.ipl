@@ -77,6 +77,12 @@ $db_pass = $config{'mailarchive'}{'dbpass'} || $config{'default'}{'dbpass'} || $
 $db_port = $config{'mailarchive'}{'dbport'} || $config{'default'}{'dbport'} || $db_port;
 $db_db   = $config{'mailarchive'}{'dbdb'}   || $config{'default'}{'dbdb'}   || $db_db;
 
+my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime(time);
+$mon++;
+$year += 1900;
+my $db_archive_table  = 'archive_' . $year . '_' . $mon;
+my $db_metadata_table = 'archive_metadata';
+
 # Check options
 die("No sender given on command line!")    if !$config{'sender'};
 die("No recipient given on command line!") if !$config{'recipient'};
@@ -84,6 +90,15 @@ die("No recipient given on command line!") if !$config{'recipient'};
 binmode( STDIN, ':utf8' );
 
 openlog( 'vboxadm-mailarchive', 'ndelay,nofatal', 'mail' );
+
+# recipient must be "unrolled", it's smth. like "user#domain.tld@vacation.domain.tld" -> "user@domain.tld"
+if ( $config{'recipient'} ) {
+    my $unrolled = &VBoxAdm::Utils::unroll_recipient( $config{'recipient'} );
+    if ($unrolled) {
+        $config{'orig-recipient'} = $config{'recipient'};
+        $config{'recipient'}      = $unrolled;
+    }
+}
 
 ###
 # Parse incoming mail
@@ -95,6 +110,14 @@ my $digest    = Digest::SHA->new(256);
 my $in_header = 1;
 
 my $body = '';
+
+# add X-Envelope-From and X-Envelope-To to preserve original sender/recipient
+my $xenvfrom = 'X-Envelope-From: ' . lc( $config{'sender'} ) . "\r\n";
+$digest->add($xenvfrom);
+$body .= $xenvfrom;
+my $xenvto = 'X-Envelope-To: ' . lc( $config{'recipient'} ) . "\r\n";
+$digest->add($xenvto);
+$body .= $xenvto;
 while ( my $line = <> ) {
     $digest->add($line);
     $body .= $line;
@@ -128,17 +151,17 @@ while ( my $line = <> ) {
 }
 my $checksum = $digest->hexdigest();
 
-#my $dsn = "DBI:mysql:host=$db_host;database=$db_db;port=$db_port;user=$db_user;password=$db_pass";
-#my $dbh = &VBoxAdm::DB::connect( $dsn );
+my $dsn = "DBI:mysql:host=$db_host;database=$db_db;port=$db_port;user=$db_user;password=$db_pass";
+my $dbh = &VBoxAdm::DB::connect($dsn);
 
-#if ( !$dbh ) {
-#    syslog( 2, 'Could not connect to database with DSN %s - From: %s - To: %s - Exiting', $dsn, $config{'sender'}, $config{'recipient'} );
-#    closelog();
-#    die("Could not connect to database with DSN $dsn");
-#}
+if ( !$dbh ) {
+    syslog( 2, 'Could not connect to database with DSN %s - From: %s - To: %s - Exiting', $dsn, $config{'sender'}, $config{'recipient'} );
+    closelog();
+    die("Could not connect to database with DSN $dsn");
+}
 
 # TODO add cols for checksum and signature
-# my $query = "INSERT DELAYED INTO archive_YYYY_MM (body) VALUES(?);
+# my $query = "INSERT DELAYED INTO archive_YYYY_MM (body,checksum) VALUES(?);
 # my $sth = &VBoxAdm::DB::prepexec($dbh, $query, $body);
 # $sth->finish;
 
