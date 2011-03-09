@@ -74,6 +74,7 @@ if ( !$dbh ) {
 $dbh->disconnect();
 
 # reconnect to db using the mailarchive credentials
+# TODO move to cron/mailarchive
 if ( $config{'mailarchive'}{'enabled'} ) {
     $dbhost = $config{'mailarchive'}{'dbhost'} || $config{'default'}{'dbhost'} || 'localhost';
     $dbuser = $config{'mailarchive'}{'dbuser'} || $config{'default'}{'dbuser'} || 'vboxadm';
@@ -87,6 +88,7 @@ if ( $config{'mailarchive'}{'enabled'} ) {
     &create_archive_tables( $dbh, \%config );
     &optimize_archive_tables( $dbh, \%config );
     &expire_archive_tables( $dbh, \%config );
+    &sign_archive( $dbh, \%config );
 
     $dbh->disconnect();
 }
@@ -127,6 +129,7 @@ sub purge_mails {
     }
 }
 
+# TODO move to VBoxAdm::Mailarchive
 sub optimize_archive_tables {
     my $dbh    = shift;
     my $config = shift;
@@ -134,11 +137,22 @@ sub optimize_archive_tables {
     # TODO optimize all archiv tables no longer in use
 }
 
+# TODO move to VBoxAdm::Mailarchive
 sub expire_archive_table {
     my $dbh    = shift;
     my $config = shift;
 
     # TODO delete archive tables which are expired
+}
+
+# TODO move to VBoxAdm::Mailarchive
+sub sign_archive {
+    my $dbh    = shift;
+    my $config = shift;
+
+    # TODO implement
+    # - sign archived mails
+    # - write to signature table
 }
 
 sub purge_mailboxes {
@@ -204,6 +218,7 @@ sub purge_mailboxes {
     return 1;
 }
 
+# TODO move to VBoxAdm::Mailarchive
 sub create_archive_tables {
     my $dbh    = shift;
     my $config = shift;
@@ -215,33 +230,42 @@ sub create_archive_tables {
     $mon++;
 
     my $dbdb = $config->{'mailarchive'}{'dbdb'} || $config->{'default'}{'dbdb'};
-    my $table = 'archiv_' . ( $year + 1 ) . '_';
 
-    # We always make sure to create the tables for the next year
-    my $query = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME LIKE ?";
-    my $sth   = &VBoxAdm::DB::prepexec( $dbh, $query, $dbdb, $table );
-    my $count = $sth->fetchrow_array();
-    $sth->finish();
-
+    # We always make sure to create the tables for the current and the next year
     if ( $config->{'mailarchive'}{'rotate'} eq 'monthly' ) {
+        for my $y ( $year .. $year + 1 ) {
+            for my $m ( 1 .. 12 ) {
+                &create_archive_table( $dbh, $y, $m )
+                  or warn 'Failed to create archive table for ' . $y . '-' . $m;
+            }
+        }
+    }
+    else {
+        for my $y ( $year .. $year + 1 ) {
+            &create_archive_table( $dbh, $y, 1 )
+              or warn 'Failed to create archive table for ' . $y . '-01';
+        }
+    }
 
-        # TODO create monthly tables
+}
 
-=begin sql
-CREATE TABLE IF NOT EXISTS `archive_YYYY_MM` (
+# TODO move to VBoxAdm::Mailarchive
+sub create_archive_table {
+    my $dbh   = shift;
+    my $year  = shift;
+    my $month = shift;
+    my $sql   = 'CREATE TABLE IF NOT EXISTS `archive_';
+    $sql .= sprintf( "%04d_%02d", $year, $month );
+    $sql .= '` (
   `id` bigint(64) NOT NULL AUTO_INCREMENT,
   `checksum` char(20) NOT NULL,
   `body` text NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ARCHIVE DEFAULT CHARSET=utf8;
-TODO add cols for checksum and signature
-=cut
-
-    }
-    else {
-
-        # TODO create yearly tables
-    }
+) ENGINE=ARCHIVE DEFAULT CHARSET=utf8;';
+    my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql )
+      or return;
+    $sth->finish();
+    return 1;
 }
 
 sub clean_vacation {

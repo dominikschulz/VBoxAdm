@@ -24,6 +24,7 @@ store exact copy of business mail
 -- postfix will bounce the mail if the transport ever fails (maybe due to a bug or misconfiguration) but
    will try at least for 5 days to deliver to an smtp server
 -- archival should be on another, secured, host
+- put mailarchive in its own package: vboxadm-ma
 =cut
 
 use DBI;
@@ -158,8 +159,10 @@ if ( !$dbh ) {
     die("Could not connect to database with DSN $dsn");
 }
 
-my $query = "INSERT DELAYED INTO ".$db_archive_table." (checksum,body) VALUES(?,?)";
-my $sth = &VBoxAdm::DB::prepexec($dbh, $query, $checksum, $body);
+# TODO apply exclude/include filters
+
+my $query = "INSERT DELAYED INTO " . $db_archive_table . " (checksum,body) VALUES(?,?)";
+my $sth = &VBoxAdm::DB::prepexec( $dbh, $query, $checksum, $body );
 $sth->finish;
 
 # TODO write metadata and log
