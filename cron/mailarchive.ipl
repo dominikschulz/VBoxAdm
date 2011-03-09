@@ -1,0 +1,214 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+use DBI;
+use Config::Std;
+use Getopt::Long;
+use Sys::Syslog;
+
+use VBoxAdm::DB '@VERSION@';
+
+my ( $conffile_used, @hooks, %hook, %config, );
+
+# Valid config file locations to try
+my @conffile_locations = qw(
+  vboxadm.conf
+  conf/vboxadm.conf
+  /etc/vboxadm.conf
+  /etc/vboxadm/vboxadm.conf
+);
+
+GetOptions(
+    'sender|s=s'    => \$config{'sender'},
+    'recipient|r=s' => \$config{'recipient'},
+    'verbose|v+'    => \$config{'verbose'},
+
+    # shift removes name of the option (config) and leaves the value for unshift
+    # unshift prepends to the list of valid config files so it is tried first
+    'config=s' => sub { shift; unshift( @conffile_locations, @_ ); },
+) or &usage();
+
+# Try all config file locations
+foreach my $loc (@conffile_locations) {
+    if ( -r $loc ) {
+        $conffile_used = $loc;
+        read_config $loc => %config;
+        last;
+    }
+}
+
+openlog( 'vboxadm-mailarchive', 'ndelay,nofatal', 'mail' );
+
+# Determine options
+my $dbhost = $config{'default'}{'dbhost'} || 'localhost';
+my $dbuser = $config{'default'}{'dbuser'} || 'vboxadm';
+my $dbpass = $config{'default'}{'dbpass'} || 'vboxadm';
+my $dbport = $config{'default'}{'dbport'} || 3306;
+my $dbdb   = $config{'default'}{'dbdb'}   || 'vboxadm';
+$config{'vacation'}{'notify_interval'} ||= 3600 * 24 * 7;
+$config{'awl'}{'lifetime'} ||= 365;
+
+my $dsn = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;password=$dbpass";
+my $dbh = &VBoxAdm::DB::connect($dsn);
+
+if ( !$dbh ) {
+    syslog( 2, 'Could not connect to database with DSN $dsn - Exiting' );
+    closelog();
+    die("Could not connect to database with DSN $dsn");
+}
+
+&create_archive_tables( $dbh, \%config );
+&optimize_archive_tables( $dbh, \%config );
+&expire_archive_tables( $dbh, \%config );
+&sign_archive( $dbh, \%config );
+
+$dbh->disconnect();
+closelog();
+exit 0;
+
+###########################################################################
+# Subs
+###########################################################################
+sub optimize_archive_tables {
+    my $dbh    = shift;
+    my $config = shift;
+
+    # TODO optimize all archiv tables no longer in use
+}
+
+sub expire_archive_table {
+    my $dbh    = shift;
+    my $config = shift;
+
+    # TODO delete archive tables which are expired
+}
+
+sub sign_archive {
+    my $dbh    = shift;
+    my $config = shift;
+
+    # TODO implement
+    # - sign archived mails
+    # - write to signature table
+}
+
+sub create_archive_tables {
+    my $dbh    = shift;
+    my $config = shift;
+
+    # holdback time in years
+    my $holdback_years = $config->{'mailarchive'}{'holdback'} || 10;
+    my ( $sec, $min, $hour, $dom, $mon, $year, $wday, $yday, $isdst ) = localtime(time);
+    $year += 1900;
+    $mon++;
+
+    my $dbdb = $config->{'mailarchive'}{'dbdb'} || $config->{'default'}{'dbdb'};
+
+    # We always make sure to create the tables for the current and the next year
+    if ( $config->{'mailarchive'}{'rotate'} eq 'monthly' ) {
+        for my $y ( $year .. $year + 1 ) {
+            for my $m ( 1 .. 12 ) {
+                &create_archive_table( $dbh, $y, $m )
+                  or warn 'Failed to create archive table for ' . $y . '-' . $m;
+            }
+        }
+    }
+    else {
+        for my $y ( $year .. $year + 1 ) {
+            &create_archive_table( $dbh, $y, 1 )
+              or warn 'Failed to create archive table for ' . $y . '-01';
+        }
+    }
+
+}
+
+sub create_archive_table {
+    my $dbh   = shift;
+    my $year  = shift;
+    my $month = shift;
+    my $sql   = 'CREATE TABLE IF NOT EXISTS `archive_';
+    $sql .= sprintf( "%04d_%02d", $year, $month );
+    $sql .= '` (
+  `id` bigint(64) NOT NULL AUTO_INCREMENT,
+  `checksum` char(20) NOT NULL,
+  `body` text NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=ARCHIVE DEFAULT CHARSET=utf8;';
+    my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql )
+      or return;
+    $sth->finish();
+    return 1;
+}
+
+__END__
+
+=head1 NAME
+
+mailarchive - perform misc. regular cleanup jobs.
+
+=head1 VERSION
+
+This documentation refers to VBoxAdm mailarchive version @VERSION@
+built on @BUILDDATE@.
+
+=head1 DESCRIPTION
+
+This script implements severl regular maintenance jobs.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+The configuration file should be place either in /etc/vboxadm.conf or
+in /etc/vboxadm/vboxadm.conf. This is a common configuration file
+for the whole suite of VBoxAdm applications. Each part of this suite
+has its own section in the config file and all use the values
+from the default section when appropriate.
+
+=head2 default
+The default section should contain at least the database configuration.
+
+dbuser - The user used to connect to the MySQL database.
+dbpass - This users password.
+dbdb - The db used by this application.
+dbhost - The MySQL database host, usually localhost.
+
+=head1 DEPENDENCIES
+
+VBoxAdm::Utils, DBI.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut
+
+__END__
+
+This cronjob should run once a day.

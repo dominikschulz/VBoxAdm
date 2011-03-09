@@ -27,6 +27,8 @@ store exact copy of business mail
 - put mailarchive in its own package: vboxadm-ma
 =cut
 
+# TODO turn into Smtp-Server, see smtpproxy.pl
+
 use DBI;
 use Digest::SHA;
 use Getopt::Long;
@@ -36,6 +38,7 @@ use Sys::Syslog;
 
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
+use VBoxAdm::Mailarchive '@VERSION@';
 
 my $db_host = 'localhost';
 my $db_user = 'vacation';

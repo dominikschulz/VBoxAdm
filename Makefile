@@ -48,6 +48,7 @@ BINFILES = \
 	cron/cleanup.pl \
 	cron/awl.pl \
 	cron/notify.pl \
+	cron/mailarchive.pl \
 	contrib/migration.pl \
 	contrib/lexicons-export.pl \
 	contrib/lexicons-import.pl \
@@ -76,6 +77,7 @@ LIBFILES = \
 	lib/VBoxAdm/L10N/pt.pm \
 	lib/VBoxAdm/L10N/ru.pm \
 	lib/VBoxAdm/L10N/zh.pm \
+	lib/VBoxAdm/Mailarchive.pm \
 	lib/VBoxAdm/Migration.pm \
 	lib/VBoxAdm/SMTP/Client.pm \
 	lib/VBoxAdm/SMTP/Server.pm
@@ -88,6 +90,7 @@ TESTFILES = \
 	t/VBoxAdm/DovecotPW.t \
 	t/VBoxAdm/Frontend.t \
 	t/VBoxAdm/L10N.t \
+	t/VBoxAdm/Mailarchive.t \
 	t/VBoxAdm/SmtpProxy.t \
 	t/VBoxAdm/Migration.t \
 	t/VBoxAdm/Utils.t
@@ -132,6 +135,7 @@ man:
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/DB.ipm > doc/man/VBoxAdm::DB.8
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/DovecotPW.ipm > doc/man/VBoxAdm::DovecotPW.8
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/Frontend.ipm > doc/man/VBoxAdm::Frontend.8
+	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/Mailarchive.ipm > doc/man/VBoxAdm::Mailarchive.8
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/Migration.ipm > doc/man/VBoxAdm::Migration.8
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/SmtpProxy.ipm > doc/man/VBoxAdm::SmtpProxy.8
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/Utils.ipm > doc/man/VBoxAdm::Utils.8
@@ -154,6 +158,7 @@ real-install: all test man rcvboxadm
 	$(INSTALL_DATA) doc/man/VBoxAdm::DB.8 $(MANDIR)/man8/VBoxAdm::DB.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::DovecotPW.8 $(MANDIR)/man8/VBoxAdm::DovecotPW.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::Frontend.8 $(MANDIR)/man8/VBoxAdm::Frontend.8
+	$(INSTALL_DATA) doc/man/VBoxAdm::Mailarchive.8 $(MANDIR)/man8/VBoxAdm::Mailarchive.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::Migration.8 $(MANDIR)/man8/VBoxAdm::Migration.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::SmtpProxy.8 $(MANDIR)/man8/VBoxAdm::SmtpProxy.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::Utils.8 $(MANDIR)/man8/VBoxAdm::Utils.8
@@ -168,10 +173,12 @@ real-install: all test man rcvboxadm
 	$(INSTALL_PROGRAM) cron/cleanup.pl $(VBOXLIBDIR)/bin/cleanup
 	$(INSTALL_PROGRAM) cron/awl.pl $(VBOXLIBDIR)/bin/awl
 	$(INSTALL_PROGRAM) cron/notify.pl $(VBOXLIBDIR)/bin/notify
+	$(INSTALL_PROGRAM) cron/mailarchive.pl $(VBOXLIBDIR)/bin/mailarchive
 	$(INSTALL_DATA) lib/VBoxAdm/API.pm $(LIBDIR)/VBoxAdm/API.pm
 	$(INSTALL_DATA) lib/VBoxAdm/DB.pm $(LIBDIR)/VBoxAdm/DB.pm
 	$(INSTALL_DATA) lib/VBoxAdm/DovecotPW.pm $(LIBDIR)/VBoxAdm/DovecotPW.pm
 	$(INSTALL_DATA) lib/VBoxAdm/Frontend.pm $(LIBDIR)/VBoxAdm/Frontend.pm
+	$(INSTALL_DATA) lib/VBoxAdm/Mailarchive.pm $(LIBDIR)/VBoxAdm/Mailarchive.pm
 	$(INSTALL_DATA) lib/VBoxAdm/Migration.pm $(LIBDIR)/VBoxAdm/Migration.pm
 	$(INSTALL_DATA) lib/VBoxAdm/SmtpProxy.pm $(LIBDIR)/VBoxAdm/SmtpProxy.pm
 	$(INSTALL_DATA) lib/VBoxAdm/Utils.pm $(LIBDIR)/VBoxAdm/Utils.pm

@@ -1,0 +1,297 @@
+package VBoxAdm::Mailarchive;
+
+use strict;
+use warnings;
+
+use Carp;
+
+use Getopt::Long;
+use DBI;
+use Time::HiRes qw(time);
+
+use Digest::SHA;
+
+use VBoxAdm::SMTP::Server '@VERSION@';
+use VBoxAdm::Utils '@VERSION@';
+use VBoxAdm::DB '@VERSION@';
+
+our $VERSION = '@VERSION@';
+
+use base qw(Net::Server::PreFork);
+
+############################################
+# Usage      : ????
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub db_connect {
+    my $self = shift;
+    my $user = $self->{vbox}->{dbuser} || 'vboxadm';
+    my $pass = $self->{vbox}->{dbpass} || 'vboxadm';
+    my $host = $self->{vbox}->{dbhost} || 'localhost';
+    my $port = $self->{vbox}->{dbport} || 3306;
+    my $db   = $self->{vbox}->{dbdb} || 'vboxadm';
+
+    # if more than one dbhost is given shuffle the list
+    # and try each one until a connection succeeds, use short timeout
+    # use guarding alarm timer
+    my $dsn = "DBI:mysql:database=$db;user=$user;password=$pass;port=$port;host=$host";
+    $self->{vbox}->{dbh} = VBoxAdm::DB::connect( $dsn, { ConnectTimeout => 10, } ) and last;
+    if ( !$self->{vbox}->{dbh} ) {
+        croak "Could not connect to DB with DSN $dsn: " . DBI->errstr;
+    }
+
+    return 1;
+}
+
+sub prepare_queries {
+    my $self = shift;
+
+    my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime(time);
+    $mon++;
+    $year += 1900;
+    my $db_archive_table  = 'archive_' . $year . '_' . $mon;
+    my $db_metadata_table = 'archive_metadata';
+
+    # TODO make sure to re-init this query when we enter a new month/year!
+
+    # prepare statements
+    my $sql_insert_mail = "INSERT DELAYED INTO " . $db_archive_table . " (checksum,body) VALUES(?,?)";
+    $self->{vbox}->{sth}->{insert} = $self->{vbox}->{dbh}->prepare($sql_insert_mail);
+
+    # TODO add statements for meta data, logging et. al.
+
+    return 1;
+}
+
+############################################
+# Usage      : invoked by Net::Server
+# Purpose    : called when a new child is created, setup db connections
+# Returns    : always true
+# Parameters : none
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub child_init_hook {
+    my $self = shift;
+
+    # setup my env
+    $ENV{'HOME'} = ( getpwuid($>) )[7];
+
+    $self->db_connect();
+    $self->prepare_queries();
+
+    return 1;
+}
+
+############################################
+# Usage      : invoked by Net::Server
+# Purpose    : called when a child has reached the end of its lifetime, tear down db connections
+# Returns    : always true
+# Parameters : none
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub child_finish_hook {
+    my $self = shift;
+
+    foreach my $key ( keys %{ $self->{vbox}->{sth} } ) {
+        $self->{vbox}->{sth}->{$key}->finish();
+    }
+
+    # Disconnect from DB
+    if ( $self->{vbox}->{dbh} ) {
+        $self->{vbox}->{dbh}->disconnect();
+    }
+
+    return 1;
+}
+
+############################################
+# Usage      : invoked by Net::Server
+# Purpose    : handle a new incoming request
+# Returns    : true if the request was processed fine
+# Parameters : none
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub process_request {
+    my $self = shift;
+
+    # Check if the sql server went away
+    if ( !$self->{vbox}->{dbh}->ping() ) {
+        $self->db_connect();
+        $self->prepare_queries();
+    }
+
+    eval {
+        local $SIG{ALRM} = sub { die "Child server process timed out!\n" };
+        my $timeout = $self->{vbox}->{childtimeout} || 30;
+
+        # start a timer
+        alarm($timeout);
+
+        # Start the SMTP-Server part which listens to the incoming
+        # transaction
+        my $smtp_server = VBoxAdm::SMTP::Server->new(
+            sock    => $self->{server}->{client},
+            tempdir => $self->{vbox}->{tempdir},
+        ) or die "Failed to create a listening server: $!\n";
+
+        # Pass the inital welcome
+        # TODO check remote IP - this is the only security measure here!
+        $smtp_server->print("220 HOSTNAME ESMTP\r\n");
+
+      LINE: while ( my $what = $smtp_server->chat() ) {
+            if ( $what ne '.' ) {
+
+                # TODO implement the SMTP protocol
+                # never send permfails, always send tempfails!
+            }
+            else {
+
+                # client needs a rewound file
+                $smtp_server->{data}->seek( 0, 0 );
+            }
+
+            my $msg = '';
+            $smtp_server->print( $msg . "\r\n" );
+        }    # end-of-while-LINE
+
+        # Close open connections
+        $smtp_server->{sock}->close()
+          or warn "Could not close server socket: $!\n";
+    };    # end of eval block
+
+    if ($@) {
+        chomp($@);
+        my $msg = "WARNING: Error in process_request eval: $@";
+        $self->log( 2, $msg );
+        die( $msg . "\n" );
+    }
+    $self->{vbox}->{instance}++;
+
+    return 1;
+}
+
+1;
+__END__
+
+=head1 NAME
+
+VBoxAdm::Mailarchive - Mailarchive for VBoxAdm
+
+=head1 VERSION
+
+This documentation refers to VBoxAdm::Mailarchive version @VERSION@
+built on @BUILDDATE@.
+
+=head1 SYNOPSIS
+
+    use VBoxAdm::Mailarchive;
+
+=head1 SCHEMA
+
+ Internet -> Postfix1 (Client) -> smtpproxy -> Postfix2 (Server) -> Mailarchive
+
+=head1 DESCRIPTION
+
+The mailarchive acts as an SMTP-Server which will accept and archive
+any mail delivered to it. Make sure to restrict the access to it to
+authorized hosts. The server will never send a permananet failure
+so no mail will bounce. In case of trouble it will send a tempfail.
+
+You can control the ressource usage of this application by tuning the
+variables min_server, max_servers et. al. See the documentation
+of Net::Server::PreFork for more details. Basically this application
+will create a SpamAssasin instance, precompile the rules and fork
+of as many children as specified. These children live for some time,
+handle the requests the parent receives and die when they've done
+enough work. The the parent will spawn a new children. If there a too much
+incoming requests the server will spawn new children until max_servers
+if reached. This is very much like the behaviour of the Apache HTTPD
+prefork worker.
+
+=head1 PERFORMANCE NOTES
+
+This application is designed with some very specific assumptions in mind:
+Executing perl is very expensive, forking perl is somewhat expensive
+(although highly optimized), messages will vary in size and memory usage
+is more imporant than CPU-utilization. It uses apache-style preforking
+(through Net::Server::PreFork) to reduce the need to fork perl instances.
+Controlled child restarts reduce the effect of resource leaks in its
+children.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+The configuration file should be place either in /etc/vboxadm.conf or
+in /etc/vboxadm/vboxadm.conf. This is a common configuration file
+for the whole suite of VBoxAdm applications. Each part of this suite
+has its own section in the config file and all use the values
+from the default section when appropriate.
+
+=head2 default
+The default section should contain at least the database configuration.
+
+dbuser - The user used to connect to the MySQL database.
+dbpass - This users password.
+dbdb - The db used by this application.
+dbhost - The MySQL database host, usually localhost.
+
+=head2 smtpproxy
+
+listen - Hostname:Port - Listen on this hostname (or IP) and port for
+incoming SMTP dialogs.
+pidfile - This applications pidfile.
+user - The user this application should run as.
+group - The group this application should run as.
+min_servers - Start at least this much children.
+max_servers - Run no more than this number of children.
+min_spare_servers - Min. spare Children.
+max_spare_servers - Max. spare Children.
+max_requests - Each children will complete this much requests and than exit.
+
+=head1 DEPENDENCIES
+
+VBoxAdm::Utils, VBoxAdm::Mailarchive, VBoxAdm::SMTP::Server, VBoxAdm::DB.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+This implementation was previously based on smtpproxy but switched to
+Net::Server::PreFork later. Large parts of this code are based on the ideas
+of SpamPD, which is itself based on smtpprox, but all code was written by myself.
+The SMTP Classes are modeled closely after MSDW::SMTP::*.
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut
