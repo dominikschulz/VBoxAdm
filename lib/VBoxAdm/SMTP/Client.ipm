@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use Carp qw(croak);
-use IO::Socket;
+use IO::Socket::INET6;
 
 our $VERSION = '@VERSION@';
 
