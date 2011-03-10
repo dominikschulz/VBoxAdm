@@ -37,6 +37,8 @@ logfile=/var/log/mail.log
 
 # config for smtpproxy
 [smtpproxy]
+nodb=0
+soft_bounce=0
 caching=1
 listen=localhost:10024
 connect=localhost:10025
@@ -52,6 +54,8 @@ childtimeout=60
 sa_max_msg_size=10
 # timeout for scanning
 sa_timeout=30
+sa_default_block_score=6.31
+sa_default_status=1
 
 # db
 #dbuser=vboxadm

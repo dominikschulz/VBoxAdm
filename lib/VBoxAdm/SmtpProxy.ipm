@@ -40,6 +40,12 @@ sub db_connect {
     my $port = $self->{vbox}->{dbport} || 3306;
     my $db   = $self->{vbox}->{dbdb} || 'vboxadm';
 
+    if ( $self->{vbox}->{nodb} ) {
+
+        # no db connection is created in nodb mode
+        return 1;
+    }
+
     # if more than one dbhost is given shuffle the list
     # and try each one until a connection succeeds, use short timeout
     # use guarding alarm timer
@@ -56,6 +62,12 @@ sub db_connect {
 
 sub prepare_queries {
     my $self = shift;
+
+    if ( $self->{vbox}->{nodb} ) {
+
+        # no db connection is created in nodb mode
+        return 1;
+    }
 
     # prepare statements
     # postfix won't/can't do address expansion before, so
@@ -111,11 +123,15 @@ sub child_init_hook {
 sub child_finish_hook {
     my $self = shift;
 
-    $self->{vbox}->{sth}->{userinfo}->finish();
+    if ( !$self->{vbox}->{nodb} ) {
+        foreach my $key ( keys %{ $self->{vbox}->{sth} } ) {
+            $self->{vbox}->{sth}->{$key}->finish();
+        }
 
-    # Disconnect from DB
-    if ( $self->{vbox}->{dbh} ) {
-        $self->{vbox}->{dbh}->disconnect();
+        # Disconnect from DB
+        if ( $self->{vbox}->{dbh} ) {
+            $self->{vbox}->{dbh}->disconnect();
+        }
     }
 
     return 1;
@@ -133,7 +149,7 @@ sub process_request {
     my $self = shift;
 
     # Check if the sql server went away
-    if ( !$self->{vbox}->{dbh}->ping() ) {
+    if ( !$self->{vbox}->{nodb} && !$self->{vbox}->{dbh}->ping() ) {
         $self->db_connect();
         $self->prepare_queries();
     }
@@ -195,7 +211,12 @@ sub process_request {
                             $self->log( 2, "DRY: $msg. Would reject this mail." );
                         }
                         else {
-                            $smtp_server->fail($msg);
+                            if ( $self->{vbox}->{soft_bounce} ) {
+                                $smtp_server->tmpfail($msg);
+                            }
+                            else {
+                                $smtp_server->fail($msg);
+                            }
                             last LINE;
                         }
                     }
@@ -208,7 +229,12 @@ sub process_request {
                         $self->log( 2, "DRY: $msg. Would reject this mail." );
                     }
                     else {
-                        $smtp_server->fail($msg);
+                        if ( $self->{vbox}->{soft_bounce} ) {
+                            $smtp_server->tmpfail($msg);
+                        }
+                        else {
+                            $smtp_server->fail($msg);
+                        }
                         last LINE;
                     }
                 }
@@ -309,6 +335,10 @@ sub sa_block_score {
     my $self       = shift;
     my $recipients = shift;
 
+    if ( $self->{vbox}->{nodb} ) {
+        return $self->{vbox}->{sa_default_block_score} || 6.31;
+    }
+
     # set arbitrarily high limit
     my $lowest_kill_score = 0xFFFF;
 
@@ -351,6 +381,10 @@ sub sa_block_score {
 sub want_sa {
     my $self       = shift;
     my $recipients = shift;
+
+    if ( $self->{vbox}->{nodb} ) {
+        return $self->{vbox}->{sa_default_status} || 1;
+    }
 
     my $want_sa = 0;
 

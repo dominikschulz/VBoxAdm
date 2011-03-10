@@ -68,8 +68,12 @@ my $sa_local_only = $config{'smtpproxy'}{'sa_local_tests_only'} || 0;
 my $nsloglevel = $config{'smtpproxy'}{'nsloglevel'} // 2;
 my $logsock = $config{'smtpproxy'}{'logsock'} || 'unix';
 my $background = $config{'no-fork'} ? 0 : 1;
-my $logfile = $config{'smtpproxy'}{'logfile'} || '/var/log/vboxadm-sa.log';
-my $tempdir = $config{'smtpproxy'}{'tempdir'} || '/tmp';
+my $logfile                = $config{'smtpproxy'}{'logfile'}                || '/var/log/vboxadm-sa.log';
+my $tempdir                = $config{'smtpproxy'}{'tempdir'}                || '/tmp';
+my $nodb                   = $config{'smtpproxy'}{'nodb'}                   || 0;
+my $soft_bounce            = $config{'smtpproxy'}{'soft_bounce'}            || 0;
+my $sa_default_block_score = $config{'smtpproxy'}{'sa_default_block_score'} || 6.31;
+my $sa_default_status      = $config{'smtpproxy'}{'sa_default_status'}      || 1;
 
 # Database Hosts
 my @dbhosts = ();
@@ -151,16 +155,20 @@ my $server = bless {
         max_requests      => $max_requests,
     },
     vbox => {
-        relayhosts      => \@connect,
-        dbh             => undef,
-        childtimeout    => $childtimeout,
-        sa              => $sa,
-        sa_max_msg_size => $sa_max_msg_size,
-        sa_timeout      => $sa_timeout,
-        max_msg_size    => $max_msg_size,
-        dry             => $config{'dry'},
-        caching         => $caching,
-        tempdir         => $tempdir,
+        relayhosts             => \@connect,
+        dbh                    => undef,
+        childtimeout           => $childtimeout,
+        sa                     => $sa,
+        sa_max_msg_size        => $sa_max_msg_size,
+        sa_timeout             => $sa_timeout,
+        max_msg_size           => $max_msg_size,
+        dry                    => $config{'dry'},
+        caching                => $caching,
+        tempdir                => $tempdir,
+        nodb                   => $nodb,
+        soft_bounce            => $soft_bounce,
+        sa_default_block_score => $sa_default_block_score,
+        sa_default_status      => $sa_default_status,
 
         dbhosts => \@dbhosts,
         dbport  => $dbport,
