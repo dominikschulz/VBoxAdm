@@ -308,9 +308,15 @@ sub is_blacklisted {
     my $count = $sth->fetchrow_array();
 
     # add wildcard query count
+    # *@domain
     $sth->execute( $domain, '*' );
     $count += $sth->fetchrow_array();
     $sth->finish();
+    # localpart@*
+    $sth->execute( '*', $local_part);
+    $count += $sth->fetchrow_array();
+    $sth->finish();
+    
     return $count;
 }
 ############################################
