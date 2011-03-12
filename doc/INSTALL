@@ -23,10 +23,9 @@ How to Install VBoxAdm
 - Perltidy
 - Perl DBI
 - DBD MySQL
+- Class::Std
 - Config::Std
-- Locale::Maketext
 - Crypt::GeneratePassword
-- Data::Password
 - CGI::Application
 - CGI::Application::Plugin::DBH
 - CGI::Application::Plugin::Redirect
@@ -34,7 +33,17 @@ How to Install VBoxAdm
 - CGI::Application::Plugin::TT
 - CGI::Application::Plugin::RequireSSL
 - CGI::Application::Plugin::Authentication
-- Config::Std
+- Data::Page
+- Data::Password
+- Digest::Perl::MD5
+- FCGI
+- HTML::Clean
+- Locale::Maketext
+- Net::IMAP::Client
+- Net::Server
+- Readonly
+- Template
+- Text::CSV_XS
 - Famfamfam Silk Icons
 - Dovecot 1.2.x (Version 2.x is untested, but should work with minor adustments)
 - Postfix 2.6+
