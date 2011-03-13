@@ -312,11 +312,12 @@ sub is_blacklisted {
     $sth->execute( $domain, '*' );
     $count += $sth->fetchrow_array();
     $sth->finish();
+
     # localpart@*
-    $sth->execute( '*', $local_part);
+    $sth->execute( '*', $local_part );
     $count += $sth->fetchrow_array();
     $sth->finish();
-    
+
     return $count;
 }
 ############################################

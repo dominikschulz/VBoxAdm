@@ -56,7 +56,8 @@ sub prepare_queries {
     my $db_archive_table  = 'archive_' . $year . '_' . $mon;
     my $db_metadata_table = 'archive_metadata';
 
-    # TODO make sure to re-init this query when we enter a new month/year!
+    # make sure to re-init this query when we enter a new month/year!
+    $self->{vbox}->{prepare_dom} = $mday;
 
     # prepare statements
     my $sql_insert_mail = "INSERT DELAYED INTO " . $db_archive_table . " (checksum,body) VALUES(?,?)";
@@ -124,6 +125,13 @@ sub process_request {
     # Check if the sql server went away
     if ( !$self->{vbox}->{dbh}->ping() ) {
         $self->db_connect();
+        $self->prepare_queries();
+    }
+    elsif ( $self->{vbox}->{prepare_dom} != ( localtime(time) )[3] ) {
+
+        # Reconnect when the dom changes, since this could affect the table to log to.
+        # With monthly rotation it would be ok to just chcek the month, but this won't work for
+        # weekly or daily rotation.
         $self->prepare_queries();
     }
 

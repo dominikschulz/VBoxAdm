@@ -63,5 +63,8 @@ Make sure class-C ip subnet auto-whitelists are supported
 
 - Maillog
 
+- Evaluate datatables:
+-- http://www.datatables.net/development/server-side/perl_mysql
+
 * - in progress
 
