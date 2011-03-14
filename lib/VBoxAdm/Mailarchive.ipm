@@ -53,7 +53,7 @@ sub prepare_queries {
     my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime(time);
     $mon++;
     $year += 1900;
-    my $db_archive_table  = 'archive_' . $year . '_' . $mon;
+    my $db_archive_table = sprintf( 'archive_%04d_%02d', $year, $mon );
     my $db_metadata_table = 'archive_metadata';
 
     # make sure to re-init this query when we enter a new month/year!

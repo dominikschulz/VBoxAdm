@@ -77,7 +77,7 @@ sub optimize_archive_tables {
     # TODO optimize all archiv tables no longer in use
 }
 
-sub expire_archive_table {
+sub expire_archive_tables {
     my $dbh    = shift;
     my $config = shift;
 
@@ -106,18 +106,18 @@ sub create_archive_tables {
     my $dbdb = $config->{'mailarchive'}{'dbdb'} || $config->{'default'}{'dbdb'};
 
     # We always make sure to create the tables for the current and the next year
-    if ( $config->{'mailarchive'}{'rotate'} eq 'monthly' ) {
+    if ( $config->{'mailarchive'}{'rotate'} && $config->{'mailarchive'}{'rotate'} eq 'monthly' ) {
         for my $y ( $year .. $year + 1 ) {
             for my $m ( 1 .. 12 ) {
                 &create_archive_table( $dbh, $y, $m )
-                  or warn 'Failed to create archive table for ' . $y . '-' . $m;
+                  or syslod( 2, 'Failed to create archive table for ' . $y . '-' . $m );
             }
         }
     }
     else {
         for my $y ( $year .. $year + 1 ) {
             &create_archive_table( $dbh, $y, 1 )
-              or warn 'Failed to create archive table for ' . $y . '-01';
+              or sysloG( 2, 'Failed to create archive table for ' . $y . '-01' );
         }
     }
 
@@ -127,8 +127,9 @@ sub create_archive_table {
     my $dbh   = shift;
     my $year  = shift;
     my $month = shift;
-    my $sql   = 'CREATE TABLE IF NOT EXISTS `archive_';
-    $sql .= sprintf( "%04d_%02d", $year, $month );
+    my $table = sprintf( "archive_%04d_%02d", $year, $month );
+    my $sql   = 'CREATE TABLE IF NOT EXISTS `';
+    $sql .= $table;
     $sql .= '` (
   `id` bigint(64) NOT NULL AUTO_INCREMENT,
   `checksum` char(20) NOT NULL,
@@ -137,6 +138,7 @@ sub create_archive_table {
 ) ENGINE=ARCHIVE DEFAULT CHARSET=utf8;';
     my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql )
       or return;
+    syslog( 2, "Created archive table $table" );
     $sth->finish();
     return 1;
 }

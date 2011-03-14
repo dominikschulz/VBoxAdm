@@ -84,7 +84,10 @@ $db_db   = $config{'mailarchive'}{'dbdb'}   || $config{'default'}{'dbdb'}   || $
 my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime(time);
 $mon++;
 $year += 1900;
-my $db_archive_table  = 'archive_' . $year . '_' . $mon;
+if ( !$config{'mailarchive'}{'rotate'} || $config{'mailarchive'}{'rotate'} ne 'monthly' ) {
+    $mon = 1;
+}
+my $db_archive_table = 'archive_' . sprintf( "%04d_%02d", $year, $mon );
 my $db_metadata_table = 'archive_metadata';
 
 # Check options
@@ -165,7 +168,8 @@ if ( !$dbh ) {
 # TODO apply exclude/include filters
 
 my $query = "INSERT DELAYED INTO " . $db_archive_table . " (checksum,body) VALUES(?,?)";
-my $sth = &VBoxAdm::DB::prepexec( $dbh, $query, $checksum, $body );
+my $sth = &VBoxAdm::DB::prepexec( $dbh, $query, $checksum, $body )
+  or syslog( 2, "Failed to log message from " . $config{'sender'} . " to " . $config{'recipient'} . " to DB." );
 $sth->finish;
 
 # TODO write metadata and log
