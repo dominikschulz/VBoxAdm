@@ -154,15 +154,16 @@ sub process_request {
         $smtp_server->print("220 HOSTNAME ESMTP\r\n");
 
       LINE: while ( my $what = $smtp_server->chat() ) {
-            if ( $what ne '.' ) {
 
-                # TODO implement the SMTP protocol
-                # never send permfails, always send tempfails!
+            # TODO implement the SMTP protocol
+            # never send permfails, always send tempfails!
+            if ( $what eq '.' ) {
+
+                # TODO this is the end of the message, finish up and store
             }
             else {
 
-                # client needs a rewound file
-                $smtp_server->{data}->seek( 0, 0 );
+                # TODO unknown SMTP command, send tempfail
             }
 
             my $msg = '';
