@@ -28,3 +28,16 @@ is( VBoxAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", '"  
 # Test is_valid_addresses_rfc822
 # Test is_valid_localpart_rfc822
 # Test is_valid_domain_rfc822
+# Test unroll_recipient
+TODO: {
+    local $TODO = 'Not yet implemented';
+    my %data = (
+        'admin#domain.tld@vacation.domain.tld'      => 'admin@domain.tld',
+        'admin#test#domain.tld@vacation.domain.tld' => 'admin#test@domain.tld',
+    );
+    foreach my $rolled ( keys %data ) {
+        my $unrolled = VBoxAdm::Utils::unroll_recipient($rolled);
+        my $expected = $data{$rolled};
+        is( $unrolled, $expected, $expected . ' equals ' . $unrolled );
+    }
+}
