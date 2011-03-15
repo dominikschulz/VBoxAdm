@@ -131,8 +131,6 @@ sub chat {
             $self->{to} = $self->{recipients};
         }
         elsif ( $line =~ m/^xforward/i ) {
-
-            # TODO xforward parsing is somehow broken ... fix it ;)
             if ( $line =~ m/name=\[?(\S+)\b/i ) {
                 $self->{xforward}{name} = $1;
             }
@@ -167,9 +165,6 @@ sub chat {
         while ( defined( my $line = $self->getline ) ) {
             if ( $line eq ".\r\n" ) {
                 $self->{data}->seek( 0, 0 );
-
-                # reset xforward as defined by the spec.
-                delete $self->{xforward};
 
                 return $self->{state} = '.';
             }

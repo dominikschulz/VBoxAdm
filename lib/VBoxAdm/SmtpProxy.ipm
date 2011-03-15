@@ -191,6 +191,7 @@ sub process_request {
         $smtp_server->print( $client->hear() . "\r\n" );
 
         my $queue_id;    # for logging
+        my $xforward;
 
       LINE: while ( my $what = $smtp_server->chat() ) {
             if ( $what ne '.' ) {

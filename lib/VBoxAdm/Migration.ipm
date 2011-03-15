@@ -3,6 +3,8 @@ package VBoxAdm::Migration;
 use strict;
 use warnings;
 
+use VBoxAdm::Utils '@VERSION@';
+
 our $VERSION = '@VERSION@';
 
 sub migrate {
@@ -11,6 +13,8 @@ sub migrate {
     my $source_type = shift;
     my $source_db   = shift;
     my $target_db   = shift;
+
+    $dbh and $config and $source_type and $source_db and $target_db or return;
 
     my $sql_new_domain  = "INSERT INTO \`$target_db\`.domains (name,is_active) VALUES(?,?)";
     my $sth_new_domain  = $dbh->prepare($sql_new_domain);
@@ -29,9 +33,14 @@ sub migrate {
     my $sth_set_admin = $dbh->prepare($sql_set_admin);
 
     if ( $config->{'truncate'} ) {
-        $dbh->do('TRUNCATE TABLE \`$target_db\`.aliases');
-        $dbh->do('TRUNCATE TABLE \`$target_db\`.mailboxes');
-        $dbh->do('TRUNCATE TABLE \`$target_db\`.domains');
+        my @queries = ();
+        push( @queries, 'TRUNCATE TABLE `' . $target_db . '`.aliases' );
+        push( @queries, 'TRUNCATE TABLE `' . $target_db . '`.mailboxes' );
+        push( @queries, 'TRUNCATE TABLE `' . $target_db . '`.domains' );
+        foreach my $q (@queries) {
+            $dbh->do($q)
+              or die( "Could not execut query $q: " . $dbh->errstr );
+        }
     }
 
     ###########################################################################
@@ -48,7 +57,8 @@ sub migrate {
           . $source_db
           . '`.mail_accounts WHERE domain = ? ORDER BY local_part';
         my $sth_mailboxes = $dbh->prepare($sql_mailboxes);
-        $sth_domains->execute();
+        $sth_domains->execute()
+          or die( "Could not execute query $sql_domains: " . $sth_domains->errstr );
 
         #
         # CREATE DOMAINS
@@ -67,7 +77,8 @@ sub migrate {
                 next DOMAIN;
             }
             my $new_domain_id = $dbh->last_insert_id( undef, undef, undef, undef );
-            $sth_mailboxes->execute($old_domain_id);
+            $sth_mailboxes->execute($old_domain_id)
+              or die( "Could not execute Query $sql_mailboxes: " . $sth_mailboxes->errstr );
 
             #
             # CREATE MAILBOXES
@@ -151,13 +162,17 @@ sub migrate {
           . '`.users WHERE domain_id = ?';
         my $sth_users = $dbh->prepare($query);
 
-        $sth_domains->execute();
+        $sth_domains->execute()
+          or die( "Could not execute query $query: " . $sth_domains->errstr );
         while ( my ( $old_domain_id, $domain, $is_active ) = $sth_domains->fetchrow_array() ) {
 
             #
             # Create new domain
             #
-            $sth_new_domain->execute( $domain, $is_active ) unless $config->{'dry'};
+            if ( !$sth_new_domain->execute( $domain, $is_active ) ) {
+                warn( "Could not execute Query $sql_new_domain: " . $sth_new_domain->errstr );
+                next;
+            }
             my $new_domain_id = $dbh->last_insert_id( undef, undef, undef, undef ) || 1;
 
             #
@@ -169,7 +184,8 @@ sub migrate {
                 #
                 # Create new domain alias
                 #
-                $sth_new_domain_alias->execute( $domain_alias, $new_domain_id ) unless $config->{'dry'};
+                $sth_new_domain_alias->execute( $domain_alias, $new_domain_id )
+                  or warn( "Could not execute query $sql_new_domain_alias: " . $sth_new_domain_alias->errstr );
             }
 
             #
@@ -186,7 +202,7 @@ sub migrate {
                 my $is_alias       = 0;
                 my $is_local       = 0;
                 $vacation_msg ||= '';
-                $vacation_msg = trim($vacation_msg);
+                $vacation_msg = &VBoxAdm::Utils::trim($vacation_msg);
                 if ( $type eq 'site' && $admin ) {
                     $is_siteadmin = 1;
                 }
@@ -196,7 +212,7 @@ sub migrate {
                 if ( $type eq 'alias' ) {
                     $is_alias = 1;
                     $forward  = $smtp;
-                    $forward  = trim($forward);
+                    $forward  = &VBoxAdm::Utils::trim($forward);
                     $forward =~ s/\s+/,/g;
                 }
                 if ( $type eq 'local' ) {
@@ -206,17 +222,18 @@ sub migrate {
                     $is_alias = 1;
                 }
                 if ($is_alias) {
-                    $sth_new_alias->execute( $new_domain_id, $localpart, $forward, $enabled ) unless $config->{'dry'};
-                    print "New Alias: $new_domain_id, $localpart, $forward, $enabled\n";
+                    $sth_new_alias->execute( $new_domain_id, $localpart, $forward, $enabled )
+                      or warn( "Could not execute Query $sql_new_alias: " . $sth_new_alias->errstr );
+                    print "New Alias: $localpart\@$domain ($new_domain_id) => $forward, Enabled: $enabled\n";
                 }
                 if ($is_local) {
                     $sth_new_mailbox->execute(
                         $new_domain_id, $localpart, VBoxAdm::DovecotPW::make_pass( $pwclear, $config->{'cgi'}{'pwscheme'} ),
                         $realname, $enabled, $maxmsgsize, $on_vacation, 'Out of Office',
-                        $vacation_msg, $quota, $is_domainadmin, $is_siteadmin, $sa_active, $sa_kill_score,
-                    ) unless $config->{'dry'};
+                        $vacation_msg, $is_domainadmin, $is_siteadmin, $sa_active, $sa_kill_score,
+                    ) or warn( "Could not execute query $sql_new_mailbox: " . $sth_new_mailbox->errstr );
                     print
-"New Mailbox: $new_domain_id, $localpart, $pwclear, $realname, $enabled, $maxmsgsize, $on_vacation,'$vacation_msg',$quota,$is_domainadmin,$is_siteadmin\n";
+"New Mailbox: $localpart\@$domain ($new_domain_id), Name: $realname, Enabled: $enabled, Max. Size: $maxmsgsize, VAC: $on_vacation, DA: $is_domainadmin, SA: $is_siteadmin\n";
                 }
             }
         }
@@ -251,9 +268,11 @@ sub migrate {
         while ( my ( $domain, $is_active ) = $sth_domains->fetchrow_array() ) {
 
             # create a new domain
-            $sth_new_domain->execute( $domain, $is_active ) unless $config->{'dry'};
+            $sth_new_domain->execute( $domain, $is_active )
+              or die( "Could not execute query $sql_new_domain: " . $sth_new_domain->errstr );
             my $new_domain_id = $dbh->last_insert_id( undef, undef, undef, undef ) || 1;
-            $sth_mailboxes->execute($domain);
+            $sth_mailboxes->execute($domain)
+              or die( "Could not execute query $sql_mailboxes: " . $sth_mailboxes->errstr );
             while ( my @row = $sth_mailboxes->fetchrow_array() ) {
                 my ( $local_part, $password, $name, $quota, $is_active ) = @row;
                 my $is_on_vacation = 0;
@@ -277,37 +296,42 @@ sub migrate {
                     }
                 }
                 $sth_new_mailbox->execute( $new_domain_id, $local_part, VBoxAdm::DovecotPW::make_pass( $password, $config->{'cgi'}{'pwscheme'} ),
-                    $name, $is_active, $maxmsgsize, $is_on_vacation, $vacation_subj, $vacation_msg, $quota, $is_domainadmin, $is_siteadmin, $sa_active,
-                    $sa_kill_score, )
-                  unless $config->{'dry'};
+                    $name, $is_active, $maxmsgsize, $is_on_vacation, $vacation_subj, $vacation_msg, $is_domainadmin, $is_siteadmin, $sa_active, $sa_kill_score,
+                ) or die( "Could not execute query $sql_new_mailbox: " . $sth_new_mailbox->errstr );
                 print
 "New Mailbox: $new_domain_id, $local_part, $password, $name, $is_active, $maxmsgsize, $is_on_vacation,'$vacation_msg',$quota,$is_domainadmin,$is_siteadmin\n";
             }
 
             # domains aliases
-            $sth_alias_domains->execute($domain);
+            $sth_alias_domains->execute($domain)
+              or die( "Could not execute query $sql_alias_domains: " . $sth_alias_domains->errstr );
             while ( my ( $domain_alias, $is_active ) = $sth_alias_domains->fetchrow_array() ) {
 
                 # create new alias domain
-                $sth_new_domain_alias->execute( $domain_alias, $new_domain_id ) unless $config->{'dry'};
+                $sth_new_domain_alias->execute( $domain_alias, $new_domain_id )
+                  or die( "Could not execute query $sql_new_domain_alias: " . $sth_new_domain_alias->errstr );
             }
         }
 
         # vacation notify
-        $sth_vacation_notify->execute();
+        $sth_vacation_notify->execute()
+          or die( "Could not execute query $sql_vacation_notify: " . $sth_vacation_notify->errstr );
         while ( my ( $on_vacation, $notified, $notified_at ) = $sth_vacation_notify->fetchrow_array() ) {
 
             # insert vacation status
-            $sth_vacation_status->execute( $on_vacation, $notified, $notified_at );
+            $sth_vacation_status->execute( $on_vacation, $notified, $notified_at )
+              or die( "Could not execute query $sql_vacation_status: " . $sth_vacation_status );
         }
 
         # domainadmins
-        $sth_domain_admin->execute();
+        $sth_domain_admin->execute()
+          or die( "Could not execute query $sql_domain_admin: " . $sth_domain_admin );
         while ( my ( $email, $domain ) = $sth_domain_admin->fetchrow_array() ) {
             my ( $local_part, $domain ) = split( /@/, $email );
 
             # update this user, set is_domainadmin = 1
-            $sth_set_admin->execute( 1, 0, $local_part, $domain );
+            $sth_set_admin->execute( 1, 0, $local_part, $domain )
+              or die( "Could not execute query $sql_set_admin: " . $sth_set_admin );
 
         }
 

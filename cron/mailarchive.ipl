@@ -133,7 +133,7 @@ sub create_archive_table {
     $sql .= '` (
   `id` bigint(64) NOT NULL AUTO_INCREMENT,
   `checksum` char(20) NOT NULL,
-  `body` text NOT NULL,
+  `body` longtext NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=ARCHIVE DEFAULT CHARSET=utf8;';
     my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql )

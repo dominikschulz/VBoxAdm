@@ -16,6 +16,7 @@ use Net::POP3;
 use Net::IMAP::Client;
 
 use VBoxAdm::Utils '@VERSION@';
+use VBoxAdm::Migration '@VERSION@';
 use VBoxAdm::DovecotPW '@VERSION@';
 
 my ( $conffile_used, %config, $email, $mode );
@@ -89,6 +90,20 @@ elsif ( $mode eq 'migrate' ) {
     my $dsn =
 "DBI:mysql:host=$config{'default'}{'dbhost'};database=$config{'default'}{'dbdb'};port=$config{'default'}{'dbport'};user=$config{'default'}{'dbuser'};password=$config{'default'}{'dbpass'}";
     my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 0, } );
+
+    if ( !$dbh ) {
+        print "Could not connect to DB with DSN $dsn\n";
+        exit 1;
+    }
+
+    if ( !$config{'source'} ) {
+        print "Need source-type\n";
+        exit 1;
+    }
+
+    if ( !$config{'source-db'} ) {
+        $config{'source-db'} = $config{'source'};
+    }
 
     if ( &VBoxAdm::Migration::migrate( $dbh, \%config, $config{'source'}, $config{'source-db'}, 'vboxadm' ) ) {
         print "Migration OK\n";
