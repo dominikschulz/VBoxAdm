@@ -49,19 +49,17 @@ Make sure class-C ip subnet auto-whitelists are supported
 -- see https://docs.google.com/Doc?docid=0AY-OcCA2-lySZGQzNjNmZzlfNzdnYjRoZGg3Yg&hl=en#FastCGI_8880821961767984
 
 - Mailarchive:
--- create a mailarchive using always_bcc and a custom postfix transport
--- mailarchive will be perl script called on demand or delivered to via SMTP/LMTP
--- will store every mail passing through the mailserver, signing it and extracting meta-data
--- use an ARCHIVE table to store the data
--- use one table per month/year ... depending on the amount of traffic
--- naming: archive_YEAR_MONTH
 -- optional storage on FS
 -- always index metadata in DB, table archive_metadata
 -- export option
 -- all inserts are logged, logs are signed
 -- cron/cleanup will create the necessary tables, delete and optimize the old ones
+-- store extracted meta-data
+-- extract meta-data of attachments
+-- store bodies in full-text search engine
 
 - Maillog
+-- add rsyslog configuration and frontend
 
 - Evaluate datatables:
 -- http://www.datatables.net/development/server-side/perl_mysql

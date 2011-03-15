@@ -3,7 +3,7 @@ package VBoxAdm::SMTP::Server;
 use strict;
 use warnings;
 
-use IO::Socket;
+use IO::Socket::INET6;
 use File::Temp;
 use Carp qw(carp croak);
 

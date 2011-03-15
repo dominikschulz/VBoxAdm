@@ -243,11 +243,29 @@ sub process_message {
     my $in_header = 1;
     my $body      = '';
 
+    $sender    = lc($sender);
+    $recipient = lc($recipient);
+
+    # Exclude sender = recipient
+    # TODO add option to influence this behaviour
+    return 2 if ( $sender eq $recipient );
+
+    my ( $sender_lp,    $sender_domain )    = split /@/, $sender;
+    my ( $recipient_lp, $recipient_domain ) = split /@/, $recipient;
+
+    # Exclude sender_domain = recipient_domain
+    # TODO add option to influence this behaviour
+    return 3 if ( $sender_domain eq $recipient_domain );
+
+    # Exclude role-accounts
+    # TODO add option to influence this behaviour
+    return 4 if ( $sender_lp =~ m/^(?:postmaster|abuse|root)$/ );
+
     # add X-Envelope-From and X-Envelope-To to preserve original sender/recipient
-    my $xenvfrom = 'X-Envelope-From: ' . lc($sender) . "\r\n";
+    my $xenvfrom = 'X-Envelope-From: ' . $sender . "\r\n";
     $digest->add($xenvfrom);
     $body .= $xenvfrom;
-    my $xenvto = 'X-Envelope-To: ' . lc($recipient) . "\r\n";
+    my $xenvto = 'X-Envelope-To: ' . $recipient . "\r\n";
     $digest->add($xenvto);
     $body .= $xenvto;
     while ( my $line = <$fh> ) {
@@ -281,15 +299,12 @@ sub process_message {
             $line =~ /^(X-OSBF-LUA-Score):\s+[0-9\/\.\-\+]+\s+\[([-S])\]/i            and $header{$1} = $3 and $status{'is-spam'} = 1;
         }
     }
-    my $checksum = $digest->hexdigest();
 
-    # TODO apply exclude/include filters
-    # provide options to turn all filter on and off
-    # sample excludes:
-    # - sender = recipient
-    # - sender_domain = recipient_domain
-    # - sender =~ (root|postmaster|abuse)@
-    # - spam
+    # Exclude spam
+    # TODO add option to influence this behaviour
+    return 4 if $status{'is-spam'};
+
+    my $checksum = $digest->hexdigest();
 
     if ( $self->{vbox}->{sth}->{insert}->execute( $checksum, $body ) ) {
         $self->log( 2, "Wrote message from " . $sender . " to " . $recipient . " to DB." );
