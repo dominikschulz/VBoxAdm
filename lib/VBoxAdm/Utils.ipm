@@ -47,6 +47,7 @@ sub extract_recipients {
 # See Also   : n/a
 sub unroll_recipient {
     my $rolled = shift;
+    $rolled or return;
 
     # recipient must be "unrolled", it's smth. like "user#domain.tld@vacation.domain.tld" -> "user@domain.tld"
     if ( $rolled =~ m/^([^#]+)#([^@]+)\@(?:vacation|autoreply|mailarchive)\./ ) {

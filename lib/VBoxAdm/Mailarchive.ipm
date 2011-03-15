@@ -137,7 +137,7 @@ sub process_request {
 
     eval {
         local $SIG{ALRM} = sub { die "Child server process timed out!\n" };
-        my $timeout = $self->{vbox}->{childtimeout} || 30;
+        my $timeout = $self->{vbox}->{childtimeout} || 60;
 
         # start a timer
         alarm($timeout);
@@ -177,7 +177,8 @@ sub process_request {
                     $smtp_server->tempfail('Only one recipient per mail!');
                     next LINE;
                 }
-                my $unrolled = &VBoxAdm::Utils::unroll_recipient( $self->{to} );
+                print "$what - to: " . $smtp_server->{to} . "\n";
+                my $unrolled = &VBoxAdm::Utils::unroll_recipient( $smtp_server->{to} );
                 if ($unrolled) {
                     $smtp_server->{to}         = $unrolled;
                     $smtp_server->{recipients} = ($unrolled);
@@ -204,14 +205,15 @@ sub process_request {
                     $smtp_server->tempfail('Could not process message');
                 }
             }
+            elsif ( $what =~ m/quit/i ) {
+                $smtp_server->ok('Bye');
+                last LINE;
+            }
             else {
 
                 # unknown SMTP command, send tempfail
                 $smtp_server->tempfail('Unknown command.');
             }
-
-            my $msg = '';
-            $smtp_server->print( $msg . "\r\n" );
         }    # end-of-while-LINE
 
         # Close open connections
@@ -290,11 +292,11 @@ sub process_message {
     # - spam
 
     if ( $self->{vbox}->{sth}->{insert}->execute( $checksum, $body ) ) {
-        syslog( 2, "Wrote message from " . $sender . " to " . $recipient . " to DB." );
+        $self->log( 2, "Wrote message from " . $sender . " to " . $recipient . " to DB." );
         return 1;
     }
     else {
-        syslog( 2, "Failed to log message from " . $sender . " to " . $recipient . " to DB." );
+        $self->log( 2, "Failed to log message from " . $sender . " to " . $recipient . " to DB. Query failed: " . $self->{vbox}->{sth}->{insert}->errstr );
         return;
     }
 
