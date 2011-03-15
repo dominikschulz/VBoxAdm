@@ -146,7 +146,7 @@ sub write_exim_whitelist {
 
     if ( open( my $FH, ">", $config->{'awl'}{'whitelist'} ) ) {
         my $query = "SELECT email FROM awl WHERE NOT disabled ORDER BY email";
-        my $sth = &VBoxAdm::DB::prepxec( $dbh, $query );
+        my $sth = &VBoxAdm::DB::prepexec( $dbh, $query );
         while ( my $email = $sth->fetchrow_array() ) {
             print $FH $email . "\n";
         }
@@ -163,7 +163,7 @@ sub write_postfix_whitelist {
 
     if ( open( my $FH, ">", $config->{'awl'}{'whitelist'} ) ) {
         my $query = "SELECT email FROM awl WHERE NOT disabled ORDER BY email";
-        my $sth = &VBoxAdm::DB::prepxec( $dbh, $query );
+        my $sth = &VBoxAdm::DB::prepexec( $dbh, $query );
         while ( my $email = $sth->fetchrow_array() ) {
             print $FH $email . "\n";
         }

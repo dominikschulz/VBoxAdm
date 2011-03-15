@@ -4,6 +4,7 @@ dbpass=vboxadm
 dbdb=vboxadm
 dbhost=localhost
 domain=domain.tld
+mail_location=/var/vmail
 
 # config for webfrontend
 [cgi]

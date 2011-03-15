@@ -87,7 +87,7 @@ sub parse_reject_line {
         my ( $rdns, $ip, $smtpcode, $smtpmsg, $from, $to, $proto, $helo ) = ( $1, $2, $3, $4, $5, $6, $7, $8 );
         if ( $from eq $to ) {
             print "SKIPPED: SPAM - from=to\n" if $config{'notify'}{'verbose'};
-            next LINE;
+            return;
         }
         elsif ( $smtpmsg =~ m/Greylisted/ ) {
             print "SKIPPED: GREYLISTED\n" if $config{'notify'}{'verbose'};
@@ -95,7 +95,7 @@ sub parse_reject_line {
         }
         elsif ( $from =~ m/@(yahoo|gmail|microsoft|hotmail|msn|live|aim|rolex|blizzard|gmx|web)\./ ) {
             print "SKIPPED: SPAM from well-known domain\n" if $config{'notify'}{'verbose'};
-            next LINE;
+            return;
         }
 
         my $vars = {};
@@ -120,22 +120,22 @@ sub parse_reject_line {
             # Seems like the sender is missing the domain
             # part. Weird but not impossible.
             # - sp
-            next LINE;
+            return;
         }
 
         if ( &is_notified( $dbh, 'postmaster@' . $from_domain ) ) {
             print "SKIPPED: This postmaster (postmaster\@$from_domain) was already notified.\n" if $config{'notify'}{'verbose'};
-            next LINE;
+            return;
         }
 
         if ( &VBoxAdm::Utils::is_local_domain( $dbh, $from_domain ) ) {
             print "SKIPPED: Forged localdomain in sender ($from_domain may not be a local domain)!\n" if $config{'notify'}{'verbose'};
-            next LINE;
+            return;
         }
 
         if ( !&VBoxAdm::Utils::is_local_mailbox( $dbh, $to ) ) {
             print "SKIPPED: Invalid recipient ($to is no local mailbox)!\n" if $config{'notify'}{'verbose'};
-            next LINE;
+            return;
         }
 
         # Log-Message: Client host rejected: cannot find your hostname
