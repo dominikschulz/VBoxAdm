@@ -105,7 +105,14 @@ exit 0;
 ###########################################################################
 # SUBS
 ###########################################################################
-
+############################################
+# Usage      :
+# Purpose    :
+# Returns    :
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 # We must HUP to tell postgrey to reload its whitelist
 sub reload_postgrey {
     my $pidfile = '/var/run/postgrey.pid';
@@ -123,7 +130,14 @@ sub reload_postgrey {
         }
     }
 }
-
+############################################
+# Usage      :
+# Purpose    :
+# Returns    :
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub store_whitelist {
     my $whitelist = shift;
     my $dbh       = shift;
@@ -139,7 +153,14 @@ sub store_whitelist {
 
     return 1;
 }
-
+############################################
+# Usage      :
+# Purpose    :
+# Returns    :
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub write_exim_whitelist {
     my $dbh    = shift;
     my $config = shift;
@@ -156,7 +177,14 @@ sub write_exim_whitelist {
     }
     return;
 }
-
+############################################
+# Usage      :
+# Purpose    :
+# Returns    :
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub write_postfix_whitelist {
     my $dbh    = shift;
     my $config = shift;
@@ -173,7 +201,14 @@ sub write_postfix_whitelist {
     }
     return;
 }
-
+############################################
+# Usage      :
+# Purpose    :
+# Returns    :
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub parse_exim {
     my $dbh    = shift;
     my $config = shift;
@@ -236,7 +271,14 @@ sub parse_exim {
     }
     close($IN);
 }
-
+############################################
+# Usage      : if(&is_valid_domain($from,$config)) { ... }
+# Purpose    : Determine if the given email address contains a valid domain.
+# Returns    : True if the domain is valid.
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub is_valid_domain {
     my $from   = shift;
     my $config = shift;
@@ -255,7 +297,14 @@ sub is_valid_domain {
         return 1;
     }
 }
-
+############################################
+# Usage      : if(&is_local_domain($dbh, $from)) { ... }
+# Purpose    : Determine if the given email address has a local domain.
+# Returns    : True if the domain is local.
+# Parameters : DBH, an email address
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub is_local_domain {
     my $dbh  = shift;
     my $from = shift;
@@ -272,7 +321,14 @@ sub is_local_domain {
 
     return $count;
 }
-
+############################################
+# Usage      : if(&is_ignored_network($ip,$config)) { ... }
+# Purpose    : Determine if this IP is from an ignored network range.
+# Returns    : True if it is.
+# Parameters : IP, Config hashref
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub is_ignored_network {
     my $ip     = shift;
     my $config = shift;
@@ -282,7 +338,14 @@ sub is_ignored_network {
     }
     return;
 }
-
+############################################
+# Usage      : &parse_postfix($dbh, $config);
+# Purpose    : Pare as postfix logfile for outgoing messages.
+# Returns    : Always true.
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub parse_postfix {
     my $dbh    = shift;
     my $config = shift;
@@ -295,6 +358,8 @@ sub parse_postfix {
     # and if that MID is sent add it to the whitelist table
 
     open( my $IN, "<", $config->{'awl'}{'logfile'} ) or die("Could not open file $config->{'awl'}{'logfile'}: $!");
+
+    # TODO do not use $_
     while (<$IN>) {
         chomp;
 
@@ -425,6 +490,7 @@ sub parse_postfix {
         }
     }
     close($IN);
+    return 1;
 }
 __END__
 

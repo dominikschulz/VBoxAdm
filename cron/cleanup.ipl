@@ -79,6 +79,14 @@ exit 0;
 ###########################################################################
 # Subs
 ###########################################################################
+############################################
+# Usage      :
+# Purpose    :
+# Returns    :
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/av
 # See Also: http://cr.yp.to/proto/maildir.html
 sub purge_mails {
     my $dir = shift;
@@ -109,7 +117,14 @@ sub purge_mails {
         return;
     }
 }
-
+############################################
+# Usage      :
+# Purpose    :
+# Returns    :
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub purge_mailboxes {
 
     # - remove deleted mailboxes
@@ -172,7 +187,14 @@ sub purge_mailboxes {
 
     return 1;
 }
-
+############################################
+# Usage      :
+# Purpose    :
+# Returns    :
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub clean_vacation {
     my $dbh    = shift;
     my $config = shift;
@@ -183,7 +205,14 @@ sub clean_vacation {
 
     return 1;
 }
-
+############################################
+# Usage      :
+# Purpose    :
+# Returns    :
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub clean_awl {
     my $dbh    = shift;
     my $config = shift;

@@ -78,6 +78,14 @@ exit 0;
 ############################
 # Subs
 ############################
+############################################
+# Usage      : &parse_reject_line($line);
+# Purpose    : Parses a postfix reject line and acts upon, called by parse_postfix_maillog
+# Returns    : False if the notify was skipped.
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub parse_reject_line {
     my $line = shift;
 
@@ -214,7 +222,14 @@ sub parse_reject_line {
     }
     return 1;
 }
-
+############################################
+# Usage      : &parse_postfix_mailllog('/var/log/mail.log',$config);
+# Purpose    : Parse the given postfix mail.log for rejections
+# Returns    : True if the logfile could be opened.
+# Parameters : The Logfile location and the config hashref.
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub parse_postfix_maillog {
     my $file   = shift;
     my $config = shift;
@@ -226,21 +241,41 @@ sub parse_postfix_maillog {
             }
         }
         close($FH);
+        return 1;
     }
+    return;
 }
-
+############################################
+# Usage      : &set_notified($dbh, $email);
+# Purpose    : Mark this email as notified.
+# Returns    : Nothing
+# Parameters : DBH and an email.
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 # Mark this recipient as already notified
 sub set_notified {
     my $dbh   = shift;
     my $email = shift;
 
     my $query = "INSERT IGNORE INTO rfc_notify (email,ts) VALUES(?,NOW())";
-    my $sth = &VBoxAdm::DB::prepexec( $dbh, $query, $email );
-    $sth->finish();
-
-    return 1;
+    if ( my $sth = &VBoxAdm::DB::prepexec( $dbh, $query, $email ) ) {
+        $sth->finish();
+        return 1;
+    }
+    else {
+        return;
+    }
 }
 
+############################################
+# Usage      : if(&is_notified($dbh,$email)) { ... }
+# Purpose    : Determine if this email was already notified.
+# Returns    : True if it was notified. False otherwise.
+# Parameters : DBH and an email.
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 # Find out whether this recipient was already notified
 sub is_notified {
     my $dbh   = shift;

@@ -70,20 +70,42 @@ exit 0;
 ###########################################################################
 # Subs
 ###########################################################################
+############################################
+# Usage      : &optimize_archive_tables($dbh,$config);
+# Purpose    :
+# Returns    :
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub optimize_archive_tables {
     my $dbh    = shift;
     my $config = shift;
 
     # TODO optimize all archiv tables no longer in use
 }
-
+############################################
+# Usage      : &expire_archive_table($dbh,$config);
+# Purpose    :
+# Returns    :
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub expire_archive_tables {
     my $dbh    = shift;
     my $config = shift;
 
     # TODO delete archive tables which are expired
 }
-
+############################################
+# Usage      : &sign_archive($dbh,$config);
+# Purpose    :
+# Returns    :
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub sign_archive {
     my $dbh    = shift;
     my $config = shift;
@@ -92,7 +114,14 @@ sub sign_archive {
     # - sign archived mails
     # - write to signature table
 }
-
+############################################
+# Usage      : &create_archive_tables($dbh, $config);
+# Purpose    : Create all necessary archive tables in advance.
+# Returns    : Always true.
+# Parameters : DBH, Config hashref.
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub create_archive_tables {
     my $dbh    = shift;
     my $config = shift;
@@ -110,19 +139,26 @@ sub create_archive_tables {
         for my $y ( $year .. $year + 1 ) {
             for my $m ( 1 .. 12 ) {
                 &create_archive_table( $dbh, $y, $m )
-                  or syslod( 2, 'Failed to create archive table for ' . $y . '-' . $m );
+                  or syslog( 2, 'Failed to create archive table for ' . $y . '-' . $m );
             }
         }
     }
     else {
         for my $y ( $year .. $year + 1 ) {
             &create_archive_table( $dbh, $y, 1 )
-              or sysloG( 2, 'Failed to create archive table for ' . $y . '-01' );
+              or syslog( 2, 'Failed to create archive table for ' . $y . '-01' );
         }
     }
-
+    return 1;
 }
-
+############################################
+# Usage      : &create_archive_table($dbh, $year, $month);
+# Purpose    : Create an archive table for the given year and month.
+# Returns    : True if the table was created.
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub create_archive_table {
     my $dbh   = shift;
     my $year  = shift;
@@ -130,6 +166,8 @@ sub create_archive_table {
     my $table = sprintf( "archive_%04d_%02d", $year, $month );
     my $sql   = 'CREATE TABLE IF NOT EXISTS `';
     $sql .= $table;
+
+    # body type must be longtext, which should allow up to 4G of data
     $sql .= '` (
   `id` bigint(64) NOT NULL AUTO_INCREMENT,
   `checksum` char(20) NOT NULL,
