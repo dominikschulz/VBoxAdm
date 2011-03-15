@@ -39,7 +39,7 @@ sub db_connect {
     # and try each one until a connection succeeds, use short timeout
     # use guarding alarm timer
     my $dsn = "DBI:mysql:database=$db;user=$user;password=$pass;port=$port;host=$host";
-    $self->{vbox}->{dbh} = VBoxAdm::DB::connect( $dsn, { ConnectTimeout => 10, } ) and last;
+    $self->{vbox}->{dbh} = VBoxAdm::DB::connect( $dsn, { ConnectTimeout => 10, } );
     if ( !$self->{vbox}->{dbh} ) {
         croak "Could not connect to DB with DSN $dsn: " . DBI->errstr;
     }
@@ -150,20 +150,64 @@ sub process_request {
         ) or die "Failed to create a listening server: $!\n";
 
         # Pass the inital welcome
-        # TODO check remote IP - this is the only security measure here!
-        $smtp_server->print("220 HOSTNAME ESMTP\r\n");
+        $smtp_server->print( "220 " . $self->{vbox}->{hostname} . " SMTP\r\n" );
 
       LINE: while ( my $what = $smtp_server->chat() ) {
 
-            # TODO implement the SMTP protocol
-            # never send permfails, always send tempfails!
-            if ( $what eq '.' ) {
+            # this section implements the (subset of the) SMTP protocol
+            # never send permfails, always send tempfails ->
+            # this will cause mails to stay in the postfix queue and give us a chance to clean
+            # up the mess w/o loosing any mails
+            # HELO/EHLO/LHLO -> ignored
+            if ( $what =~ s/^(he|eh|lh)lo\s+//i ) {
+                $smtp_server->ok( 'Hello ' . $smtp_server->{helo} . ', nice to meet you' );
+            }
+            elsif ( $what =~ m/^rset\b/i ) {
+                $smtp_server->ok('kthx');
+            }
 
-                # TODO this is the end of the message, finish up and store
+            # MAIL FROM -> ignored, always valid
+            elsif ( $what =~ s/^mail\s+from:\s*//i ) {
+                $smtp_server->ok('Sender OK');
+            }
+
+            # RCPT TO -> try to unroll, tempfail if unable to
+            elsif ( $what =~ s/^rcpt\s+to:\s*//i ) {
+                if ( $self->{recipients} && scalar( @{ $self->{recipients} } ) > 1 ) {
+                    $smtp_server->tempfail('Only one recipient per mail!');
+                    next LINE;
+                }
+                my $unrolled = &VBoxAdm::Utils::unroll_recipient( $self->{to} );
+                if ($unrolled) {
+                    $smtp_server->{to}         = $unrolled;
+                    $smtp_server->{recipients} = ($unrolled);
+                    $smtp_server->ok('Recipient OK');
+                }
+                else {
+                    $smtp_server->tempfail('Recipient could not be unrolled!');
+                }
+            }
+
+            # DATA -> ignored
+            elsif ( $what =~ m/^data/i ) {
+                $smtp_server->print( '354 End data with <CR><LF>.<CR><LF>' . "\r\n" );
+            }
+            elsif ( $what eq '.' ) {
+
+                # this is the end of the message, finish up and store the message
+                # rewind the file, we need to process it from top to bottom
+                $smtp_server->{data}->seek( 0, 0 );
+                if ( $self->process_message( $smtp_server->{from}, $smtp_server->{to}, $smtp_server->{data} ) ) {
+                    $smtp_server->ok('Message accepted for delivery');
+                }
+                else {
+                    $smtp_server->tempfail('Could not process message');
+                }
             }
             else {
 
-                # TODO unknown SMTP command, send tempfail
+                # unknown SMTP command, send tempfail
+                $smtp_server->tempfail('Unknown command.');
             }
 
             my $msg = '';
@@ -185,6 +229,153 @@ sub process_request {
 
     return 1;
 }
+
+sub process_message {
+    my $self      = shift;
+    my $sender    = shift;
+    my $recipient = shift;
+    my $fh        = shift;
+    my %header    = ();
+    my %status    = ();
+    my $digest    = Digest::SHA->new(256);
+    my $in_header = 1;
+    my $body      = '';
+
+    # add X-Envelope-From and X-Envelope-To to preserve original sender/recipient
+    my $xenvfrom = 'X-Envelope-From: ' . lc($sender) . "\r\n";
+    $digest->add($xenvfrom);
+    $body .= $xenvfrom;
+    my $xenvto = 'X-Envelope-To: ' . lc($recipient) . "\r\n";
+    $digest->add($xenvto);
+    $body .= $xenvto;
+    while ( my $line = <$fh> ) {
+        $digest->add($line);
+        $body .= $line;
+
+        # <CR><LF><CR><LF> marks the end of the header wrt. SMTP
+        $line =~ /^$/ and $in_header = 0;
+        if ($in_header) {
+            $line =~ /^From:\s+(.*)$/i                  and $header{'from'}              = $1;
+            $line =~ /^To:\s+(.*)$/i                    and $header{'to'}                = $1;
+            $line =~ /^CC:\s+(.*)$/i                    and $header{'cc'}                = $1;
+            $line =~ /^Bcc:\s+(.*)$/i                   and $header{'bcc'}               = $1;
+            $line =~ /^Resent-To:\s+(.*)$/i             and $header{'resent-to'}         = $1;
+            $line =~ /^Resent-CC:\s+(.*)$/i             and $header{'resent-cc'}         = $1;
+            $line =~ /^Resent-Bcc:\s+(.*)$/i            and $header{'resent-bcc'}        = $1;
+            $line =~ /^Reply-to:\s+(.*)$/i              and $header{'reply-to'}          = $1;
+            $line =~ /^Subject:\s+(.*)$/i               and $header{'subject'}           = $1;
+            $line =~ /^Return-Path:\s+<?([^>]+)>?$/i    and $header{'return-path'}       = $1;
+            $line =~ /^Auto-Submitted:\s+(.*)$/i        and $header{'auto-submitted'}    = lc($1);
+            $line =~ /^X-Loop:\s+VBoxAdm-Vacation\s+$/i and $status{'is-loop'}           = 1;
+            $line =~ /^List-.*:/i                       and $status{'is-list'}           = 1;
+            $line =~ /^Message-Id:\s+<([^>]+)>/i        and $header{'msg-id'}            = $1;
+            $line =~ /^X-Spam-(Flag|Status):\s+YES/i    and $header{'x-spam-status'}     = 1 and $status{'is-spam'} = 1;
+            $line =~ /^X-Facebook-Notify:/i             and $header{'x-facebook-notify'} = 1;
+            $line =~ /^Precedence:\s+(bulk|list|junk)/i and $header{'precedence'}        = $1;
+            $line =~ /^(X-(Barracuda-)?Spam-Status):\s+(Yes)/i                        and $header{$1} = $3 and $status{'is-spam'} = 1;
+            $line =~ /^(X-Dspam-Result):\s+(spam|bl[ao]cklisted)/i                    and $header{$1} = $3 and $status{'is-spam'} = 1;
+            $line =~ /^(X-(Anti|Avas-)?virus-status):\s+(infected)/i                  and $header{$1} = $3 and $status{'is-spam'} = 1;
+            $line =~ /^(X-(Avas-spam|Spamtest|CRM114|Razor|Pyzor)-status):\s+(Spam)/i and $header{$1} = $3 and $status{'is-spam'} = 1;
+            $line =~ /^(X-OSBF-LUA-Score):\s+[0-9\/\.\-\+]+\s+\[([-S])\]/i            and $header{$1} = $3 and $status{'is-spam'} = 1;
+        }
+    }
+    my $checksum = $digest->hexdigest();
+
+    # TODO apply exclude/include filters
+    # provide options to turn all filter on and off
+    # sample excludes:
+    # - sender = recipient
+    # - sender_domain = recipient_domain
+    # - sender =~ (root|postmaster|abuse)@
+    # - spam
+
+    if ( $self->{vbox}->{sth}->{insert}->execute( $checksum, $body ) ) {
+        syslog( 2, "Wrote message from " . $sender . " to " . $recipient . " to DB." );
+        return 1;
+    }
+    else {
+        syslog( 2, "Failed to log message from " . $sender . " to " . $recipient . " to DB." );
+        return;
+    }
+
+    # TODO write metadata and log
+    # we could (and should) use the extracted meta-data for retrieval of archived mails
+}
+
+=begin old
+
+###
+# Parse incoming mail
+###
+my %header = ();
+my %status = ();
+
+my $digest    = Digest::SHA->new(256);
+my $in_header = 1;
+
+my $body = '';
+
+# add X-Envelope-From and X-Envelope-To to preserve original sender/recipient
+my $xenvfrom = 'X-Envelope-From: ' . lc( $config{'sender'} ) . "\r\n";
+$digest->add($xenvfrom);
+$body .= $xenvfrom;
+my $xenvto = 'X-Envelope-To: ' . lc( $config{'recipient'} ) . "\r\n";
+$digest->add($xenvto);
+$body .= $xenvto;
+while ( my $line = <> ) {
+    $digest->add($line);
+    $body .= $line;
+    $line =~ /^$/ and $in_header = 0;
+    if ($in_header) {
+        $line =~ /^From:\s+(.*)$/i                  and $header{'from'}              = $1;
+        $line =~ /^To:\s+(.*)$/i                    and $header{'to'}                = $1;
+        $line =~ /^CC:\s+(.*)$/i                    and $header{'cc'}                = $1;
+        $line =~ /^Bcc:\s+(.*)$/i                   and $header{'bcc'}               = $1;
+        $line =~ /^Resent-To:\s+(.*)$/i             and $header{'resent-to'}         = $1;
+        $line =~ /^Resent-CC:\s+(.*)$/i             and $header{'resent-cc'}         = $1;
+        $line =~ /^Resent-Bcc:\s+(.*)$/i            and $header{'resent-bcc'}        = $1;
+        $line =~ /^Reply-to:\s+(.*)$/i              and $header{'reply-to'}          = $1;
+        $line =~ /^Subject:\s+(.*)$/i               and $header{'subject'}           = $1;
+        $line =~ /^Return-Path:\s+<?([^>]+)>?$/i    and $header{'return-path'}       = $1;
+        $line =~ /^Auto-Submitted:\s+(.*)$/i        and $header{'auto-submitted'}    = lc($1);
+        $line =~ /^X-Loop:\s+VBoxAdm-Vacation\s+$/i and $status{'is-loop'}           = 1;
+        $line =~ /^List-.*:/i                       and $status{'is-list'}           = 1;
+        $line =~ /^Message-Id:\s+<([^>]+)>/i        and $header{'msg-id'}            = $1;
+        $line =~ /^X-Spam-(Flag|Status):\s+YES/i    and $header{'x-spam-status'}     = 1 and $status{'is-spam'} = 1;
+        $line =~ /^X-Facebook-Notify:/i             and $header{'x-facebook-notify'} = 1;
+        $line =~ /^Precedence:\s+(bulk|list|junk)/i and $header{'precedence'}        = $1;
+        $line =~ /^(X-(Barracuda-)?Spam-Status):\s+(Yes)/i                        and $header{$1} = $3 and $status{'is-spam'} = 1;
+        $line =~ /^(X-Dspam-Result):\s+(spam|bl[ao]cklisted)/i                    and $header{$1} = $3 and $status{'is-spam'} = 1;
+        $line =~ /^(X-(Anti|Avas-)?virus-status):\s+(infected)/i                  and $header{$1} = $3 and $status{'is-spam'} = 1;
+        $line =~ /^(X-(Avas-spam|Spamtest|CRM114|Razor|Pyzor)-status):\s+(Spam)/i and $header{$1} = $3 and $status{'is-spam'} = 1;
+        $line =~ /^(X-OSBF-LUA-Score):\s+[0-9\/\.\-\+]+\s+\[([-S])\]/i            and $header{$1} = $3 and $status{'is-spam'} = 1;
+    }
+}
+my $checksum = $digest->hexdigest();
+
+my $dsn = "DBI:mysql:host=$db_host;database=$db_db;port=$db_port;user=$db_user;password=$db_pass";
+my $dbh = &VBoxAdm::DB::connect($dsn);
+
+if ( !$dbh ) {
+    syslog( 2, 'Could not connect to database with DSN %s - From: %s - To: %s - Exiting', $dsn, $config{'sender'}, $config{'recipient'} );
+    closelog();
+    die("Could not connect to database with DSN $dsn");
+}
+
+# TODO apply exclude/include filters
+
+my $query = "INSERT DELAYED INTO " . $db_archive_table . " (checksum,body) VALUES(?,?)";
+my $sth = &VBoxAdm::DB::prepexec( $dbh, $query, $checksum, $body )
+  or syslog( 2, "Failed to log message from " . $config{'sender'} . " to " . $config{'recipient'} . " to DB." );
+$sth->finish;
+
+# TODO write metadata and log
+
+closelog();
+
+$dbh->disconnect();
+exit 0;
+=cut
 
 1;
 __END__

@@ -28,10 +28,11 @@ whitelist = /etc/postfix/maps/whitelist
 
 [mailarchive]
 dbuser=vboxadm_ma
-dbpass=vbxoadm_ma
+dbpass=vboxadm_ma
 dbdb=vboxadm_ma
 dbhost=vbxoadm_ma
 enabled=0
+allow=127.0.0.1
 
 [notify]
 logfile=/var/log/mail.log

@@ -1,34 +1,181 @@
 #!/usr/bin/perl
+package VBoxAdm::Mailarchive;
+
 use strict;
 use warnings;
 
-=begin whatis
-What is the purpose of the mailarchive?
-- revision safe archival of all incoming and outgoing mails
-- search and retrieval of archived mails
-- probably this should later implemented as an local LMTP/SMTP server
-which would eliminate the need to spawn a new perl process for every mail
-- after mail is retrieved it is automatically signed
-- these signatures are re-signed/re-newed every n days/weeks/months
-- it aims to be compliant with the (german) law requiring business entities to
-store exact copy of business mail
-- SQL Schema:
--- one table for mails, per month/year: archive_body_YYYY_MM (id, blob, checksum)
--- one table for signature: archive_sign_YYYY_MM (id, blob), i.e. signatures are not calculated "live", rather by a cron
--- one table for meta-data and searching: archive_metadata (id, tbl, tbl_id, from, to, ...)
--- maybe a full-text index
-- see http://de.wikipedia.org/wiki/E-Mail-Archivierung
-- see http://search.cpan.org/~frajulac/GnuPG-0.09/GnuPG.pm
-- this really should be an SMTP-Server implementation with VBoxAdm::SMTP::Server and Net::Server::PreFork
-  for these reasons:
--- postfix will bounce the mail if the transport ever fails (maybe due to a bug or misconfiguration) but
-   will try at least for 5 days to deliver to an smtp server
--- archival should be on another, secured, host
-- put mailarchive in its own package: vboxadm-ma
-=cut
+# TODO turn into Smtp-Server, see mailarchive.pl
 
-# TODO turn into Smtp-Server, see smtpproxy.pl
+# We use "Defined-or operators" operators introduced with 5.9.0
+use 5.9.0;
 
+use Getopt::Long;
+use Config::Std;
+use Net::Domain;
+
+use VBoxAdm::Mailarchive '@VERSION@';
+
+my $syntax = "syntax: $0 [--verbose] [--config=<FILE>]\n";
+
+my ( $conffile_used, @hooks, %hook, %config, );
+
+# Valid config file locations to try
+my @conffile_locations = qw(
+  vboxadm.conf
+  conf/vboxadm.conf
+  /etc/vboxadm/vboxadm.conf
+);
+GetOptions(
+    'verbose|v+' => \$config{'verbose'},
+    'dry|d!'     => \$config{'dry'},
+    'no-fork!'   => \$config{'no-fork'},
+
+    # shift removes name of the option (config) and leaves the value for unshift
+    # unshift prepends to the list of valid config files so it is tried first
+    'config=s' => sub { shift; unshift( @conffile_locations, @_ ); },
+) or die $syntax;
+
+# Try all config file locations
+foreach my $loc (@conffile_locations) {
+    if ( -r $loc ) {
+        $conffile_used = $loc;
+        read_config $loc => %config;
+        last;
+    }
+}
+
+# Determine options
+my $dbhost = $config{'mailarchive'}{'dbhost'} || $config{'default'}{'dbhost'} || 'localhost';
+my $dbuser = $config{'mailarchive'}{'dbuser'} || $config{'default'}{'dbuser'} || 'vboxadm';
+my $dbpass = $config{'mailarchive'}{'dbpass'} || $config{'default'}{'dbpass'} || 'vboxadm';
+my $dbport = $config{'mailarchive'}{'dbport'} || $config{'default'}{'dbport'} || 3306;
+my $dbdb   = $config{'mailarchive'}{'dbdb'}   || $config{'default'}{'dbdb'}   || 'vboxadm';
+my $listen = $config{'mailarchive'}{'listen'} || 'localhost:10029';
+my $pidfile           = $config{'mailarchive'}{'pidfile'}           || '/var/run/vboxadm-ma.pid';
+my $user              = $config{'mailarchive'}{'user'}              || 'vboxadm';
+my $group             = $config{'mailarchive'}{'group'}             || 'vboxadm';
+my $childtimeout      = $config{'mailarchive'}{'childtimeout'}      || 60;
+my $min_servers       = $config{'mailarchive'}{'min_servers'}       || 20;
+my $min_spare_servers = $config{'mailarchive'}{'min_spare_servers'} || 10;
+my $max_servers       = $config{'mailarchive'}{'max_servers'}       || 80;
+my $max_spare_servers = $config{'mailarchive'}{'max_spare_servers'} || 20;
+my $max_requests      = $config{'mailarchive'}{'max_requests'}      || 250;
+my $nsloglevel = $config{'mailarchive'}{'nsloglevel'} // 2;
+my $logsock = $config{'mailarchive'}{'logsock'} || 'unix';
+my $background = $config{'no-fork'} ? 0 : 1;
+my $logfile = $config{'mailarchive'}{'logfile'} || '/var/log/vboxadm-ma.log';
+my $tempdir = $config{'mailarchive'}{'tempdir'} || '/tmp';
+
+# Database Hosts
+my @dbhosts = ();
+if ( $config{'mailarchive'}{'dbhost'} ) {
+    if ( ref( $config{'mailarchive'}{'dbhost'} ) eq 'ARRAY' ) {
+        push( @dbhosts, @{ $config{'mailarchive'}{'dbhost'} } );
+    }
+    else {
+        push( @dbhosts, $config{'mailarchive'}{'dbhost'} );
+    }
+}
+elsif ( $config{'default'}{'dbhost'} ) {
+    if ( ref( $config{'default'}{'dbhost'} ) eq 'ARRAY' ) {
+        push( @dbhosts, @{ $config{'default'}{'dbhost'} } );
+    }
+    else {
+        push( @dbhosts, $config{'default'}{'dbhost'} );
+    }
+}
+else {
+    push( @dbhosts, 'localhost' );
+}
+my @allow = ();
+if ( $config{'mailarchive'}{'allow'} ) {
+    if ( ref( $config{'mailarchive'}{'allow'} ) eq 'ARRAY' ) {
+        push( @dbhosts, @{ $config{'mailarchive'}{'allow'} } );
+    }
+    else {
+        push( @dbhosts, $config{'mailarchive'}{'allow'} );
+    }
+}
+else {
+    push( @allow, '127.0.0.1' );
+}
+
+# Parse listen and connect options
+my ( $srcaddr, $srcport ) = split /:/, $listen;
+
+# specify hosts and ports
+my $server = bless {
+    server => {
+
+        # Binding
+        host  => $srcaddr,
+        port  => $srcport,
+        proto => 'tcp',
+
+        # ACL
+        allow => \@allow,
+
+        # Logging
+        log_file        => 'Sys::Syslog',
+        log_level       => $nsloglevel,
+        syslog_logsock  => $logsock,
+        syslog_ident    => 'vboxadm-ma',
+        syslog_facility => 'mail',
+
+        # Misc
+        background => $background,
+        pid_file   => $pidfile,
+        user       => $user,
+        group      => $group,
+
+        # PreFork
+        min_servers       => $min_servers,
+        min_spare_servers => $min_spare_servers,
+        max_servers       => $max_servers,
+        max_spare_servers => $max_spare_servers,
+        max_requests      => $max_requests,
+    },
+    vbox => {
+        dbh          => undef,
+        childtimeout => $childtimeout,
+        dry          => $config{'dry'},
+        tempdir      => $tempdir,
+        hostname     => Net::Domain::hostfqdn() || 'localhost',
+
+        dbhosts => \@dbhosts,
+        dbport  => $dbport,
+        dbuser  => $dbuser,
+        dbpass  => $dbpass,
+        dbdb    => $dbdb,
+    },
+  },
+  'VBoxAdm::Mailarchive';
+
+# Test DB connection before starting server
+if ( $server->db_connect() ) {
+    $server->{vbox}->{dbh}->disconnect();
+}
+else {
+    die("Could not connect to database!");
+}
+
+# redirect STDOUT and STDERR to logfile
+# every output should go to the syslog but in case
+# something behaves badly, e.g. a module used,
+# we redirect the remaining output to a logfile
+# for further investigation.
+close(STDOUT);
+close(STDERR);
+close(STDIN);
+open STDIN,  '<', '/dev/null';
+open STDOUT, '>', $logfile;
+open STDERR, '>&STDOUT';
+
+$server->run();
+
+exit 1;
+
+=begin old
 use DBI;
 use Digest::SHA;
 use Getopt::Long;
@@ -178,6 +325,32 @@ closelog();
 
 $dbh->disconnect();
 exit 0;
+=cut
+
+=begin whatis
+What is the purpose of the mailarchive?
+- revision safe archival of all incoming and outgoing mails
+- search and retrieval of archived mails
+- probably this should later implemented as an local LMTP/SMTP server
+which would eliminate the need to spawn a new perl process for every mail
+- after mail is retrieved it is automatically signed
+- these signatures are re-signed/re-newed every n days/weeks/months
+- it aims to be compliant with the (german) law requiring business entities to
+store exact copy of business mail
+- SQL Schema:
+-- one table for mails, per month/year: archive_body_YYYY_MM (id, blob, checksum)
+-- one table for signature: archive_sign_YYYY_MM (id, blob), i.e. signatures are not calculated "live", rather by a cron
+-- one table for meta-data and searching: archive_metadata (id, tbl, tbl_id, from, to, ...)
+-- maybe a full-text index
+- see http://de.wikipedia.org/wiki/E-Mail-Archivierung
+- see http://search.cpan.org/~frajulac/GnuPG-0.09/GnuPG.pm
+- this really should be an SMTP-Server implementation with VBoxAdm::SMTP::Server and Net::Server::PreFork
+  for these reasons:
+-- postfix will bounce the mail if the transport ever fails (maybe due to a bug or misconfiguration) but
+   will try at least for 5 days to deliver to an smtp server
+-- archival should be on another, secured, host
+- put mailarchive in its own package: vboxadm-ma
+=cut
 
 ###########################################################################
 # Subs
