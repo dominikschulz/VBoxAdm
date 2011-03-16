@@ -157,7 +157,8 @@ my $rsa = Crypt::OpenSSL::RSA->generate_key(1024);
 my $data = "Test";
 $digest->add($data);
 my $checksum = $digest->hexdigest();
-my $signature = $rsa->sign($checksum);
+my $signature = $rsa->sign($checksum); # length always 64
+my $signb64 = MIME::Base64::encode($signature); # length always 175
 
 print "Data: $data\n";
 print "Checksum: $checksum\n";
@@ -206,6 +207,22 @@ sub create_archive_tables {
         }
     }
     return 1;
+}
+
+sub create_signature_table {
+
+=begin sql
+CREATE TABLE IF NOT EXISTS `archive_signatures` (
+`id` BIGINT( 64 ) NOT NULL AUTO_INCREMENT PRIMARY KEY ,
+`table` CHAR( 15 ) NOT NULL ,
+`fk` BIGINT( 64 ) NOT NULL ,
+`checksum` CHAR( 64 ) NOT NULL ,
+`signature` CHAR( 175 ) NOT NULL ,
+`key_id` INT( 16 ) NOT NULL
+) ENGINE = ARCHIVE;
+=cut
+
+    return;
 }
 ############################################
 # Usage      : &create_archive_table($dbh, $year, $month);
