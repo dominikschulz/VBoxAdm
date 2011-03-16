@@ -106,9 +106,9 @@ exit 0;
 # SUBS
 ###########################################################################
 ############################################
-# Usage      :
-# Purpose    :
-# Returns    :
+# Usage      : &reload_postgrey();
+# Purpose    : Make Postgrey reload its whitelist.
+# Returns    : True on success.
 # Parameters : None
 # Throws     : no exceptions
 # Comments   : none
@@ -131,7 +131,7 @@ sub reload_postgrey {
     }
 }
 ############################################
-# Usage      :
+# Usage      : &store_whitelist($whitelist,$dbh);
 # Purpose    :
 # Returns    :
 # Parameters : None
@@ -154,7 +154,7 @@ sub store_whitelist {
     return 1;
 }
 ############################################
-# Usage      :
+# Usage      : &write_exim_whiteliste($dbh,$config);
 # Purpose    :
 # Returns    :
 # Parameters : None
@@ -178,7 +178,7 @@ sub write_exim_whitelist {
     return;
 }
 ############################################
-# Usage      :
+# Usage      : &write_postfix_whitelist($dbh,$config);
 # Purpose    :
 # Returns    :
 # Parameters : None
@@ -202,9 +202,9 @@ sub write_postfix_whitelist {
     return;
 }
 ############################################
-# Usage      :
-# Purpose    :
-# Returns    :
+# Usage      : &parse_exim($dbh,$config);
+# Purpose    : Parse an exim mainlog for outgoing mail.
+# Returns    : Always true.
 # Parameters : None
 # Throws     : no exceptions
 # Comments   : none
@@ -270,6 +270,8 @@ sub parse_exim {
         }
     }
     close($IN);
+
+    return 1;
 }
 ############################################
 # Usage      : if(&is_valid_domain($from,$config)) { ... }
@@ -358,14 +360,12 @@ sub parse_postfix {
     # and if that MID is sent add it to the whitelist table
 
     open( my $IN, "<", $config->{'awl'}{'logfile'} ) or die("Could not open file $config->{'awl'}{'logfile'}: $!");
-
-    # TODO do not use $_
-    while (<$IN>) {
-        chomp;
+    while ( my $line = <$IN> ) {
+        chomp($line);
 
         #print "parse_postfix - Candidate Line: $_\n";
-        if (m/postfix\/smtpd\[(\d+)\]: NOQUEUE: client=(\S+)\[([\d\.]+)\], sasl_method=([A-Z]+), sasl_username=(\S+)\b/) {
-            print "\tnew client connects: $_\n" if $config->{'awl'}{'verbose'};
+        if ( $line =~ m/postfix\/smtpd\[(\d+)\]: NOQUEUE: client=(\S+)\[([\d\.]+)\], sasl_method=([A-Z]+), sasl_username=(\S+)\b/ ) {
+            print "\tnew client connects: $line\n" if $config->{'awl'}{'verbose'};
 
             # new client connects
             my $pid           = $1;
@@ -383,8 +383,10 @@ sub parse_postfix {
 
             print "\t\trdns: $rdns - ip: $ip - sasl_method: $sasl_method - sasl_username: $sasl_username\n" if $config->{'awl'}{'verbose'};
         }
-        elsif (m/postfix\/smtpd\[(\d+)\]: proxy-accept: END-OF-MESSAGE: .*: queued as (\w{10,12}); from=<([^>]+)> to=<([^>]+)> proto=([A-Z]+) helo=<([^>]+)>/) {
-            print "\tproxy-accept: $_\n" if $config->{'awl'}{'verbose'};
+        elsif ( $line =~
+            m/postfix\/smtpd\[(\d+)\]: proxy-accept: END-OF-MESSAGE: .*: queued as (\w{10,12}); from=<([^>]+)> to=<([^>]+)> proto=([A-Z]+) helo=<([^>]+)>/ )
+        {
+            print "\tproxy-accept: $line\n" if $config->{'awl'}{'verbose'};
             my $pid   = $1;
             my $qid   = $2;
             my $from  = $3;
@@ -406,8 +408,8 @@ sub parse_postfix {
                 }
             }
         }
-        elsif (m/postfix\/qmgr\[(\d+)\]: (\w{10,12}): from=<([^>]+)>, /) {
-            print "\textract from: $_\n" if $config->{'awl'}{'verbose'};
+        elsif ( $line =~ m/postfix\/qmgr\[(\d+)\]: (\w{10,12}): from=<([^>]+)>, / ) {
+            print "\textract from: $line\n" if $config->{'awl'}{'verbose'};
 
             # extract from
             my $pid  = $1;
@@ -422,8 +424,8 @@ sub parse_postfix {
 
             print "\t\tfrom: $from\n" if $config->{'awl'}{'verbose'};
         }
-        elsif (m/postfix\/smtp\[(\d+)\]: (\w{10}): to=<([^>]+)>, .*, status=sent /) {
-            print "\textract to: $_\n" if $config->{'awl'}{'verbose'};
+        elsif ( $line =~ m/postfix\/smtp\[(\d+)\]: (\w{10}): to=<([^>]+)>, .*, status=sent / ) {
+            print "\textract to: $line\n" if $config->{'awl'}{'verbose'};
 
             # extract to
             my $pid = $1;
@@ -437,8 +439,8 @@ sub parse_postfix {
 
             print "\t\tto: $to\n" if $config->{'awl'}{'verbose'};
         }
-        elsif (m/postfix\/qmgr\[(\d+)\]: (\w{10,12}): removed/) {
-            print "\twhitelist iff: $_\n" if $config->{'awl'}{'verbose'};
+        elsif ( $line =~ m/postfix\/qmgr\[(\d+)\]: (\w{10,12}): removed/ ) {
+            print "\twhitelist iff: $line\n" if $config->{'awl'}{'verbose'};
 
             # whitelist if eglible
             my $pid = $1;
@@ -466,8 +468,8 @@ sub parse_postfix {
                 delete( $qids{$qid} );
             }
         }
-        elsif (m/postfix\/smtpd\[(\d+)\]: disconnect from (\S+)\[([\d\.]+)\]/) {
-            print "\tclient disconnects: $_\n" if $config->{'awl'}{'verbose'};
+        elsif ( $line =~ m/postfix\/smtpd\[(\d+)\]: disconnect from (\S+)\[([\d\.]+)\]/ ) {
+            print "\tclient disconnects: $line\n" if $config->{'awl'}{'verbose'};
 
             # disconnect
             my $pid  = $1;
@@ -490,6 +492,7 @@ sub parse_postfix {
         }
     }
     close($IN);
+
     return 1;
 }
 __END__

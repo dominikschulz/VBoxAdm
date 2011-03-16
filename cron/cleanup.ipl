@@ -66,7 +66,7 @@ if ( !$dbh ) {
 &clean_vacation( $dbh, \%config );
 
 # remove mails marked as deleted
-#&purge_mails($config{'default'}{'mail_location'},0);
+&purge_mails( $config{'default'}{'mail_location'}, 0 );
 
 # remove expired AWL entries
 &clean_awl( $dbh, \%config );
@@ -80,9 +80,9 @@ exit 0;
 # Subs
 ###########################################################################
 ############################################
-# Usage      :
-# Purpose    :
-# Returns    :
+# Usage      : &purge_mails($dir);
+# Purpose    : Delete any mails marked as read (S) and deleted (T)
+# Returns    : True on success
 # Parameters : None
 # Throws     : no exceptions
 # Comments   : none
@@ -118,10 +118,10 @@ sub purge_mails {
     }
 }
 ############################################
-# Usage      :
-# Purpose    :
-# Returns    :
-# Parameters : None
+# Usage      : &purge_mailboxes($dhb,$config);
+# Purpose    : Remove any mailboxes which were deleted in the frontend.
+# Returns    : True on success.
+# Parameters : DBH, Config hashref.
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
@@ -188,10 +188,10 @@ sub purge_mailboxes {
     return 1;
 }
 ############################################
-# Usage      :
-# Purpose    :
-# Returns    :
-# Parameters : None
+# Usage      : &clean_vacation($dbh,$config);
+# Purpose    : Remove old entries from the vacation notify table.
+# Returns    : Always true.
+# Parameters : DBH, Config hashref.
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
@@ -206,10 +206,10 @@ sub clean_vacation {
     return 1;
 }
 ############################################
-# Usage      :
-# Purpose    :
-# Returns    :
-# Parameters : None
+# Usage      : &clean_awl($dbh,$config);
+# Purpose    : Remove old entries from the AWL table.
+# Returns    : Always true.
+# Parameters : DBH, Config hashref.
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
@@ -294,6 +294,3 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 =cut
 
-__END__
-
-This cronjob should run once a day.

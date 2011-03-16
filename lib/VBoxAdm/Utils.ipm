@@ -185,11 +185,26 @@ sub trim2 {
     my $local_part = qr"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*"i;
     my $domain     = qr"(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:[A-Z]{2}|com|org|net|gov|mil|biz|info|mobi|name|aero|jobs|museum)"i;
 
+    ############################################
+    # Usage      : ????
+    # Purpose    : ????
+    # Returns    : ????
+    # Parameters : ????
+    # Throws     : no exceptions
+    # Comments   : none
+    # See Also   : n/a
     sub is_valid_address_rfc822 {
         my $addy = shift;
         return $addy =~ m/^$local_part\@$domain$/;
     }
-
+    ############################################
+    # Usage      : ????
+    # Purpose    : ????
+    # Returns    : ????
+    # Parameters : ????
+    # Throws     : no exceptions
+    # Comments   : none
+    # See Also   : n/a
     sub is_valid_addresses_rfc822 {
         my $addys    = shift;
         my @addrs    = split( /\s*,\s*/, $addys );
@@ -206,19 +221,41 @@ sub trim2 {
         }
         return $count_ok;
     }
-
+    ############################################
+    # Usage      : ????
+    # Purpose    : ????
+    # Returns    : ????
+    # Parameters : ????
+    # Throws     : no exceptions
+    # Comments   : none
+    # See Also   : n/a
     sub is_valid_localpart_rfc822 {
         my $addy = shift;
         print "\tis_valid_localpart_rfc822: $addy\n";
         return $addy =~ m/^$local_part$/;
     }
-
+    ############################################
+    # Usage      : ????
+    # Purpose    : ????
+    # Returns    : ????
+    # Parameters : ????
+    # Throws     : no exceptions
+    # Comments   : none
+    # See Also   : n/a
     sub is_valid_domain_rfc822 {
         my $addy = shift;
         return $addy =~ m/^$domain$/;
     }
 }
 
+############################################
+# Usage      : ????
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 # http://www.torsten-horn.de/techdocs/ascii.htm
 sub is_utf8 {
     my $str = shift;
@@ -248,12 +285,28 @@ sub is_utf8 {
     }
 }
 
+############################################
+# Usage      : ????
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub string_to_hex {
     my $str = shift;
     $str =~ s/(.)/sprintf("%02lX", ord $1)/seg;
     return $str;
 }
 
+############################################
+# Usage      : ????
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub is_local_domain {
     my $dbh    = shift;
     my $domain = shift;
@@ -269,6 +322,14 @@ sub is_local_domain {
     return $count;
 }
 
+############################################
+# Usage      : ????
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub is_local_mailbox {
     my $dbh     = shift;
     my $mailbox = shift;

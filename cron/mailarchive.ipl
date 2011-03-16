@@ -23,6 +23,7 @@ GetOptions(
     'sender|s=s'    => \$config{'sender'},
     'recipient|r=s' => \$config{'recipient'},
     'verbose|v+'    => \$config{'verbose'},
+    'create!'       => \$config{'create'},
 
     # shift removes name of the option (config) and leaves the value for unshift
     # unshift prepends to the list of valid config files so it is tried first
@@ -59,9 +60,11 @@ if ( !$dbh ) {
 }
 
 &create_archive_tables( $dbh, \%config );
-&optimize_archive_tables( $dbh, \%config );
-&expire_archive_tables( $dbh, \%config );
-&sign_archive( $dbh, \%config );
+if ( !$config{'create'} ) {
+    &optimize_archive_tables( $dbh, \%config );
+    &expire_archive_tables( $dbh, \%config );
+    &sign_archive( $dbh, \%config );
+}
 
 $dbh->disconnect();
 closelog();
@@ -122,7 +125,7 @@ sub expire_archive_tables {
                 my $sql = "DROP TABLE $table";
                 my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql );
                 $sth->finish();
-                syslog( 2, "Dropped expired table $table" );
+                syslog( 2, "Dropped expired table $table after $holdback years." );
             }
         }
     }
@@ -191,6 +194,7 @@ sub create_archive_tables {
 
     my $dbdb = $config->{'mailarchive'}{'dbdb'} || $config->{'default'}{'dbdb'};
 
+    # Create the Monthly/Yearly archive tables
     # We always make sure to create the tables for the current and the next year
     if ( $config->{'mailarchive'}{'rotate'} && $config->{'mailarchive'}{'rotate'} eq 'monthly' ) {
         for my $y ( $year .. $year + 1 ) {
@@ -206,10 +210,20 @@ sub create_archive_tables {
               or syslog( 2, 'Failed to create archive table for ' . $y . '-01' );
         }
     }
+
+    # Create the signature table(s)
+    &create_signature_table($dbh);
+
+    # Create the metadata tables(s)
+    &create_metadata_table($dbh);
+
     return 1;
 }
 
 sub create_signature_table {
+    my $dbh = shift;
+
+    # TODO implement
 
 =begin sql
 CREATE TABLE IF NOT EXISTS `archive_signatures` (
@@ -222,6 +236,13 @@ CREATE TABLE IF NOT EXISTS `archive_signatures` (
 ) ENGINE = ARCHIVE;
 =cut
 
+    return;
+}
+
+sub create_metadata_table {
+    my $dbh = shift;
+
+    # TODO implement
     return;
 }
 ############################################
@@ -321,7 +342,3 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 =cut
-
-__END__
-
-This cronjob should run once a day.

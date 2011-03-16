@@ -290,6 +290,8 @@ sub setup {
                     },
                     1
                 ],
+
+                # A localization filter. Turn the english text into the localized counterpart using Locale::Maketext
                 'l10n' => [
                     sub {
                         my ( $context, @args ) = @_;
@@ -559,8 +561,8 @@ sub is_localnet {
 }
 
 ############################################
-# Usage      :
-# Purpose    :
+# Usage      : $self->is_domainadmin();
+# Purpose    : tell if the user is a domainadmin
 # Returns    :
 # Parameters :
 # Throws     : no exceptions
@@ -586,8 +588,8 @@ sub is_domainadmin {
 }
 
 ############################################
-# Usage      :
-# Purpose    :
+# Usage      : $self->is_superadmin();
+# Purpose    : tell if the user is a superadmin
 # Returns    :
 # Parameters :
 # Throws     : no exceptions
@@ -644,7 +646,7 @@ sub get_user_details {
 }
 
 ############################################
-# Usage      :
+# Usage      : my $domain_id = $self->get_users_domainind();
 # Purpose    : Get the domain id of the currently logged in user.
 # Returns    :
 # Parameters :

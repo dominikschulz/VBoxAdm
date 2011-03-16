@@ -316,7 +316,6 @@ sub verify_pass {
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : http://wiki.dovecot.org/Authentication/PasswordSchemes
-# TODO add Cram-MD5 - http://www.docunext.com/wiki/Dovecotpw
 sub split_pass {
     my $pw       = shift;
     my $pwscheme = 'cleartext';

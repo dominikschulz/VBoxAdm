@@ -59,7 +59,14 @@ sub db_connect {
 
     return 1;
 }
-
+############################################
+# Usage      : ????
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
 sub prepare_queries {
     my $self = shift;
 
