@@ -50,7 +50,7 @@ sub unroll_recipient {
     $rolled or return;
 
     # recipient must be "unrolled", it's smth. like "user#domain.tld@vacation.domain.tld" -> "user@domain.tld"
-    if ( $rolled =~ m/^([^#]+)#([^@]+)\@(?:vacation|autoreply|mailarchive)\./ ) {
+    if ( $rolled =~ m/^([^@]+)#([^@#]+)\@/ ) {
         my $local_part = $1;
         my $domain     = $2;
         return $local_part . '@' . $domain;
