@@ -22,18 +22,6 @@ Make sure class-C ip subnet auto-whitelists are supported
 - Vacation:
 -- Test new vacation query
 
-- RFC Notfiy:
--- test rfc notify
-
-- Setup:
--- finish mkadmin.pl/rename to vboxadm.pl
-
-- AWL Cron:
--- test AWL cron with different log formats
-
-- Extensions:
--- Add "customer extension"
-
 - Translation:
 -- Translate status messages*
 

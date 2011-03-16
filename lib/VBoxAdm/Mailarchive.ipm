@@ -247,19 +247,16 @@ sub process_message {
     $recipient = lc($recipient);
 
     # Exclude sender = recipient
-    # TODO add option to influence this behaviour
-    return 2 if ( $sender eq $recipient );
+    return 2 if ( $self->{vbox}->{ignore_sender_eq_recipient} && $sender eq $recipient );
 
     my ( $sender_lp,    $sender_domain )    = split /@/, $sender;
     my ( $recipient_lp, $recipient_domain ) = split /@/, $recipient;
 
     # Exclude sender_domain = recipient_domain
-    # TODO add option to influence this behaviour
-    return 3 if ( $sender_domain eq $recipient_domain );
+    return 3 if ( $self->{vbox}->{ignore_senderdom_eq_recipientdom} && $sender_domain eq $recipient_domain );
 
     # Exclude role-accounts
-    # TODO add option to influence this behaviour
-    return 4 if ( $sender_lp =~ m/^(?:postmaster|abuse|root)$/ );
+    return 4 if ( $self->{vbox}->{ignore_sender_roleacc} && $sender_lp =~ m/^(?:postmaster|abuse|root)$/ );
 
     # add X-Envelope-From and X-Envelope-To to preserve original sender/recipient
     my $xenvfrom = 'X-Envelope-From: ' . $sender . "\r\n";
@@ -301,8 +298,7 @@ sub process_message {
     }
 
     # Exclude spam
-    # TODO add option to influence this behaviour
-    return 4 if $status{'is-spam'};
+    return 4 if ( $self->{vbox}->{ignore_spam} && $status{'is-spam'} );
 
     my $checksum = $digest->hexdigest();
 

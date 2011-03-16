@@ -4,8 +4,6 @@ package VBoxAdm::Mailarchive;
 use strict;
 use warnings;
 
-# TODO turn into Smtp-Server, see mailarchive.pl
-
 # We use "Defined-or operators" operators introduced with 5.9.0
 use 5.9.0;
 
@@ -63,8 +61,12 @@ my $max_requests      = $config{'mailarchive'}{'max_requests'}      || 500;
 my $nsloglevel = $config{'mailarchive'}{'nsloglevel'} // 2;
 my $logsock = $config{'mailarchive'}{'logsock'} || 'unix';
 my $background = $config{'no-fork'} ? 0 : 1;
-my $logfile = $config{'mailarchive'}{'logfile'} || '/var/log/vboxadm-ma.log';
-my $tempdir = $config{'mailarchive'}{'tempdir'} || '/tmp';
+my $logfile                          = $config{'mailarchive'}{'logfile'}                          || '/var/log/vboxadm-ma.log';
+my $tempdir                          = $config{'mailarchive'}{'tempdir'}                          || '/tmp';
+my $ignore_spam                      = $config{'mailarchive'}{'ignore_spam'}                      || 1;
+my $ignore_sender_roleacc            = $config{'mailarchive'}{'ignore_sender_roleacc'}            || 1;
+my $ignore_sender_eq_recipient       = $config{'mailarchive'}{'ignore_sender_eq_recipient'}       || 1;
+my $ignore_senderdom_eq_recipientdom = $config{'mailarchive'}{'ignore_senderdom_eq_recipientdom'} || 1;
 
 # Database Hosts
 my @dbhosts = ();
@@ -147,6 +149,11 @@ my $server = bless {
         dbuser  => $dbuser,
         dbpass  => $dbpass,
         dbdb    => $dbdb,
+
+        ignore_spam                      => $ignore_spam,
+        ignore_sender_roleacc            => $ignore_sender_roleacc,
+        ignore_sender_eq_recipient       => $ignore_sender_eq_recipient,
+        ignore_senderdom_eq_recipientdom => $ignore_senderdom_eq_recipientdom,
     },
   },
   'VBoxAdm::Mailarchive';
@@ -235,7 +242,7 @@ TODO
 
 =head1 DEPENDENCIES
 
-VBoxAdm::Utils, DBI.
+Config::Std, Net::Domain, VBoxAdm::Mailarchive, DBI.
 
 =head1 INCOMPATIBILITIES
 
