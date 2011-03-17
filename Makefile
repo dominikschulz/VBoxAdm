@@ -49,6 +49,7 @@ BINFILES = \
 	cron/awl.pl \
 	cron/notify.pl \
 	cron/mailarchive.pl \
+	contrib/inst_deps.pl \
 	contrib/migration.pl \
 	contrib/lexicons-export.pl \
 	contrib/lexicons-import.pl \

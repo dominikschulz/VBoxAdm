@@ -1,0 +1,135 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use 5.9.0;
+
+use English qw(-no_match_vars);
+
+use CPAN;
+
+use Term::ANSIColor qw(:constants);
+$Term::ANSIColor::AUTORESET = 1;
+
+# module syntax: Module::Name/MinVersion/Required/DebianPkg/RedHatPkg/SuSEPkg
+my @modules = qw(
+  Carp/0/1/perl-modules///
+  CGI::Application::Plugin::Authentication/0
+  CGI::Application::Plugin::DBH/0
+  CGI::Application::Plugin::Redirect/0
+  CGI::Application::Plugin::RequireSSL/0
+  CGI::Application::Plugin::Session/0
+  CGI::Application::Plugin::TT/0
+  CGI::Carp/0
+  CGI::Fast/0
+  Config::Std/0
+  CPAN/0
+  Crypt::GeneratePassword/0
+  Crypt::OpenSSL::RSA/0
+  Cwd/0
+  Data::Dumper/0
+  Data::Page/0
+  Data::Password/0
+  DBI/0
+  Digest::MD5/0
+  Digest::Perl::MD5/0
+  Digest::SHA/0
+  English/0
+  File::Basename/0
+  File::Temp/0
+  Getopt::Long/0
+  HTML::Clean/0
+  IO::File/0
+  IO::Socket::INET6/0
+  List::Util/0
+  Mail::SpamAssassin/0
+  MIME::Base64/0
+  Net::Domain/0
+  Net::IMAP::Client/0
+  Net::POP3/0
+  Net::SMTP/0
+  Readonly/0
+  Sys::Syslog/0
+  Template/0
+  Test::More/0
+  Text::CSV_XS/0
+  Time::HiRes/0
+);
+my $tpl = "%40s [%4s]\n";
+
+print "Checking required Perl modules ...\n";
+foreach my $modLine (@modules) {
+    my ( $module, $version, $req, $debpkg, $rhpkg, $susepkg ) = split /\//, $modLine;
+    my $ver = &get_version($module);
+
+    if ( $ver && $ver ge $version ) {
+
+        # installed and version ok
+        printf( $tpl, $module, GREEN "OK" );
+    }
+    else {
+
+        # missing ... try to install
+
+        printf( $tpl, $module, BOLD RED "ERROR" );
+    }
+}
+
+sub get_version {
+    my $module = shift;
+    my $ver;
+
+    no warnings 'once';
+    open OLDOUT, ">&STDOUT";
+    open OLDERR, ">&STDERR";
+    open STDIN,  '<', '/dev/null';
+    open STDOUT, '>', '/dev/null';
+    open STDERR, '>', '/dev/null';
+    $ver = eval("use $module; $module->VERSION;");
+    open STDOUT, ">&OLDOUT";
+    open STDERR, ">&OLDERR";
+    use warnings 'once';
+
+    return $ver;
+}
+
+sub install_deb {
+    my $pkg = shift;
+    my $cmd = "apt-get --yes --assume-yes install " . $pkg . " >>/tmp/vboxadm-inst_deps.out 2>&1";
+    my $rv  = system($cmd) >> 8;
+    if ( $rv == 0 ) {
+        return 1;
+    }
+    else {
+        return;
+    }
+}
+
+sub install_yum {
+    my $pkg = shift;
+    my $cmd = "yum -y install " . $pkg . " >>/tmp/vboxadm-inst_deps.out 2>&1";
+    my $rv  = system($cmd) >> 8;
+    if ( $rv == 0 ) {
+        return 1;
+    }
+    else {
+        return;
+    }
+}
+
+sub install_zypper {
+    my $pkg = shift;
+    my $cmd = "zypper -y install " . $pkg . " >>/tmp/vboxadm-inst_deps.out 2>&1";
+    my $rv  = system($cmd) >> 8;
+    if ( $rv == 0 ) {
+        return 1;
+    }
+    else {
+        return;
+    }
+}
+
+sub install_cpan {
+    my $module  = shift;
+    my $version = shift;
+    return CPAN::Shell->install($module);
+}
