@@ -11,14 +11,16 @@ use Term::ANSIColor qw(:constants);
 $Term::ANSIColor::AUTORESET = 1;
 
 # module syntax: Module::Name/MinVersion/Required/DebianPkg/RedHatPkg/SuSEPkg
+# TODO find debian/redhat/suse packages if avail. - http://www.rpmseek.com/index.html
 my @modules = qw(
   Carp/0/1/perl-modules///
-  CGI::Application::Plugin::Authentication/0
-  CGI::Application::Plugin::DBH/0
-  CGI::Application::Plugin::Redirect/0
-  CGI::Application::Plugin::RequireSSL/0
-  CGI::Application::Plugin::Session/0
-  CGI::Application::Plugin::TT/0
+  CGI::Application/0/0//perl-CGI-Application/
+  CGI::Application::Plugin::Authentication/0/0//perl-CGI-Application-Plugin-Authentication/
+  CGI::Application::Plugin::DBH/0/0//perl-CGI-Application-Plugin-DBH/
+  CGI::Application::Plugin::Redirect/0/0//perl-CGI-Application-Plugin-Redirect/
+  CGI::Application::Plugin::RequireSSL/0/0//perl-CGI-Application-Plugin-RequireSSL/
+  CGI::Application::Plugin::Session/0/0//perl-CGI-Application-Plugin-Session/
+  CGI::Application::Plugin::TT/0/0//perl-CGI-Application-Plugin-TT/
   CGI::Carp/0
   CGI::Fast/0
   Config::Std/0
@@ -69,8 +71,39 @@ foreach my $modLine (@modules) {
     else {
 
         # missing ... try to install
-
-        printf( $tpl, $module, BOLD RED "ERROR" );
+        my $os = &get_os_type();
+        if ( $os eq 'debian' && $debpkg ) {
+            if ( &install_deb($debpkg) ) {
+                printf( $tpl, $module, BOLD YELLOW "INSTALLED" );
+            }
+            else {
+                printf( $tpl, $module, BOLD RED "ERROR" );
+            }
+        }
+        elsif ( $os eq 'redhat' && $rhpkg ) {
+            if ( &install_yum($rhpkg) ) {
+                printf( $tpl, $module, BOLD YELLOW "INSTALLED" );
+            }
+            else {
+                printf( $tpl, $module, BOLD RED "ERROR" );
+            }
+        }
+        elsif ( $os eq 'suse' && $susepkg ) {
+            if ( &install_zypper($susepkg) ) {
+                printf( $tpl, $module, BOLD YELLOW "INSTALLED" );
+            }
+            else {
+                printf( $tpl, $module, BOLD RED "ERROR" );
+            }
+        }
+        else {
+            if ( &install_cpan($module) ) {
+                printf( $tpl, $module, BOLD YELLOW "INSTALLED" );
+            }
+            else {
+                printf( $tpl, $module, BOLD RED "ERROR" );
+            }
+        }
     }
 }
 
@@ -90,6 +123,40 @@ sub get_version {
     use warnings 'once';
 
     return $ver;
+}
+
+sub get_os_type {
+    my %dist_files = (
+        '/etc/arch-release'      => 'unix',
+        '/etc/debian_version'    => 'debian',
+        '/etc/fedora-release'    => 'redhat',
+        '/etc/gentoo-release'    => 'unix',
+        '/etc/knoppix_version'   => 'debian',
+        '/etc/mandriva-release'  => 'unix',
+        '/etc/mandrake-release'  => 'unix',
+        '/etc/redhat-release'    => 'redhat',
+        '/etc/slackware-version' => 'unix',
+        '/etc/SuSE-release'      => 'suse',
+        '/etc/trustix-release'   => 'unix',
+        '/etc/ubuntu_version'    => 'debian',
+        '/etc/vmware-release'    => 'vmware',
+        '/etc/issue'             => 'unix',
+    );
+
+    if ( $^O eq 'MSWin32' ) {
+        return 'windows';
+    }
+    elsif ( $^O ne 'linux' ) {
+        return 'unix';
+    }
+    else {
+        foreach my $dist_file ( keys %dist_files ) {
+            if ( -f $dist_file ) {
+                return $dist_files{$dist_file};
+            }
+        }
+        return 'unix';
+    }
 }
 
 sub install_deb {
@@ -129,7 +196,21 @@ sub install_zypper {
 }
 
 sub install_cpan {
-    my $module  = shift;
-    my $version = shift;
+    my $module = shift;
     return CPAN::Shell->install($module);
+}
+
+sub install_ppm {
+    my $module = shift;
+
+    $module =~ s/::/-/g;
+
+    my $cmd = "ppm install " . $module;
+    my $rv  = system($cmd) >> 8;
+    if ( $rv == 0 ) {
+        return 1;
+    }
+    else {
+        return;
+    }
 }
