@@ -15,11 +15,19 @@ is( VBoxAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", '"  
 
 # Test extract_recipients
 {
-    my $recipients = 'user1@domain.tld, <user2@domain.tld>, Mr. USer <User3@domain.tld>, <root@localhost>';
-    my @expect     = qw(user1@domain.tld user2@domain.tld User3@domain.tld root@localhost);
-    my @emails     = VBoxAdm::Utils::extract_recipients($recipients);
-    foreach my $i ( 1 .. $#expect ) {
-        is( lc( $emails[$i] ), lc( $expect[$i] ), $expect[$i] . ' equals' );
+    my %data = (
+        'user1@domain.tld, <user2@domain.tld>, Mr. USer <User3@domain.tld>, <root@localhost>' =>
+          [qw(user1@domain.tld user2@domain.tld User3@domain.tld root@localhost)],
+        'user1@domain.tld user2@domain.tld' => [qw(user1@domain.tld user2@domain.tld)],
+        'user1@domain.tld;user2@domain.tld' => [qw(user1@domain.tld user2@domain.tld)],
+    );
+    foreach my $string ( keys %data ) {
+        my @expect = @{ $data{$string} };
+        my @emails = &VBoxAdm::Utils::extract_recipients($string);
+        foreach my $i ( 1 .. $#expect ) {
+            is( lc( $emails[$i] ), lc( $expect[$i] ), $expect[$i] . ' equals' );
+        }
+        is( scalar(@emails), scalar(@expect), 'Number of recipients is equal' );
     }
 }
 
