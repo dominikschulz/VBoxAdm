@@ -124,6 +124,15 @@ sub setup {
         # Admins
         'admins' => 'show_admins',
 
+        # Vacation Replies
+        'vac_repl' => 'show_vacation_replies',
+
+        # RFC Notifies
+        'notify' => 'show_rfc_notify',
+
+        # Mailarchive
+        # TODO show mailarchive if configured
+
         # API
         'api' => 'show_api',
     );
@@ -2916,6 +2925,117 @@ sub show_remove_vacbl_entry {
     $self->log( $msg1 . ". User: " . $self->authen->username );
     $self->redirect( $self->{base_url} . '?rm=vac_bl' );
     return;
+}
+
+sub show_vacation_replies {
+    my $self = shift;
+
+    if ( !$self->is_superadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    my $search = $q->param('search') || undef;
+
+    my @args  = ();
+    my $query = "SELECT on_vacation,notified,notified_at FROM vacation_notify ";
+    if ($search) {
+        $query .= "WHERE on_vacation LIKE ? OR notified LIKE ? ";
+        $search =~ s/%//g;
+        my $search_arg = "%" . $search . "%";
+        push( @args, $search_arg );
+        push( @args, $search_arg );
+    }
+    $query .= "ORDER BY on_vacation,notified,notified_at";
+    my $sth = $dbh->prepare($query);
+    $sth->execute(@args);
+    my @notifies = ();
+    while ( my ( $on_vacation, $notified, $notified_at ) = $sth->fetchrow_array() ) {
+        push(
+            @notifies,
+            {
+                'on_vacation' => $on_vacation,
+                'notified'    => $notified,
+                'notified_at' => $notified_at,
+            }
+        );
+    }
+    $sth->finish();
+
+    my %params = (
+        'title'    => $self->{lh}->maketext('VBoxAdm Vacation Notifications'),
+        'current'  => 'vacation',
+        'notifies' => \@notifies,
+        'search'   => $search,
+    );
+
+    return $self->tt_process( 'vacation_notify.tpl', \%params );
+}
+
+#
+# RFC Notify
+#
+
+sub show_rfc_notify {
+    my $self = shift;
+
+    if ( !$self->is_superadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    my $search = $q->param('search') || undef;
+
+    my @args  = ();
+    my $query = "SELECT id,email,ts FROM rfc_notify ";
+    if ($search) {
+        $query .= "WHERE email LIKE ? ";
+        $search =~ s/%//g;
+        my $search_arg = "%" . $search . "%";
+        push( @args, $search_arg );
+    }
+    $query .= "ORDER BY ts";
+    my $sth = $dbh->prepare($query);
+    $sth->execute(@args);
+    my @notifies = ();
+    while ( my ( $id, $email, $ts ) = $sth->fetchrow_array() ) {
+        push(
+            @notifies,
+            {
+                'id'    => $id,
+                'email' => $email,
+                'ts'    => $ts,
+            }
+        );
+    }
+    $sth->finish();
+
+    my %params = (
+        'title'    => $self->{lh}->maketext('VBoxAdm RFC Notifications'),
+        'current'  => 'notify',
+        'notifies' => \@notifies,
+        'search'   => $search,
+    );
+
+    return $self->tt_process( 'rfc-notify.tpl', \%params );
 }
 
 #

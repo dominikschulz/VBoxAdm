@@ -58,7 +58,6 @@ my @modules = qw(
 # First try to install missing modules
 my @debs        = ();
 my @rpms        = ();
-my @cpan        = ();
 my $num_missing = 0;
 foreach my $modLine (@modules) {
     my ( $module, $version, $req, $debpkg, $rpmpkg ) = split /\//, $modLine;
@@ -75,22 +74,41 @@ foreach my $modLine (@modules) {
         if ($rpmpkg) {
             push( @rpms, $rpmpkg );
         }
+        $num_missing++;
+    }
+}
+print "Need to install $num_missing missing modules ...\n";
+my $os = &get_os_type();
+if ( $os eq 'debian' && scalar(@debs) > 0 ) {
+    if ( &ask_yesno( 'Is it ok to install ' . scalar(@debs) . ' packages using apt-get?' ) ) {
+        &install_deb(@debs);
+    }
+}
+elsif ( $os eq 'redhat' && scalar(@rpms) > 0 && &ask_yesno( 'Is it ok to install ' . scalar(@rpms) . ' packages using yum?' ) ) {
+    &install_yum(@rpms);
+}
+elsif ( $os eq 'suse' && scalar(@rpms) > 0 && &ask_yesno( 'Is it ok to install ' . scalar(@rpms) . ' packages using zypper?' ) ) {
+    &install_zypper(@rpms);
+}
+
+my @cpan = ();
+$num_missing = 0;
+foreach my $modLine (@modules) {
+    my ( $module, $version, $req, $debpkg, $rpmpkg ) = split /\//, $modLine;
+    my $ver = &get_version($module);
+    if ( $ver && $ver ge $version ) {
+
+        # installed and version ok
+        next;
+    }
+    elsif ($req) {
         push( @cpan, $module );
         $num_missing++;
     }
 }
-print "Trying to install $num_missing missing modules ...\n";
-my $os = &get_os_type();
-if ( $os eq 'debian' && scalar(@debs) > 0 ) {
-    &install_deb(@debs);
+if ( &ask_yesno("Is it ok to install $num_missing modules from CPAN?") ) {
+    &install_cpan(@cpan);
 }
-elsif ( $os eq 'redhat' && scalar(@rpms) > 0 ) {
-    &install_yum(@rpms);
-}
-elsif ( $os eq 'suse' && scalar(@rpms) > 0 ) {
-    &install_zypper(@rpms);
-}
-&install_cpan(@cpan);
 
 # Then report results
 my $tpl = "%40s [%4s]\n";
@@ -119,12 +137,14 @@ sub get_version {
     no warnings 'once';
     open OLDOUT, ">&STDOUT";
     open OLDERR, ">&STDERR";
+    open OLDIN,  "<&STDIN";
     open STDIN,  '<', '/dev/null';
     open STDOUT, '>', '/dev/null';
     open STDERR, '>', '/dev/null';
     $ver = eval("use $module; $module->VERSION;");
     open STDOUT, ">&OLDOUT";
     open STDERR, ">&OLDERR";
+    open STDIN,  "<&OLDIN";
     use warnings 'once';
 
     return $ver;
@@ -161,6 +181,18 @@ sub get_os_type {
         }
         return 'unix';
     }
+}
+
+sub ask_yesno {
+    my $msg = shift;
+    print $msg. " [y/N]: ";
+    my $resp = <STDIN>;
+    return unless $resp;
+    chomp($resp);
+    if ( $resp =~ m/(1|Yes|Ja|Y)/i ) {
+        return 1;
+    }
+    return;
 }
 
 sub has_sudo {

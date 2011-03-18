@@ -38,6 +38,11 @@ This is the fcgi script for VBoxAdm.
 
 VBoxAdm::Frontend, CGI::Fast.
 
+=head1 SEE ALSO
+
+http://cgi-app.org/index.cgi?FastCGI
+https://docs.google.com/Doc?docid=0AY-OcCA2-lySZGQzNjNmZzlfNzdnYjRoZGg3Yg&hl=en#FastCGI_8880821961767984
+
 =head1 BUGS AND LIMITATIONS
 
 There are no known bugs in this module.

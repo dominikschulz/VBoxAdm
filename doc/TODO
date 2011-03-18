@@ -1,5 +1,13 @@
 TODO:
 
+- Quotas
+
+- Relay Domains
+
+- Enhance vboxadm.pl to provide full cli functionality
+
+- Implement API (JSON/REST/... ?)
+
 - Evaluate alternatives to postgrey
 Make sure class-C ip subnet auto-whitelists are supported
 
@@ -11,17 +19,6 @@ Make sure class-C ip subnet auto-whitelists are supported
 -- Add alternate styles
 -- Add plaintext templates
 
-- test conversion tools for debmin, Vexim, Postfixadmin
-
-- SmtpProxy:
--- Multiple target SMTP servers (fail over, load balancing)
-
-- All:
--- Multiple database servers (fail over, load balancing)*
-
-- Vacation:
--- Test new vacation query
-
 - Translation:
 -- Translate status messages*
 
@@ -31,17 +28,10 @@ Make sure class-C ip subnet auto-whitelists are supported
 - Aliases:
 -- allow multiple entries for each alias, i.e. make UNIQUE(local_part,domain_id,goto) and use GROUP_CONCAT
 
-- FastCGI:
--- test/debug FastCGI
--- see http://cgi-app.org/index.cgi?FastCGI
--- see https://docs.google.com/Doc?docid=0AY-OcCA2-lySZGQzNjNmZzlfNzdnYjRoZGg3Yg&hl=en#FastCGI_8880821961767984
-
 - Mailarchive:
 -- optional storage on FS
 -- always index metadata in DB, table archive_metadata
 -- export option
--- all inserts are logged, logs are signed
--- cron/cleanup will create the necessary tables, delete and optimize the old ones
 -- store extracted meta-data
 -- extract meta-data of attachments
 -- store bodies in full-text search engine

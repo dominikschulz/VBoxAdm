@@ -10,9 +10,9 @@
 		<li><a[% IF current == 'mailboxes' %] class="current"[% END %] href="[% base_url %]?rm=mailboxes">[% "Mailboxes" | l10n %]</a></li>
 		[% IF is_superadmin %]
 		<li><a[% IF current == 'broadcast' %] class="current"[% END %] href="[% base_url %]?rm=broadcast">[% "Send Broadcast" | l10n %]</a></li>
-		<li><a[% IF current == 'log' %] class="current"[% END %] href="[% base_url %]?rm=log">[% "View Log" | l10n %]</a></li>
 		<li><a[% IF current == 'vacation' %] class="current"[% END %] href="[% base_url %]?rm=vac_bl">[% "Vacation Blacklist" | l10n %]</a></li>
 		<li><a[% IF current == 'awl' %] class="current"[% END %] href="[% base_url %]?rm=awl">[% "Auto-Whitelist" | l10n %]</a></li>
+		<li><a[% IF current == 'log' %] class="current"[% END %] href="[% base_url %]?rm=log">[% "View Log" | l10n %]</a></li>
 		[% END %]
 		<li><a[% IF current == 'logout' %] class="current"[% END %] href="[% base_url %]?rm=login&authen_logout=1">[% "Logout" | l10n %]</a></li>
 	</ul>

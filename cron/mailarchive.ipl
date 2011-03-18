@@ -147,6 +147,9 @@ sub sign_archive {
     # TODO implement
     # - sign archived mails
     # - write to signature table
+    # - generate a new key each year
+    # - store it in archive_keys tables
+    # - sign the whole last year if not already signed with the new key
     # http://search.cpan.org/~vipul/Crypt-RSA-1.57/lib/Crypt/RSA.pm
     # http://search.cpan.org/~iroberts/Crypt-OpenSSL-RSA-0.26/RSA.pm
 
@@ -223,20 +226,21 @@ sub create_archive_tables {
 sub create_signature_table {
     my $dbh = shift;
 
-    # TODO implement
-
-=begin sql
-CREATE TABLE IF NOT EXISTS `archive_signatures` (
+    my $sql = 'CREATE TABLE IF NOT EXISTS `archive_signatures` (
 `id` BIGINT( 64 ) NOT NULL AUTO_INCREMENT PRIMARY KEY ,
 `table` CHAR( 15 ) NOT NULL ,
 `fk` BIGINT( 64 ) NOT NULL ,
 `checksum` CHAR( 64 ) NOT NULL ,
 `signature` CHAR( 175 ) NOT NULL ,
 `key_id` INT( 16 ) NOT NULL
-) ENGINE = ARCHIVE;
-=cut
+) ENGINE = ARCHIVE';
 
-    return;
+    my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql )
+      or return;
+    syslog( 2, "Create archive table signatures" );
+    $sth->finish();
+
+    return 1;
 }
 
 sub create_metadata_table {
