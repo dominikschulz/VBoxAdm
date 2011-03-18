@@ -11,50 +11,88 @@ use Term::ANSIColor qw(:constants);
 $Term::ANSIColor::AUTORESET = 1;
 
 # module syntax: Module::Name/MinVersion/Required/DEB/RPM
-# TODO find debian/redhat/suse packages if avail. - http://www.rpmseek.com/index.html
 my @modules = qw(
-  Carp/0/1/perl-modules/
-  CGI::Application/0/1/libcgi-application-perl/perl-CGI-Application
-  CGI::Application::Plugin::Authentication/0/1/libcgi-application-extra-plugin-bundle-perl/perl-CGI-Application-Plugin-Authentication
-  CGI::Application::Plugin::DBH/0/1/libcgi-application-basic-plugin-bundle-perl/perl-CGI-Application-Plugin-DBH
-  CGI::Application::Plugin::Redirect/0/1/libcgi-application-basic-plugin-bundle-perl/perl-CGI-Application-Plugin-Redirect
+  Carp/1.11/1/perl-base/perl
+  CGI::Application/4.31/1/libcgi-application-perl/perl-CGI-Application
+  CGI::Application::Plugin::Authentication/0.12/1/libcgi-application-extra-plugin-bundle-perl/perl-CGI-Application-Plugin-Authentication
+  CGI::Application::Plugin::DBH/4.00/1/libcgi-application-basic-plugin-bundle-perl/perl-CGI-Application-Plugin-DBH
+  CGI::Application::Plugin::Redirect/1.00/1/libcgi-application-basic-plugin-bundle-perl/perl-CGI-Application-Plugin-Redirect
   CGI::Application::Plugin::RequireSSL/0/1/libcgi-application-extra-plugin-bundle-perl/perl-CGI-Application-Plugin-RequireSSL
-  CGI::Application::Plugin::Session/0/1/libcgi-application-basic-plugin-bundle-perl/perl-CGI-Application-Plugin-Session
-  CGI::Application::Plugin::TT/0/1/libcgi-application-extra-plugin-bundle-perl/perl-CGI-Application-Plugin-TT
-  CGI::Carp/0/1/perl-modules///
-  CGI::Fast/0/0/libcgi-fast-perl///
-  Config::Std/0/1/libconfig-std-perl/perl-Config-Std/
-  CPAN/0/1/perl-modules///
-  Crypt::GeneratePassword/0/1/libcrypt-generatepassword-perl/perl-Crypt-GeneratePassword//
-  Crypt::OpenSSL::RSA/0/1/libcrypt-openssl-rsa-perl/perl-Crypt-OpenSSL-RSA//
-  Cwd/0
-  Data::Dumper/0
-  Data::Page/0
-  Data::Password/0
-  DBI/0/1/libdbi-perl/perl-DBI
-  Digest::MD5/0/1//perl-Digest-MD5
-  Digest::Perl::MD5/0/1/libdigest-perl-md5/
-  Digest::SHA/0/1/libdigest-sha-perl/perl-Digest-SHA
-  File::Basename/0
-  File::Temp/0
-  Getopt::Long/0
-  HTML::Clean/0/1/libhtml-clean-perl/perl-HTML-Clean
-  IO::File/0
-  IO::Socket::INET6/0
-  List::Util/0
-  Mail::SpamAssassin/0/1/spamassassin/perl-Mail-SpamAssassin
-  MIME::Base64/0
-  Net::Domain/0
-  Net::IMAP::Client/0
-  Net::POP3/0
-  Net::SMTP/0
-  Readonly/0
-  Sys::Syslog/0
-  Template/0
-  Test::More/0
-  Text::CSV_XS/0
-  Time::HiRes/0
+  CGI::Application::Plugin::Session/1.03/1/libcgi-application-basic-plugin-bundle-perl/perl-CGI-Application-Plugin-Session
+  CGI::Application::Plugin::TT/1.04/1/libcgi-application-extra-plugin-bundle-perl/perl-CGI-Application-Plugin-TT
+  CGI::Carp/1.30/1/perl-modules/perl
+  CGI::Fast/1.07/0/libcgi-fast-perl/perl-CGI-Fast
+  Config::Std/0.007/1/libconfig-std-perl/perl-Config-Std/
+  CPAN/1.9402/1/perl-modules/perl-CPAN
+  Crypt::GeneratePassword/0.03/1/libcrypt-generatepassword-perl/perl-Crypt-GeneratePassword
+  Crypt::OpenSSL::RSA/0.25/1/libcrypt-openssl-rsa-perl/perl-Crypt-OpenSSL-RSA
+  Cwd/3.3/1/perl-base/perl
+  Data::Dumper/2.124/1/perl/perl
+  Data::Page/2.02/1/libdata-perl-perl/perl-Data-Page
+  Data::Password/1.07/1/libdata-password-perl/perl-Data-Password
+  DBI/1.612/1/libdbi-perl/perl-DBI
+  Digest::MD5/2.39/1/perl/perl-Digest-MD5
+  Digest::Perl::MD5/1.8/1/libdigest-perl-md5/
+  Digest::SHA/5.48/1/libdigest-sha-perl/perl-Digest-SHA
+  File::Basename/2.77/1/perl-modules/perl
+  File::Temp/0.22/1/perl-modules/perl
+  Getopt::Long/2.38/1/perl-base/perl
+  HTML::Clean/0.8/1/libhtml-clean-perl/perl-HTML-Clean
+  IO::File/1.14/1/perl-base/perl
+  IO::Socket::INET6/2.65/1/libio-socket-inet6-perl/
+  List::Util/1.21/1/perl-base/perl
+  Mail::SpamAssassin/3.00/1/spamassassin/perl-Mail-SpamAssassin
+  MIME::Base64/3.08/1/perl/perl
+  Net::Domain/2.20/1/perl-modules/c
+  Net::IMAP::Client/0.93/1/libnet-imap-client-perl/perl-Net-IMAP-Client
+  Net::POP3/2.29/1/perl-modules/perl
+  Net::SMTP/2.31/1/perl-modules/perl
+  Readonly/0/1/libreadonly-perl/
+  Sys::Syslog/0.27/1/perl/perl
+  Template/2.22/1/libtemplate-perl/perl-Template
+  Test::More/0.92/1/perl-modules/perl
+  Text::CSV_XS/0.73/1/libtext-csv-xs-perl/perl-Text-CSV_XS
+  Time::HiRes/1.9719/1/perl/perl
 );
+
+# First try to install missing modules
+my @debs        = ();
+my @rpms        = ();
+my @cpan        = ();
+my $num_missing = 0;
+foreach my $modLine (@modules) {
+    my ( $module, $version, $req, $debpkg, $rpmpkg ) = split /\//, $modLine;
+    my $ver = &get_version($module);
+    if ( $ver && $ver ge $version ) {
+
+        # installed and version ok
+        next;
+    }
+    elsif ($req) {
+        if ($debpkg) {
+            push( @debs, $debpkg );
+        }
+        if ($rpmpkg) {
+            push( @rpms, $rpmpkg );
+        }
+        push( @cpan, $module );
+        $num_missing++;
+    }
+}
+print "Trying to install $num_missing missing modules ...\n";
+my $os = &get_os_type();
+if ( $os eq 'debian' && scalar(@debs) > 0 ) {
+    &install_deb(@debs);
+}
+elsif ( $os eq 'redhat' && scalar(@rpms) > 0 ) {
+    &install_yum(@rpms);
+}
+elsif ( $os eq 'suse' && scalar(@rpms) > 0 ) {
+    &install_zypper(@rpms);
+}
+&install_cpan(@cpan);
+
+# Then report results
 my $tpl = "%40s [%4s]\n";
 
 print "Checking required Perl modules ...\n";
@@ -68,28 +106,11 @@ foreach my $modLine (@modules) {
         printf( $tpl, $module, GREEN "OK" );
     }
     else {
-
-        # missing ... try to install
-        my $os = &get_os_type();
-        if ( $os eq 'debian' && $debpkg && &install_deb($debpkg) ) {
-            printf( $tpl, $module, BOLD YELLOW "INSTALLED" );
-        }
-        elsif ( $os eq 'redhat' && $rpmpkg && &install_yum($rpmpkg) ) {
-            printf( $tpl, $module, BOLD YELLOW "INSTALLED" );
-        }
-        elsif ( $os eq 'suse' && $rpmpkg && &install_zypper($rpmpkg) ) {
-            printf( $tpl, $module, BOLD YELLOW "INSTALLED" );
-        }
-        else {
-            if ( &install_cpan($module) ) {
-                printf( $tpl, $module, BOLD YELLOW "INSTALLED" );
-            }
-            else {
-                printf( $tpl, $module, BOLD RED "ERROR" );
-            }
-        }
+        printf( $tpl, $module, BOLD RED "ERROR" );
     }
 }
+
+exit 0;
 
 sub get_version {
     my $module = shift;
@@ -124,7 +145,6 @@ sub get_os_type {
         '/etc/trustix-release'   => 'unix',
         '/etc/ubuntu_version'    => 'debian',
         '/etc/vmware-release'    => 'vmware',
-        '/etc/issue'             => 'unix',
     );
 
     if ( $^O eq 'MSWin32' ) {
@@ -143,10 +163,40 @@ sub get_os_type {
     }
 }
 
-sub install_deb {
-    my $pkg = shift;
-    my $cmd = "apt-get --yes --assume-yes install " . $pkg . " >>/tmp/vboxadm-inst_deps.out 2>&1";
+sub has_sudo {
+    if ( !-f '/usr/bin/sudo' ) {
+        return;
+    }
+    my $cmd = "/usr/bin/sudo /bin/true";
     my $rv  = system($cmd) >> 8;
+    if ( $rv == 0 ) {
+        return 1;
+    }
+    else {
+        return;
+    }
+}
+
+sub is_root {
+    return $EFFECTIVE_USER_ID == 0;
+}
+
+sub get_pre_cmd {
+    if ( &is_root() ) {
+        return '';
+    }
+    elsif ( &has_sudo() ) {
+        return 'sudo ';
+    }
+    else {
+        return 'echo ';
+    }
+}
+
+sub install_deb {
+    my @pkgs = @_;
+    my $cmd  = &get_pre_cmd() . "apt-get --yes --assume-yes install " . join( " ", @pkgs ) . " >>/tmp/vboxadm-inst_deps.out 2>&1";
+    my $rv   = system($cmd) >> 8;
     if ( $rv == 0 ) {
         return 1;
     }
@@ -156,9 +206,9 @@ sub install_deb {
 }
 
 sub install_yum {
-    my $pkg = shift;
-    my $cmd = "yum -y install " . $pkg . " >>/tmp/vboxadm-inst_deps.out 2>&1";
-    my $rv  = system($cmd) >> 8;
+    my @pkgs = @_;
+    my $cmd  = &get_pre_cmd() . "yum -y install " . join( " ", @pkgs ) . " >>/tmp/vboxadm-inst_deps.out 2>&1";
+    my $rv   = system($cmd) >> 8;
     if ( $rv == 0 ) {
         return 1;
     }
@@ -168,9 +218,9 @@ sub install_yum {
 }
 
 sub install_zypper {
-    my $pkg = shift;
-    my $cmd = "zypper -y install " . $pkg . " >>/tmp/vboxadm-inst_deps.out 2>&1";
-    my $rv  = system($cmd) >> 8;
+    my @pkgs = @_;
+    my $cmd  = &get_pre_cmd() . "zypper -y install " . join( " ", @pkgs ) . " >>/tmp/vboxadm-inst_deps.out 2>&1";
+    my $rv   = system($cmd) >> 8;
     if ( $rv == 0 ) {
         return 1;
     }
@@ -180,8 +230,20 @@ sub install_zypper {
 }
 
 sub install_cpan {
-    my $module = shift;
-    return CPAN::Shell->install($module);
+    my @modules = @_;
+    if ( &is_root() ) {
+        my $status = 1;
+        foreach my $module (@modules) {
+            if ( !CPAN::Shell->install($module) ) {
+                $status = 0;
+            }
+        }
+        return $status;
+    }
+    else {
+        print "Run 'perl -MCPAN -eshell' and then 'install " . join( " ", @modules ) . "\n";
+        return;
+    }
 }
 
 sub install_ppm {

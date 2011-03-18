@@ -139,9 +139,6 @@ sub interactive {
     my %do     = ();
 
     # Ask for options
-    if ( !$do{'install-depends'} ) {
-        $do{'install-depends'} = &ask_yesno('Install required packages and perl modules?');
-    }
     if ( !$do{'create-system-accounts'} ) {
         $do{'create-system-accounts'} = &ask_yesno('Create System Accounts?');
     }
@@ -182,32 +179,6 @@ sub interactive {
     ###
     # BASIC
     ###
-    # Install dependecies - only root should attempt that
-    if ( $do{'install-depends'} && $EFFECTIVE_USER_ID == 0 ) {
-        if ( -f '/etc/debian_version' || -f '/etc/ubuntu_version' ) {
-            &install_depends_apt();
-        }
-        elsif ( -f '/etc/SuSE-release' ) {
-
-            # TODO use zypper where possible
-            &install_depends_cpan();
-        }
-        elsif ( -f '/etc/redhat-release' ) {
-
-            # TODO use yum where possible
-            &install_depends_cpan();
-        }
-        elsif ( -f '/etc/fedora-release' ) {
-
-            # TODO use yum where possible
-            &install_depends_cpan();
-        }
-        elsif ( -f '/etc/gentoo-release' ) {
-
-            # TODO use emgere where possible
-            &install_depends_cpan();
-        }
-    }
     my $user_ref;
 
     # create system user and groups (if necessary)
@@ -941,44 +912,6 @@ sub create_database {
     $dbh->do($sql);
 
     return $database;
-}
-
-sub install_depends_cpan {
-    my @modules = qw(
-      Carp
-      CGI::Application::Plugin::Authentication CGI::Application::Plugin::DBH CGI::Application::Plugin::Redirect
-      CGI::Application::Plugin::RequireSSL CGI::Application::Plugin::Session CGI::Application::Plugin::TT
-      CGI::Carp Config::Std CPAN Crypt::GeneratePassword Cwd Data::Dumper Data::Page Data::Password
-      DBI Devel::Peek Digest::MD5 Digest::SHA File::Basename File::Temp Getopt::Long IO::File IO::Socket
-      List::Util Mail::SpamAssassin MIME::Base64 Readonly Sys::Syslog Template Test::More Text::CSV_XS Time::HiRes
-    );
-
-    foreach my $module (@modules) {
-        CPAN::Shell->install($module);
-    }
-    return 1;
-}
-
-sub install_depends_apt {
-
-    # this method should no be necessary since the ones installing on debian
-    # should have used the debian package. but in case you install on debian
-    # from source we provide this as courtesy.
-    my @packages = qw(
-      perl libdbi-perl libdbd-mysql-perl libconfig-std-perl libmail-sender-perl libtext-csv-xs-perl liblocale-maketext-perl
-      libcgi-application-perl libcgi-application-basic-plugin-bundle-perl libcgi-application-extra-plugin-bundle-perl
-      famfamfam-silk-png libtemplate-perl libhtml-clean-perl libcrypt-generatepassword-perl libdata-password-perl lighttpd
-      libdigest-sha-perl libdata-page-perl
-    );
-    my $cmd = "aptitude --assume-yes install " . join( " ", @packages );
-    my $rv = system($cmd) >> 8;
-
-    if ( $rv == 0 ) {
-        return 1;
-    }
-    else {
-        return;
-    }
 }
 
 sub create_database_grants {
