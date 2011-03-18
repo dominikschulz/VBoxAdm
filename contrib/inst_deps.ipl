@@ -10,40 +10,39 @@ use CPAN;
 use Term::ANSIColor qw(:constants);
 $Term::ANSIColor::AUTORESET = 1;
 
-# module syntax: Module::Name/MinVersion/Required/DebianPkg/RedHatPkg/SuSEPkg
+# module syntax: Module::Name/MinVersion/Required/DEB/RPM
 # TODO find debian/redhat/suse packages if avail. - http://www.rpmseek.com/index.html
 my @modules = qw(
-  Carp/0/1/perl-modules///
-  CGI::Application/0/0//perl-CGI-Application/
-  CGI::Application::Plugin::Authentication/0/0//perl-CGI-Application-Plugin-Authentication/
-  CGI::Application::Plugin::DBH/0/0//perl-CGI-Application-Plugin-DBH/
-  CGI::Application::Plugin::Redirect/0/0//perl-CGI-Application-Plugin-Redirect/
-  CGI::Application::Plugin::RequireSSL/0/0//perl-CGI-Application-Plugin-RequireSSL/
-  CGI::Application::Plugin::Session/0/0//perl-CGI-Application-Plugin-Session/
-  CGI::Application::Plugin::TT/0/0//perl-CGI-Application-Plugin-TT/
-  CGI::Carp/0
-  CGI::Fast/0
-  Config::Std/0
-  CPAN/0
-  Crypt::GeneratePassword/0
-  Crypt::OpenSSL::RSA/0
+  Carp/0/1/perl-modules/
+  CGI::Application/0/1/libcgi-application-perl/perl-CGI-Application
+  CGI::Application::Plugin::Authentication/0/1/libcgi-application-extra-plugin-bundle-perl/perl-CGI-Application-Plugin-Authentication
+  CGI::Application::Plugin::DBH/0/1/libcgi-application-basic-plugin-bundle-perl/perl-CGI-Application-Plugin-DBH
+  CGI::Application::Plugin::Redirect/0/1/libcgi-application-basic-plugin-bundle-perl/perl-CGI-Application-Plugin-Redirect
+  CGI::Application::Plugin::RequireSSL/0/1/libcgi-application-extra-plugin-bundle-perl/perl-CGI-Application-Plugin-RequireSSL
+  CGI::Application::Plugin::Session/0/1/libcgi-application-basic-plugin-bundle-perl/perl-CGI-Application-Plugin-Session
+  CGI::Application::Plugin::TT/0/1/libcgi-application-extra-plugin-bundle-perl/perl-CGI-Application-Plugin-TT
+  CGI::Carp/0/1/perl-modules///
+  CGI::Fast/0/0/libcgi-fast-perl///
+  Config::Std/0/1/libconfig-std-perl/perl-Config-Std/
+  CPAN/0/1/perl-modules///
+  Crypt::GeneratePassword/0/1/libcrypt-generatepassword-perl/perl-Crypt-GeneratePassword//
+  Crypt::OpenSSL::RSA/0/1/libcrypt-openssl-rsa-perl/perl-Crypt-OpenSSL-RSA//
   Cwd/0
   Data::Dumper/0
   Data::Page/0
   Data::Password/0
-  DBI/0
-  Digest::MD5/0
-  Digest::Perl::MD5/0
-  Digest::SHA/0
-  English/0
+  DBI/0/1/libdbi-perl/perl-DBI
+  Digest::MD5/0/1//perl-Digest-MD5
+  Digest::Perl::MD5/0/1/libdigest-perl-md5/
+  Digest::SHA/0/1/libdigest-sha-perl/perl-Digest-SHA
   File::Basename/0
   File::Temp/0
   Getopt::Long/0
-  HTML::Clean/0
+  HTML::Clean/0/1/libhtml-clean-perl/perl-HTML-Clean
   IO::File/0
   IO::Socket::INET6/0
   List::Util/0
-  Mail::SpamAssassin/0
+  Mail::SpamAssassin/0/1/spamassassin/perl-Mail-SpamAssassin
   MIME::Base64/0
   Net::Domain/0
   Net::IMAP::Client/0
@@ -60,7 +59,7 @@ my $tpl = "%40s [%4s]\n";
 
 print "Checking required Perl modules ...\n";
 foreach my $modLine (@modules) {
-    my ( $module, $version, $req, $debpkg, $rhpkg, $susepkg ) = split /\//, $modLine;
+    my ( $module, $version, $req, $debpkg, $rpmpkg ) = split /\//, $modLine;
     my $ver = &get_version($module);
 
     if ( $ver && $ver ge $version ) {
@@ -72,29 +71,14 @@ foreach my $modLine (@modules) {
 
         # missing ... try to install
         my $os = &get_os_type();
-        if ( $os eq 'debian' && $debpkg ) {
-            if ( &install_deb($debpkg) ) {
-                printf( $tpl, $module, BOLD YELLOW "INSTALLED" );
-            }
-            else {
-                printf( $tpl, $module, BOLD RED "ERROR" );
-            }
+        if ( $os eq 'debian' && $debpkg && &install_deb($debpkg) ) {
+            printf( $tpl, $module, BOLD YELLOW "INSTALLED" );
         }
-        elsif ( $os eq 'redhat' && $rhpkg ) {
-            if ( &install_yum($rhpkg) ) {
-                printf( $tpl, $module, BOLD YELLOW "INSTALLED" );
-            }
-            else {
-                printf( $tpl, $module, BOLD RED "ERROR" );
-            }
+        elsif ( $os eq 'redhat' && $rpmpkg && &install_yum($rpmpkg) ) {
+            printf( $tpl, $module, BOLD YELLOW "INSTALLED" );
         }
-        elsif ( $os eq 'suse' && $susepkg ) {
-            if ( &install_zypper($susepkg) ) {
-                printf( $tpl, $module, BOLD YELLOW "INSTALLED" );
-            }
-            else {
-                printf( $tpl, $module, BOLD RED "ERROR" );
-            }
+        elsif ( $os eq 'suse' && $rpmpkg && &install_zypper($rpmpkg) ) {
+            printf( $tpl, $module, BOLD YELLOW "INSTALLED" );
         }
         else {
             if ( &install_cpan($module) ) {

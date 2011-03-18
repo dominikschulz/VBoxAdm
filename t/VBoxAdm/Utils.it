@@ -38,7 +38,7 @@ is( VBoxAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", '"  
 # Test is_valid_domain_rfc822
 {
     my %data = (
-        'dgx.de'           => 1,
+        'denic.de'         => 1,
         '__04aX  asdf.com' => 0,
     );
     foreach my $input ( keys %data ) {
