@@ -6,6 +6,8 @@ TODO:
 
 - Enhance vboxadm.pl to provide full cli functionality
 
+- Demo mode
+
 - Implement API (JSON/REST/... ?)
 
 - Evaluate alternatives to postgrey

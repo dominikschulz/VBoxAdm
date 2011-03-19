@@ -64,6 +64,54 @@ print "#########################\n";
 print ">>>>>>> VBoxAdm <<<<<<<<<\n";
 print "#########################\n";
 
+# TODO if user != root -> need to login as domainadmin
+
+=begin commands
+
+Common opts:
+-f - force
+-q - quiet
+-v - verbose
+
+=head1 User
+
+user add [-p <password>] [-n <name>] <email> - Add a new user/mailbox
+user update [-p <password>] [-n <name>] [- ...] <email> - Modify mailbox
+user delete <email> - Delete mailbox
+
+=head1 Alias
+
+alias add <email> <goto>
+alias update <email> <goto>
+alias delete <email>
+
+=head1 Domain
+
+domain add <domain>
+domain update [...] <domain>
+domain delete <domain>
+
+=head1 Domain Alias
+
+domainalias add <domain> <goto>
+domainalias update [...] <domain>
+domainalias delete <domain>
+
+=head1 Vacation Blacklist
+
+vbl add <email>
+
+=head1 AWL
+
+awl add <email>
+awl lock <email>
+
+=head1 Setup
+
+setup - enter interactive setup
+
+=cut
+
 # allow more modes:
 # user {add,edit,remove}
 # domain {add,edit,remove}
@@ -135,6 +183,20 @@ else {
 # SUBS
 ###########################################################################
 sub interactive {
+    my $config = shift;
+
+    my @actions = ();
+    push( @actions, "Run Setup" );
+    push( @actions, "User admin" );
+    push( @actions, "Alias admin" );
+    push( @actions, "Domain admin" );
+    my ( $num, $item ) = &ask_select( 'Choose an action:', @actions );
+    print "You chose: $num - $item\n";
+
+    # TODO implement
+}
+
+sub setup {
     my $config = shift;
     my %do     = ();
 
@@ -1039,7 +1101,7 @@ sub ask_select {
         }
         my $num = &ask_number( 'Print enter any number between 0 and ' . $i . '. Press enter to abort' );
         if ( defined($num) && $options[$num] ) {
-            return $options[$num];
+            return wantarray ? ( $num, $options[$num] ) : $options[$num];
         }
         else {
             return;
