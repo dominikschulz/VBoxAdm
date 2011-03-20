@@ -19,7 +19,7 @@ use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::Migration '@VERSION@';
 use VBoxAdm::DovecotPW '@VERSION@';
 
-my ( $conffile_used, %config, $email, $mode );
+my ( $conffile_used, %config, $email, @modes );
 
 # Valid config file locations to try
 my @conffile_locations = qw(
@@ -32,11 +32,14 @@ GetOptions(
     'verbose|v+'    => \$config{'verbose'},
     'dry|d!'        => \$config{'dry'},
     'quiet|q!'      => \$config{'quiet'},
+    'force|f!'      => \$config{'force'},
+    'password|p=s'  => \$config{'password'},
+    'name|n=s'      => \$config{'name'},
     'source|s=s'    => \$config{'source'},
     'source-db|d=s' => \$config{'source-db'},
     'truncate!'     => \$config{'truncate'},
     'username|u=s'  => \$email,
-    '<>'            => sub { my $m = shift; $mode = $m; },
+    '<>'            => sub { my $m = shift; push( @modes, lc($m) ); },
 
     # shift removes name of the option (config) and leaves the value for unshift
     # unshift prepends to the list of valid config files so it is tried first
@@ -58,11 +61,10 @@ $config{'default'}{'dbpass'} ||= '';
 $config{'default'}{'dbport'} ||= 3306;
 $config{'default'}{'dbdb'}   ||= 'vboxadm';
 $config{'cgi'}{'pwscheme'}   ||= 'sha256';
-$mode                        ||= '';
 
-print "#########################\n";
-print ">>>>>>> VBoxAdm <<<<<<<<<\n";
-print "#########################\n";
+print "#########################\n" unless $config{'quiet'};
+print ">>>>>>> VBoxAdm CLI <<<<<\n" unless $config{'quiet'};
+print "#########################\n" unless $config{'quiet'};
 
 # TODO if user != root -> need to login as domainadmin
 
@@ -110,6 +112,10 @@ awl lock <email>
 
 setup - enter interactive setup
 
+=head1 migrate
+
+migrate -s <source-db> -t <source-type>
+
 =cut
 
 # allow more modes:
@@ -118,22 +124,125 @@ setup - enter interactive setup
 # domain_alias {add,edit,remove}
 # ...
 
-if ( $email || $mode eq 'newadmin' ) {
-    my $dsn =
-"DBI:mysql:host=$config{'default'}{'dbhost'};database=$config{'default'}{'dbdb'};port=$config{'default'}{'dbport'};user=$config{'default'}{'dbuser'};password=$config{'default'}{'dbpass'}";
-    my $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 0, } );
-    if ( !$dbh ) {
-        print STDERR "Could not connect to database with DSN $dsn. Aborting.\n";
-        exit 1;
+print "Name: " . $config{'name'} . "\n"         if $config{'name'};
+print "Password: " . $config{'password'} . "\n" if $config{'password'};
+foreach my $m (@modes) {
+    print "Mode: $m\n";
+}
+
+if ( !@modes ) {
+    &interactive( \%config );
+}
+elsif ( $modes[0] eq 'user' ) {
+    &handle_user( \%config, \@modes );
+}
+elsif ( $modes[0] eq 'alias' ) {
+    &handle_alias( \%config, \@modes );
+}
+elsif ( $modes[0] eq 'domain' ) {
+    &handle_domain( \%config, \@modes );
+}
+elsif ( $modes[0] eq 'domainalias' ) {
+    &handle_domainalias( \%config, \@modes );
+}
+elsif ( $modes[0] eq 'vbl' ) {
+    &handle_vbl( \%config, \@modes );
+}
+elsif ( $modes[0] eq 'awl' ) {
+    &handle_awl( \%config, \@modes );
+}
+elsif ( $modes[0] eq 'setup' ) {
+    &setup( \%config );
+}
+elsif ( $modes[0] eq 'migrate' ) {
+    &migrate( \%config, \@modes );
+}
+exit 0;
+
+sub handle_user {
+    my $config = shift;
+    my $modes  = shift;
+    my $opts   = shift || {};
+
+    local $opts->{Password} = $config{'password'} || undef;
+    local $opts->{Name}     = $config{'name'}     || undef;
+
+    if ( $modes->[1] eq 'add' ) {
+        print "Adding Mailbox $modes->[2]\n";
+
+        #&VBoxAdm::API::Mailbox::create($dbh, $modes->[2], $opts);
     }
-    if ( &create_siteadmin( $dbh, \%config, undef, $email ) ) {
-        exit 0;
+    elsif ( $modes->[1] eq 'update' ) {
+
+        #&VBoxAdm::API::Mailbox::update($dbh, $modes->[2], $opts);
     }
-    else {
-        exit 1;
+    elsif ( $modes->[1] eq 'delete' ) {
+
+        #&VBoxAdm::API::Mailbox::delete($dbh, $modes->[2], $opts);
     }
 }
-elsif ( $mode eq 'migrate' ) {
+
+sub handle_alias {
+    my $config = shift;
+    my $modes  = shift;
+    my $opts   = shift || {};
+
+    if ( $modes->[1] eq 'add' ) {
+        print "Adding Alias $modes->[2]\n";
+
+        #&VBoxAdm::API::Alias::create($dbh, $modes->[2], $opts);
+    }
+    elsif ( $modes->[1] eq 'update' ) {
+
+        #&VBoxAdm::API::Alias::update($dbh, $modes->[2], $opts);
+    }
+    elsif ( $modes->[1] eq 'delete' ) {
+
+        #&VBoxAdm::API::Alias::delete($dbh, $modes->[2], $opts);
+    }
+}
+
+sub handle_domain {
+    my $config = shift;
+    my $modes  = shift;
+    my $opts   = shift || {};
+
+    if ( $modes->[1] eq 'add' ) {
+        print "Adding Domain $modes->[2]\n";
+
+        #&VBoxAdm::API::Domain::create($dbh, $modes->[2], $opts);
+    }
+    elsif ( $modes->[1] eq 'update' ) {
+
+        #&VBoxAdm::API::Domain::update($dbh, $modes->[2], $opts);
+    }
+    elsif ( $modes->[1] eq 'delete' ) {
+
+        #&VBoxAdm::API::Domain::delete($dbh, $modes->[2], $opts);
+    }
+}
+
+sub handle_domainalias {
+    my $config = shift;
+    my $modes  = shift;
+    my $opts   = shift || {};
+
+    if ( $modes->[1] eq 'add' ) {
+        print "Adding DomainAlias $modes->[2]\n";
+
+        #&VBoxAdm::API::DomainAlias::create($dbh, $modes->[2], $opts);
+    }
+    elsif ( $modes->[1] eq 'update' ) {
+
+        #&VBoxAdm::API::DomainAlias::update($dbh, $modes->[2], $opts);
+    }
+    elsif ( $modes->[1] eq 'delete' ) {
+
+        #&VBoxAdm::API::DomainAlias::delete($dbh, $modes->[2], $opts);
+    }
+}
+
+sub migrate {
 
     my $dsn =
 "DBI:mysql:host=$config{'default'}{'dbhost'};database=$config{'default'}{'dbdb'};port=$config{'default'}{'dbport'};user=$config{'default'}{'dbuser'};password=$config{'default'}{'dbpass'}";
@@ -160,22 +269,6 @@ elsif ( $mode eq 'migrate' ) {
     else {
         print "Migration FAILED\n";
         exit 1;
-    }
-}
-else {
-    if ( $config{'default'}{'setup_done'} ) {
-        print "This application was already setup. Remove the 'setup_done = 1' line from the config\n";
-        print "if you want to run the setup again.\n";
-        exit 1;
-    }
-    else {
-        print "No mode selected. Running interactive setup ...\n";
-        if ( &interactive( \%config ) ) {
-            exit 0;
-        }
-        else {
-            exit 1;
-        }
     }
 }
 
