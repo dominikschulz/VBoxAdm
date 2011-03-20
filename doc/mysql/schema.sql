@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS `aliases`;
 CREATE TABLE IF NOT EXISTS `aliases` (
   `id` int(16) NOT NULL AUTO_INCREMENT,
   `domain_id` int(16) NOT NULL,
-  `local_part` varchar(255) CHARACTER SET latin1 NOT NULL,
+  `local_part` varchar(64) CHARACTER SET latin1 NOT NULL,
   `goto` varchar(255) CHARACTER SET latin1 NOT NULL,
   `is_active` tinyint(1) NOT NULL,
   PRIMARY KEY (`id`),
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS `aliases` (
 DROP TABLE IF EXISTS `awl`;
 CREATE TABLE IF NOT EXISTS `awl` (
   `id` int(16) NOT NULL AUTO_INCREMENT,
-  `email` varchar(255) NOT NULL,
+  `email` varchar(320) NOT NULL,
   `last_seen` datetime NOT NULL,
   `disabled` tinyint(1) NOT NULL,
   PRIMARY KEY (`id`),
@@ -59,7 +59,7 @@ DROP TABLE IF EXISTS `mailboxes`;
 CREATE TABLE IF NOT EXISTS `mailboxes` (
   `id` int(16) NOT NULL AUTO_INCREMENT,
   `domain_id` int(16) NOT NULL,
-  `local_part` varchar(255) NOT NULL,
+  `local_part` varchar(64) NOT NULL,
   `password` varchar(255) NOT NULL,
   `name` varchar(255) NOT NULL,
   `is_active` tinyint(1) NOT NULL,
@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS `mailboxes` (
 DROP TABLE IF EXISTS `rfc_notify`;
 CREATE TABLE IF NOT EXISTS `rfc_notify` (
   `id` int(16) NOT NULL AUTO_INCREMENT,
-  `email` varchar(255) NOT NULL,
+  `email` varchar(320) NOT NULL,
   `ts` datetime NOT NULL,
   PRIMARY KEY (`id`),
   KEY `email` (`email`)
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS `rfc_notify` (
 DROP TABLE IF EXISTS `vacation_blacklist`;
 CREATE TABLE IF NOT EXISTS `vacation_blacklist` (
   `id` int(16) NOT NULL AUTO_INCREMENT,
-  `local_part` varchar(255) NOT NULL,
+  `local_part` varchar(64) NOT NULL,
   `domain` varchar(255) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `domain_lp` (`domain`,`local_part`)
@@ -99,8 +99,8 @@ CREATE TABLE IF NOT EXISTS `vacation_blacklist` (
 
 DROP TABLE IF EXISTS `vacation_notify`;
 CREATE TABLE IF NOT EXISTS `vacation_notify` (
-  `on_vacation` varchar(255) NOT NULL,
-  `notified` varchar(255) NOT NULL,
+  `on_vacation` varchar(320) NOT NULL,
+  `notified` varchar(320) NOT NULL,
   `notified_at` datetime NOT NULL,
   PRIMARY KEY (`on_vacation`,`notified`),
   KEY `notified_at` (`notified_at`)
