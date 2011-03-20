@@ -1,5 +1,7 @@
 package VBoxAdm::API;
 
+use base 'CGI::Application';
+
 use strict;
 use warnings;
 

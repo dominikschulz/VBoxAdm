@@ -57,6 +57,7 @@ BINFILES = \
 
 LIBFILES = \
 	lib/VBoxAdm/API.pm \
+	lib/VBoxAdm/API/Domain.pm \
 	lib/VBoxAdm/DB.pm \
 	lib/VBoxAdm/DovecotPW.pm \
 	lib/VBoxAdm/Frontend.pm \
