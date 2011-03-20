@@ -22,6 +22,7 @@ my @modules = qw(
   CGI::Application::Plugin::TT/1.04/1/libcgi-application-extra-plugin-bundle-perl/perl-CGI-Application-Plugin-TT
   CGI::Carp/1.30/1/perl-modules/perl
   CGI::Fast/1.07/0/libcgi-fast-perl/perl-CGI-Fast
+  Class::Std/0/1/libclass-std-perl/perl-Class-Std
   Config::Std/0.007/1/libconfig-std-perl/perl-Config-Std/
   CPAN/1.9402/1/perl-modules/perl-CPAN
   Crypt::GeneratePassword/0.03/1/libcrypt-generatepassword-perl/perl-Crypt-GeneratePassword
@@ -31,25 +32,29 @@ my @modules = qw(
   Data::Page/2.02/1/libdata-perl-perl/perl-Data-Page
   Data::Password/1.07/1/libdata-password-perl/perl-Data-Password
   DBI/1.612/1/libdbi-perl/perl-DBI
+  DBD::MySQL/0/1/libdbd-mysql-perl/perl-DBD-MySQL
   Digest::MD5/2.39/1/perl/perl-Digest-MD5
   Digest::Perl::MD5/1.8/1/libdigest-perl-md5/
   Digest::SHA/5.48/1/libdigest-sha-perl/perl-Digest-SHA
   File::Basename/2.77/1/perl-modules/perl
   File::Temp/0.22/1/perl-modules/perl
+  FCGI/0/0/libfcgi-perl/perl-FCGI
   Getopt::Long/2.38/1/perl-base/perl
   HTML::Clean/0.8/1/libhtml-clean-perl/perl-HTML-Clean
   IO::File/1.14/1/perl-base/perl
   IO::Socket::INET6/2.65/1/libio-socket-inet6-perl/
   List::Util/1.21/1/perl-base/perl
+  Locale::Maketext/0/1/perl-modules/perl-Locale-Maketext-Simple
   Mail::SpamAssassin/3.00/1/spamassassin/perl-Mail-SpamAssassin
   MIME::Base64/3.08/1/perl/perl
-  Net::Domain/2.20/1/perl-modules/c
+  Net::Server/0/1/libnet-server-perl/perl-Net-Server
+  Net::Domain/2.20/1/perl-modules/
   Net::IMAP::Client/0.93/1/libnet-imap-client-perl/perl-Net-IMAP-Client
   Net::POP3/2.29/1/perl-modules/perl
   Net::SMTP/2.31/1/perl-modules/perl
-  Readonly/0/1/libreadonly-perl/
+  Readonly/0/1/libreadonly-perl/perl-Readonly
   Sys::Syslog/0.27/1/perl/perl
-  Template/2.22/1/libtemplate-perl/perl-Template
+  Template/2.22/1/libtemplate-perl/perl-Template-Toolkit
   Test::More/0.92/1/perl-modules/perl
   Text::CSV_XS/0.73/1/libtext-csv-xs-perl/perl-Text-CSV_XS
   Time::HiRes/1.9719/1/perl/perl
