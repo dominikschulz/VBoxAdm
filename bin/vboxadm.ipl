@@ -321,15 +321,15 @@ sub handle_awl {
     my $opts   = shift || {};
 
     if ( $modes->[1] eq 'add' ) {
-        &VBoxAdm::API::DomainAlias::create( $dbh, $modes->[2], $opts );
+        &VBoxAdm::API::AWL::create( $dbh, $modes->[2], $opts );
     }
     elsif ( $modes->[1] eq 'lock' ) {
         local $opts->{Disabled} = 1;
-        &VBoxAdm::API::DomainAlias::update( $dbh, $modes->[2], $opts );
+        &VBoxAdm::API::AWL::update( $dbh, $modes->[2], $opts );
     }
     elsif ( $modes->[1] eq 'unlock' ) {
         local $opts->{Disabled} = 0;
-        &VBoxAdm::API::DomainAlias::update( $dbh, $modes->[2], $opts );
+        &VBoxAdm::API::AWL::update( $dbh, $modes->[2], $opts );
     }
     else {
         print "Unknown mode. Choose one of 'add', 'lock', 'unlock'.\n";

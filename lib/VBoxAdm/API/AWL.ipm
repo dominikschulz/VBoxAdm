@@ -1,0 +1,33 @@
+package VBoxAdm::API::AWL;
+
+use strict;
+use warnings;
+
+use Carp;
+
+use Sys::Syslog;
+
+our $VERSION = '@VERSION@';
+
+sub create {
+    my $dbh   = shift;
+    my $email = shift;
+    my $opts  = shift || {};
+
+    return;
+}
+
+sub update {
+    my $dbh   = shift;
+    my $email = shift;
+    my $opts  = shift || {};
+
+    return;
+}
+
+sub delete {
+    die("There will be no AWL::delete - ever.");
+}
+
+1;
+__END__

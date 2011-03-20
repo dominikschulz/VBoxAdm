@@ -1,0 +1,74 @@
+package VBoxAdm::API::Domain;
+
+use strict;
+use warnings;
+
+use Carp;
+
+use Sys::Syslog;
+
+our $VERSION = '@VERSION@';
+
+# TODO create an API for manipulating the DB
+sub create {
+    my $dbh    = shift;
+    my $domain = shift;
+    my $opts   = shift || {};
+
+    $domain = &VBoxAdm::Utils::trim( lc($domain) );
+
+    my $msg_loc = '';
+    my $msg_en  = '';
+    if ( $domain && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain) ) {
+        my $msg = 'Invalid syntax. Domain is not RFC822 compliant!';
+        if ( $opts->{Lh} ) {
+            $msg_loc = $opts->{Lh}->maketext($msg);
+        }
+        if ( $opts->{Lh_EN} ) {
+            $msg_en = $opts->{Lh_EN}->maketext($msg);
+        }
+        return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+    }
+    elsif ($domain) {
+        my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
+        my $sth   = $dbh->prepare($query)
+          or syslog( 2, 'show_add_domain - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+
+        if ( $sth->execute($domain) ) {
+            my $msg = "Domain '[_1]' added";
+            if ( $opts->{Lh} ) {
+                $msg_loc = $opts->{Lh}->maketext( $msg, $domain );
+            }
+            if ( $opts->{Lh_EN} ) {
+                $msg_en = $opts->{Lh_EN}->maketext( $msg, $domain );
+            }
+            $sth->finish();
+            return wantarray ? ( 1, $msg_loc, $msg_en ) : 1;
+        }
+        else {
+            syslog( 2, 'show_add_domain - Could not execute Query: %s, Args: %s, Error: %s', $query, $domain, $sth->errstr );
+            my $msg = "Failed to add Domain '[_1]'. Database error.";
+            if ( $opts->{Lh} ) {
+                $msg_loc = $opts->{Lh}->maketext( $msg, $domain );
+            }
+            if ( $opts->{Lh_EN} ) {
+                $msg_en = $opts->{Lh_EN}->maketext( $msg, $domain );
+            }
+            return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+        }
+
+    }
+    else {
+        my $msg = "Failed to add Domain. Insufficient parameters.";
+        if ( $opts->{Lh} ) {
+            $msg_loc = $opts->{Lh}->maketext( $msg, $domain );
+        }
+        if ( $opts->{Lh_EN} ) {
+            $msg_en = $opts->{Lh_EN}->maketext( $msg, $domain );
+        }
+        return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+    }
+}
+
+1;
+__END__

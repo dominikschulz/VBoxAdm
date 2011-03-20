@@ -1,0 +1,33 @@
+package VBoxAdm::API::VacationBlacklist;
+
+use strict;
+use warnings;
+
+use Carp;
+
+use Sys::Syslog;
+
+our $VERSION = '@VERSION@';
+
+sub create {
+    my $dbh   = shift;
+    my $email = shift;
+    my $opts  = shift || {};
+
+    return;
+}
+
+sub delete {
+    my $dbh   = shift;
+    my $email = shift;
+    my $opts  = shift || {};
+
+    return;
+}
+
+sub update {
+    die("No VacationBlacklist::update");
+}
+
+1;
+__END__

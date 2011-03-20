@@ -52,7 +52,7 @@ Debian based (Debian Squeeze, Ubuntu):
   aptitude install perl perltidy libdbi-perl libdbd-mysql-perl libconfig-std-perl libtest-pod-perl libmail-sender-perl libcgi-application-perl libcgi-application-basic-plugin-bundle-perl libcgi-application-extra-plugin-bundle-perl famfamfam-silk-png libmime-encwords-perl libhtml-clean-perl libtemplate-perl lighttpd mysql-server php5-cgi postfix postfix-pcre postfix-mysql dovecot-imapd libcrypt-generatepassword-perl libdata-password-perl
 
 Red Hat based (RHEL, CentOS, Fedora):
-  yum install perl perltidy perl-DBI (and others)
+  yum install perl perltidy perl-DBI spamassassin mysql-server perl-Locale-Maketext-Simple perl-Text-CSV_XS perl-Readonly perl-Net-Server perl-Data-Password perl-Data-Page perl-CGI-Application-Plugin-Authentication perl-CGI-Application-Plugin-TT perl-CGI-Application-Plugin-DBH perl-CGI-Application-Plugin-Redirect perl-CGI-Application-Plugin-Session perl-Template-Toolkit perl-FCGI perl-Class-Std perl-Crypt-GeneratePassword perl-DBD-MySQL perl-DBI
 
 Other Distributions:
 Users of other distributions will have to figure out themself what packages they need to install. If you use a distribution not listed here and have figured out which packages to install tell me and I'll and the information to this file.
