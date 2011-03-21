@@ -1782,6 +1782,8 @@ sub show_add_alias {
     # Get CGI Query object
     my $q = $self->query();
 
+    # TODO use VBoxAdm::API::Alias::create(...);
+
     my $local_part = &VBoxAdm::Utils::trim( lc( $q->param('local_part') ) );
     my $domain_id  = $q->param('domain');
     my $goto       = $q->param('goto');
@@ -1852,6 +1854,8 @@ sub show_remove_alias {
 
     # Get CGI Query object
     my $q = $self->query();
+
+    # TODO use VBoxAdm::API::Alias::delete(...);
 
     my $alias_id = $q->param('alias_id');
 
@@ -1955,6 +1959,8 @@ sub show_update_alias {
 
     # Get CGI Query object
     my $q = $self->query();
+
+    # TODO use &VBoxAdm::API::Alias::update(...);
 
     my $alias_id  = $q->param('alias_id');
     my $is_active = $q->param('is_active');

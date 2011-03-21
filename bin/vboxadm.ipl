@@ -365,18 +365,66 @@ sub interactive {
     my $config = shift;
 
     my @actions = ();
-    push( @actions, "Run Setup" );
-    push( @actions, "User admin" );
-    push( @actions, "Alias admin" );
-    push( @actions, "Domain admin" );
+    push( @actions, "User admin" );                  # 0
+    push( @actions, "Alias admin" );                 # 1
+    push( @actions, "Domain admin" );                # 2
+    push( @actions, "Domain Alias admin" );          # 3
+    push( @actions, "Vacation Blacklist admin" );    # 4
+    push( @actions, "AWL admin" );                   # 5
+    push( @actions, "Setup" );                       # 6
+    push( @actions, "Migration" );                   # 7
     my ( $num, $item ) = &ask_select( 'Choose an action:', @actions );
-    if ( !$num ) {
+
+    if ( !defined($num) ) {
         print "User aborted.\n";
         exit 1;
     }
-    print "You chose: $num - $item\n";
 
-    # TODO implement
+    #print "You chose: $num - $item\n";
+    if ( $num == 0 ) {
+
+        # TODO implement
+        print "User-Admin Not yet implemented!\n";
+    }
+    elsif ( $num == 1 ) {
+
+        # TODO implement
+        print "Alias-Admin Not yet implemented!\n";
+    }
+    elsif ( $num == 2 ) {
+
+        # TODO implement
+        print "Domain-Admin Not yet implemented!\n";
+    }
+    elsif ( $num == 3 ) {
+
+        # TODO implement
+        print "DomainAlias-Admin Not yet implemented!\n";
+    }
+    elsif ( $num == 4 ) {
+
+        # TODO implement
+        print "VacationBlacklist-Admin Not yet implemented!\n";
+    }
+    elsif ( $num == 5 ) {
+
+        # TODO implement
+        print "AWL-Admin Not yet implemented!\n";
+    }
+    elsif ( $num == 6 ) {
+
+        # TODO implement
+        print "Setup Not yet implemented!\n";
+    }
+    elsif ( $num == 7 ) {
+
+        # TODO implement
+        print "Migration Not yet implemented!\n";
+    }
+    else {
+        print "Unknown option.\n";
+    }
+    return 1;
 }
 
 sub check_login {

@@ -238,7 +238,30 @@ if(!$opt_local) {
     # TODO add to homepage
 }
 
-# TODO clean up old package files
+# clean up old package files
+if(-d '../debian-archive') {
+	$cmd = "egrep \"(Package|Source):\" $name/debian/control | cut -d' ' -f2";
+	my @pkgs = `$cmd`;
+	foreach my $pkg (@pkgs) {
+	        chomp($pkg);
+	        #print "Package: $pkg\n";
+	        my $glob1 = "./".$pkg."_*";
+	        my $glob2 = "./".$pkg."-*";
+	        #print "Glob: $glob\n";
+	        foreach my $file (glob($glob1),glob($glob2)) {
+	                #print "File: $file\n";
+	                if($file =~ m/${pkg}_([0-9.]+)-/ || $file =~ m/$pkg-([0-9.]+)\.tar\.gz$/) {
+	                        my $ver = $1;
+	                        #print "Version: $ver\n";
+	                        if($ver ne $version) {
+	                                my $cmd = "mv $file ../debian-archive/";
+	                                print "Archiving old package file - CMD: $cmd\n";
+	                                my $rv = system($cmd) >> 8;
+	                        }
+	                }
+	        }
+	}
+}
 
 print "Release of $version finished!\n";
 exit 0;
