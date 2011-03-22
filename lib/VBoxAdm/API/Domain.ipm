@@ -32,7 +32,8 @@ sub create {
     elsif ($domain) {
         my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
         my $sth   = $dbh->prepare($query)
-          or syslog( 2, 'show_add_domain - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+          or $opts->{log}->( 2, 'show_add_domain - Could not prepare Query: %s, Error: %s', $query, DBI->errstr )
+          if $opts->{log};
 
         if ( $sth->execute($domain) ) {
             my $msg = "Domain '[_1]' added";
@@ -46,7 +47,7 @@ sub create {
             return wantarray ? ( 1, $msg_loc, $msg_en ) : 1;
         }
         else {
-            syslog( 2, 'show_add_domain - Could not execute Query: %s, Args: %s, Error: %s', $query, $domain, $sth->errstr );
+            $opts->{log}->( 2, 'show_add_domain - Could not execute Query: %s, Args: %s, Error: %s', $query, $domain, $sth->errstr ) if $opts->{log};
             my $msg = "Failed to add Domain '[_1]'. Database error.";
             if ( $opts->{Lh} ) {
                 $msg_loc = $opts->{Lh}->maketext( $msg, $domain );
@@ -68,6 +69,48 @@ sub create {
         }
         return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
     }
+}
+
+sub delete {
+    warn "Not yet implemented!\n";
+    return;
+}
+
+sub update {
+    warn "Not yet implemented!\n";
+    return;
+}
+
+sub read {
+    warn "Not yet implemented!\n";
+    return;
+}
+
+sub list {
+    warn "Not yet implemented!\n";
+    return;
+}
+
+sub get_name_by_id {
+    my $dbh   = shift;
+    my $id    = shift;
+    my $query = "SELECT name FROM domains WHERE id = ?";
+    my $sth   = $dbh->prepare($query);
+    $sth->execute($id);
+    my $domain_name = $sth->fetchrow_array();
+    $sth->finish();
+    return $domain_name;
+}
+
+sub get_id_by_name {
+    my $dbh   = shift;
+    my $name  = shift;
+    my $query = "SELECT id FROM domains WHERE name = ?";
+    my $sth   = $dbh->prepare($query);
+    $sth->execute($name);
+    my $domain_id = $sth->fetchrow_array();
+    $sth->finish();
+    return $domain_id;
 }
 
 1;

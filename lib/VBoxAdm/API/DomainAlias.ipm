@@ -14,6 +14,8 @@ sub create {
     my $email = shift;
     my $opts  = shift || {};
 
+    warn "Not yet implemented!\n";
+
     return;
 }
 
@@ -21,6 +23,8 @@ sub delete {
     my $dbh   = shift;
     my $email = shift;
     my $opts  = shift || {};
+
+    warn "Not yet implemented!\n";
 
     return;
 }
@@ -30,6 +34,25 @@ sub update {
     my $email = shift;
     my $opts  = shift || {};
 
+    warn "Not yet implemented!\n";
+    return;
+}
+
+sub read {
+    my $dbh   = shift;
+    my $email = shift;
+    my $opts  = shift || {};
+
+    warn "Not yet implemented!\n";
+    return;
+}
+
+sub list {
+    my $dbh   = shift;
+    my $email = shift;
+    my $opts  = shift || {};
+
+    warn "Not yet implemented!\n";
     return;
 }
 

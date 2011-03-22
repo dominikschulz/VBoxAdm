@@ -10,68 +10,97 @@ use Sys::Syslog;
 our $VERSION = '@VERSION@';
 
 sub create {
-    my $dbh   = shift;
-    my $email = shift;
-    my $goto  = shift;
-    my $opts  = shift || {};
+    my $dbh        = shift;
+    my $local_part = shift;
+    my $domain     = shift;
+    my $goto       = shift;
+    my $opts       = shift || {};
 
-=begin cut
-    $email = &VBoxAdm::Utils::trim( lc( $email ));
-    if(!&VBoxAdm::Utils::is_valid_address_rfc822($email)) {
-    	# TODO add error msg
-    	return;
+    $domain = &VBoxAdm::Utils::trim( lc($domain) );
+
+    my $domain_id;
+
+    # domain id?
+    if ( $domain =~ m/^(\d+)$/ ) {
+        $domain_id = $1;
     }
-    
-    my ($local_part, $domain_name ) = split /@/, $email;
-    
-    my $domain_id  = $q->param('domain');
+    else {
+        $domain_id = &VBoxAdm::API::Domain::get_id_by_name($domain);
+    }
 
-    my $msg = '';
+    return &create_id( $dbh, $local_part, $domain_id, $goto, $opts );
+}
 
-    if ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
+sub create_id {
+    my $dbh        = shift;
+    my $local_part = shift;
+    my $domain_id  = shift;
+    my $goto       = shift;
+    my $opts       = shift || {};
+
+    $local_part = &VBoxAdm::Utils::trim( lc($local_part) );
+    $goto       = &VBoxAdm::Utils::trim( lc($goto) );
+
+    my $domain_name = &VBoxAdm::API::Domain::get_name_by_id( $dbh, $domain_id );
+
+    my $msg_loc = '';
+    my $msg_en  = '';
+
+    if ( $domain_id && !$opts->{is_superadmin} && $opts->{is_domainadmin} && $domain_id != $opts->{users_domainid} ) {
 
         # if domainadmin, verify that its his domain
-        $msg = $self->{lh}->maketext("You are not authorized to modify this domain!");
-        $self->add_message( 'error', $msg );
+        my $msg = "You are not authorized to modify this domain!";
+        $msg_loc = $opts->{Lh}->maketext($msg)    if $opts->{Lh};
+        $msg_en  = $opts->{Lh_EN}->maketext($msg) if $opts->{Lh_EN};
+        return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
     }
     elsif ( $local_part && !&VBoxAdm::Utils::is_valid_localpart_rfc822($local_part) ) {
-        $msg = $self->{lh}->maketext("Invalid local part. This address is not RFC822 compliant!");
-        $self->add_message( 'error', $msg );
+        my $msg = "Invalid local part. This address is not RFC822 compliant!";
+        $msg_loc = $opts->{Lh}->maketext($msg)    if $opts->{Lh};
+        $msg_en  = $opts->{Lh_EN}->maketext($msg) if $opts->{Lh_EN};
+        return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
     }
     elsif ( $goto && !&VBoxAdm::Utils::is_valid_addresses_rfc822($goto) ) {
-        $msg = $self->{lh}->maketext("Invalid address in destination!");
-        $self->add_message( 'error', $msg );
+        my $msg = "Invalid address in destination!";
+        $msg_loc = $opts->{Lh}->maketext($msg)    if $opts->{Lh};
+        $msg_en  = $opts->{Lh_EN}->maketext($msg) if $opts->{Lh_EN};
+        return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
     }
     elsif ( $local_part && $domain_id && $goto ) {
-        my $query = "SELECT name FROM domains WHERE id = ?";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($domain_id);
-        my $domain_name = $sth->fetchrow_array();
-        $sth->finish();
 
-        $query = "INSERT INTO aliases (domain_id,local_part,goto,is_active) VALUES(?,?,?,1)";
-        $sth   = $dbh->prepare($query)
-          or syslog( 2, 'show_add_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+        my $query = "INSERT INTO aliases (domain_id,local_part,goto,is_active) VALUES(?,?,?,1)";
+        my $sth   = $dbh->prepare($query)
+          or $opts->{log}->( 2, 'show_add_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr )
+          if $opts->{log};
         if ( $sth->execute( $domain_id, $local_part, $goto ) ) {
-            $msg = $self->{lh}->maketext( "Alias [_1] to [_2] added.", "$local_part\@$domain_name", $goto );
-            $self->add_message( 'success', $msg );
+            my $msg = "Alias [_1] to [_2] added.";
+            if ( $opts->{Lh} ) {
+                $msg_loc = $opts->{Lh}->maketext( $msg, "$local_part\@$domain_name", $goto );
+            }
+            if ( $opts->{Lh_EN} ) {
+                $msg_en = $opts->{Lh_EN}->maketext( $msg, "$local_part\@$domain_name", $goto );
+            }
+            return wantarray ? ( 1, $msg_loc, $msg_en ) : 1;
         }
         else {
-            syslog(
+            $opts->{log}->(
                 2, 'show_add_alias - Could not execute Query: %s, Args: %s, Error: %s',
                 $query, join( "-", ( $domain_id, $local_part, $goto ) ),
                 $sth->errstr
-            );
-            $msg = $self->{lh}->maketext( "Failed to add alias [_1] => [_2]. Database Error.", "$local_part\@$domain_name", $goto );
-            $self->add_message( 'error', $msg );
+            ) if $opts->{log};
+            my $msg = "Failed to add alias [_1] => [_2]. Database Error.";
+            $msg_loc = $opts->{Lh}->maketext( $msg, "$local_part\@$domain_name", $goto ) if $opts->{Lh};
+            $msg_en = $opts->{Lh_EN}->maketext( $msg, "$local_part\@$domain_name", $goto ) if $opts->{Lh_EN};
+            return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
         }
         $sth->finish();
     }
     else {
-        $msg = $self->{lh}->maketext("Failed to add alias. Missing local_part, domain_id or target.");
-        $self->add_message( 'error', $msg );
+        my $msg = "Failed to add alias. Missing local_part, domain_id or target.";
+        $msg_loc = $opts->{Lh}->maketext($msg)    if $opts->{Lh};
+        $msg_en  = $opts->{Lh_EN}->maketext($msg) if $opts->{Lh_EN};
+        return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
     }
-=cut
 
     return;
 }
@@ -80,6 +109,8 @@ sub delete {
     my $dbh   = shift;
     my $email = shift;
     my $opts  = shift || {};
+
+    warn "Not yet implemented!\n";
 
 =begin cut
 my $alias_id = $q->param('alias_id');
@@ -127,6 +158,8 @@ sub update {
     my $dbh   = shift;
     my $email = shift;
     my $opts  = shift || {};
+
+    warn "Not yet implemented!\n";
 
 =begin cut
 my $alias_id  = $q->param('alias_id');
@@ -204,11 +237,15 @@ my $alias_id  = $q->param('alias_id');
 }
 
 sub read {
+    warn "Not yet implemented!\n";
+    return;
 
     # TODO return a single entry
 }
 
 sub list {
+    warn "Not yet implemented!\n";
+    return;
 
     # TODO return a list of all entries matching the criteria
 }

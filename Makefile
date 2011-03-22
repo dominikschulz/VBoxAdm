@@ -57,7 +57,12 @@ BINFILES = \
 
 LIBFILES = \
 	lib/VBoxAdm/API.pm \
+	lib/VBoxAdm/API/Alias.pm \
+	lib/VBoxAdm/API/AWL.pm \
 	lib/VBoxAdm/API/Domain.pm \
+	lib/VBoxAdm/API/DomainAlias.pm \
+	lib/VBoxAdm/API/Mailbox.pm \
+	lib/VBoxAdm/API/VacationBlacklist.pm \
 	lib/VBoxAdm/DB.pm \
 	lib/VBoxAdm/DovecotPW.pm \
 	lib/VBoxAdm/Frontend.pm \

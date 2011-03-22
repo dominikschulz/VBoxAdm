@@ -19,7 +19,12 @@ use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::Migration '@VERSION@';
 use VBoxAdm::DovecotPW '@VERSION@';
+use VBoxAdm::API::Alias '@VERSION@';
+use VBoxAdm::API::AWL '@VERSION@';
 use VBoxAdm::API::Domain '@VERSION@';
+use VBoxAdm::API::DomainAlias '@VERSION@';
+use VBoxAdm::API::Mailbox '@VERSION@';
+use VBoxAdm::API::VacationBlacklist '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
 
 my ( $conffile_used, %config, @modes, $opts );
