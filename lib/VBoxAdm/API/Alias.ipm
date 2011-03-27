@@ -31,6 +31,24 @@ sub create {
     return &_create_wid( $dbh, $local_part, $domain_id, $goto, $opts );
 }
 
+sub get_id {
+    my $dbh   = shift;
+    my $email = shift;
+    my $opts  = shift || {};
+
+    if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+        return;
+    }
+
+    my ( $local_part, $domain ) = split /@/, $email;
+
+    my $sql = "SELECT id FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.local_part = ? AND d.name = ?";
+    my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql, $local_part, $domain );
+    my $id  = $sth->fetchrow_array();
+    $sth->finish();
+    return $id;
+}
+
 sub _create_wid {
     my $dbh        = shift;
     my $local_part = shift;
@@ -110,9 +128,9 @@ sub delete {
     my $email = shift;
     my $opts  = shift || {};
 
-    warn "Not yet implemented!\n";
+    my $alias_id = &get_id( $dbh, $email, $opts );
 
-    return;
+    return &_delete_wid( $dbh, $alias_id, $opts );
 }
 
 sub _delete_wid {
@@ -171,9 +189,9 @@ sub update {
     my $email = shift;
     my $opts  = shift || {};
 
-    warn "Not yet implemented!\n";
+    my $alias_id = &get_id( $dbh, $email, $opts );
 
-    return;
+    return &_update_wid( $dbh, $alias_id, $opts );
 }
 
 sub _update_wid {
@@ -257,6 +275,9 @@ my $alias_id  = $q->param('alias_id');
 }
 
 sub read {
+    my $dbh      = shift;
+    my $alias_id = shift;
+    my $opts     = shift || {};
     warn "Not yet implemented!\n";
     return;
 
@@ -264,10 +285,30 @@ sub read {
 }
 
 sub list {
-    warn "Not yet implemented!\n";
-    return;
+    my $dbh = shift;
+    my $opts = shift || {};
 
-    # TODO return a list of all entries matching the criteria
+    my $sql  = "SELECT a.id,d.id,a.local_part,d.name,... FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id";
+    my @args = ();
+    if ( $opts->{Search} ) {
+
+        # TODO search ;)
+    }
+    my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql, @args );
+    my @results = ();
+    while ( my ( $local_part, $domain_name ) = $sth->fetchrow_array() ) {
+        push(
+            @results,
+            {
+                local_part  => $local_part,
+                domain_name => $domain_name,
+
+                # ...
+            }
+        );
+    }
+
+    return @results;    # arrayref?
 }
 
 1;

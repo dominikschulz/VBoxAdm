@@ -6,6 +6,8 @@ use warnings;
 use Carp;
 
 use Sys::Syslog;
+use VBoxAdm::DB '@VERSION@';
+use VBoxAdm::Utils '@VERSION@';
 
 our $VERSION = '@VERSION@';
 
@@ -72,13 +74,38 @@ sub create {
 }
 
 sub delete {
-    warn "Not yet implemented!\n";
+    my $dbh         = shift;
+    my $domain_name = shift;
+    my $opts        = shift || {};
+
+    my $domain_id = &get_id_by_name( $dbh, $domain_name, $opts );
+    return &_delete_wid( $dbh, $domain_id, $opts );
+}
+
+sub _delete_wid {
+    my $dbh       = shift;
+    my $domain_id = shift;
+    my $opts      = shift || {};
+    my $sql       = "DELETE FROM domains WHERE id = ? LIMIT 1";
+    my $sth       = &VBoxAdm::DB::prepexec( $dbh, $domain_id );
+    $sth->finish();
     return;
 }
 
 sub update {
+    my $dbh         = shift;
+    my $domain_name = shift;
+    my $opts        = shift || {};
     warn "Not yet implemented!\n";
     return;
+}
+
+sub _update_wid {
+    my $dbh       = shift;
+    my $domain_id = shift;
+    my $opts      = shift || {};
+
+    # TODO implement
 }
 
 sub read {
@@ -87,6 +114,15 @@ sub read {
 }
 
 sub list {
+    my $dbh = shift;
+    my $opts = shift || {};
+
+    my $sql  = "SELECT ... FROM domains";
+    my @args = ();
+    if ( $opts->{Search} ) {
+        $sql .= " WHERE ...";
+    }
+    my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql, @args );
     warn "Not yet implemented!\n";
     return;
 }

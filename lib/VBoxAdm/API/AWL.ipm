@@ -6,6 +6,7 @@ use warnings;
 use Carp;
 
 use Sys::Syslog;
+use VBoxAdm::DB '@VERSION@';
 
 our $VERSION = '@VERSION@';
 
@@ -14,9 +15,11 @@ sub create {
     my $email = shift;
     my $opts  = shift || {};
 
-    warn "Not yet implemented!\n";
+    my $sql = "INSERT IGNORE INTO awl (..) VALUES(?)";
+    my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql, $email );
+    $sth->finish();
 
-    return;
+    return 1;
 }
 
 sub update {
@@ -29,6 +32,9 @@ sub update {
     return;
 }
 
+# There will be no AWL::delete - ever. Why?
+# Either an entry is disabled which will prevent this address
+# from being blacklisted forever or it will expire by itself.
 sub delete {
     die("There will be no AWL::delete - ever.");
 }
