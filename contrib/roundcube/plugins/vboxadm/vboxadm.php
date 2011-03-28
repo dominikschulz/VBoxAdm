@@ -516,7 +516,7 @@ class vboxadm extends rcube_plugin
 		$curpwd = get_input_value('_curpasswd', RCUBE_INPUT_POST);
 		$newpwd = get_input_value('_newpasswd', RCUBE_INPUT_POST);
 		
-		write_log('vboxadm','_save');
+		/* write_log('vboxadm','_save invoked'); */
 
 		if ($curpwd != '' and $newpwd != '') {
 
@@ -527,18 +527,21 @@ class vboxadm extends rcube_plugin
 			if (!$this->verify_pass_by_uid($curpwd, $user_id)) {
 				// Current password was not correct.
 				$password_change_error = 1;
-				$addtomessage .= '. ' . $this->gettext('saveerror-pass-mismatch');
+				$addtomessage .= '. ' . $this->gettext('saveerror-verify-mismatch');
+				/* write_log('vboxadm',"_save - Password mismatch - verify_pass_by_uid($curpwd, $user_id) returned false."); */
 			} elseif($rcmail->decrypt($_SESSION['password']) != $curpwd) {
-				$password_change_error = 1;
+				$password_change_error = 4;
 				$addtomessage .= '. ' . $this->gettext('saveerror-pass-mismatch');
+				/* write_log('vboxadm',"_save - Password mismatch - ".$_SESSION['password']." != $curpwd"); */
 			} elseif(!$this->dovecotpw->check_password($newpwd, FALSE)) {
-				$password_change_error = 1;
+				$password_change_error = 5;
 				$addtomessage .= '. ' . $this->gettext('saveerror-pass-too-weak');
+				/* write_log('vboxadm',"_save - Password $newpwd too weak"); */
 			} else {
 				$crypted_password = $this->dovecotpw->make_pass($newpwd, 'SSHA256');
-				write_log('vboxadm','_save - Password MATCHES! New crypted Pass: '.$crypted_password);
+				/* write_log('vboxadm','_save - Password MATCHES! New crypted Pass: '.$crypted_password); */
 				$sql_pass = "UPDATE mailboxes SET password=" . $this->db->quote($crypted_password) . " WHERE id = " . $this->db->quote($user_id,'text') . " AND is_active LIMIT 1";
-
+				/* write_log('vboxadm',"_save - Password update query: $sql_pass"); */
 				$res_pass = $this->db->query($sql_pass);
 				if ($err = $this->db->is_error()) {
 					$password_change_error = 2;
@@ -566,7 +569,23 @@ class vboxadm extends rcube_plugin
 		}
 		if ($config_error == 0 and $trytochangepass == 1 and $password_change_error == 1) {
 			// Config updated, but error in password saving due to mismatch
+			return $this->gettext('savesuccess-config-saveerror-verify-mismatch');
+		}
+		if ($config_error == 0 and $trytochangepass == 1 and $password_change_error == 2) {
+			// Config updated, but error in password saving due to mismatch
+			return $this->gettext('savesuccess-config-saveerror-pass-database');
+		}
+		if ($config_error == 0 and $trytochangepass == 1 and $password_change_error == 3) {
+			// Config updated, but error in password saving due to mismatch
+			return $this->gettext('savesuccess-config-saveerror-pass-norows');
+		}
+		if ($config_error == 0 and $trytochangepass == 1 and $password_change_error == 4) {
+			// Config updated, but error in password saving due to mismatch
 			return $this->gettext('savesuccess-config-saveerror-pass-mismatch');
+		}
+		if ($config_error == 0 and $trytochangepass == 1 and $password_change_error == 5) {
+			// Config updated, but error in password saving due to mismatch
+			return $this->gettext('savesuccess-config-saveerror-pass-too-weak');
 		}
 		if ($config_error == 0 and $trytochangepass == 1 and $password_change_error) {
 			// Config updated, but other error in password saving
