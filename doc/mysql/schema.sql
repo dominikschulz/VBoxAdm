@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS `mailboxes` (
   `domain_id` int(16) NOT NULL,
   `local_part` varchar(64) NOT NULL,
   `password` varchar(255) NOT NULL,
+  `pw_ts` TIMESTAMP NOT NULL DEFAULT 0,
   `name` varchar(255) NOT NULL,
   `is_active` tinyint(1) NOT NULL,
   `max_msg_size` int(16) NOT NULL,
@@ -78,6 +79,17 @@ CREATE TABLE IF NOT EXISTS `mailboxes` (
   UNIQUE KEY `domain_id` (`domain_id`,`local_part`),
   KEY `vacation_duration` (`vacation_start`,`vacation_end`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
+
+DROP TRIGGER IF EXISTS `pwts_upd`;
+DELIMITER //
+CREATE TRIGGER `pwts_upd` BEFORE UPDATE ON `mailboxes`
+ FOR EACH ROW BEGIN
+  IF OLD.password <> NEW.password THEN
+    SET NEW.pw_ts = NOW();
+  END IF;
+ END
+//
+DELIMITER ;
 
 DROP TABLE IF EXISTS `rfc_notify`;
 CREATE TABLE IF NOT EXISTS `rfc_notify` (

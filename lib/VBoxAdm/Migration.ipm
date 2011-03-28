@@ -157,7 +157,7 @@ sub migrate {
         $query = "SELECT alias FROM vexim.domainalias WHERE domain_id = ?";
         my $sth_domainalias = $dbh->prepare($query);
         $query =
-            'SELECT localpart,clear,smtp,pop,type,admin,on_vacation,enabled,forward,maxmsgsize,quota,realname,vacation,on_spamassassin,sa_refuse FROM `'
+            'SELECT localpart,clear,smtp,pop,type,admin,on_vacation,enabled,forward,maxmsgsize,quota,realname,vacation,on_spamassassin,sa_refuse,crypt FROM `'
           . $source_db
           . '`.users WHERE domain_id = ?';
         my $sth_users = $dbh->prepare($query);
@@ -194,8 +194,8 @@ sub migrate {
             $sth_users->execute($old_domain_id);
             while ( my @row = $sth_users->fetchrow_array() ) {
                 my (
-                    $localpart, $pwclear,    $smtp,  $pop,      $type,         $admin,     $on_vacation, $enabled,
-                    $forward,   $maxmsgsize, $quota, $realname, $vacation_msg, $sa_active, $sa_kill_score,
+                    $localpart, $pwclear,    $smtp,  $pop,      $type,         $admin,     $on_vacation,   $enabled,
+                    $forward,   $maxmsgsize, $quota, $realname, $vacation_msg, $sa_active, $sa_kill_score, $pwcrypt,
                 ) = @row;
                 my $is_siteadmin   = 0;
                 my $is_domainadmin = 0;
@@ -227,10 +227,16 @@ sub migrate {
                     print "New Alias: $localpart\@$domain ($new_domain_id) => $forward, Enabled: $enabled\n";
                 }
                 if ($is_local) {
+                    my $pw = '';
+                    if ($pwclear) {
+                        $pw = &VBoxAdm::DovecotPW::make_pass( $pwclear, $config->{'cgi'}{'pwscheme'} );
+                    }
+                    elsif ( $pwcrypt && $pwcrypt =~ m/^\$1\$/ ) {
+                        $pw = '{MD5-CRYPT}' . $pwcrypt;
+                    }
                     $sth_new_mailbox->execute(
-                        $new_domain_id, $localpart, VBoxAdm::DovecotPW::make_pass( $pwclear, $config->{'cgi'}{'pwscheme'} ),
-                        $realname, $enabled, $maxmsgsize, $on_vacation, 'Out of Office',
-                        $vacation_msg, $is_domainadmin, $is_siteadmin, $sa_active, $sa_kill_score,
+                        $new_domain_id,  $localpart,    $pw,             $realname,     $enabled,   $maxmsgsize, $on_vacation,
+                        'Out of Office', $vacation_msg, $is_domainadmin, $is_siteadmin, $sa_active, $sa_kill_score,
                     ) or warn( "Could not execute query $sql_new_mailbox: " . $sth_new_mailbox->errstr );
                     print
 "New Mailbox: $localpart\@$domain ($new_domain_id), Name: $realname, Enabled: $enabled, Max. Size: $maxmsgsize, VAC: $on_vacation, DA: $is_domainadmin, SA: $is_siteadmin\n";

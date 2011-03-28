@@ -2376,6 +2376,7 @@ sub show_edit_mailbox {
 
     my $mailbox_id = $q->param('mailbox_id');
 
+    # TODO add column: pw_update_ts - last password change timestamp
     my $query = "SELECT m.local_part,d.name,m.name,m.is_active,m.max_msg_size,";
     $query .= "m.is_on_vacation,m.vacation_msg,m.quota,m.is_domainadmin,";
     $query .= "m.is_superadmin,d.id,m.sa_active,m.sa_kill_score,m.vacation_subj,m.vacation_start,m.vacation_end ";
