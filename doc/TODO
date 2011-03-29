@@ -44,5 +44,8 @@ Make sure class-C ip subnet auto-whitelists are supported
 - Evaluate datatables:
 -- http://www.datatables.net/development/server-side/perl_mysql
 
+- Roundcube Plugin
+-- Use HTTP API once finished, this will reduce the logic reguired in the plugin to a minmal core
+
 * - in progress
 

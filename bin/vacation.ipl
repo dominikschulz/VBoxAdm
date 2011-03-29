@@ -436,7 +436,7 @@ sub send_vacation_mail {
         my ( $subj, $msg ) = $sth->fetchrow_array();
 
         if ( !$subj || !$msg ) {
-            syslog( 2, 'send_vacation_mail - Recipient: %s - No Subject or Message found. Aborting.', $recipient );
+            syslog( 2, 'send_vacation_mail - Recipient: %s - No Vacation Subject or Message found in DB. Aborting.', $recipient );
             return;
         }
 

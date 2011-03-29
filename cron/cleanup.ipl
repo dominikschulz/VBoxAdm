@@ -134,13 +134,13 @@ sub purge_mailboxes {
     my $config = shift;
 
     if ( !$config->{'default'}{'mail_location'} ) {
-        my $msg = 'mail_location is not set. Aborting!';
+        my $msg = 'purge_mailboxes - mail_location is not set. Aborting!';
         syslog( 2, $msg );
         print STDERR $msg . "\n";
         return;
     }
     elsif ( !-d $config->{'default'}{'mail_location'} ) {
-        my $msg = 'mail_location (' . $config->{'default'}{'mail_location'} . ') is no directory. Aborting!';
+        my $msg = 'purge_mailboxes - mail_location (' . $config->{'default'}{'mail_location'} . ') is no directory. Aborting!';
         syslog( 2, $msg );
         print STDERR $msg . "\n";
         return;

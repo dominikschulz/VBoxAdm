@@ -237,7 +237,7 @@ sub create_signature_table {
 
     my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql )
       or return;
-    syslog( 2, "Create archive table signatures" );
+    syslog( 2, "Created archive table signatures (if it did not exist)." );
     $sth->finish();
 
     return 1;
@@ -274,7 +274,7 @@ sub create_archive_table {
 ) ENGINE=ARCHIVE DEFAULT CHARSET=utf8;';
     my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql )
       or return;
-    syslog( 2, "Created archive table $table" );
+    syslog( 2, "Created archive table $table (if it did not exist)." );
     $sth->finish();
     return 1;
 }
