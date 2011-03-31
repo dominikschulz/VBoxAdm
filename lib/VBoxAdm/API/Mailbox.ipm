@@ -16,6 +16,96 @@ sub create {
 
     warn "Not yet implemented!\n";
 
+=begin cut
+    if ( $is_active && $is_active eq 'on' ) {
+        $is_active = 1;
+    }
+
+    my $system_domain = $self->{config}{'default'}{'domain'} || 'localhost';
+
+    if ( $self->is_superadmin() ) {
+        $is_superadmin = $q->param('is_superadmin') || 0;
+    }
+    elsif ( $self->is_domainadmin() && $domain_id == $self->get_users_domainid() ) {
+        $is_domainadmin = $q->param('is_domainadmin') || 0;
+    }
+
+    my $msg1        = '';
+    my $domain_name = 'localhost';
+    if ($domain_id) {
+        $domain_name = $self->get_domain_byid($domain_id) || 'localhost';
+    }
+
+    # no pws given, generate one
+    if ( !$password && !$password_2 ) {
+        $password = Crypt::GeneratePassword::word( 8, 12 );
+        $password_2 = $password;
+        my $msg = 'Generated Password: [_1]. ';
+        $self->add_message( 'info', $self->{lh}->maketext( $msg, $password ) );
+    }
+
+    if ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
+
+        # if domainadmin, verify that its his domain
+        my $msg = "You are not authorized to modify this domain!";
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $msg1 = $msg;
+    }
+    elsif ( $username && !&VBoxAdm::Utils::is_valid_localpart_rfc822($username) ) {
+        my $msg = "Invalid local part. This address is not RFC822 compliant!";
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $msg1 = $msg;
+    }
+    elsif ( $password && $password_2 && $password ne $password_2 ) {
+        my $msg = "Passwords do not match.";
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $msg1 = $msg;
+    }
+    elsif ( $domain_id && $username && $password && $name && $password eq $password_2 ) {
+        my $query =
+          "INSERT INTO mailboxes (domain_id,local_part,password,is_active,name,sa_active,sa_kill_score,is_domainadmin,is_superadmin) VALUES(?,?,?,?,?,?,?,?,?)";
+        my $sth = $dbh->prepare($query)
+          or syslog( 2, 'show_add_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+        if (
+            $sth->execute(
+                $domain_id, $username, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ),
+                $is_active, $name, $sa_active, $sa_kill_score, $is_domainadmin, $is_superadmin
+            )
+          )
+        {
+            my $msg = "Added Mailbox [_1] for [_2].";
+            $self->add_message( 'success', $self->{lh}->maketext( $msg, "$username\@$domain_name", $name ) );
+            $msg1 .= $self->{lh_en}->maketext( $msg, "$username\@$domain_name", $name );
+
+            # send_welcome_mail
+            my $emsg = '';
+            $emsg .= "Subject: " . $self->{lh}->maketext("Welcome") . "\r\n";
+            $emsg .= "Auto-Submitted: auto-generated\r\n";
+            $emsg .= "From: VBoxAdm <vboxadm\@" . $system_domain . ">\r\n";
+            $emsg .= "To: <$username\@$domain_name>\r\n";
+            $emsg .= "\r\n";
+            $emsg .= $self->{lh}->maketext("Welcome to your new mailbox.");
+            &VBoxAdm::Utils::sendmail( 'vboxadm@' . $system_domain, $emsg );
+        }
+        else {
+            syslog(
+                2, 'show_add_mailbox - Could not execute Query: %s, Args: %s, Error: %s',
+                $query, join( "-", ( $domain_id, $username, $password, $is_active ) ),
+                $sth->errstr
+            );
+            my $msg = "Failed to add Mailbox [_1] for [_2]. Database Error.";
+            $self->add_message( 'error', $self->{lh}->maketext( $msg, "$username\@$domain_name", $name ) );
+            $msg1 = $self->{lh_en}->maketext( $msg, "$username\@$domain_name", $name );
+        }
+        $sth->finish();
+    }
+    else {
+        my $msg = "Failed to add Mailbox. Insufficient parameters.";
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $msg1 = $msg;
+    }
+=cut
+
     return;
 }
 
@@ -26,6 +116,40 @@ sub delete {
 
     warn "Not yet implemented!\n";
 
+=begin cut
+
+    if ($mailbox_id) {
+        my $query = "SELECT CONCAT(m.local_part,'\@',d.name) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
+        my $sth   = $dbh->prepare($query);
+        $sth->execute($mailbox_id);
+        my $mailbox_name = $sth->fetchrow_array();
+        $sth->finish();
+
+        $query = "DELETE FROM mailboxes WHERE id = ?";
+        my @args = ();
+        push( @args, $mailbox_id );
+        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+            $query .= "AND domain_id = ?";
+            push( @args, $self->get_users_domainid() );
+        }
+        $sth = $dbh->prepare($query)
+          or syslog( 2, 'show_remove_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+        if ( $sth->execute(@args) ) {
+            $msg = $self->{lh}->maketext( "Mailbox [_1] (#[_2]) removed.", $mailbox_name, $mailbox_id );
+            $self->add_message( 'success', $msg );
+        }
+        else {
+            syslog( 2, 'show_remove_mailbox - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+            $msg = $self->{lh}->maketext( "Failed to remove Mailbox [_1] (#[_2]). Database Error.", $mailbox_name, $mailbox_id );
+            $self->add_message( 'error', $msg );
+        }
+    }
+    else {
+        $msg = $self->{lh}->maketext("Failed to remove mailbox. Insufficient parameters.");
+        $self->add_message( 'error', $msg );
+    }
+=cut
+
     return;
 }
 
@@ -35,6 +159,188 @@ sub update {
     my $opts  = shift || {};
 
     warn "Not yet implemented!\n";
+
+=begin cut
+    if ($mailbox_id) {
+        my $query = "SELECT CONCAT(m.local_part,'\@',d.name) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
+        my $sth   = $dbh->prepare($query);
+        $sth->execute($mailbox_id);
+        my $mailbox_name = $sth->fetchrow_array();
+        $sth->finish();
+
+        $query = "UPDATE mailboxes SET ";
+
+        # only execute query if scalar(@params) > 0, i.e. at least on valid option
+        my @params = ();
+
+        # Password
+        if ( $password && $password_2 ) {
+
+            $Data::Password::MINLEN = 8;
+            $Data::Password::MAXLEN = undef;
+
+            # passwords must be equal and at least 8 chars long
+            if ( $password eq $password_2 ) {
+
+                # Check password length
+                if ( length($password) < 8 ) {
+                    my $msg = 'Bad password - Password too short. Need at least 8 characters.';
+                    $self->add_message( 'warning', $self->{lh}->maketext($msg) );
+                    $msg1 .= $msg . ' ';
+                }
+
+                # Check password strength
+                if ( my $str = Data::Password::IsBadPassword($password) ) {
+                    my $msg = $self->{lh}->maketext( 'Weak password - [_1].', $str );
+                    $self->add_message( 'warning', $msg );
+                    $msg1 .= $msg . ' ';
+                }
+                $query .= "password = ?, ";
+                push( @params, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ) );
+            }
+        }
+
+        # Name
+        if ($name) {
+            $query .= "name = ?, ";
+            push( @params, $name );
+        }
+
+        # Is_Active
+        # checkboxes are undefined if they are false!
+        my $status_str = 'disabled';
+        if ($is_active) {
+            $status_str = 'enabled';
+            $is_active  = 1;
+        }
+        else {
+            $is_active = 0;
+        }
+        $query .= "is_active = ?, ";
+        push( @params, $is_active );
+
+        # Max Msg Size
+        if ( defined($max_msg_size) ) {
+            $query .= "max_msg_size = ?, ";
+            push( @params, $max_msg_size );
+        }
+
+        # Is Superadmin / Is Domainadmin
+        if ( $self->is_superadmin() ) {
+            $query .= "is_superadmin = ?, ";
+            if ( defined($is_superadmin) && $is_superadmin eq 'on' ) {
+                push( @params, 1 );
+            }
+            else {
+                push( @params, 0 );
+            }
+            $query .= "is_domainadmin = ?, ";
+            if ( defined($is_domainadmin) && $is_domainadmin eq 'on' ) {
+                push( @params, 1 );
+            }
+            else {
+                push( @params, 0 );
+            }
+        }
+
+        # SpamAssassin
+        if ( defined($sa_kill_score) ) {
+            $query .= "sa_kill_score = ?, ";
+            push( @params, $sa_kill_score );
+            if ( $sa_kill_score > 10 ) {
+                $self->add_message( 'warning', $self->{lh}->maketext('SpamAssassin kill score probably set too high! Should be below 10.') );
+            }
+            elsif ( $sa_kill_score < 5 ) {
+                $self->add_message( 'warning', $self->{lh}->maketext('SpamAssassin kill score probably set too low! Should be above 5.') );
+            }
+        }
+        if ( defined($sa_active) ) {
+            $sa_active = 1;
+        }
+        else {
+            $sa_active = 0;
+        }
+        push( @params, $sa_active );
+        $query .= "sa_active = ?, ";
+
+        # Is_On_Vacation / Vacation Msg
+        if ( defined($is_on_vacation) && $is_on_vacation eq 'on' ) {
+            if ( $vacation_subj && length($vacation_subj) && $vacation_msg && length($vacation_msg) > 1 ) {
+                $is_on_vacation = 1;
+            }
+            else {
+                $self->add_message( 'warning', $self->{lh}->maketext('Attempt to enable Vacation w/o vacation message or subject denied!') );
+            }
+            if ( $vacation_start && $vacation_start =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
+                $vacation_start = "$3-$2-$1";
+            }
+            else {
+                $vacation_start = '0000-00-00';
+                $self->add_message( 'warning', $self->{lh}->maketext('Invalid vacation start date!') );
+            }
+            if ( $vacation_end && $vacation_end =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
+                $vacation_end = "$3-$2-$1";
+            }
+            else {
+                $vacation_end = '0000-00-00';
+                $self->add_message( 'warning', $self->{lh}->maketext('Invalid vacation end date!') );
+            }
+            $query .= "is_on_vacation = ?, vacation_msg = ?, vacation_subj = ?, vacation_start = ?, vacation_end = ? ";
+            push( @params, $is_on_vacation );
+            push( @params, $vacation_msg );
+            push( @params, $vacation_subj );
+            push( @params, $vacation_start );
+            push( @params, $vacation_end );
+        }
+        else {
+            $is_on_vacation = 0;
+            $vacation_start = '0000-00-00';
+            $vacation_end   = '0000-00-00';
+            $query .= "is_on_vacation = ?, vacation_start = ?, vacation_end = ? ";
+            push( @params, $is_on_vacation );
+            push( @params, $vacation_start );
+            push( @params, $vacation_end );
+        }
+
+        # finialize query
+        $query .= " WHERE id = ?";
+        push( @params, $mailbox_id );
+
+        # if domainadmin, verify that its his domain
+        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+            $query .= "AND domain_id = ?";
+            push( @params, $self->get_users_domainid() );
+        }
+
+        # at least on option has changed
+        if ( scalar(@params) > 1 ) {
+            my $sth = $dbh->prepare($query)
+              or syslog( 2, 'show_update_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+
+            if ( $sth->execute(@params) ) {
+                my $msg = $self->{lh}->maketext( "Updated Mailbox [_1] (#[_2]).", $mailbox_name, $mailbox_id );
+                $self->add_message( 'success', $msg );
+                $msg1 .= $msg . ' ';
+            }
+            else {
+                syslog( 2, 'show_update_mailbox - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @params ), $sth->errstr );
+                my $msg = $self->{lh}->maketext( "Failed to update Mailbox [_1] (#[_2]). Database Error.", $mailbox_name, $mailbox_id );
+                $self->add_message( 'error', $msg );
+                $msg1 .= $msg . ' ';
+            }
+        }
+        else {
+            my $msg = "No Parameter changed. ";
+            $self->add_message( 'error', $self->{lh}->maketext($msg) );
+            $msg1 .= $msg . ' ';
+        }
+    }
+    else {
+        my $msg = "Failed to update Mailbox. No Mailbox-ID given. ";
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $msg1 .= $msg . ' ';
+    }
+=cut
 
     return;
 }

@@ -16,6 +16,36 @@ sub create {
 
     warn "Not yet implemented!\n";
 
+=begin cut
+    my $email = $q->param('email') || undef;
+
+    my $msg1 = '';
+
+    if ( $email && &VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+        my $query = "INSERT INTO vacation_blacklist (local_part,domain) VALUES(?,?)";
+        my $sth   = $dbh->prepare($query)
+          or syslog( 2, 'show_add_vacbl_entry - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+        my ( $local_part, $domain ) = split /@/, $email;
+        if ( $sth->execute( $local_part, $domain ) ) {
+            $sth->finish();
+            my $msg = "Added Vacation Blacklist Entry [_1].";
+            $self->add_message( 'success', $self->{lh}->maketext( $msg, $email ) );
+            $msg1 .= $self->{lh_en}->maketext( $msg, $email );
+        }
+        else {
+            syslog( 2, 'show_add_vacbl_entry - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $local_part, $domain ) ), $sth->errstr );
+            my $msg = "Failed to add Vacation Blacklist Entry [_1]. Database Error.";
+            $self->add_message( 'error', $self->{lh}->maketext( $msg, $email ) );
+            $msg1 = $self->{lh_en}->maketext( $msg, $email );
+        }
+    }
+    else {
+        my $msg = 'Invalid email given. Please provide a valid RFC822 email address.';
+        $msg1 .= $msg;
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+    }
+=cut
+
     return;
 }
 
@@ -25,6 +55,37 @@ sub delete {
     my $opts  = shift || {};
 
     warn "Not yet implemented!\n";
+
+=begin cut
+    if ($entry_id) {
+        my $query = "SELECT local_part,domain FROM vacation_blacklist WHERE id = ?";
+        my $sth   = $dbh->prepare($query);
+        $sth->execute($entry_id);
+        my $email = $sth->fetchrow_array();
+        $sth->finish();
+
+        $query = "DELETE FROM vacation_blacklist WHERE id = ?";
+        $sth   = $dbh->prepare($query)
+          or syslog( 2, 'show_remove_vacbl_entry - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+        if ( $sth->execute($entry_id) ) {
+            $sth->finish();
+            my $msg = "Delete Vacation Blacklist Entry [_1].";
+            $self->add_message( 'success', $self->{lh}->maketext( $msg, $email ) );
+            $msg1 .= $self->{lh_en}->maketext( $msg, $email );
+        }
+        else {
+            syslog( 2, 'show_remove_vacbl_entry - Could not execute Query: %s, Args: %s, Error: %s', $query, $entry_id, $sth->errstr );
+            my $msg = "Failed to remove Vacation Blacklist Entry [_1]. Database Error.";
+            $self->add_message( 'error', $self->{lh}->maketext( $msg, $email ) );
+            $msg1 .= $self->{lh_en}->maketext( $msg, $email );
+        }
+    }
+    else {
+        my $msg = 'Invalid id given. Please provide a valid id.';
+        $msg1 .= $msg;
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+    }
+=cut
 
     return;
 }
