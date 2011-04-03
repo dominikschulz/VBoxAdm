@@ -198,12 +198,13 @@ sub _update_wid {
     my $dbh      = shift;
     my $alias_id = shift;
     my $opts     = shift || {};
+    
+    my $msg_en  = '';
+    my $msg_loc = '';
 
+    my $is_active = $opts->{IsActive};
+    my $target    = &VBoxAdm::Utils::trim( $opts->{Goto} );
 =begin cut
-my $alias_id  = $q->param('alias_id');
-    my $is_active = $q->param('is_active');
-    my $target    = &VBoxAdm::Utils::trim( $q->param('goto') );
-
     my $msg1       = '';
     my $alias_name = '';
     if ($alias_id) {
@@ -212,8 +213,12 @@ my $alias_id  = $q->param('alias_id');
         $sth->execute($alias_id);
         $alias_name = $sth->fetchrow_array();
         $sth->finish();
+    } else {
+    	# TODO error message
+    	return;
     }
 
+		# Update 'is_active' status
     if ( $alias_id && defined($is_active) ) {
         my $query = "UPDATE aliases SET is_active = ? WHERE id = ?";
         my @args  = ();
@@ -221,9 +226,9 @@ my $alias_id  = $q->param('alias_id');
         push( @args, $alias_id );
 
         # Authorization
-        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        if ( !$opts->{is_superadmin} && $opts->{is_domainadmin} ) {
             $query .= "AND domain_id = ?";
-            push( @args, $self->get_users_domainid() );
+            push( @args, $opts->{users_domainid} );
         }
         my $sth = $dbh->prepare($query)
           or syslog( 2, 'show_update_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
@@ -232,7 +237,7 @@ my $alias_id  = $q->param('alias_id');
             $status_str = 'enabled';
         }
         if ( $sth->execute(@args) ) {
-            my $msg = $self->{lh}->maketext( "Alias [_1] (#[_2]) [_3].", $alias_name, $alias_id, $status_str );
+            my $msg = $opts->{Lh}->maketext( "Alias [_1] (#[_2]) [_3].", $alias_name, $alias_id, $status_str );
             $self->add_message( 'success', $msg );
             $msg1 .= $msg . ' ';
         }
@@ -244,12 +249,13 @@ my $alias_id  = $q->param('alias_id');
         }
     }
 
+		# Update 'goto' target
     # clean target string
     if ($target) {
         $target = join( ",", split( /\s*,\s*/, $target ) );
     }
     if ( $target && !&VBoxAdm::Utils::is_valid_addresses_rfc822($target) ) {
-        my $msg = $self->{lh}->maketext("Invalid address in destination!");
+        my $msg = $opts->{Lh}->maketext("Invalid address in destination!");
         $self->add_message( 'error', $msg );
         $msg1 .= $msg . ' ';
     }
@@ -258,19 +264,18 @@ my $alias_id  = $q->param('alias_id');
         my $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_mailboxes - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute( $target, $alias_id ) ) {
-            my $msg .= $self->{lh}->maketext( "Alias [_1] (#[_2]) redirected to [_3].", $alias_name, $alias_id, $target );
+            my $msg .= $opts->{Lh}->maketext( "Alias [_1] (#[_2]) redirected to [_3].", $alias_name, $alias_id, $target );
             $self->add_message( 'success', $msg );
             $msg1 .= $msg . ' ';
         }
         else {
             syslog( 2, 'show_mailboxes - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $target, $alias_id ) ), $sth->errstr );
-            my $msg = $self->{lh}->maketext( "Failed to redirect Alias [_1] (#[_2]) to [_3].", $alias_name, $alias_id, $target );
+            my $msg = $opts->{Lh}->maketext( "Failed to redirect Alias [_1] (#[_2]) to [_3].", $alias_name, $alias_id, $target );
             $self->add_message( 'error', $msg );
             $msg1 .= $msg . ' ';
         }
     }
 =cut
-
     return;
 }
 
