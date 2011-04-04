@@ -47,5 +47,9 @@ Make sure class-C ip subnet auto-whitelists are supported
 - Roundcube Plugin
 -- Use HTTP API once finished, this will reduce the logic reguired in the plugin to a minmal core
 
+- Autoconfiguration
+-- Outlook: http://technet.microsoft.com/en-us/library/cc511507.aspx
+-- TB: https://wiki.mozilla.org/Thunderbird:Autoconfiguration, https://developer.mozilla.org/en/Thunderbird/Autoconfiguration, https://developer.mozilla.org/en/Thunderbird/Autoconfiguration/FileFormat/HowTo, https://wiki.mozilla.org/Thunderbird:Autoconfiguration:ConfigFileFormat
+
 * - in progress
 
