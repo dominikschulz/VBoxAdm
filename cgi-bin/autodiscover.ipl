@@ -75,45 +75,41 @@ if($post_body && $post_body =~ m/<EmailAddress>([^<]+)<\/EmailAddress>/) {
 
 my $imap_hostname = $config{'autodiscover'}{'imap_hostname'} || 'mail.'.$config{'default'}{'domain'};
 my $pop3_hostname = $config{'autodiscover'}{'pop3_hostname'} || 'mail.'.$config{'default'}{'domain'};
+my $smtp_hostname = $config{'autodiscover'}{'smtp_hostname'} || 'mail.'.$config{'default'}{'domain'};
 my $imap_ssl = $config{'autodiscover'}{'imap_ssl'} || 1;
 my $imap_tls = $config{'autodiscover'}{'imap_tls'} || 1;
 my $pop3_ssl = $config{'autodsicover'}{'pop3_ssl'} || 1;
 my $pop3_tls = $config{'autodiscover'}{'pop3_tls'} || 1;
+my $smtp_ssl = $config{'autodiscover'}{'smtp_ssl'} || 1;
+my $smtp_sma = $config{'autodiscvoer'}{'smtp_sma'} || 1;
 my $title = $config{'autodiscover'}{'title'} || $config{'default'}{'domain'};
 my $short_name = $config{'autodiscover'}{'short_name'} || $title;
+
+my %params = (
+        'title'   		=> $title,
+        'short_name' 	=> $short_name,
+        'domain'  		=> $config{'default'}{'domain'},
+        'imap_ssl' 		=> $imap_ssl,
+        'imap_hostname' => $imap_hostname,
+        'imap_tls' 		=> $imap_tls,
+        'pop3_hostname' => $pop3_hostname,
+        'pop3_ssl' 		=> $pop3_ssl,
+        'pop3_tls' 		=> $pop3_tls,
+        'smtp_ssl'		=> $smtp_ssl,
+        'smtp_sma' 		=> $smtp_sma,
+        'smtp_hostname' => $smtp_hostname,
+        'username'		=> $email,
+);
 
 if($ENV{'REQUEST_URI'} =~ m#/mail/config-v1\.1\.xml# && $email) {
 	# TB will try to GET http://autoconfig.domain.tld/mail/config-v1.1.xml?emailaddress=user@domain.tld
 	# Thunderbird, Evolution, Kmail, et. al.
 	print $q->header(-type => 'text/xml', -charset => 'UTF-8', );
-	my %params = (
-        'title'   		=> $title,
-        'short_name' 	=> $short_name,
-        'domain'  		=> $config{'default'}{'domain'},
-        'imap_ssl' 		=> $imap_ssl,
-        'imap_hostname' => $imap_hostname,
-        'imap_tls' 		=> $imap_tls,
-        'pop3_hostname' => $pop3_hostname,
-        'pop3_ssl' 		=> $pop3_ssl,
-        'pop3_tls' 		=> $pop3_tls,
-    );
     $tpl->process( 'autoconfig-mozilla-xml.tpl', \%params )
     	or die $tpl->error()."\n";
 } elsif($ENV{'REQUEST_URI'} =~ m#/autodiscover/autodiscover.xml# && $email) {
 	# Outlook will try to POST to https://autodiscover.domain.tld/autodiscover/autodiscover.xml
 	print $q->header(-type => 'text/xml', -status => '405 Microsoft Outlook 2010 Autoconfiguration', -charset => 'UTF-8', );
-	my %params = (
-        'title'   		=> $title,
-        'short_name' 	=> $short_name,
-        'domain'  		=> $config{'default'}{'domain'},
-        'imap_ssl' 		=> $imap_ssl,
-        'imap_hostname' => $imap_hostname,
-        'imap_tls' 		=> $imap_tls,
-        'pop3_hostname' => $pop3_hostname,
-        'pop3_ssl' 		=> $pop3_ssl,
-        'pop3_tls' 		=> $pop3_tls,
-        'username'		=> $email,
-    );
 	$tpl->process( 'autoconfig-outlook-xml.tpl', \%params)
 		or die $tpl->error()."\n";
 =begin outlook
