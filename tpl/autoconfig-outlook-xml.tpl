@@ -5,7 +5,7 @@
 		<Account>
 			<AccountType>email</AccountType>
 			<Action>settings</Action>
-			[% IF imap_ssl %]
+[% IF imap_ssl %]
 			<Protocol>
 				<Type>IMAP</Type>
 				<Server>[% imap_hostname %]</Server>
@@ -16,8 +16,8 @@
 				<SSL>on</SSL>
 				<AuthRequired>on</AuthRequired>
 			</Protocol>
-			[% END %]
-			[% IF pop3_ssl %]
+[% END %]
+[% IF pop3_ssl %]
 			<Protocol>
 				<Type>POP3</Type>
 				<Server>[% pop3_hostname %]</Server>
@@ -28,7 +28,7 @@
 				<SSL>on</SSL>
 				<AuthRequired>on</AuthRequired>
 			</Protocol>
-			[% END %]
+[% END %]
 			<Protocol>
 				<Type>SMTP</Type>
 				<Server>[% smtp_hostname %]</Server>

@@ -198,12 +198,13 @@ sub _update_wid {
     my $dbh      = shift;
     my $alias_id = shift;
     my $opts     = shift || {};
-    
+
     my $msg_en  = '';
     my $msg_loc = '';
 
     my $is_active = $opts->{IsActive};
     my $target    = &VBoxAdm::Utils::trim( $opts->{Goto} );
+
 =begin cut
     my $msg1       = '';
     my $alias_name = '';
@@ -276,6 +277,7 @@ sub _update_wid {
         }
     }
 =cut
+
     return;
 }
 
