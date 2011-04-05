@@ -6,6 +6,10 @@ dbhost=localhost
 domain=domain.tld
 mail_location=/var/vmail
 
+[autodiscover]
+imap_hostname=mail.domain.tld
+pop3_hostname=mail.domain.tld
+
 # config for webfrontend
 [cgi]
 pwscheme=ssha256

@@ -1,0 +1,147 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use utf8;
+
+use lib qw(../lib);
+
+binmode STDIN,  ":utf8";
+binmode STDOUT, ":utf8";
+binmode STDERR, ":utf8";
+
+use CGI;
+#use CGI::Carp qw(fatalsToBrowser);
+use DBI;
+use Config::Std;
+use Sys::Syslog;
+use Template;
+
+use VBoxAdm::DB '@VERSION@';
+use VBoxAdm::Utils '@VERSION@';
+
+my ( $conffile_used, @hooks, %hook, %config, );
+
+# Valid config file locations to try
+my @conffile_locations = qw(
+  vboxadm.conf
+  conf/vboxadm.conf
+  /etc/vboxadm.conf
+  /etc/vboxadm/vboxadm.conf
+);
+
+# Try all config file locations
+foreach my $loc (@conffile_locations) {
+    if ( -r $loc ) {
+        $conffile_used = $loc;
+        read_config $loc => %config;
+        last;
+    }
+}
+
+openlog( 'vboxadm-autoconfig', 'ndelay,nofatal', 'mail' );
+
+# Determine options
+my $dbhost = $config{'default'}{'dbhost'} || 'localhost';
+my $dbuser = $config{'default'}{'dbuser'} || 'vboxadm';
+my $dbpass = $config{'default'}{'dbpass'} || 'vboxadm';
+my $dbport = $config{'default'}{'dbport'} || 3306;
+my $dbdb   = $config{'default'}{'dbdb'}   || 'vboxadm';
+
+#my $dsn = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;password=$dbpass";
+#my $dbh = &VBoxAdm::DB::connect($dsn);
+
+#if ( !$dbh ) {
+#    syslog( 2, 'Could not connect to database with DSN $dsn - From: %s - To: %s - Exiting', $config{'sender'}, $config{'recipient'} );
+#    closelog();
+#    die("Could not connect to database.");
+#}
+
+# Templates are used to build the mails sent
+my $tpl_config = {
+    INCLUDE_PATH => [ 'tpl', '../tpl', '/usr/lib/vboxadm/tpl' ],
+    POST_CHOMP   => 1,
+};
+
+my $q = CGI->new;
+my $tpl = Template->new($tpl_config);
+
+my $email = $q->param('emailaddress') || undef;
+my $post_body = $q->param('POSTDATA') || undef;
+
+# Outlook
+if($post_body && $post_body =~ m/<EmailAddress>([^<]+)<\/EmailAddress>/) {
+	$email = $1;
+}
+
+my $imap_hostname = $config{'autodiscover'}{'imap_hostname'} || 'mail.'.$config{'default'}{'domain'};
+my $pop3_hostname = $config{'autodiscover'}{'pop3_hostname'} || 'mail.'.$config{'default'}{'domain'};
+my $imap_ssl = $config{'autodiscover'}{'imap_ssl'} || 1;
+my $imap_tls = $config{'autodiscover'}{'imap_tls'} || 1;
+my $pop3_ssl = $config{'autodsicover'}{'pop3_ssl'} || 1;
+my $pop3_tls = $config{'autodiscover'}{'pop3_tls'} || 1;
+my $title = $config{'autodiscover'}{'title'} || $config{'default'}{'domain'};
+my $short_name = $config{'autodiscover'}{'short_name'} || $title;
+
+if($ENV{'REQUEST_URI'} =~ m#/mail/config-v1\.1\.xml# && $email) {
+	# TB will try to GET http://autoconfig.domain.tld/mail/config-v1.1.xml?emailaddress=user@domain.tld
+	# Thunderbird, Evolution, Kmail, et. al.
+	print $q->header(-type => 'text/xml', -charset => 'UTF-8', );
+	my %params = (
+        'title'   		=> $title,
+        'short_name' 	=> $short_name,
+        'domain'  		=> $config{'default'}{'domain'},
+        'imap_ssl' 		=> $imap_ssl,
+        'imap_hostname' => $imap_hostname,
+        'imap_tls' 		=> $imap_tls,
+        'pop3_hostname' => $pop3_hostname,
+        'pop3_ssl' 		=> $pop3_ssl,
+        'pop3_tls' 		=> $pop3_tls,
+    );
+    $tpl->process( 'autoconfig-mozilla-xml.tpl', \%params )
+    	or die $tpl->error()."\n";
+} elsif($ENV{'REQUEST_URI'} =~ m#/autodiscover/autodiscover.xml# && $email) {
+	# Outlook will try to POST to https://autodiscover.domain.tld/autodiscover/autodiscover.xml
+	print $q->header(-type => 'text/xml', -status => '405 Microsoft Outlook 2010 Autoconfiguration', -charset => 'UTF-8', );
+	my %params = (
+        'title'   		=> $title,
+        'short_name' 	=> $short_name,
+        'domain'  		=> $config{'default'}{'domain'},
+        'imap_ssl' 		=> $imap_ssl,
+        'imap_hostname' => $imap_hostname,
+        'imap_tls' 		=> $imap_tls,
+        'pop3_hostname' => $pop3_hostname,
+        'pop3_ssl' 		=> $pop3_ssl,
+        'pop3_tls' 		=> $pop3_tls,
+        'username'		=> $email,
+    );
+	$tpl->process( 'autoconfig-outlook-xml.tpl', \%params)
+		or die $tpl->error()."\n";
+=begin outlook
+<!-- REQUEST TO SERVER. In HTTP POST DATA -->
+<?xml version="1.0" encoding="utf-8" ?>
+<Autodiscover xmlns="http://schemas.microsoft.com/exchange/autodiscover/outlook/requestschema/2006">
+<Request>
+<AcceptableResponseSchema>http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006a</AcceptableResponseSchema>
+
+<!-- EMailAddress: Optional
+This tag indicates the user’s email address.
+-->
+<EMailAddress>JohnDoe@sample.com</EMailAddress>
+</Request>
+</Autodiscover>
+=cut
+} else {
+	syslog(2, "Unknown Request to ".$ENV{'REQUEST_URI'});
+	# Unknown
+	print $q->header(-type => 'text/plain', -status => '406 Client Error', -charset => 'UTF-8', );
+	print "Unknown Data\n";
+	foreach my $key (sort keys %ENV) {
+		print "$key => $ENV{$key}\n";
+	}
+}
+
+# TODO Support Apple Mail Autoconfiguration
+
+#$dbh->disconnect();
+closelog();
+exit 0;
