@@ -61,7 +61,7 @@ if ( !$dbh ) {
 
 # Templates are used to build the mails sent
 my $tpl_config = {
-    INCLUDE_PATH => 'tpl',
+    INCLUDE_PATH => [ 'tpl', '../tpl', '/usr/lib/vboxadm/tpl' ],
     POST_CHOMP   => 1,
 };
 

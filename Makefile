@@ -43,6 +43,7 @@ BINFILES = \
 	bin/vacation.pl \
 	bin/smtpproxy.pl \
 	bin/vboxadm.pl \
+	cgi-bin/autodiscover.pl \
 	cgi-bin/vboxadm.pl \
 	cgi-bin/vboxadm.fcgi \
 	cron/cleanup.pl \
@@ -175,6 +176,7 @@ real-install: all test man rcvboxadm
 	$(INSTALL_PROGRAM) bin/vacation.pl $(VBOXLIBDIR)/bin/vacation
 	$(INSTALL_PROGRAM) bin/smtpproxy.pl $(SBINDIR)/vboxadm-sa
 	$(INSTALL_PROGRAM) bin/vboxadm.pl $(SBINDIR)/vboxadm
+	$(INSTALL_PROGRAM) cgi-bin/autodiscover.pl $(VHDIR)/cgi-bin/autodiscover.pl
 	$(INSTALL_PROGRAM) cgi-bin/vboxadm.pl $(VHDIR)/cgi-bin/vboxadm.pl
 	$(INSTALL_PROGRAM) cgi-bin/vboxadm.fcgi $(VHDIR)/cgi-bin/vboxadm.fcgi
 	$(INSTALL_PROGRAM) cron/cleanup.pl $(VBOXLIBDIR)/bin/cleanup
