@@ -132,6 +132,48 @@ built on @BUILDDATE@.
 
 This script supports Autoconfiguration for Thunderbird, Outlook, Evolution and KMail.
 
+=head2 THUNDERBIRD
+
+The Thunderbird Autoconfiguration was proposed some time ago is available since, at least, version 3.x.
+
+See https://wiki.mozilla.org/Thunderbird:Autoconfiguration for more details.
+
+The process is rather simple. When a new account is created TB tries several ways to find out the correct
+crendentials w/o asking the user too much. The user just has to enter his email address and password and
+TB tries to do the rest.
+
+Among other things it will try to GET http://autoconfig.domain.tld/mail/config-v1.1.xml?emailaddress=user@domain.tld.
+
+If it receives a well formed XML response which contains the desired data this information will be used.
+
+TB expects to find at least an SMTP section and one of POP3 and IMAP.
+
+=head2 OUTLOOK
+
+Microsoft introduced Outlook Autodiscover with Outlook 2007, acording to TechNet.
+
+See http://technet.microsoft.com/en-us/library/cc511507.aspx for more details.
+
+The implementation, however, is ... well ... different.
+
+It looks like MS made the same engineers that created UPnP implement this Autodiscover.
+
+Among other things Outlook will try to contact https://autodiscover.domain.tld/autodiscover/autodiscover.xml.
+One could have used a simple GET Request here, like Mozilla did, but no. This is Microsoft. They do it ... different.
+
+They send a POST Request containing XML data, only for transmitting an email address.
+
+Naive minds would think that you'd respond with a HTTP 200 OK status code, but hey, we can do better.
+
+Microsoft requests a custom HTTP 405 Error for a successfull (!) request. This response ought to contain a
+longish XML response.
+
+=head2 APPLE MAIL
+
+While Microsoft at least publishes their Documentation Apple doesn't seem to do. There are rumors that Apple
+Mail does support Autoconfiguration, but I wasn't able to find any details on this. If you can provide
+this information let me know.
+
 =head1 DEPENDENCIES
 
 CGI, Template::Toolkit, Sys::Syslog and Config::Std.
