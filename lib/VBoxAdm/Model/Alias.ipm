@@ -4,7 +4,6 @@ use strict;
 use warnings;
 
 use Carp;
-use Sys::Syslog;
 
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
@@ -14,43 +13,21 @@ use Class::Std;
 {
 
     # Attributes
-    my %user_of : ATTR;
+    # none
+
+    # TODO add sql helper to base class!
 
     sub BUILD {
         my ( $self, $ident, $arg_ref ) = @_;
 
-        if ( !$arg_ref->{'User'} || !$arg_ref->{'User'}->is_user() ) {
-
-            # Need user object
-            return;
+        if ( !$self->user->is_user() ) {
+            return;    # Need user object
         }
-
-        $user_of{$ident} = $arg_ref->{'User'};
-    }
-
-    sub create {
-        my ( $self, $local_part, $domain, $goto ) = @_;
-        my $ident = ident $self;
-
-        $domain = &VBoxAdm::Utils::trim( lc($domain) );
-
-        my $domain_id;
-
-        # domain id?
-        if ( $domain =~ m/^(\d+)$/ ) {
-            $domain_id = $1;
-        }
-        else {
-
-            # TODO use domain object
-            $domain_id = &VBoxAdm::Model::Domain::get_id_by_name($domain);
-        }
-
-        return $self->_create_wid( $local_part, $domain_id, $goto );
     }
 
     sub get_id {
         my ( $self, $email ) = @_;
+        my $ident = ident $self;
 
         if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
             return;
@@ -65,20 +42,25 @@ use Class::Std;
         return $id;
     }
 
-    sub create_wid {
+    sub create {
         my ( $self, $local_part, $domain_id, $goto ) = @_;
         my $ident = ident $self;
 
         $local_part = &VBoxAdm::Utils::trim( lc($local_part) );
         $goto       = &VBoxAdm::Utils::trim( lc($goto) );
 
-        # TODO use domain object
-        my $domain_name = &VBoxAdm::Model::Domain::get_name_by_id( $self->dbh, $domain_id );
+        my $Domain = VBoxAdm::Model::Domain->new(
+            {
+                'dbh'  => $self->dbh,
+                'User' => $self->user,
+            }
+        );
+        my $domain_name = $Domain->get_name_by_id($domain_id);
 
         my $msg_loc = '';
         my $msg_en  = '';
 
-        if ( $domain_id && !$user_of{$ident}->is_superadmin() && $user_of{$ident}->is_domainadmin && $domain_id != $user_of{$ident}->get_domain_id() ) {
+        if ( $domain_id && !$self->user->is_superadmin() && $self->user->is_domainadmin && $domain_id != $self->user->get_domain_id() ) {
 
             # if domainadmin, verify that its his domain
             my $msg = "You are not authorized to modify this domain!";
@@ -133,15 +115,6 @@ use Class::Std;
     }
 
     sub delete {
-        my ( $self, $email ) = @_;
-        my $ident = ident $self;
-
-        my $alias_id = &get_id($email);
-
-        return $self->_delete_wid($alias_id);
-    }
-
-    sub _delete_wid {
         my ( $self, $alias_id ) = @_;
         my $ident = ident $self;
 
@@ -161,9 +134,9 @@ use Class::Std;
             $query = "DELETE FROM aliases WHERE id = ?";
             my @args = ();
             push( @args, $alias_id );
-            if ( !$user_of{$ident}->is_superadmin() ) {
+            if ( !$self->user->is_superadmin() ) {
                 $query .= "AND domain_id = ?";
-                push( @args, $user_of{$ident}->get_domain_id() );
+                push( @args, $self->user->get_domain_id() );
             }
             $sth = $self->dbh->prepare($query)
               or $self->log( 2, 'show_remove_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
@@ -191,16 +164,7 @@ use Class::Std;
     }
 
     sub update {
-        my ( $self, $email, $params ) = @_;
-        my $ident = ident $self;
-
-        my $alias_id = &get_id($email);
-
-        return &_update_wid( $alias_id, $params );
-    }
-
-    sub _update_wid {
-        my ( $self, $params ) = @_;
+        my ( $self, $alias_id, $params ) = @_;
         my $ident = ident $self;
 
         my $msg_en  = '';
@@ -209,116 +173,121 @@ use Class::Std;
         my $is_active = $params->{IsActive};
         my $target    = &VBoxAdm::Utils::trim( $params->{Goto} );
 
-=begin cut
-    my $msg1       = '';
-    my $alias_name = '';
-    if ($alias_id) {
-        my $query = "SELECT a.local_part,d.name FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($alias_id);
-        $alias_name = $sth->fetchrow_array();
-        $sth->finish();
-    } else {
-    	# TODO error message
-    	return;
-    }
-
-		# Update 'is_active' status
-    if ( $alias_id && defined($is_active) ) {
-        my $query = "UPDATE aliases SET is_active = ? WHERE id = ?";
-        my @args  = ();
-        push( @args, $is_active );
-        push( @args, $alias_id );
-
-        # Authorization
-        if ( !$opts->{is_superadmin} && $opts->{is_domainadmin} ) {
-            $query .= "AND domain_id = ?";
-            push( @args, $opts->{users_domainid} );
-        }
-        my $sth = $dbh->prepare($query)
-          or syslog( 2, 'show_update_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        my $status_str = 'disabled';
-        if ($is_active) {
-            $status_str = 'enabled';
-        }
-        if ( $sth->execute(@args) ) {
-            my $msg = $$self->maketext( "Alias [_1] (#[_2]) [_3].", $alias_name, $alias_id, $status_str );
-            $self->add_message( 'success', $msg );
-            $msg1 .= $msg . ' ';
+        my $alias_name = '';
+        if ($alias_id) {
+            my $query = "SELECT a.local_part,d.name FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
+            my $sth = &VBoxAdm::DB::prepxec( $self->dbh, $query, $alias_id );
+            $alias_name = $sth->fetchrow_array();
+            $sth->finish();
         }
         else {
-            syslog( 2, 'show_update_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            my $msg = $self->{lh}->maketext( "Failed to set Alias [_1] (#[_2]) [_3].", $alias_name, $alias_id, $status_str );
-            $self->add_message( 'error', $msg );
-            $msg1 .= $msg . ' ';
+            my $msg = 'Unable to find alias with id [_1]';
+            $msg_loc .= $self->maketext( $msg, $alias_id );
+            $msg_en .= $self->maketext_en( $msg, $alias_id );
+            return;
         }
-    }
 
-		# Update 'goto' target
-    # clean target string
-    if ($target) {
-        $target = join( ",", split( /\s*,\s*/, $target ) );
-    }
-    if ( $target && !&VBoxAdm::Utils::is_valid_addresses_rfc822($target) ) {
-        my $msg = $$self->maketext("Invalid address in destination!");
-        $self->add_message( 'error', $msg );
-        $msg1 .= $msg . ' ';
-    }
-    elsif ( $alias_id && $target ) {
-        my $query = "UPDATE aliases SET goto = ? WHERE id = ?";
-        my $sth   = $dbh->prepare($query)
-          or syslog( 2, 'show_mailboxes - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        if ( $sth->execute( $target, $alias_id ) ) {
-            my $msg .= $$self->maketext( "Alias [_1] (#[_2]) redirected to [_3].", $alias_name, $alias_id, $target );
-            $self->add_message( 'success', $msg );
-            $msg1 .= $msg . ' ';
+        # Update 'is_active' status
+        if ( $alias_id && defined($is_active) ) {
+            my $query = "UPDATE aliases SET is_active = ? WHERE id = ?";
+            my @args  = ();
+            push( @args, $is_active );
+            push( @args, $alias_id );
+
+            # Authorization
+            if ( !$self->user->is_superadmin() && $self->user->is_domainadmin() ) {
+                $query .= "AND domain_id = ?";
+                push( @args, $self->user->get_domain_id() );
+            }
+            my $status_str = 'disabled';
+            if ($is_active) {
+                $status_str = 'enabled';
+            }
+            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+                my $msg = "Alias [_1] (#[_2]) [_3].";
+                $msg_loc .= $self->maketext( $msg, $alias_name, $alias_id, $status_str );
+                $msg_en .= $self->maketext_en( $msg, $alias_name, $alias_id, $status_str );
+                $sth->finish();
+            }
+            else {
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+                my $msg = "Failed to set Alias [_1] (#[_2]) [_3].";
+                $msg_loc .= $self->maketext( $msg, $alias_name, $alias_id, $status_str );
+                $msg_en .= $self->maketext_en( $msg, $alias_name, $alias_id, $status_str );
+            }
         }
-        else {
-            syslog( 2, 'show_mailboxes - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $target, $alias_id ) ), $sth->errstr );
-            my $msg = $$self->maketext( "Failed to redirect Alias [_1] (#[_2]) to [_3].", $alias_name, $alias_id, $target );
-            $self->add_message( 'error', $msg );
-            $msg1 .= $msg . ' ';
+
+        # Update 'goto' target
+        # clean target string
+        if ($target) {
+            $target = join( ",", split( /\s*,\s*/, $target ) );
         }
-    }
-=cut
+        if ( $target && !&VBoxAdm::Utils::is_valid_addresses_rfc822($target) ) {
+            my $msg = "Invalid address in destination!";
+            $msg_loc .= $self->maketext($msg);
+            $msg_en  .= $self->maketext_en($msg);
+        }
+        elsif ( $alias_id && $target ) {
+            my $query = "UPDATE aliases SET goto = ? WHERE id = ?";
+            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $target, $alias_id ) ) {
+                my $msg = "Alias [_1] (#[_2]) redirected to [_3].";
+                $msg_loc .= $self->maketext( $msg, $alias_name, $alias_id, $target );
+                $msg_en .= $self->maketext_en( $msg, $alias_name, $alias_id, $target );
+                $sth->finish();
+            }
+            else {
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $target, $alias_id ) ), $sth->errstr );
+                my $msg = "Failed to redirect Alias [_1] (#[_2]) to [_3].";
+                $msg_loc .= $self->maketext( $msg, $alias_name, $alias_id, $target );
+                $msg_en .= $self->maketext_en( $msg, $alias_name, $alias_id, $target );
+            }
+        }
 
         return;
     }
 
     sub read {
-        my ($self) = @_;
+        my ( $self, $id ) = @_;
         my $ident = ident $self;
-        warn "Not yet implemented!\n";
-        return;
 
-        # TODO return a single entry
+        my $sql = "SELECT a.id,a.local_part,d.name,a.goto,a.is_active FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $id );
+        my %result;
+        @result{qw(id local_part domain goto is_active)} = $sth->fetchrow_array();
+        $sth->finish();
+        return \%result;
     }
 
     sub list {
         my ( $self, $params ) = @_;
         my $ident = ident $self;
 
-        my $sql  = "SELECT a.id,d.id,a.local_part,d.name,... FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id";
+        my $sql  = "SELECT a.id,a.local_part,d.name,a.goto,a.is_active FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id";
         my @args = ();
         if ( $params->{Search} ) {
-
-            # TODO search ;)
+            $sql .= " WHERE a.local_part LIKE ? OR d.name LIKE ? OR a.goto LIKE ?";
+            my $term = $params->{'Search'};
+            $term =~ s/[*%]+//g;
+            $term = '%' . $term . '%';
+            push( @args, $term );
+            push( @args, $term );
         }
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
         my @results = ();
-        while ( my ( $local_part, $domain_name ) = $sth->fetchrow_array() ) {
+        while ( my ( $id, $local_part, $domain_name, $goto, $is_active ) = $sth->fetchrow_array() ) {
             push(
                 @results,
                 {
-                    local_part  => $local_part,
-                    domain_name => $domain_name,
-
-                    # ...
+                    'id'          => $id,
+                    'local_part'  => $local_part,
+                    'domain_name' => $domain_name,
+                    'goto'        => $goto,
+                    'is_active'   => $is_active,
                 }
             );
         }
 
-        return @results;    # arrayref?
+        return @results;
     }
 }
 1;

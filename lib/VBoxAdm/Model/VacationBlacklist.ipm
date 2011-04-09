@@ -7,113 +7,152 @@ use Carp;
 
 use Sys::Syslog;
 
-our $VERSION = '@VERSION@';
+use base qw(VBoxAdm::Model);
+use Class::Std;
+{
 
-sub create {
-    my $dbh   = shift;
-    my $email = shift;
-    my $opts  = shift || {};
+    # Attributes
+    # none
 
-    warn "Not yet implemented!\n";
+    sub BUILD {
+        my ( $self, $ident, $arg_ref ) = @_;
 
-=begin cut
-    my $email = $q->param('email') || undef;
+        if ( !$self->user->is_user() ) {
+            return;    # Need user object
+        }
+    }
 
-    my $msg1 = '';
+    sub create {
+        my ( $self, $email ) = @_;
+        my $ident = ident $self;
 
-    if ( $email && &VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
-        my $query = "INSERT INTO vacation_blacklist (local_part,domain) VALUES(?,?)";
-        my $sth   = $dbh->prepare($query)
-          or syslog( 2, 'show_add_vacbl_entry - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        my ( $local_part, $domain ) = split /@/, $email;
-        if ( $sth->execute( $local_part, $domain ) ) {
-            $sth->finish();
-            my $msg = "Added Vacation Blacklist Entry [_1].";
-            $self->add_message( 'success', $self->{lh}->maketext( $msg, $email ) );
-            $msg1 .= $self->{lh_en}->maketext( $msg, $email );
+        my $msg_loc = '';
+        my $msg_en  = '';
+
+        if ( $email && &VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+            my $query = "INSERT INTO vacation_blacklist (local_part,domain) VALUES(?,?)";
+            my $sth   = $self->dbh->prepare($query)
+              or $self->log( 'Could not prepare Query: %s, Error: %s', $query, $self->dbh->errstr );
+            my ( $local_part, $domain ) = split /@/, $email;
+            if ( $sth->execute( $local_part, $domain ) ) {
+                $sth->finish();
+                my $msg = "Added Vacation Blacklist Entry [_1].";
+                $msg_loc .= $self->maketext( $msg, $email );
+                $msg_en .= $self->maketext_en( $msg, $email );
+                return wantarray ? ( 1, $msg_loc, $msg_en ) : 1;
+            }
+            else {
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $local_part, $domain ) ), $sth->errstr );
+                my $msg = "Failed to add Vacation Blacklist Entry [_1]. Database Error.";
+                $msg_loc .= $self->maketext( $msg, $email );
+                $msg_en .= $self->maketext_en( $msg, $email );
+                return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+            }
         }
         else {
-            syslog( 2, 'show_add_vacbl_entry - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $local_part, $domain ) ), $sth->errstr );
-            my $msg = "Failed to add Vacation Blacklist Entry [_1]. Database Error.";
-            $self->add_message( 'error', $self->{lh}->maketext( $msg, $email ) );
-            $msg1 = $self->{lh_en}->maketext( $msg, $email );
+            my $msg = 'Invalid email given. Please provide a valid RFC822 email address.';
+            $msg_loc .= $self->maketext( $msg, $email );
+            $msg_en .= $self->maketext_en( $msg, $email );
+            return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
         }
+
+        return;
     }
-    else {
-        my $msg = 'Invalid email given. Please provide a valid RFC822 email address.';
-        $msg1 .= $msg;
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+
+    sub delete {
+        my ( $self, $email ) = @_;
+        my $ident    = ident $self;
+        my $entry_id = $self->get_id($email);
+        return $self->delete_wid($entry_id);
     }
-=cut
 
-    return;
-}
+    sub delete_wid {
+        my ( $self, $entry_id ) = @_;
+        my $ident = ident $self;
 
-sub delete {
-    my $dbh   = shift;
-    my $email = shift;
-    my $opts  = shift || {};
+        my $msg_loc = '';
+        my $msg_en  = '';
 
-    warn "Not yet implemented!\n";
+        if ($entry_id) {
+            my $query = "SELECT local_part,domain FROM vacation_blacklist WHERE id = ?";
+            my $sth   = $self->dbh->prepare($query);
+            $sth->execute($entry_id);
+            my $email = $sth->fetchrow_array();
+            $sth->finish();
 
-=begin cut
-    if ($entry_id) {
-        my $query = "SELECT local_part,domain FROM vacation_blacklist WHERE id = ?";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($entry_id);
-        my $email = $sth->fetchrow_array();
+            $query = "DELETE FROM vacation_blacklist WHERE id = ?";
+            $sth   = $self->dbh->prepare($query)
+              or $self->log( 'Could not prepare Query: %s, Error: %s', $query, $self->dbh->errstr );
+            if ( $sth->execute($entry_id) ) {
+                $sth->finish();
+                my $msg = "Delete Vacation Blacklist Entry [_1].";
+                $msg_loc .= $self->maketext( $msg, $email );
+                $msg_en .= $self->maketext_en( $msg, $email );
+                return wantarray ? ( 1, $msg_loc, $msg_en ) : 1;
+            }
+            else {
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, $entry_id, $sth->errstr );
+                my $msg = "Failed to remove Vacation Blacklist Entry [_1]. Database Error.";
+                $msg_loc .= $self->maketext( $msg, $email );
+                $msg_en .= $self->maketext_en( $msg, $email );
+                return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+            }
+        }
+        else {
+            my $msg = 'Invalid id given. Please provide a valid id.';
+            $msg_loc .= $self->maketext($msg);
+            $msg_en  .= $self->maketext_en($msg);
+            return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+        }
+
+        return;
+    }
+
+    sub update {
+        die("No VacationBlacklist::update");
+    }
+
+    sub read {
+        my ( $self, $email ) = @_;
+        my $ident = ident $self;
+
+        warn "Not yet implemented!\n";
+
+        return;
+    }
+
+    sub list {
+        my ( $self, $param ) = @_;
+        my $ident = ident $self;
+
+        my $sql  = "SELECT id,local_part,domain FROM vacation_blacklist";
+        my @args = ();
+        if ( $param->{'Search'} ) {
+            $sql .= " WHERE local_part LIKE ? OR domain LIKE ?";
+            my $term = $param->{'Search'};
+            $term =~ s/[*%]+//g;
+            $term = '%' . $term . '%';
+            push( @args, $term );
+            push( @args, $term );
+        }
+
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+        my @entries = ();
+        while ( my ( $id, $local_part, $domain ) = $sth->fetchrow_array() ) {
+            push(
+                @entries,
+                {
+                    'id'         => $id,
+                    'local_part' => $local_part,
+                    'domain'     => $domain,
+                }
+            );
+        }
         $sth->finish();
 
-        $query = "DELETE FROM vacation_blacklist WHERE id = ?";
-        $sth   = $dbh->prepare($query)
-          or syslog( 2, 'show_remove_vacbl_entry - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        if ( $sth->execute($entry_id) ) {
-            $sth->finish();
-            my $msg = "Delete Vacation Blacklist Entry [_1].";
-            $self->add_message( 'success', $self->{lh}->maketext( $msg, $email ) );
-            $msg1 .= $self->{lh_en}->maketext( $msg, $email );
-        }
-        else {
-            syslog( 2, 'show_remove_vacbl_entry - Could not execute Query: %s, Args: %s, Error: %s', $query, $entry_id, $sth->errstr );
-            my $msg = "Failed to remove Vacation Blacklist Entry [_1]. Database Error.";
-            $self->add_message( 'error', $self->{lh}->maketext( $msg, $email ) );
-            $msg1 .= $self->{lh_en}->maketext( $msg, $email );
-        }
+        return @entries;
     }
-    else {
-        my $msg = 'Invalid id given. Please provide a valid id.';
-        $msg1 .= $msg;
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-    }
-=cut
-
-    return;
 }
-
-sub update {
-    die("No VacationBlacklist::update");
-}
-
-sub read {
-    my $dbh   = shift;
-    my $email = shift;
-    my $opts  = shift || {};
-
-    warn "Not yet implemented!\n";
-
-    return;
-}
-
-sub list {
-    my $dbh   = shift;
-    my $email = shift;
-    my $opts  = shift || {};
-
-    warn "Not yet implemented!\n";
-
-    return;
-}
-
 1;
 __END__
 

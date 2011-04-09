@@ -7,88 +7,102 @@ use Carp;
 
 use Sys::Syslog;
 use VBoxAdm::DB '@VERSION@';
+use VBoxAdm::Utils '@VERSION@';
 
-our $VERSION = '@VERSION@';
+use Class::Std;
+{
 
-sub create {
-    my $dbh   = shift;
-    my $email = shift;
-    my $opts  = shift || {};
+    # Attributes
+    # none
 
-    my $sql = "INSERT IGNORE INTO awl (email,last_seen,disabled) VALUES(?,NOW(),0)";
-    my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql, $email );
-    $sth->finish();
+    sub BUILD {
+        my ( $self, $ident, $arg_ref ) = @_;
 
-    return 1;
-}
+        if ( !$self->user->is_user() ) {
+            return;    # Need user object
+        }
+    }
 
-sub get_id {
-    my $dbh   = shift;
-    my $email = shift;
-    my $opts  = shift || {};
+    sub create {
+        my ( $self, $email ) = @_;
+        my $ident = ident $self;
 
-    if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+        my $sql = "INSERT IGNORE INTO awl (email,last_seen,disabled) VALUES(?,NOW(),0)";
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $email );
+        $sth->finish();
+
+        return 1;
+    }
+
+    sub get_id {
+        my ( $self, $email ) = @_;
+        my $ident = ident $self;
+
+        if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+            return;
+        }
+
+        my $sql = "SELECT id FROM awl WHERE email = ?";
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $email );
+        my $id  = $sth->fetchrow_array();
+        $sth->finish();
+        return $id;
+    }
+
+    sub update {
+        my ( $self, $entry_id, $params ) = @_;
+        my $ident = ident $self;
+
+        my $msg_loc = '';
+        my $msg_en  = '';
+
+        my $disabled = $params->{'Disabled'};
+
+        if ( $entry_id && defined($disabled) ) {
+            if ( $disabled =~ m/^(?:yes|1|true|on)$/i ) {
+                $disabled = 1;
+            }
+            else {
+                $disabled = 0;
+            }
+            my $query = "UPDATE awl SET disabled = ? WHERE id = ?";
+            if ( my $sth = $self->dbh->prepare($query) ) {
+                if ( $sth->execute( $disabled, $entry_id ) ) {
+                    $sth->finish();
+                    my $msg = "Updated entry [_1].";
+                    $msg_loc = $self->maketext( $msg, $entry_id );
+                    $msg_en = $self->maketext_en( $msg, $entry_id );
+                    return wantarray ? ( 1, $msg_loc, $msg_en ) : 1;
+                }
+            }
+            else {
+                my $msg = "Unable to update awl. Database Error.";
+                $msg_loc = $self->maketext($msg);
+                $msg_en  = $self->maketext_en($msg);
+                return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+            }
+        }
+    }
+
+    # There will be no AWL::delete - ever. Why?
+    # Either an entry is disabled which will prevent this address
+    # from being blacklisted forever or it will expire by itself.
+    sub delete {
+        die("There will be no AWL::delete - ever.");
+    }
+
+    sub list {
+
+        # TODO implement
         return;
     }
 
-    my $sql = "SELECT id FROM awl WHERE email = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql, $email );
-    my $id  = $sth->fetchrow_array();
-    $sth->finish();
-    return $id;
-}
+    sub read {
 
-sub _update_wid {
-    my $dbh      = shift;
-    my $entry_id = shift;
-    my $opts     = shift || {};
-
-    my $msg_loc = '';
-    my $msg_en  = '';
-
-    my $disabled = $opts->{'Disabled'};
-
-    if ( $entry_id && defined($disabled) ) {
-        if ( $disabled =~ m/^(?:yes|1|true|on)$/i ) {
-            $disabled = 1;
-        }
-        else {
-            $disabled = 0;
-        }
-        my $query = "UPDATE awl SET disabled = ? WHERE id = ?";
-        if ( my $sth = $dbh->prepare($query) ) {
-            if ( $sth->execute( $disabled, $entry_id ) ) {
-                $sth->finish();
-                my $msg = "Updated entry [_1].";
-                $msg_loc = $opts->{Lh}->maketext( $msg, $entry_id ) if $opts->{Lh};
-                $msg_en = $opts->{Lh_EN}->maketext( $msg, $entry_id ) if $opts->{Lh_EN};
-                return wantarray ? ( 1, $msg_loc, $msg_en ) : 1;
-            }
-        }
-        else {
-            my $msg = "Unable to update awl. Database Error.";
-            $msg_loc = $opts->{Lh}->maketext($msg)    if $opts->{Lh};
-            $msg_en  = $opts->{Lh_EN}->maketext($msg) if $opts->{Lh_EN};
-            return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
-        }
+        # TODO implement
+        return;
     }
 }
-
-sub update {
-    my $dbh   = shift;
-    my $email = shift;
-    my $opts  = shift || {};
-
-    return &_update_wid( $dbh, &get_id( $dbh, $email, $opts ), $opts );
-}
-
-# There will be no AWL::delete - ever. Why?
-# Either an entry is disabled which will prevent this address
-# from being blacklisted forever or it will expire by itself.
-sub delete {
-    die("There will be no AWL::delete - ever.");
-}
-
 1;
 __END__
 

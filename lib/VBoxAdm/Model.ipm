@@ -16,6 +16,7 @@ use Class::Std;
     my %lh_en_of : ATTR;
     my %logger_of : ATTR;
     my %config_of : ATTR;
+    my %user_of : ATTR;
     my %msgq_of : ATTR;    # TODO add and implement a MessageQueue
 
     sub BUILD {
@@ -39,6 +40,9 @@ use Class::Std;
 
         # Set config
         $config_of{$ident} = $arg_ref->{'Config'} if $arg_ref->{'Config'};
+
+        # Set User object
+        $user_of{$ident} = $arg_ref->{'User'} if $arg_ref->{'User'};
     }
 
     sub dbh : RESTRICTED {
@@ -61,6 +65,12 @@ use Class::Std;
             return 1;
         }
         return;
+    }
+
+    sub user : RESTRICTED {
+        my ($self) = @_;
+        my $ident = ident $self;
+        return $user_of{$ident};
     }
 
     sub maketext : RESTRICTED {

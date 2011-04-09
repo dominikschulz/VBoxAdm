@@ -4,220 +4,200 @@ use strict;
 use warnings;
 
 use Carp;
+use base qw(VBoxAdm::Model);
+use Class::Std;
+{
 
-use Sys::Syslog;
+    # Attributes
+    # none
 
-our $VERSION = '@VERSION@';
+    sub BUILD {
+        my ( $self, $ident, $arg_ref ) = @_;
 
-sub create {
-    my $dbh   = shift;
-    my $email = shift;
-    my $opts  = shift || {};
-
-    warn "Not yet implemented!\n";
-
-=begin cut
-    my $domain_alias = &VBoxAdm::Utils::trim( lc( $q->param('domain_alias') ) );
-    my $domain_id    = $q->param('domain');
-
-    my $msg = '';
-    if ( $domain_alias && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain_alias) ) {
-        $msg = $self->{lh}->maketext("Invalid syntax. Domain is not RFC822 compliant!");
-        $self->add_message( 'error', $msg );
+        if ( !$self->user->is_user() ) {
+            return;    # Need user object
+        }
     }
-    elsif ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
 
-        # if domainadmin, verify that its his domain
-        $msg = $self->{lh}->maketext("You are not authorized to modify this domain!");
-        $self->add_message( 'error', $msg );
-    }
-    elsif ( $domain_alias && $domain_id ) {
-        my $query = "SELECT name FROM domains WHERE id = ?";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($domain_id);
-        my $domain_name = $sth->fetchrow_array();
-        $sth->finish();
+    sub create {
+        my ( $self, $domain, $domain_id ) = @_;
+        my $ident = ident $self;
 
-        $query = "INSERT INTO domain_aliases (name,domain_id,is_active) VALUES(?,?,1)";
-        $sth   = $dbh->prepare($query)
-          or syslog( 2, 'show_add_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        if ( $sth->execute( $domain_alias, $domain_id ) ) {
-            $msg = $self->{lh}->maketext( "Added domain alias '[_1]' to domain [_2] (#[_3]).", $domain_alias, $domain_name, $domain_id );
-            $self->add_message( 'success', $msg );
+        warn "Not yet implemented!\n";
+
+        my $domain_alias = &VBoxAdm::Utils::trim( lc($domain) );
+
+        my $msg_loc = '';
+        my $msg_en  = '';
+        if ( $domain_alias && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain_alias) ) {
+            my $msg = "Invalid syntax. Domain is not RFC822 compliant!";
+            $msg_loc .= $self->maketext($msg);
+            $msg_en  .= $self->maketext_en($msg);
+        }
+        elsif ( $domain_id && !$self->user->is_superadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get__domain_id() ) {
+
+            # if domainadmin, verify that its his domain
+            my $msg = "You are not authorized to modify this domain!";
+            $msg_loc .= $self->maketext($msg);
+            $msg_en  .= $self->maketext_en($msg);
+        }
+        elsif ( $domain_alias && $domain_id ) {
+            my $query       = "SELECT name FROM domains WHERE id = ?";
+            my $sth         = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain_id );
+            my $domain_name = $sth->fetchrow_array();
+            $sth->finish();
+
+            $query = "INSERT INTO domain_aliases (name,domain_id,is_active) VALUES(?,?,1)";
+            if ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain_alias, $domain_id ) ) {
+                my $msg = "Added domain alias '[_1]' to domain [_2] (#[_3]).";
+                $msg_loc .= $self->maketext( $msg, $domain_alias, $domain_name, $domain_id );
+                $msg_en .= $self->maketext_en( $msg, $domain_alias, $domain_name, $domain_id );
+            }
+            else {
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $domain_alias, $domain_id ) ), $sth->errstr );
+                my $msg = "Failed to add domain alias '[_1]' to domain [_2] (#[_3]). Database Error.";
+                $msg_loc = $self->maketext( $msg, $domain_alias, $domain_name, $domain_id );
+                $msg_en = $self->maketext_en( $msg, $domain_alias, $domain_name, $domain_id );
+            }
+            $sth->finish();
         }
         else {
-            syslog(
-                2, 'show_add_domain_alias - Could not execute Query: %s, Args: %s, Error: %s',
-                $query, join( "-", ( $domain_alias, $domain_id ) ),
-                $sth->errstr
-            );
-            $msg =
-              $self->{lh}->maketext( "Failed to add domain alias '[_1]' to domain [_2] (#[_3]). Database Error.", $domain_alias, $domain_name, $domain_id );
-            $self->add_message( 'error', $msg );
+            my $msg = "Failed to add domain alias. No domain_alias or target domain given!";
+            $msg_loc .= $self->maketext($msg);
+            $msg_en  .= $self->maketext_en($msg);
         }
-        $sth->finish();
+
+        return;
     }
-    else {
-        $msg = $self->{lh}->maketext("Failed to add domain alias. No domain_alias or target domain given!");
-        $self->add_message( 'error', $msg );
-    }
-=cut
 
-    return;
-}
+    sub delete {
+        my ( $self, $domain_alias_id ) = @_;
+        my $ident = ident $self;
 
-sub delete {
-    my $dbh   = shift;
-    my $email = shift;
-    my $opts  = shift || {};
+        my $msg_loc = '';
+        my $msg_en  = '';
 
-    warn "Not yet implemented!\n";
-
-=begin cut
-    my $msg = '';
-    if ($domain_alias_id) {
-        my $query = "SELECT name FROM domain_aliases WHERE id = ?";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($domain_alias_id);
+        if ( !$domain_alias_id ) {
+            my $msg = 'Failed to remove domain alias. Missing domain id.';
+            $msg_loc .= $self->maketext($msg);
+            $msg_en  .= $self->maketext_en($msg);
+            return;
+        }
+        my $query       = "SELECT name FROM domain_aliases WHERE id = ?";
+        my $sth         = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain_alias_id );
         my $domain_name = $sth->fetchrow_array();
         $sth->finish();
 
         $query = "DELETE FROM domain_aliases WHERE id = ?";
         my @args = ();
         push( @args, $domain_alias_id );
-        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        if ( !$self->user->is_superadmin() && $self->user->is_domainadmin() ) {
             $query .= "AND domain_id = ?";
-            push( @args, $self->get_users_domainid() );
+            push( @args, $self->user->get_domain_id() );
         }
-        $sth = $dbh->prepare($query)
-          or syslog( 2, 'show_remove_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        if ( $sth->execute(@args) ) {
-            $msg = $self->{lh}->maketext( "Domain-Alias [_1] (#[_2]) removed.", $domain_name, $domain_alias_id );
-            $self->add_message( 'success', $msg );
-        }
-        else {
-            syslog( 2, 'show_remove_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            $msg = $self->{lh}->maketext( "Failed to remove Domain-Alias [_1] (#[_2]). Database error.", $domain_name, $domain_alias_id );
-            $self->add_message( 'error', $msg );
-        }
-    }
-    else {
-        $msg = $self->{lh}->maketext('Failed to remove domain alias. Insufficient parameters.');
-        $self->add_message( 'error', $msg );
-    }
-=cut
-
-    return;
-}
-
-sub update {
-    my $dbh   = shift;
-    my $email = shift;
-    my $opts  = shift || {};
-
-    warn "Not yet implemented!\n";
-
-=begin cut
-    my $msg1        = '';
-    my $domain_name = '';
-    if ($domain_alias_id) {
-        my $query = "SELECT name FROM domain_aliases WHERE id = ?";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($domain_alias_id);
-        $domain_name = $sth->fetchrow_array();
-        $sth->finish();
-    }
-
-    if ( $domain_alias_id && defined($is_active) ) {
-        my $query = "UPDATE domain_aliases SET is_active = ? WHERE id = ?";
-        my @args  = ();
-        push( @args, $is_active );
-        push( @args, $domain_alias_id );
-        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
-            $query .= "AND domain_id = ?";
-            push( @args, $self->get_users_domainid() );
-        }
-        my $sth = $dbh->prepare($query)
-          or syslog( 2, 'show_update_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        my $status_str = 'disabled';
-        if ( $is_active eq 'on' || $is_active eq 'true' ) {
-            $status_str = 'enabled';
-            $is_active  = 1;
-        }
-        if ( $sth->execute(@args) ) {
-            my $msg = $self->{lh}->maketext( "Domain-Alias [_1] (#[_2]) $status_str.", $domain_name, $domain_alias_id );
-            $self->add_message( 'success', $msg );
-            $msg1 .= $msg . ' ';
+        if ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+            my $msg = "Domain-Alias [_1] (#[_2]) removed.";
+            $msg_loc .= $self->maketext( $msg, $domain_name, $domain_alias_id );
+            $msg_en .= $self->maketext_en( $msg, $domain_name, $domain_alias_id );
+            return 1;
         }
         else {
-            syslog( 2, 'show_update_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            my $msg = $self->{lh}->maketext( "Failed to set Domain-Alias [_1] (#[_2]) [_3]. Database Error.", $domain_name, $domain_alias_id, $status_str );
-            $self->add_message( 'error', $msg );
-            $msg1 .= $msg . ' ';
+            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+            my $msg = "Failed to remove Domain-Alias [_1] (#[_2]). Database error.";
+            $msg_loc = $self->maketext( $msg, $domain_name, $domain_alias_id );
+            $msg_en = $self->maketext_en( $msg, $domain_name, $domain_alias_id );
         }
+
+        return;
     }
 
-    if ( $target && !$self->is_superadmin() && $self->is_domainadmin() && $target != $self->get_users_domainid() ) {
+    sub update {
+        my ( $self, $domain_alias_id, $params ) = @_;
+        my $ident = ident $self;
 
-        # if domainadmin, verify that its his domain
-        my $msg = "You are not authorized to modify this domain!";
-        $self->add_message( 'errror', $msg );
-        $msg1 .= $msg . ' ';
-    }
-    elsif ( $domain_alias_id && $target ) {
-        my $query = "SELECT name FROM domains WHERE id = ?";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($target);
-        my $target_domain_name = $sth->fetchrow_array();
-        $sth->finish();
-
-        $query = "UPDATE domain_aliases SET domain_id = ? WHERE id = ?";
-        $sth   = $dbh->prepare($query)
-          or syslog( 2, 'show_update_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        if ( $sth->execute( $target, $domain_alias_id ) ) {
-            my $msg =
-              $self->{lh}
-              ->maketext( "Domain-Alias [_1] (#[_2]) redirected to Domain [_3] (#[_4]).", $domain_name, $domain_alias_id, $target_domain_name, $target );
-            $self->add_message( 'success', $msg );
-            $msg1 .= $msg . ' ';
+        my $msg_loc     = '';
+        my $msg_en      = '';
+        my $domain_name = '';
+        if ($domain_alias_id) {
+            my $query = "SELECT name FROM domain_aliases WHERE id = ?";
+            my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain_alias_id );
+            $domain_name = $sth->fetchrow_array();
+            $sth->finish();
         }
-        else {
-            syslog(
-                2, 'show_update_domain_alias - Could not execute Query: %s, Args: %s, Error: %s',
-                $query, join( "-", ( $target, $domain_alias_id ) ),
-                $sth->errstr
-            );
-            my $msg =
-              $self->{lh}
-              ->maketext( "Failed to redirect Domain-Alias [_1] (#[_2]) to Domain [_3] (#[_4]).", $domain_name, $domain_alias_id, $target_domain_name,
-                $target );
-            $self->add_message( 'error', $msg );
-            $msg1 .= $msg . ' ';
+
+        if ( $domain_alias_id && defined( $params->{'is_active'} ) ) {
+            my $query = "UPDATE domain_aliases SET is_active = ? WHERE id = ?";
+            my @args  = ();
+            push( @args, $params->{'is_active'} );
+            push( @args, $domain_alias_id );
+            if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+                $query .= "AND domain_id = ?";
+                push( @args, $self->get_users_domainid() );
+            }
+            my $status_str = 'disabled';
+            if ( $params->{'is_active'} ) {
+                $status_str = 'enabled';
+            }
+            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+                my $msg = "Domain-Alias [_1] (#[_2]) $status_str.";
+                $msg_loc .= $self->maketext( $msg, $domain_name, $domain_alias_id );
+                $msg_en .= $self->maketext_en( $msg, $domain_name, $domain_alias_id );
+            }
+            else {
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+                my $msg = "Failed to set Domain-Alias [_1] (#[_2]) [_3]. Database Error.";
+                $msg_loc .= $self->maketext( $msg, $domain_name, $domain_alias_id, $status_str );
+                $msg_en .= $self->maketext_en( $msg, $domain_name, $domain_alias_id, $status_str );
+            }
         }
+
+        if ( $params->{'target'} && !$self->user->is_superadmin() && $self->user->is_domainadmin() && $params->{'target'} != $self->user->get_domain_id() ) {
+
+            # if domainadmin, verify that its his domain
+            my $msg = "You are not authorized to modify this domain!";
+            $msg_loc .= $self->maketext($msg);
+            $msg_en  .= $self->maketext_en($msg);
+        }
+        elsif ( $domain_alias_id && $params->{'target'} ) {
+            my $query              = "SELECT name FROM domains WHERE id = ?";
+            my $sth                = &VBoxAdm::DB::prepexec( $self->dbh, $query, $params->{'target'} );
+            my $target_domain_name = $sth->fetchrow_array();
+            $sth->finish();
+
+            $query = "UPDATE domain_aliases SET domain_id = ? WHERE id = ?";
+
+            if ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $params->{'target'}, $domain_alias_id ) ) {
+                my $msg = "Domain-Alias [_1] (#[_2]) redirected to Domain [_3] (#[_4]).";
+                $msg_loc .= $self->maketext( $msg, $domain_name, $domain_alias_id, $target_domain_name, $params->{'target'} );
+                $msg_en .= $self->maketext_en( $msg, $domain_name, $domain_alias_id, $target_domain_name, $params->{'target'} );
+            }
+            else {
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $params->{'target'}, $domain_alias_id ) ), $sth->errstr );
+                my $msg = "Failed to redirect Domain-Alias [_1] (#[_2]) to Domain [_3] (#[_4]).";
+                $msg_loc .= $self->maketext( $msg, $domain_name, $domain_alias_id, $target_domain_name, $params->{'target'} );
+                $msg_en .= $self->maketext_en( $msg, $domain_name, $domain_alias_id, $target_domain_name, $params->{'target'} );
+            }
+        }
+
+        return;
     }
-=cut
 
-    return;
+    sub read {
+        my ( $self, $domain_alias_id, $params ) = @_;
+        my $ident = ident $self;
+
+        warn "Not yet implemented!\n";
+        return;
+    }
+
+    sub list {
+        my ( $self, $params ) = @_;
+        my $ident = ident $self;
+
+        warn "Not yet implemented!\n";
+        return;
+    }
 }
-
-sub read {
-    my $dbh   = shift;
-    my $email = shift;
-    my $opts  = shift || {};
-
-    warn "Not yet implemented!\n";
-    return;
-}
-
-sub list {
-    my $dbh   = shift;
-    my $email = shift;
-    my $opts  = shift || {};
-
-    warn "Not yet implemented!\n";
-    return;
-}
-
 1;
 __END__
 

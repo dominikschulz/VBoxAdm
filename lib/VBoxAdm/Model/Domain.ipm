@@ -8,147 +8,160 @@ use Carp;
 use Sys::Syslog;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
+use base qw(VBoxAdm::Model);
+use Class::Std;
+{
 
-our $VERSION = '@VERSION@';
+    # Attributes
+    # none
 
-# TODO create an API for manipulating the DB
-sub create {
-    my $dbh    = shift;
-    my $domain = shift;
-    my $opts   = shift || {};
+    sub BUILD {
+        my ( $self, $ident, $arg_ref ) = @_;
 
-    $domain = &VBoxAdm::Utils::trim( lc($domain) );
-
-    my $msg_loc = '';
-    my $msg_en  = '';
-    if ( $domain && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain) ) {
-        my $msg = 'Invalid syntax. Domain is not RFC822 compliant!';
-        if ( $opts->{Lh} ) {
-            $msg_loc = $opts->{Lh}->maketext($msg);
+        if ( !$self->user->is_user() ) {
+            return;    # Need user object
         }
-        if ( $opts->{Lh_EN} ) {
-            $msg_en = $opts->{Lh_EN}->maketext($msg);
-        }
-        return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
     }
-    elsif ($domain) {
-        my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
-        my $sth   = $dbh->prepare($query)
-          or $opts->{log}->( 2, 'show_add_domain - Could not prepare Query: %s, Error: %s', $query, DBI->errstr )
-          if $opts->{log};
 
-        if ( $sth->execute($domain) ) {
-            my $msg = "Domain '[_1]' added";
-            if ( $opts->{Lh} ) {
-                $msg_loc = $opts->{Lh}->maketext( $msg, $domain );
-            }
-            if ( $opts->{Lh_EN} ) {
-                $msg_en = $opts->{Lh_EN}->maketext( $msg, $domain );
-            }
-            $sth->finish();
-            return wantarray ? ( 1, $msg_loc, $msg_en ) : 1;
-        }
-        else {
-            $opts->{log}->( 2, 'show_add_domain - Could not execute Query: %s, Args: %s, Error: %s', $query, $domain, $sth->errstr ) if $opts->{log};
-            my $msg = "Failed to add Domain '[_1]'. Database error.";
-            if ( $opts->{Lh} ) {
-                $msg_loc = $opts->{Lh}->maketext( $msg, $domain );
-            }
-            if ( $opts->{Lh_EN} ) {
-                $msg_en = $opts->{Lh_EN}->maketext( $msg, $domain );
-            }
+    sub create {
+        my ( $self, $domain ) = @_;
+        my $ident = ident $self;
+
+        $domain = &VBoxAdm::Utils::trim( lc($domain) );
+
+        my $msg_loc = '';
+        my $msg_en  = '';
+        if ( $domain && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain) ) {
+            my $msg = 'Invalid syntax. Domain is not RFC822 compliant!';
+            $msg_loc = $self->maketext($msg);
+            $msg_en  = $self->maketext($msg);
             return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
         }
+        elsif ($domain) {
+            my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
 
-    }
-    else {
-        my $msg = "Failed to add Domain. Insufficient parameters.";
-        if ( $opts->{Lh} ) {
-            $msg_loc = $opts->{Lh}->maketext( $msg, $domain );
+            if ( my $sth = &VBoxAdm::DB::prepexec( $self->sql, $query, $domain ) ) {
+                my $msg = "Domain '[_1]' added";
+                $msg_loc = $self->maketext( $msg, $domain );
+                $msg_en = $self->maketext_en( $msg, $domain );
+                $sth->finish();
+                return wantarray ? ( 1, $msg_loc, $msg_en ) : 1;
+            }
+            else {
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, $domain, $sth->errstr );
+                my $msg = "Failed to add Domain '[_1]'. Database error.";
+                $msg_loc = $self->maketext( $msg, $domain );
+                $msg_en = $self->maketext_en( $msg, $domain );
+                return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+            }
+
         }
-        if ( $opts->{Lh_EN} ) {
-            $msg_en = $opts->{Lh_EN}->maketext( $msg, $domain );
+        else {
+            my $msg = "Failed to add Domain. Insufficient parameters.";
+            $msg_loc = $self->maketext( $msg, $domain );
+            $msg_en = $self->maketext_en( $msg, $domain );
+            return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
         }
-        return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+    }
+
+    sub delete {
+        my ( $self, $domain_id ) = @_;
+        my $ident = ident $self;
+        my $sql   = "DELETE FROM domains WHERE id = ? LIMIT 1";
+        my $sth   = &VBoxAdm::DB::prepexec( $self->dbh, $domain_id );
+        $sth->finish();
+        return;
+    }
+
+    sub update {
+        my ( $self, $domain_id, $params ) = @_;
+        my $ident = ident $self;
+
+        my $sql  = "UPDATE domains SET ";
+        my @args = ();
+
+        if ( defined( $params->{'is_active'} ) ) {
+            $sql .= "is_active = ? ";
+            if ( $params->{'is_active'} ) {
+                push( @args, 1 );
+            }
+            else {
+                push( @args, 0 );
+            }
+        }
+
+        if ( scalar(@args) > 0 ) {
+            $sql .= "WHERE id = ?";
+            push( @args, $domain_id );
+            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args ) ) {
+                $sth->finish();
+
+                # TODO report success
+                return 1;
+            }
+            else {
+
+                # TODO report error
+                return;
+            }
+        }
+    }
+
+    sub read {
+        warn "Not yet implemented!\n";
+        return;
+    }
+
+    sub list {
+        my ( $self, $param ) = @_;
+        my $ident = ident $self;
+
+        my @fields = qw(
+          id name is_active
+        );
+        my $sql = "SELECT " . join( ",", @fields ) . " FROM domains WHERE 1";
+        my @args = ();
+        if ( $param->{'Search'} ) {
+            $sql .= " AND name LIKE ?";
+            my $term = $param->{'Search'};
+            $term =~ s/[*%]+//g;
+            $term = '%' . $term . '%';
+            push( @args, $term );
+        }
+
+        my $sth = $self->dbh->prepare($sql);
+        $sth->execute(@args);
+        my @entries = ();
+        while ( my @row = $sth->fetchrow_array() ) {
+            my %h;
+            @h{@fields} = @row;
+            push( @entries, \%h );
+        }
+        $sth->finish();
+
+        return @entries;
+    }
+
+    sub get_name_by_id {
+        my ( $self, $id ) = @_;
+        my $ident       = ident $self;
+        my $query       = "SELECT name FROM domains WHERE id = ?";
+        my $sth         = &VBoxAdm::DB::prepexec( $self->dbh, $query, $id );
+        my $domain_name = $sth->fetchrow_array();
+        $sth->finish();
+        return $domain_name;
+    }
+
+    sub get_id_by_name {
+        my ( $self, $name ) = @_;
+        my $ident     = ident $self;
+        my $query     = "SELECT id FROM domains WHERE name = ?";
+        my $sth       = &VBoxAdm::DB::prepexec( $self->dbh, $query, $name );
+        my $domain_id = $sth->fetchrow_array();
+        $sth->finish();
+        return $domain_id;
     }
 }
-
-sub delete {
-    my $dbh         = shift;
-    my $domain_name = shift;
-    my $opts        = shift || {};
-
-    my $domain_id = &get_id_by_name( $dbh, $domain_name, $opts );
-    return &_delete_wid( $dbh, $domain_id, $opts );
-}
-
-sub _delete_wid {
-    my $dbh       = shift;
-    my $domain_id = shift;
-    my $opts      = shift || {};
-    my $sql       = "DELETE FROM domains WHERE id = ? LIMIT 1";
-    my $sth       = &VBoxAdm::DB::prepexec( $dbh, $domain_id );
-    $sth->finish();
-    return;
-}
-
-sub update {
-    my $dbh         = shift;
-    my $domain_name = shift;
-    my $opts        = shift || {};
-    warn "Not yet implemented!\n";
-    return;
-}
-
-sub _update_wid {
-    my $dbh       = shift;
-    my $domain_id = shift;
-    my $opts      = shift || {};
-
-    # TODO implement
-}
-
-sub read {
-    warn "Not yet implemented!\n";
-    return;
-}
-
-sub list {
-    my $dbh = shift;
-    my $opts = shift || {};
-
-    my $sql  = "SELECT ... FROM domains";
-    my @args = ();
-    if ( $opts->{Search} ) {
-        $sql .= " WHERE ...";
-    }
-    my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql, @args );
-    warn "Not yet implemented!\n";
-    return;
-}
-
-sub get_name_by_id {
-    my $dbh   = shift;
-    my $id    = shift;
-    my $query = "SELECT name FROM domains WHERE id = ?";
-    my $sth   = $dbh->prepare($query);
-    $sth->execute($id);
-    my $domain_name = $sth->fetchrow_array();
-    $sth->finish();
-    return $domain_name;
-}
-
-sub get_id_by_name {
-    my $dbh   = shift;
-    my $name  = shift;
-    my $query = "SELECT id FROM domains WHERE name = ?";
-    my $sth   = $dbh->prepare($query);
-    $sth->execute($name);
-    my $domain_id = $sth->fetchrow_array();
-    $sth->finish();
-    return $domain_id;
-}
-
 1;
 __END__
 
