@@ -35,7 +35,7 @@ use HTML::Clean;
 
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
-use VBoxAdm::DovecotPW '@VERSION@';
+use VBoxAdm::SaltedHash '@VERSION@';
 
 our $VERSION = '@VERSION@';
 
@@ -178,8 +178,8 @@ sub setup {
                     my $param   = shift;    # unused, always empty
                     my $plain   = shift;    # password from user
                     my $pwentry = shift;    # password hash from db
-                    my ( $pwscheme, undef, $salt ) = &VBoxAdm::DovecotPW::split_pass($pwentry);
-                    my $passh = &VBoxAdm::DovecotPW::make_pass( $plain, $pwscheme, $salt );
+                    my ( $pwscheme, undef, $salt ) = &VBoxAdm::SaltedHash::split_pass($pwentry);
+                    my $passh = &VBoxAdm::SaltedHash::make_pass( $plain, $pwscheme, $salt );
                     return $passh;
                 },
             }
@@ -2258,7 +2258,7 @@ sub show_add_mailbox {
           or syslog( 2, 'show_add_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if (
             $sth->execute(
-                $domain_id, $username, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ),
+                $domain_id, $username, VBoxAdm::SaltedHash::make_pass( $password, $pwscheme ),
                 $is_active, $name, $sa_active, $sa_kill_score, $is_domainadmin, $is_superadmin
             )
           )
@@ -2526,7 +2526,7 @@ sub show_update_mailbox {
                     $msg1 .= $msg . ' ';
                 }
                 $query .= "password = ?, ";
-                push( @params, VBoxAdm::DovecotPW::make_pass( $password, $pwscheme ) );
+                push( @params, VBoxAdm::SaltedHash::make_pass( $password, $pwscheme ) );
             }
         }
 

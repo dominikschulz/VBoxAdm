@@ -18,13 +18,13 @@ use Net::IMAP::Client;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::Migration '@VERSION@';
-use VBoxAdm::DovecotPW '@VERSION@';
-use VBoxAdm::API::Alias '@VERSION@';
-use VBoxAdm::API::AWL '@VERSION@';
-use VBoxAdm::API::Domain '@VERSION@';
-use VBoxAdm::API::DomainAlias '@VERSION@';
-use VBoxAdm::API::Mailbox '@VERSION@';
-use VBoxAdm::API::VacationBlacklist '@VERSION@';
+use VBoxAdm::SaltedHash '@VERSION@';
+use VBoxAdm::Model::Alias '@VERSION@';
+use VBoxAdm::Model::AWL '@VERSION@';
+use VBoxAdm::Model::Domain '@VERSION@';
+use VBoxAdm::Model::DomainAlias '@VERSION@';
+use VBoxAdm::Model::Mailbox '@VERSION@';
+use VBoxAdm::Model::VacationBlacklist '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
 
 my ( $conffile_used, %config, @modes, $opts );
@@ -217,13 +217,13 @@ sub handle_user {
     local $opts->{SAKillScore}     = $config->{'sa_kill_score'}    || undef;
 
     if ( $modes->[1] eq 'add' ) {
-        &VBoxAdm::API::Mailbox::create( $dbh, $modes->[2], $opts );
+        &VBoxAdm::Model::Mailbox::create( $dbh, $modes->[2], $opts );
     }
     elsif ( $modes->[1] eq 'update' ) {
-        &VBoxAdm::API::Mailbox::update( $dbh, $modes->[2], $opts );
+        &VBoxAdm::Model::Mailbox::update( $dbh, $modes->[2], $opts );
     }
     elsif ( $modes->[1] eq 'delete' ) {
-        &VBoxAdm::API::Mailbox::delete( $dbh, $modes->[2], $opts );
+        &VBoxAdm::Model::Mailbox::delete( $dbh, $modes->[2], $opts );
     }
     else {
         print "Unknown mode. Choose one of 'add', 'update', 'delete'.\n";
@@ -241,13 +241,13 @@ sub handle_alias {
     local $opts->{IsActive} = $config->{'is_active'} || undef;
 
     if ( $modes->[1] eq 'add' ) {
-        &VBoxAdm::API::Alias::create( $dbh, $modes->[2], $opts );
+        &VBoxAdm::Model::Alias::create( $dbh, $modes->[2], $opts );
     }
     elsif ( $modes->[1] eq 'update' ) {
-        &VBoxAdm::API::Alias::update( $dbh, $modes->[2], $opts );
+        &VBoxAdm::Model::Alias::update( $dbh, $modes->[2], $opts );
     }
     elsif ( $modes->[1] eq 'delete' ) {
-        &VBoxAdm::API::Alias::delete( $dbh, $modes->[2], $opts );
+        &VBoxAdm::Model::Alias::delete( $dbh, $modes->[2], $opts );
     }
     else {
         print "Unknown mode. Choose one of 'add', 'update', 'delete'.\n";
@@ -264,15 +264,15 @@ sub handle_domain {
     local $opts->{IsActive} = $config->{'is_active'} || undef;
 
     if ( $modes->[1] eq 'add' ) {
-        my ( $status, $loc, $en ) = &VBoxAdm::API::Domain::create( $dbh, $modes->[2], $opts );
+        my ( $status, $loc, $en ) = &VBoxAdm::Model::Domain::create( $dbh, $modes->[2], $opts );
         print $en. "\n";
         return $status;
     }
     elsif ( $modes->[1] eq 'update' ) {
-        &VBoxAdm::API::Domain::update( $dbh, $modes->[2], $opts );
+        &VBoxAdm::Model::Domain::update( $dbh, $modes->[2], $opts );
     }
     elsif ( $modes->[1] eq 'delete' ) {
-        &VBoxAdm::API::Domain::delete( $dbh, $modes->[2], $opts );
+        &VBoxAdm::Model::Domain::delete( $dbh, $modes->[2], $opts );
     }
     else {
         print "Unknown mode. Choose one of 'add', 'update', 'delete'.\n";
@@ -290,13 +290,13 @@ sub handle_domainalias {
     local $opts->{Goto}     = $config->{'goto'}      || undef;
 
     if ( $modes->[1] eq 'add' ) {
-        &VBoxAdm::API::DomainAlias::create( $dbh, $modes->[2], $opts );
+        &VBoxAdm::Model::DomainAlias::create( $dbh, $modes->[2], $opts );
     }
     elsif ( $modes->[1] eq 'update' ) {
-        &VBoxAdm::API::DomainAlias::update( $dbh, $modes->[2], $opts );
+        &VBoxAdm::Model::DomainAlias::update( $dbh, $modes->[2], $opts );
     }
     elsif ( $modes->[1] eq 'delete' ) {
-        &VBoxAdm::API::DomainAlias::delete( $dbh, $modes->[2], $opts );
+        &VBoxAdm::Model::DomainAlias::delete( $dbh, $modes->[2], $opts );
     }
     else {
         print "Unknown mode. Choose one of 'add', 'update', 'delete'.\n";
@@ -311,7 +311,7 @@ sub handle_vbl {
     my $opts   = shift || {};
 
     if ( $modes->[1] eq 'add' ) {
-        &VBoxAdm::API::VacationBlacklist::create( $dbh, $modes->[2], $opts );
+        &VBoxAdm::Model::VacationBlacklist::create( $dbh, $modes->[2], $opts );
     }
     else {
         print "Unknown mode. Choose 'add'.\n";
@@ -326,15 +326,15 @@ sub handle_awl {
     my $opts   = shift || {};
 
     if ( $modes->[1] eq 'add' ) {
-        &VBoxAdm::API::AWL::create( $dbh, $modes->[2], $opts );
+        &VBoxAdm::Model::AWL::create( $dbh, $modes->[2], $opts );
     }
     elsif ( $modes->[1] eq 'lock' ) {
         local $opts->{Disabled} = 1;
-        &VBoxAdm::API::AWL::update( $dbh, $modes->[2], $opts );
+        &VBoxAdm::Model::AWL::update( $dbh, $modes->[2], $opts );
     }
     elsif ( $modes->[1] eq 'unlock' ) {
         local $opts->{Disabled} = 0;
-        &VBoxAdm::API::AWL::update( $dbh, $modes->[2], $opts );
+        &VBoxAdm::Model::AWL::update( $dbh, $modes->[2], $opts );
     }
     else {
         print "Unknown mode. Choose one of 'add', 'lock', 'unlock'.\n";
@@ -464,7 +464,7 @@ sub check_login {
         print "You are no siteadmin!\n";
         return;
     }
-    if ( !&VBoxAdm::DovecotPW::verify_pass( $user_config{'auth'}{'password'}, $pw ) ) {
+    if ( !&VBoxAdm::SaltedHash::verify_pass( $user_config{'auth'}{'password'}, $pw ) ) {
         print "Password invalid!\n";
         return;
     }
@@ -1346,7 +1346,7 @@ sub create_siteadmin {
 
     $sql = "INSERT INTO mailboxes (domain_id,local_part,password,is_active,is_superadmin) VALUES(?,?,?,1,1) ON DUPLICATE KEY UPDATE password = ?";
     $sth = $dbh->prepare($sql);
-    my $pwhash = &VBoxAdm::DovecotPW::make_pass( $password, $config->{'cgi'}{'pwscheme'}, $salt );
+    my $pwhash = &VBoxAdm::SaltedHash::make_pass( $password, $config->{'cgi'}{'pwscheme'}, $salt );
     $sth->execute( $domain_id, $local_part, $pwhash, $pwhash );
     $sth->finish();
 
@@ -1355,7 +1355,7 @@ sub create_siteadmin {
     $user_ref->{'siteadmin'}{'username'} = $email;
     $user_ref->{'siteadmin'}{'password'} = $password;
 
-    if ( &VBoxAdm::DovecotPW::verify_pass( $password, $pwhash ) ) {
+    if ( &VBoxAdm::SaltedHash::verify_pass( $password, $pwhash ) ) {
         print "Password verified.\n";
     }
     else {

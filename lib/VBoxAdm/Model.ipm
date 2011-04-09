@@ -1,0 +1,90 @@
+package VBoxAdm::Model;
+
+use strict;
+use warnings;
+
+use Carp;
+
+our $VERSION = '@VERSION@';
+
+use Class::Std;
+{
+
+    # Attributes
+    my %dbh_of : ATTR;
+    my %lh_of : ATTR;
+    my %lh_en_of : ATTR;
+    my %logger_of : ATTR;
+    my %config_of : ATTR;
+    my %msgq_of : ATTR;    # TODO add and implement a MessageQueue
+
+    sub BUILD {
+        my ( $self, $ident, $arg_ref ) = @_;
+
+        $dbh_of{$ident} = undef;
+
+        if ( $arg_ref->{'dbh'} && $arg_ref->{'dbh'}->ping() ) {
+            $dbh_of{$ident} = $arg_ref->{'dbh'};
+        }
+        else {
+            return;
+        }
+
+        # Setup of Locale::Maketext handles
+        $lh_of{$ident}    = $arg_ref->{'LH'}    if $arg_ref->{'LH'};
+        $lh_en_of{$ident} = $arg_ref->{'LH_EN'} if $arg_ref->{'LH_EN'};
+
+        # Setup Logger
+        $logger_of{$ident} = $arg_ref->{'Logger'} if $arg_ref->{'Logger'};
+
+        # Set config
+        $config_of{$ident} = $arg_ref->{'Config'} if $arg_ref->{'Config'};
+    }
+
+    sub dbh : RESTRICTED {
+        my ($self) = @_;
+        my $ident = ident $self;
+        return $dbh_of{$ident};
+    }
+
+    sub config : RESTRICTED {
+        my ($self) = @_;
+        my $ident = ident $self;
+        return $config_of{$ident} || {};
+    }
+
+    sub log : RESTRICTED {
+        my ( $self, $msg ) = @_;
+        my $ident = ident $self;
+        if ( $logger_of{$ident} ) {
+            $logger_of{$ident}->log( 2, $msg );
+            return 1;
+        }
+        return;
+    }
+
+    sub maketext : RESTRICTED {
+        my ( $self, $msg, @args ) = @_;
+        my $ident = ident $self;
+        if ( $lh_of{$ident} ) {
+            return $lh_of{$ident}->maketext( $msg, @args );
+        }
+        return;
+    }
+
+    sub maketext_en : RESTRICTED {
+        my ( $self, $msg, @args ) = @_;
+        my $ident = ident $self;
+        if ( $lh_en_of{$ident} ) {
+            return $lh_en_of{$ident}->maketext( $msg, @args );
+        }
+        return;
+    }
+
+    sub DEMOLISH {
+        my ($self) = @_;
+
+        # NOP
+    }
+}
+1;

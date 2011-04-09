@@ -1,0 +1,123 @@
+use Test::More qw( no_plan );
+use VBoxAdm::SaltedHash '@VERSION@';
+
+=head2 GENERATION OF TEST DATA
+
+The test data was generated using the command line tool dovecotpw, e.g.
+
+  $> dovecotpw -s SSHA -p ssha
+
+Then the salt was extracted using the method described in the Dovecot Wiki
+at http://wiki.dovecot.org/Authentication/PasswordSchemes#Salting.
+
+  $> echo ZVtWBxu5DZfomKKiR5R+TYYemzsMpjfR | base64 -d | dd bs=1 skip=20 | hexdump -C
+
+The output
+  00000000  0c a6 37 d1                                       |..7.|
+is then fed to pack:
+  my $salt = pack('C*',(0x0c,0xa6,0x37,0xd1));
+
+With the help of the extracted salt this implementation should be able
+to generate the same hashes as dovecotpw.
+
+=cut
+
+BEGIN { use_ok( 'VBoxAdm::SaltedHash', '@VERSION@' ); }
+
+# Test plain_md5
+{
+    is( VBoxAdm::SaltedHash::plain_md5('plain_md5'), '{PLAIN-MD5}b8d4619ba568b9abbeff69a2b84bc84e', 'PLAIN-MD5' );
+    isnt( VBoxAdm::SaltedHash::plain_md5('plain_md5'), '{PLAIN-MD5}b8d4619ba568b9abbeff69a2b84bc84f', 'PLAIN-MD5' );
+}
+
+# Test ldap_md5
+{
+    is( VBoxAdm::SaltedHash::ldap_md5('ldap_md5'), '{LDAP-MD5}f5qbmNGVSc2q51JwcVSo2A==', 'LDAP-MD5' );
+    isnt( VBoxAdm::SaltedHash::ldap_md5('ldap_md5'), '{LDAP-MD5}f5qbmNGVSc2q51JwcVSo2B==', 'LDAP-MD5' );
+}
+
+# Test smd5
+{
+    is( VBoxAdm::SaltedHash::smd5( 'smd5', pack( 'C*', ( 0x31, 0x65, 0x2f, 0x05 ) ) ), '{SMD5}RGcFE9Xfx77QK2zhTyh+rzFlLwU=', 'SMD5' );
+    isnt( VBoxAdm::SaltedHash::smd5( 'smd5', pack( 'C*', ( 0x31, 0x65, 0x2c, 0x05 ) ) ), '{SMD5}RGcFE9Xfx77QK2zhTyh+rzFlLwU=', 'SMD5' );
+    isnt( VBoxAdm::SaltedHash::smd5( 'smd5', pack( 'C*', ( 0x31, 0x65, 0x2f, 0x05 ) ) ), '{SMD5}RGcFE9Xfx77QK2zhTyh+rzFlLLU=', 'SMD5' );
+    foreach my $i ( 1 .. 20 ) {
+        ok( VBoxAdm::SaltedHash::verify_pass( 'pw' . $i, VBoxAdm::SaltedHash::make_pass( 'pw' . $i, 'smd5' ) ), 'Test smd5 #' . $i );
+    }
+}
+
+# Test cram-md5
+{
+    is( VBoxAdm::SaltedHash::cram_md5('cram_md5'), '{CRAM-MD5}5c1541ba0b54c6eaae6d596033c7308af245b27f6d01741a0b5c8f1bb57be546', 'CRAM-MD5' );
+    isnt( VBoxAdm::SaltedHash::cram_md5('cram_md5'), '{CRAM-MD5}5c1541ba1b54c6eaae6d596033c7308af245b27f6d01741a0b5c8f1bb57be546', 'CRAM-MD5' );
+    foreach my $i ( 1 .. 20 ) {
+        ok( VBoxAdm::SaltedHash::verify_pass( 'pw' . $i, VBoxAdm::SaltedHash::make_pass( 'pw' . $i, 'cram_md5' ) ), 'Test cram_md5 #' . $i );
+    }
+}
+
+# Test sha
+{
+    is( VBoxAdm::SaltedHash::sha('sha'), '{SHA}2PRZAyDhNDqRW2OUFwZQqPNdaSY=', 'SHA' );
+    isnt( VBoxAdm::SaltedHash::sha('sha'), '{SHA}2PRZAyDhNDqRW2OUFwZsqPNdaSY=', 'SHA' );
+    foreach my $i ( 1 .. 20 ) {
+        ok( VBoxAdm::SaltedHash::verify_pass( 'pw' . $i, VBoxAdm::SaltedHash::make_pass( 'pw' . $i, 'sha' ) ), 'Test sha #' . $i );
+    }
+}
+
+# Test ssha
+{
+    is( VBoxAdm::SaltedHash::ssha( 'ssha', pack( 'C*', ( 0x0c, 0xa6, 0x37, 0xd1 ) ) ), '{SSHA}ZVtWBxu5DZfomKKiR5R+TYYemzsMpjfR', 'SSHA' );
+    isnt( VBoxAdm::SaltedHash::ssha( 'ssha', pack( 'C*', ( 0x0c, 0xa6, 0x34, 0xd1 ) ) ), '{SSHA}ZVtWBxu5DZfomKKiR5R+TYYemzsMpjfR', 'SSHA' );
+    isnt( VBoxAdm::SaltedHash::ssha( 'ssha', pack( 'C*', ( 0x0c, 0xa6, 0x37, 0xd1 ) ) ), '{SSHA}ZatWBxu5DZfomKKiR5R+TYYemzsMpjfR', 'SSHA' );
+    foreach my $i ( 1 .. 20 ) {
+        ok( VBoxAdm::SaltedHash::verify_pass( 'pw' . $i, VBoxAdm::SaltedHash::make_pass( 'pw' . $i, 'ssha' ) ), 'Test ssha #' . $i );
+    }
+}
+
+# Test sha256
+{
+    is( VBoxAdm::SaltedHash::sha256('sha256'), '{SHA256}XVsJ9tyy1Tpf/8YMSsDVX6vfVWBp1mMVRfQqpuNQDy4=', 'SHA256' );
+    isnt( VBoxAdm::SaltedHash::sha256('sha256'), '{SHA256}XVaJ9tyy1Tpf/8YMSsDVX6vfVWBp1mMVRfQqpuNQDy4=', 'SHA256' );
+    foreach my $i ( 1 .. 20 ) {
+        ok( VBoxAdm::SaltedHash::verify_pass( 'pw' . $i, VBoxAdm::SaltedHash::make_pass( 'pw' . $i, 'sha256' ) ), 'Test sha256 #' . $i );
+    }
+}
+
+# Test ssha256
+{
+    is( VBoxAdm::SaltedHash::ssha256( 'ssha256', pack( 'C*', ( 0x13, 0x7e, 0xdf, 0x9e ) ) ),
+        '{SSHA256}pJBnkoz8dh7xoiQL1eRMYQqnPD190Ni/xVMGwnbcG2sTft+e', 'SSHA256' );
+    isnt( VBoxAdm::SaltedHash::ssha256( 'ssha256', pack( 'C*', ( 0x12, 0x7e, 0xdf, 0x9e ) ) ),
+        '{SSHA256}pJBnkoz8dh7xoiQL1eRMYQqnPD190Ni/xVMGwnbcG2sTft+e', 'SSHA256' );
+    isnt( VBoxAdm::SaltedHash::ssha256( 'ssha256', pack( 'C*', ( 0x13, 0x7e, 0xdf, 0x9e ) ) ),
+        '{SSHA256}aJBnkoz8dh7xoiQL1eRMYQqnPD190Ni/xVMGwnbcG2sTft+e', 'SSHA256' );
+    foreach my $i ( 1 .. 20 ) {
+        ok( VBoxAdm::SaltedHash::verify_pass( 'pw' . $i, VBoxAdm::SaltedHash::make_pass( 'pw' . $i, 'ssha256' ) ), 'Test ssha256 #' . $i );
+    }
+}
+
+# Test sha512
+{
+
+    #is(VBoxAdm::SaltedHash::sha('sha512'),'','SHA512');
+    foreach my $i ( 1 .. 20 ) {
+        ok( VBoxAdm::SaltedHash::verify_pass( 'pw' . $i, VBoxAdm::SaltedHash::make_pass( 'pw' . $i, 'sha512' ) ), 'Test sha512 #' . $i );
+    }
+}
+
+# Test ssha512
+{
+
+    #is(VBoxAdm::SaltedHash::sha('ssha512'),'','SSHA512');
+    foreach my $i ( 1 .. 20 ) {
+        ok( VBoxAdm::SaltedHash::verify_pass( 'pw' . $i, VBoxAdm::SaltedHash::make_pass( 'pw' . $i, 'ssha512' ) ), 'Test ssha512 #' . $i );
+    }
+}
+
+# Test verify_pass
+{
+    ok( VBoxAdm::SaltedHash::verify_pass( 'ssha256', '{SSHA256}pJBnkoz8dh7xoiQL1eRMYQqnPD190Ni/xVMGwnbcG2sTft+e' ), 'verify pass ssha256' );
+    foreach my $i ( 1 .. 20 ) {
+        ok( VBoxAdm::SaltedHash::verify_pass( 'pw' . $i, VBoxAdm::SaltedHash::make_pass( 'pw' . $i, 'ssha512' ) ), 'Test ssha512 #' . $i );
+    }
+}

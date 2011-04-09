@@ -58,14 +58,15 @@ BINFILES = \
 
 LIBFILES = \
 	lib/VBoxAdm/API.pm \
-	lib/VBoxAdm/API/Alias.pm \
-	lib/VBoxAdm/API/AWL.pm \
-	lib/VBoxAdm/API/Domain.pm \
-	lib/VBoxAdm/API/DomainAlias.pm \
-	lib/VBoxAdm/API/Mailbox.pm \
-	lib/VBoxAdm/API/VacationBlacklist.pm \
+	lib/VBoxAdm/Model/Alias.pm \
+	lib/VBoxAdm/Model/AWL.pm \
+	lib/VBoxAdm/Model/Domain.pm \
+	lib/VBoxAdm/Model/DomainAlias.pm \
+	lib/VBoxAdm/Model/Mailbox.pm \
+	lib/VBoxAdm/Model/User.pm \
+	lib/VBoxAdm/Model/VacationBlacklist.pm \
 	lib/VBoxAdm/DB.pm \
-	lib/VBoxAdm/DovecotPW.pm \
+	lib/VBoxAdm/SaltedHash.pm \
 	lib/VBoxAdm/Frontend.pm \
 	lib/VBoxAdm/SmtpProxy.pm \
 	lib/VBoxAdm/Utils.pm \
@@ -87,15 +88,23 @@ LIBFILES = \
 	lib/VBoxAdm/L10N/zh.pm \
 	lib/VBoxAdm/Mailarchive.pm \
 	lib/VBoxAdm/Migration.pm \
+	lib/VBoxAdm/Model.pm \
 	lib/VBoxAdm/SMTP/Client.pm \
 	lib/VBoxAdm/SMTP/Server.pm
 
 TESTFILES = \
 	t/VBoxAdm/L10N/de.t \
 	t/VBoxAdm/L10N/en.t \
+	t/VBoxAdm/Model/Alias.t \
+	t/VBoxAdm/Model/AWL.t \
+	t/VBoxAdm/Model/Domain.t \
+	t/VBoxAdm/Model/DomainAlias.t \
+	t/VBoxAdm/Model/Mailbox.t \
+	t/VBoxAdm/Model/User.t \
+	t/VBoxAdm/Model/VacationBlacklist.t \
 	t/VBoxAdm/API.t \
 	t/VBoxAdm/DB.t \
-	t/VBoxAdm/DovecotPW.t \
+	t/VBoxAdm/SaltedHash.t \
 	t/VBoxAdm/Frontend.t \
 	t/VBoxAdm/L10N.t \
 	t/VBoxAdm/Mailarchive.t \
@@ -141,7 +150,7 @@ man:
 	mkdir -p doc/man/
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/API.ipm > doc/man/VBoxAdm::API.8
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/DB.ipm > doc/man/VBoxAdm::DB.8
-	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/DovecotPW.ipm > doc/man/VBoxAdm::DovecotPW.8
+	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/SaltedHash.ipm > doc/man/VBoxAdm::SaltedHash.8
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/Frontend.ipm > doc/man/VBoxAdm::Frontend.8
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/Mailarchive.ipm > doc/man/VBoxAdm::Mailarchive.8
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/Migration.ipm > doc/man/VBoxAdm::Migration.8
@@ -164,7 +173,7 @@ real-install: all test man rcvboxadm
 	$(INSTALL) -g www-data -d $(VHDIR)/htdocs/js/libs $(VHDIR)/htdocs/js/mylibs $(VHDIR)/htdocs/js/profiling
 	$(INSTALL_DATA) doc/man/VBoxAdm::API.8 $(MANDIR)/man8/VBoxAdm::API.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::DB.8 $(MANDIR)/man8/VBoxAdm::DB.8
-	$(INSTALL_DATA) doc/man/VBoxAdm::DovecotPW.8 $(MANDIR)/man8/VBoxAdm::DovecotPW.8
+	$(INSTALL_DATA) doc/man/VBoxAdm::SaltedHash.8 $(MANDIR)/man8/VBoxAdm::SaltedHash.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::Frontend.8 $(MANDIR)/man8/VBoxAdm::Frontend.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::Mailarchive.8 $(MANDIR)/man8/VBoxAdm::Mailarchive.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::Migration.8 $(MANDIR)/man8/VBoxAdm::Migration.8
@@ -184,14 +193,14 @@ real-install: all test man rcvboxadm
 	$(INSTALL_PROGRAM) cron/notify.pl $(VBOXLIBDIR)/bin/notify
 	$(INSTALL_PROGRAM) cron/mailarchive.pl $(VBOXLIBDIR)/bin/mailarchive
 	$(INSTALL_DATA) lib/VBoxAdm/API.pm $(LIBDIR)/VBoxAdm/API.pm
-	$(INSTALL_DATA) lib/VBoxAdm/API/Alias.pm $(LIBDIR)/VBoxAdm/API/Alias.pm
-	$(INSTALL_DATA) lib/VBoxAdm/API/AWL.pm $(LIBDIR)/VBoxAdm/API/AWL.pm
-	$(INSTALL_DATA) lib/VBoxAdm/API/Domain.pm $(LIBDIR)/VBoxAdm/API/Domain.pm
-	$(INSTALL_DATA) lib/VBoxAdm/API/DomainAlias.pm $(LIBDIR)/VBoxAdm/API/DomainAlias.pm
-	$(INSTALL_DATA) lib/VBoxAdm/API/Mailbox.pm $(LIBDIR)/VBoxAdm/API/Mailbox.pm
-	$(INSTALL_DATA) lib/VBoxAdm/API/VacationBlacklist.pm $(LIBDIR)/VBoxAdm/API/VacationBlacklist.pm
+	$(INSTALL_DATA) lib/VBoxAdm/Model/Alias.pm $(LIBDIR)/VBoxAdm/Model/Alias.pm
+	$(INSTALL_DATA) lib/VBoxAdm/Model/AWL.pm $(LIBDIR)/VBoxAdm/Model/AWL.pm
+	$(INSTALL_DATA) lib/VBoxAdm/Model/Domain.pm $(LIBDIR)/VBoxAdm/Model/Domain.pm
+	$(INSTALL_DATA) lib/VBoxAdm/Model/DomainAlias.pm $(LIBDIR)/VBoxAdm/Model/DomainAlias.pm
+	$(INSTALL_DATA) lib/VBoxAdm/Model/Mailbox.pm $(LIBDIR)/VBoxAdm/Model/Mailbox.pm
+	$(INSTALL_DATA) lib/VBoxAdm/Model/VacationBlacklist.pm $(LIBDIR)/VBoxAdm/Model/VacationBlacklist.pm
 	$(INSTALL_DATA) lib/VBoxAdm/DB.pm $(LIBDIR)/VBoxAdm/DB.pm
-	$(INSTALL_DATA) lib/VBoxAdm/DovecotPW.pm $(LIBDIR)/VBoxAdm/DovecotPW.pm
+	$(INSTALL_DATA) lib/VBoxAdm/SaltedHash.pm $(LIBDIR)/VBoxAdm/SaltedHash.pm
 	$(INSTALL_DATA) lib/VBoxAdm/Frontend.pm $(LIBDIR)/VBoxAdm/Frontend.pm
 	$(INSTALL_DATA) lib/VBoxAdm/Mailarchive.pm $(LIBDIR)/VBoxAdm/Mailarchive.pm
 	$(INSTALL_DATA) lib/VBoxAdm/Migration.pm $(LIBDIR)/VBoxAdm/Migration.pm
@@ -233,11 +242,12 @@ real-install: all test man rcvboxadm
 
 tidy:
 	$(PERLTIDY) lib/VBoxAdm/*.ipm
-	$(PERLTIDY) lib/VBoxAdm/API/*.ipm
+	$(PERLTIDY) lib/VBoxAdm/Model/*.ipm
 	$(PERLTIDY) lib/VBoxAdm/L10N/*.ipm
 	$(PERLTIDY) lib/VBoxAdm/SMTP/*.ipm
 	$(PERLTIDY) t/VBoxAdm/*.it
 	$(PERLTIDY) t/VBoxAdm/L10N/*.it
+	$(PERLTIDY) t/VBoxAdm/Model/*.it
 	$(PERLTIDY) bin/*.ipl
 	$(PERLTIDY) cgi-bin/*.ipl
 	$(PERLTIDY) cgi-bin/*.ifcgi
@@ -260,9 +270,9 @@ clean:
 	$(RM) -f lib/VBoxAdm/*.bak
 	$(RM) -f lib/VBoxAdm/*.pm.LOG
 	$(RM) -f lib/VBoxAdm/*.pm
-	$(RM) -f lib/VBoxAdm/API/*.bak
-	$(RM) -f lib/VBoxAdm/API/*.pm.LOG
-	$(RM) -f lib/VBoxAdm/API/*.pm
+	$(RM) -f lib/VBoxAdm/Model/*.bak
+	$(RM) -f lib/VBoxAdm/Model/*.pm.LOG
+	$(RM) -f lib/VBoxAdm/Model/*.pm
 	$(RM) -f lib/VBoxAdm/L10N/*.bak
 	$(RM) -f lib/VBoxAdm/L10N/*.pm.LOG
 	$(RM) -f lib/VBoxAdm/L10N/*.pm
@@ -270,6 +280,10 @@ clean:
 	$(RM) -f lib/VBoxAdm/SMTP/*.pm.LOG
 	$(RM) -f lib/VBoxAdm/SMTP/*.pm
 	$(RM) -f contrib/roundcube-plugin-vboxadm.tar.gz
+	$(RM) -f t/VBoxAdm/*.t
+	$(RM) -f t/VBoxAdm/*.bak
+	$(RM) -f t/VBoxAdm/L10N/*.t
+	$(RM) -f t/VBoxAdm/L10N/*.bak
 
 rcvboxadm:
 	cd contrib/roundcube/plugins/ && tar -cvzf ../../roundcube-plugin-vboxadm.tar.gz vboxadm/ && cd ../../../
