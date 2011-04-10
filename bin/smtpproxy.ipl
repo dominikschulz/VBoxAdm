@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-package VBoxAdm::SmtpProxy;
+package VBoxAdm::SMTP::Proxy;
 
 use strict;
 use warnings;
@@ -10,7 +10,7 @@ use 5.9.0;
 use Getopt::Long;
 use Config::Std;
 
-use VBoxAdm::SmtpProxy '@VERSION@';
+use VBoxAdm::SMTP::Proxy '@VERSION@';
 
 my $syntax = "syntax: $0 [--verbose] [--config=<FILE>]\n";
 
@@ -177,7 +177,7 @@ my $server = bless {
         dbdb    => $dbdb,
     },
   },
-  'VBoxAdm::SmtpProxy';
+  'VBoxAdm::SMTP::Proxy';
 
 # Test DB connection before starting server
 if ( $server->db_connect() ) {
@@ -315,7 +315,7 @@ max_requests - Each children will complete this much requests and than exit.
 
 =head1 DEPENDENCIES
 
-VBoxAdm::Utils, VBoxAdm::SmtpProxy, MSDW::SMTP::Client, MSDW::SMTP::Server.
+VBoxAdm::Utils, VBoxAdm::SMTP::Proxy, VBoxAdm::SMTP::Client, VBoxAdm::SMTP::Server.
 
 =head1 INCOMPATIBILITIES
 

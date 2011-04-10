@@ -1,4 +1,4 @@
-package VBoxAdm::SmtpProxy;
+package VBoxAdm::SMTP::Proxy;
 
 use strict;
 use warnings;
@@ -647,16 +647,16 @@ __END__
 
 =head1 NAME
 
-VBoxAdm::SmtpProxy - Spam Filtering SMTP-Proxy for VBoxAdm
+VBoxAdm::SMTP::Proxy - Spam Filtering SMTP-Proxy for VBoxAdm
 
 =head1 VERSION
 
-This documentation refers to VBoxAdm::SmtpProxy version @VERSION@
+This documentation refers to VBoxAdm::SMTP::Proxy version @VERSION@
 built on @BUILDDATE@.
 
 =head1 SYNOPSIS
 
-    use VBoxAdm::SmtpProxy;
+    use VBoxAdm::SMTP::Proxy;
 
 =head1 SCHEMA
 
@@ -752,7 +752,7 @@ max_requests - Each children will complete this much requests and than exit.
 
 =head1 DEPENDENCIES
 
-VBoxAdm::Utils, VBoxAdm::SmtpProxy, VBoxAdm::SMTP::Client, VBoxAdm::SMTP::Server.
+VBoxAdm::Utils, VBoxAdm::SMTP::Proxy, VBoxAdm::SMTP::Client, VBoxAdm::SMTP::Server.
 
 =head1 INCOMPATIBILITIES
 

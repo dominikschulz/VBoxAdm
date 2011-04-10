@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-package VBoxAdm::Mailarchive;
+package VBoxAdm::SMTP::Mailarchive;
 
 use strict;
 use warnings;
@@ -11,7 +11,7 @@ use Getopt::Long;
 use Config::Std;
 use Net::Domain;
 
-use VBoxAdm::Mailarchive '@VERSION@';
+use VBoxAdm::SMTP::Mailarchive '@VERSION@';
 
 my $syntax = "syntax: $0 [--verbose] [--config=<FILE>]\n";
 
@@ -156,7 +156,7 @@ my $server = bless {
         ignore_senderdom_eq_recipientdom => $ignore_senderdom_eq_recipientdom,
     },
   },
-  'VBoxAdm::Mailarchive';
+  'VBoxAdm::SMTP::Mailarchive';
 
 # Test DB connection before starting server
 if ( $server->db_connect() ) {
@@ -242,7 +242,7 @@ TODO
 
 =head1 DEPENDENCIES
 
-Config::Std, Net::Domain, VBoxAdm::Mailarchive, DBI.
+Config::Std, Net::Domain, VBoxAdm::SMTP::Mailarchive, DBI.
 
 =head1 INCOMPATIBILITIES
 

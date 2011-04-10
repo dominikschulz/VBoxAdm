@@ -1,0 +1,4 @@
+use Test::More qw( no_plan );
+use VBoxAdm::SMTP::Mailarchive '@VERSION@';
+
+BEGIN { use_ok( 'VBoxAdm::SMTP::Mailarchive', '@VERSION@' ); }

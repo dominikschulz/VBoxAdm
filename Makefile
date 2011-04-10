@@ -69,7 +69,7 @@ LIBFILES = \
 	lib/VBoxAdm/DB.pm \
 	lib/VBoxAdm/SaltedHash.pm \
 	lib/VBoxAdm/Controller/Frontend.pm \
-	lib/VBoxAdm/SmtpProxy.pm \
+	lib/VBoxAdm/SMTP/Proxy.pm \
 	lib/VBoxAdm/Utils.pm \
 	lib/VBoxAdm/L10N.pm \
 	lib/VBoxAdm/L10N/ar.pm \
@@ -87,7 +87,7 @@ LIBFILES = \
 	lib/VBoxAdm/L10N/pt.pm \
 	lib/VBoxAdm/L10N/ru.pm \
 	lib/VBoxAdm/L10N/zh.pm \
-	lib/VBoxAdm/Mailarchive.pm \
+	lib/VBoxAdm/SMTP/Mailarchive.pm \
 	lib/VBoxAdm/Migration.pm \
 	lib/VBoxAdm/Model.pm \
 	lib/VBoxAdm/SMTP/Client.pm \
@@ -109,8 +109,10 @@ TESTFILES = \
 	t/VBoxAdm/SaltedHash.t \
 	t/VBoxAdm/Controller/Frontend.t \
 	t/VBoxAdm/L10N.t \
-	t/VBoxAdm/Mailarchive.t \
-	t/VBoxAdm/SmtpProxy.t \
+	t/VBoxAdm/SMTP/Mailarchive.t \
+	t/VBoxAdm/SMTP/Proxy.t \
+	t/VBoxAdm/SMTP/Client.t \
+	t/VBoxAdm/SMTP/Server.t \
 	t/VBoxAdm/Migration.t \
 	t/VBoxAdm/Utils.t
 
@@ -154,9 +156,9 @@ man:
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/DB.ipm > doc/man/VBoxAdm::DB.8
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/SaltedHash.ipm > doc/man/VBoxAdm::SaltedHash.8
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/Frontend.ipm > doc/man/VBoxAdm::Frontend.8
-	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/Mailarchive.ipm > doc/man/VBoxAdm::Mailarchive.8
+	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/SMTP::Mailarchive.ipm > doc/man/VBoxAdm::SMTP::Mailarchive.8
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/Migration.ipm > doc/man/VBoxAdm::Migration.8
-	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/SmtpProxy.ipm > doc/man/VBoxAdm::SmtpProxy.8
+	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/SMTP/Proxy.ipm > doc/man/VBoxAdm::SMTP::Proxy.8
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/Utils.ipm > doc/man/VBoxAdm::Utils.8
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/SMTP/Client.ipm > doc/man/VBoxAdm::SMTP::Client.8
 	$(POD2MAN) --center=" " --section=8 --release="vboxadm" lib/VBoxAdm/SMTP/Server.ipm > doc/man/VBoxAdm::SMTP::Server.8
@@ -177,9 +179,9 @@ real-install: all test man rcvboxadm
 	$(INSTALL_DATA) doc/man/VBoxAdm::DB.8 $(MANDIR)/man8/VBoxAdm::DB.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::SaltedHash.8 $(MANDIR)/man8/VBoxAdm::SaltedHash.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::Frontend.8 $(MANDIR)/man8/VBoxAdm::Frontend.8
-	$(INSTALL_DATA) doc/man/VBoxAdm::Mailarchive.8 $(MANDIR)/man8/VBoxAdm::Mailarchive.8
+	$(INSTALL_DATA) doc/man/VBoxAdm::SMTP::Mailarchive.8 $(MANDIR)/man8/VBoxAdm::SMTP::Mailarchive.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::Migration.8 $(MANDIR)/man8/VBoxAdm::Migration.8
-	$(INSTALL_DATA) doc/man/VBoxAdm::SmtpProxy.8 $(MANDIR)/man8/VBoxAdm::SmtpProxy.8
+	$(INSTALL_DATA) doc/man/VBoxAdm::SMTP::Proxy.8 $(MANDIR)/man8/VBoxAdm::SMTP::Proxy.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::Utils.8 $(MANDIR)/man8/VBoxAdm::Utils.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::SMTP::Client.8 $(MANDIR)/man8/VBoxAdm::SMTP::Client.8
 	$(INSTALL_DATA) doc/man/VBoxAdm::SMTP::Server.8 $(MANDIR)/man8/VBoxAdm::SMTP::Server.8
@@ -204,9 +206,9 @@ real-install: all test man rcvboxadm
 	$(INSTALL_DATA) lib/VBoxAdm/DB.pm $(LIBDIR)/VBoxAdm/DB.pm
 	$(INSTALL_DATA) lib/VBoxAdm/SaltedHash.pm $(LIBDIR)/VBoxAdm/SaltedHash.pm
 	$(INSTALL_DATA) lib/VBoxAdm/Controller/Frontend.pm $(LIBDIR)/VBoxAdm/Controller/Frontend.pm
-	$(INSTALL_DATA) lib/VBoxAdm/Mailarchive.pm $(LIBDIR)/VBoxAdm/Mailarchive.pm
+	$(INSTALL_DATA) lib/VBoxAdm/SMTP/Mailarchive.pm $(LIBDIR)/VBoxAdm/SMTP/Mailarchive.pm
 	$(INSTALL_DATA) lib/VBoxAdm/Migration.pm $(LIBDIR)/VBoxAdm/Migration.pm
-	$(INSTALL_DATA) lib/VBoxAdm/SmtpProxy.pm $(LIBDIR)/VBoxAdm/SmtpProxy.pm
+	$(INSTALL_DATA) lib/VBoxAdm/SMTP/Proxy.pm $(LIBDIR)/VBoxAdm/SMTP/Proxy.pm
 	$(INSTALL_DATA) lib/VBoxAdm/Utils.pm $(LIBDIR)/VBoxAdm/Utils.pm
 	$(INSTALL_DATA) lib/VBoxAdm/L10N.pm $(LIBDIR)/VBoxAdm/L10N.pm
 	$(INSTALL_DATA) lib/VBoxAdm/L10N/ar.pm $(LIBDIR)/VBoxAdm/L10N/ar.pm

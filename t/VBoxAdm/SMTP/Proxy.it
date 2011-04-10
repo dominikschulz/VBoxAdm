@@ -1,13 +1,13 @@
 use Test::More qw( no_plan );
-use VBoxAdm::SmtpProxy '@VERSION@';
+use VBoxAdm::SMTP::Proxy '@VERSION@';
 
-BEGIN { use_ok( 'VBoxAdm::SmtpProxy', '@VERSION@' ); }
+BEGIN { use_ok( 'VBoxAdm::SMTP::Proxy', '@VERSION@' ); }
 
 # Test is_spam
 {
 
     # TODO setup mockup objects
-    #my $p = VBoxAdm::SmtpProxy->new();
+    #my $p = VBoxAdm::SMTP::Proxy->new();
     # TODO test spam
     #ok($p->is_spam(),'Is Spam');
     # TODO test ham
