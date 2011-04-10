@@ -23,23 +23,19 @@ use Class::Std;
         my ( $self, $domain, $domain_id ) = @_;
         my $ident = ident $self;
 
-        warn "Not yet implemented!\n";
-
         my $domain_alias = &VBoxAdm::Utils::trim( lc($domain) );
 
         my $msg_loc = '';
         my $msg_en  = '';
         if ( $domain_alias && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain_alias) ) {
-            my $msg = "Invalid syntax. Domain is not RFC822 compliant!";
-            $msg_loc .= $self->maketext($msg);
-            $msg_en  .= $self->maketext_en($msg);
+            $self->msg->push( 'error', "Invalid syntax. Domain is not RFC822 compliant!" );
+            return;
         }
         elsif ( $domain_id && !$self->user->is_superadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get__domain_id() ) {
 
             # if domainadmin, verify that its his domain
-            my $msg = "You are not authorized to modify this domain!";
-            $msg_loc .= $self->maketext($msg);
-            $msg_en  .= $self->maketext_en($msg);
+            $self->msg->push( 'error', "You are not authorized to modify this domain!" );
+            return;
         }
         elsif ( $domain_alias && $domain_id ) {
             my $query       = "SELECT name FROM domains WHERE id = ?";
@@ -48,23 +44,21 @@ use Class::Std;
             $sth->finish();
 
             $query = "INSERT INTO domain_aliases (name,domain_id,is_active) VALUES(?,?,1)";
-            if ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain_alias, $domain_id ) ) {
-                my $msg = "Added domain alias '[_1]' to domain [_2] (#[_3]).";
-                $msg_loc .= $self->maketext( $msg, $domain_alias, $domain_name, $domain_id );
-                $msg_en .= $self->maketext_en( $msg, $domain_alias, $domain_name, $domain_id );
+            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain_alias, $domain_id ) ) {
+                $sth->finish();
+                $self->msg->push( 'information', "Added domain alias '[_1]' to domain [_2] (#[_3]).", $domain_alias, $domain_name, $domain_id );
+                return 1;
             }
             else {
                 $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $domain_alias, $domain_id ) ), $sth->errstr );
-                my $msg = "Failed to add domain alias '[_1]' to domain [_2] (#[_3]). Database Error.";
-                $msg_loc = $self->maketext( $msg, $domain_alias, $domain_name, $domain_id );
-                $msg_en = $self->maketext_en( $msg, $domain_alias, $domain_name, $domain_id );
+                $self->msg->push( 'error', "Failed to add domain alias '[_1]' to domain [_2] (#[_3]). Database Error.",
+                    $domain_alias, $domain_name, $domain_id );
+                return;
             }
-            $sth->finish();
         }
         else {
-            my $msg = "Failed to add domain alias. No domain_alias or target domain given!";
-            $msg_loc .= $self->maketext($msg);
-            $msg_en  .= $self->maketext_en($msg);
+            $self->msg->push( 'error', "Failed to add domain alias. No domain_alias or target domain given!" );
+            return;
         }
 
         return;
@@ -74,13 +68,8 @@ use Class::Std;
         my ( $self, $domain_alias_id ) = @_;
         my $ident = ident $self;
 
-        my $msg_loc = '';
-        my $msg_en  = '';
-
         if ( !$domain_alias_id ) {
-            my $msg = 'Failed to remove domain alias. Missing domain id.';
-            $msg_loc .= $self->maketext($msg);
-            $msg_en  .= $self->maketext_en($msg);
+            $self->msg->push( 'error', 'Failed to remove domain alias. Missing domain id.' );
             return;
         }
         my $query       = "SELECT name FROM domain_aliases WHERE id = ?";
@@ -96,16 +85,13 @@ use Class::Std;
             push( @args, $self->user->get_domain_id() );
         }
         if ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
-            my $msg = "Domain-Alias [_1] (#[_2]) removed.";
-            $msg_loc .= $self->maketext( $msg, $domain_name, $domain_alias_id );
-            $msg_en .= $self->maketext_en( $msg, $domain_name, $domain_alias_id );
+            $self->msg->push( 'information', "Domain-Alias [_1] (#[_2]) removed." );
             return 1;
         }
         else {
             $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            my $msg = "Failed to remove Domain-Alias [_1] (#[_2]). Database error.";
-            $msg_loc = $self->maketext( $msg, $domain_name, $domain_alias_id );
-            $msg_en = $self->maketext_en( $msg, $domain_name, $domain_alias_id );
+            $self->msg->push( 'error', "Failed to remove Domain-Alias [_1] (#[_2]). Database error.", $domain_name, $domain_alias_id );
+            return;
         }
 
         return;
@@ -115,8 +101,6 @@ use Class::Std;
         my ( $self, $domain_alias_id, $params ) = @_;
         my $ident = ident $self;
 
-        my $msg_loc     = '';
-        my $msg_en      = '';
         my $domain_name = '';
         if ($domain_alias_id) {
             my $query = "SELECT name FROM domain_aliases WHERE id = ?";
@@ -139,24 +123,18 @@ use Class::Std;
                 $status_str = 'enabled';
             }
             if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
-                my $msg = "Domain-Alias [_1] (#[_2]) $status_str.";
-                $msg_loc .= $self->maketext( $msg, $domain_name, $domain_alias_id );
-                $msg_en .= $self->maketext_en( $msg, $domain_name, $domain_alias_id );
+                $self->msg->push( 'information', "Domain-Alias [_1] (#[_2]) $status_str.", $domain_name, $domain_alias_id );
             }
             else {
                 $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-                my $msg = "Failed to set Domain-Alias [_1] (#[_2]) [_3]. Database Error.";
-                $msg_loc .= $self->maketext( $msg, $domain_name, $domain_alias_id, $status_str );
-                $msg_en .= $self->maketext_en( $msg, $domain_name, $domain_alias_id, $status_str );
+                $self->msg->push( 'error', "Failed to set Domain-Alias [_1] (#[_2]) [_3]. Database Error.", $domain_name, $domain_alias_id, $status_str );
             }
         }
 
         if ( $params->{'target'} && !$self->user->is_superadmin() && $self->user->is_domainadmin() && $params->{'target'} != $self->user->get_domain_id() ) {
 
             # if domainadmin, verify that its his domain
-            my $msg = "You are not authorized to modify this domain!";
-            $msg_loc .= $self->maketext($msg);
-            $msg_en  .= $self->maketext_en($msg);
+            $self->msg->push( 'error', "You are not authorized to modify the domain [_1]!", $domain_name );
         }
         elsif ( $domain_alias_id && $params->{'target'} ) {
             my $query              = "SELECT name FROM domains WHERE id = ?";
@@ -167,15 +145,13 @@ use Class::Std;
             $query = "UPDATE domain_aliases SET domain_id = ? WHERE id = ?";
 
             if ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $params->{'target'}, $domain_alias_id ) ) {
-                my $msg = "Domain-Alias [_1] (#[_2]) redirected to Domain [_3] (#[_4]).";
-                $msg_loc .= $self->maketext( $msg, $domain_name, $domain_alias_id, $target_domain_name, $params->{'target'} );
-                $msg_en .= $self->maketext_en( $msg, $domain_name, $domain_alias_id, $target_domain_name, $params->{'target'} );
+                $self->msg->push( 'information', "Domain-Alias [_1] (#[_2]) redirected to Domain [_3] (#[_4]).",
+                    $domain_name, $domain_alias_id, $target_domain_name, $params->{'target'} );
             }
             else {
                 $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $params->{'target'}, $domain_alias_id ) ), $sth->errstr );
-                my $msg = "Failed to redirect Domain-Alias [_1] (#[_2]) to Domain [_3] (#[_4]).";
-                $msg_loc .= $self->maketext( $msg, $domain_name, $domain_alias_id, $target_domain_name, $params->{'target'} );
-                $msg_en .= $self->maketext_en( $msg, $domain_name, $domain_alias_id, $target_domain_name, $params->{'target'} );
+                $self->msg->push( 'error', "Failed to redirect Domain-Alias [_1] (#[_2]) to Domain [_3] (#[_4]).",
+                    $domain_name, $domain_alias_id, $target_domain_name, $params->{'target'} );
             }
         }
 

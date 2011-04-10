@@ -5,7 +5,7 @@ use warnings;
 
 use Carp;
 
-use Sys::Syslog;
+# TODO use MessageQueue
 
 use base qw(VBoxAdm::Model);
 use Class::Std;

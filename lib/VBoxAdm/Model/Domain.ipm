@@ -29,38 +29,28 @@ use Class::Std;
 
         $domain = &VBoxAdm::Utils::trim( lc($domain) );
 
-        my $msg_loc = '';
-        my $msg_en  = '';
         if ( $domain && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain) ) {
-            my $msg = 'Invalid syntax. Domain is not RFC822 compliant!';
-            $msg_loc = $self->maketext($msg);
-            $msg_en  = $self->maketext($msg);
-            return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+            $self->msg->push( 'error', 'Invalid syntax. Domain is not RFC822 compliant!' );
+            return;
         }
         elsif ($domain) {
             my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
 
             if ( my $sth = &VBoxAdm::DB::prepexec( $self->sql, $query, $domain ) ) {
-                my $msg = "Domain '[_1]' added";
-                $msg_loc = $self->maketext( $msg, $domain );
-                $msg_en = $self->maketext_en( $msg, $domain );
+                $self->msg->push( 'information', "Domain '[_1]' added", $domain );
                 $sth->finish();
-                return wantarray ? ( 1, $msg_loc, $msg_en ) : 1;
+                return 1;
             }
             else {
                 $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, $domain, $sth->errstr );
-                my $msg = "Failed to add Domain '[_1]'. Database error.";
-                $msg_loc = $self->maketext( $msg, $domain );
-                $msg_en = $self->maketext_en( $msg, $domain );
-                return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+                $self->msg->push( 'error', "Failed to add Domain '[_1]'. Database error.", $domain );
+                return;
             }
 
         }
         else {
-            my $msg = "Failed to add Domain. Insufficient parameters.";
-            $msg_loc = $self->maketext( $msg, $domain );
-            $msg_en = $self->maketext_en( $msg, $domain );
-            return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+            $self->msg->add( 'error', "Failed to add Domain [_1]. Insufficient parameters.", $domain );
+            return;
         }
     }
 
@@ -76,6 +66,8 @@ use Class::Std;
     sub update {
         my ( $self, $domain_id, $params ) = @_;
         my $ident = ident $self;
+
+        my $domain_name = $self->get_name_by_id($domain_id);
 
         my $sql  = "UPDATE domains SET ";
         my @args = ();
@@ -95,19 +87,19 @@ use Class::Std;
             push( @args, $domain_id );
             if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args ) ) {
                 $sth->finish();
-
-                # TODO report success
+                $self->msg->push( 'information', 'Updated Domain [_1].', $domain_name );
                 return 1;
             }
             else {
-
-                # TODO report error
+                $self->msg->push( 'error', 'Failed to update Domain [_1]. Database error.', $domain_name );
                 return;
             }
         }
     }
 
     sub read {
+        my ( $self, $param ) = @_;
+        my $ident = ident $self;
         warn "Not yet implemented!\n";
         return;
     }

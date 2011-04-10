@@ -53,9 +53,6 @@ use Class::Std;
         my ( $self, $entry_id, $params ) = @_;
         my $ident = ident $self;
 
-        my $msg_loc = '';
-        my $msg_en  = '';
-
         my $disabled = $params->{'Disabled'};
 
         if ( $entry_id && defined($disabled) ) {
@@ -69,17 +66,13 @@ use Class::Std;
             if ( my $sth = $self->dbh->prepare($query) ) {
                 if ( $sth->execute( $disabled, $entry_id ) ) {
                     $sth->finish();
-                    my $msg = "Updated entry [_1].";
-                    $msg_loc = $self->maketext( $msg, $entry_id );
-                    $msg_en = $self->maketext_en( $msg, $entry_id );
-                    return wantarray ? ( 1, $msg_loc, $msg_en ) : 1;
+                    $self->msg->push( 'information', "Updated entry [_1].", $entry_id );
+                    return 1;
                 }
             }
             else {
-                my $msg = "Unable to update awl. Database Error.";
-                $msg_loc = $self->maketext($msg);
-                $msg_en  = $self->maketext_en($msg);
-                return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+                $self->msg->push( 'error', "Unable to update awl. Database Error." );
+                return;
             }
         }
     }

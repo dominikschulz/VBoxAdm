@@ -8,6 +8,8 @@ use Sys::Syslog;
 
 use VBoxAdm::SaltedHash '@VERSION@';
 
+# TODO use MessageQueue
+
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
