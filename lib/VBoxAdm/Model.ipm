@@ -17,7 +17,7 @@ use Class::Std;
     my %logger_of : ATTR;
     my %config_of : ATTR;
     my %user_of : ATTR;
-    my %msgq_of : ATTR;    # TODO add and implement a MessageQueue
+    my %msgq_of : ATTR;
 
     sub BUILD {
         my ( $self, $ident, $arg_ref ) = @_;
@@ -31,18 +31,29 @@ use Class::Std;
             return;
         }
 
-        # Setup of Locale::Maketext handles
-        $lh_of{$ident}    = $arg_ref->{'LH'}    if $arg_ref->{'LH'};
-        $lh_en_of{$ident} = $arg_ref->{'LH_EN'} if $arg_ref->{'LH_EN'};
+        if ( $arg_ref->{'Model'} && $arg_ref->{'Model'}->isa('VBoxAdm::Model') ) {
 
-        # Setup Logger
-        $logger_of{$ident} = $arg_ref->{'Logger'} if $arg_ref->{'Logger'};
+            # 'Inherit' from another VBoxAdm::Model class
+            my $ModelClass = $arg_ref->{'Model'};
+            $logger_of{$ident} = $ModelClass->logger();
+            $config_of{$ident} = $ModelClass->config();
+            $user_of{$ident}   = $ModelClass->user();
+            $msgq_of{$ident}   = $ModelClass->msg();
+        }
+        else {
 
-        # Set config
-        $config_of{$ident} = $arg_ref->{'Config'} if $arg_ref->{'Config'};
+            # Setup Logger
+            $logger_of{$ident} = $arg_ref->{'Logger'} if $arg_ref->{'Logger'};
 
-        # Set User object
-        $user_of{$ident} = $arg_ref->{'User'} if $arg_ref->{'User'};
+            # Set config
+            $config_of{$ident} = $arg_ref->{'Config'} if $arg_ref->{'Config'};
+
+            # Set User object
+            $user_of{$ident} = $arg_ref->{'User'} if $arg_ref->{'User'};
+
+            # Set MessageQueue
+            $msgq_of{$ident} = $arg_ref->{'MessageQueue'} if $arg_ref->{'MessageQueue'};
+        }
     }
 
     sub dbh : RESTRICTED {
@@ -67,28 +78,22 @@ use Class::Std;
         return;
     }
 
+    sub logger {
+        my ($self) = @_;
+        my $ident = ident $self;
+        return $logger_of{$ident};
+    }
+
+    sub msg : RESTRICTED {
+        my ($self) = @_;
+        my $ident = ident $self;
+        return $msgq_of{$ident};
+    }
+
     sub user : RESTRICTED {
         my ($self) = @_;
         my $ident = ident $self;
         return $user_of{$ident};
-    }
-
-    sub maketext : RESTRICTED {
-        my ( $self, $msg, @args ) = @_;
-        my $ident = ident $self;
-        if ( $lh_of{$ident} ) {
-            return $lh_of{$ident}->maketext( $msg, @args );
-        }
-        return;
-    }
-
-    sub maketext_en : RESTRICTED {
-        my ( $self, $msg, @args ) = @_;
-        my $ident = ident $self;
-        if ( $lh_en_of{$ident} ) {
-            return $lh_en_of{$ident}->maketext( $msg, @args );
-        }
-        return;
     }
 
     sub DEMOLISH {

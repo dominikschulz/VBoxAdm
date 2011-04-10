@@ -1,7 +1,7 @@
 use Test::More qw( no_plan );
-use VBoxAdm::Frontend '@VERSION@';
+use VBoxAdm::Controller::Frontend '@VERSION@';
 
-BEGIN { use_ok( 'VBoxAdm::Frontend', '@VERSION@' ); }
+BEGIN { use_ok( 'VBoxAdm::Controller::Frontend', '@VERSION@' ); }
 
 # Test is_shell
 {

@@ -1,0 +1,152 @@
+package VBoxAdm::MessageQueue;
+
+use strict;
+use warnings;
+
+use Carp;
+
+our $VERSION = '@VERSION@';
+
+use Class::Std;
+{
+
+    # Attributes
+    my %msgs_of : ATTR;
+    my %lh_of : ATTR;
+    my %lh_en_of : ATTR;
+    my %session_of : ATTR;
+
+    sub BUILD {
+        my ( $self, $ident, $arg_ref ) = @_;
+
+        # Setup of Locale::Maketext handles
+        $lh_of{$ident}    = $arg_ref->{'LH'}    if $arg_ref->{'LH'};
+        $lh_en_of{$ident} = $arg_ref->{'LH_EN'} if $arg_ref->{'LH_EN'};
+
+        # Session
+        $session_of{$ident} = $arg_ref->{'Session'} if $arg_ref->{'Session'};
+    }
+
+    # Alias to push
+    sub add {
+        my ( $self, $severity, $msg, @args ) = @_;
+        return $self->push( $severity, $msg, @args );
+    }
+    ############################################
+    # Usage      : $self->add_message('warning','message');
+    # Purpose    : Add a message to the notification message stack
+    # Returns    : always true
+    # Parameters : the type and the message
+    # Throws     : no exceptions
+    # Comments   : none
+    # See Also   : n/a
+    # add entry to notify
+    sub push {
+        my ( $self, $severity, $msg, @args ) = @_;
+        my $ident = ident $self;
+
+        # TODO use caller() to take reference from whom the msg came
+        my $msg_ref = {
+            'severity' => $severity,
+            'raw'      => $msg,
+            'loc'      => $self->maketext( $msg, @args ),
+            'en'       => $self->maketext_en( $msg, @args ),
+        };
+
+        # Session
+        if ( $session_of{$ident} ) {
+            my $notify_ref = $session_of{$ident}->param('notify') || [];
+            if ( ref($notify_ref) ne 'ARRAY' ) {
+                $notify_ref = [];
+            }
+            push( @{$notify_ref}, $msg_ref );
+            $self->session->param( 'notify', $notify_ref );
+        }
+        else {
+
+            # No Session (CLI, API, ...)
+            push( @{ $msgs_of{$ident} }, $msg_ref );
+        }
+
+        # Done
+        return 1;
+    }
+    ############################################
+    # Usage      : $self->get_messages();
+    # Purpose    : Return all messages from the message stack and remove them
+    # Returns    : a hashref w/ the messages by priority
+    # Parameters : none
+    # Throws     : no exceptions
+    # Comments   : none
+    # See Also   : n/a
+    # get and reset notify
+    sub pop {
+        my ($self) = @_;
+        my $ident  = ident $self;
+        my @msgs   = ();
+        if ( $session_of{$ident} ) {
+            if ( !$session_of{$ident}->is_empty() ) {
+                @msgs = @{ $session_of{$ident}->param('notify') };
+                $session_of{$ident}->param( 'notify', [] );
+            }
+        }
+        else {
+            @msgs = @{ $msgs_of{$ident} };
+            @{ $msgs_of{$ident} } = ();
+        }
+        return @msgs;
+    }
+
+    # Alias to peek
+    sub get {
+        my ($self) = @_;
+        return $self->peek();
+    }
+    ############################################
+    # Usage      : $self->peek_message();
+    # Purpose    : Return the message stack w/o removing the messages
+    # Returns    : a hashref w/ the message by priority
+    # Parameters : none
+    # Throws     : no exceptions
+    # Comments   : none
+    # See Also   : n/a
+    sub peek {
+        my ($self) = @_;
+        my $ident  = ident $self;
+        my @msgs   = ();
+        if ( $session_of{$ident} ) {
+            if ( !$session_of{$ident}->is_empty() ) {
+                @msgs = @{ $session_of{$ident}->param('notify') };
+            }
+        }
+        else {
+            @msgs = @{ $msgs_of{$ident} };
+        }
+        return @msgs;
+    }
+
+    sub maketext : PRIVATE {
+        my ( $self, $msg, @args ) = @_;
+        my $ident = ident $self;
+        if ( $lh_of{$ident} ) {
+            return $lh_of{$ident}->maketext( $msg, @args );
+        }
+        return;
+    }
+
+    sub maketext_en : PRIVATE {
+        my ( $self, $msg, @args ) = @_;
+        my $ident = ident $self;
+        if ( $lh_en_of{$ident} ) {
+            return $lh_en_of{$ident}->maketext( $msg, @args );
+        }
+        return;
+    }
+
+    sub DEMOLISH {
+        my ($self) = @_;
+
+        # NOP
+    }
+}
+1;

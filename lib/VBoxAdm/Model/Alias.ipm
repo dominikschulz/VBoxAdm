@@ -49,66 +49,40 @@ use Class::Std;
         $local_part = &VBoxAdm::Utils::trim( lc($local_part) );
         $goto       = &VBoxAdm::Utils::trim( lc($goto) );
 
-        my $Domain = VBoxAdm::Model::Domain->new(
-            {
-                'dbh'  => $self->dbh,
-                'User' => $self->user,
-            }
-        );
+        my $Domain = VBoxAdm::Model::Domain->new( { 'Model' => $self, } );
         my $domain_name = $Domain->get_name_by_id($domain_id);
-
-        my $msg_loc = '';
-        my $msg_en  = '';
 
         if ( $domain_id && !$self->user->is_superadmin() && $self->user->is_domainadmin && $domain_id != $self->user->get_domain_id() ) {
 
             # if domainadmin, verify that its his domain
-            my $msg = "You are not authorized to modify this domain!";
-            $msg_loc = $self->maketext($msg);
-            $msg_en  = $self->maketext_en($msg);
-            return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+            $self->msg->push( 'error', "You are not authorized to modify this domain!" );
+            return;
         }
         elsif ( $local_part && !&VBoxAdm::Utils::is_valid_localpart_rfc822($local_part) ) {
-            my $msg = "Invalid local part. This address is not RFC822 compliant!";
-            $msg_loc = $self->maketext($msg);
-            $msg_en  = $self->maketext_en($msg);
-            return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+            $self->msg->push( 'error', "Invalid local part. This address is not RFC822 compliant!" );
+            return;
         }
         elsif ( $goto && !&VBoxAdm::Utils::is_valid_addresses_rfc822($goto) ) {
-            my $msg = "Invalid address in destination!";
-            $msg_loc = $self->maketext($msg);
-            $msg_en  = $self->maketext_en($msg);
-            return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+            $self->msg->push( 'error', "Invalid address in destination!" );
+            return;
         }
         elsif ( $local_part && $domain_id && $goto ) {
 
             my $query = "INSERT INTO aliases (domain_id,local_part,goto,is_active) VALUES(?,?,?,1)";
-            my $sth   = $self->dbh->prepare($query)
-              or $self->log( 2, 'show_add_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-            if ( $sth->execute( $domain_id, $local_part, $goto ) ) {
-                my $msg = "Alias [_1] to [_2] added.";
-                $msg_loc = $self->maketext( $msg, "$local_part\@$domain_name", $goto );
-                $msg_en = $self->maketext_en( $msg, "$local_part\@$domain_name", $goto );
-                return wantarray ? ( 1, $msg_loc, $msg_en ) : 1;
+            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain_id, $local_part, $goto ) ) {
+                $sth->finish();
+                $self->msg->push( 'information', "Alias [_1] to [_2] added.", "$local_part\@$domain_name", $goto );
+                return 1;
             }
             else {
-                $self->log(
-                    2, 'show_add_alias - Could not execute Query: %s, Args: %s, Error: %s',
-                    $query, join( "-", ( $domain_id, $local_part, $goto ) ),
-                    $sth->errstr
-                );
-                my $msg = "Failed to add alias [_1] => [_2]. Database Error.";
-                $msg_loc = $self->maketext( $msg, "$local_part\@$domain_name", $goto );
-                $msg_en = $self->maketext_en( $msg, "$local_part\@$domain_name", $goto );
-                return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $domain_id, $local_part, $goto ) ), $sth->errstr );
+                $self->msg->push( 'error', "Failed to add alias [_1] => [_2]. Database Error.", "$local_part\@$domain_name", $goto );
+                return;
             }
-            $sth->finish();
         }
         else {
-            my $msg = "Failed to add alias. Missing local_part, domain_id or target.";
-            $msg_loc = $self->maketext($msg);
-            $msg_en  = $self->maketext_en($msg);
-            return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+            $self->msg->push( 'error', "Failed to add alias. Missing local_part, domain_id or target." );
+            return;
         }
 
         return;
@@ -117,9 +91,6 @@ use Class::Std;
     sub delete {
         my ( $self, $alias_id ) = @_;
         my $ident = ident $self;
-
-        my $msg_en  = '';
-        my $msg_loc = '';
 
         if ( $alias_id && $alias_id =~ m/^\d+$/ ) {
 
@@ -138,27 +109,20 @@ use Class::Std;
                 $query .= "AND domain_id = ?";
                 push( @args, $self->user->get_domain_id() );
             }
-            $sth = $self->dbh->prepare($query)
-              or $self->log( 2, 'show_remove_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-            if ( $sth->execute(@args) ) {
-                my $msg = "Alias [_1] => [_2] (#[_3]) removed.";
-                $msg_loc = $self->maketext( $msg, $alias, $goto, $alias_id );
-                $msg_en = $self->maketext_en( $msg, $alias, $goto, $alias_id );
-                return wantarray ? ( 1, $msg_loc, $msg_en ) : 1;
+            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+                $sth->finish();
+                $self->msg->push( 'information', "Alias [_1] => [_2] (#[_3]) removed.", $alias, $goto, $alias_id );
+                return 1;
             }
             else {
-                $self->log( 2, 'show_remove_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-                my $msg = "Failed to remove Alias [_1] => [_2] (#[_3]). Database Error.";
-                $msg_loc = $self->maketext( $msg, $alias, $goto, $alias_id );
-                $msg_en = $self->maketext_en( $msg, $alias, $goto, $alias_id );
-                return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+                $self->msg->push( 'error', "Failed to remove Alias [_1] => [_2] (#[_3]). Database Error.", $alias, $goto, $alias_id );
+                return;
             }
         }
         else {
-            my $msg = 'Failed to remove alias. Insufficient parameters.';
-            $msg_loc = $self->maketext($msg);
-            $msg_en  = $self->maketext_en($msg);
-            return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+            $self->msg->push( 'error', 'Failed to remove alias. Insufficient parameters.' );
+            return;
         }
         return;
     }
@@ -166,9 +130,6 @@ use Class::Std;
     sub update {
         my ( $self, $alias_id, $params ) = @_;
         my $ident = ident $self;
-
-        my $msg_en  = '';
-        my $msg_loc = '';
 
         my $is_active = $params->{IsActive};
         my $target    = &VBoxAdm::Utils::trim( $params->{Goto} );
@@ -181,9 +142,7 @@ use Class::Std;
             $sth->finish();
         }
         else {
-            my $msg = 'Unable to find alias with id [_1]';
-            $msg_loc .= $self->maketext( $msg, $alias_id );
-            $msg_en .= $self->maketext_en( $msg, $alias_id );
+            $self->msg->push( 'error', 'Unable to find alias with id [_1]', $alias_id );
             return;
         }
 
@@ -204,16 +163,12 @@ use Class::Std;
                 $status_str = 'enabled';
             }
             if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
-                my $msg = "Alias [_1] (#[_2]) [_3].";
-                $msg_loc .= $self->maketext( $msg, $alias_name, $alias_id, $status_str );
-                $msg_en .= $self->maketext_en( $msg, $alias_name, $alias_id, $status_str );
+                $self->msg->push( 'information', "Alias [_1] (#[_2]) [_3].", $alias_name, $alias_id, $status_str );
                 $sth->finish();
             }
             else {
                 $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-                my $msg = "Failed to set Alias [_1] (#[_2]) [_3].";
-                $msg_loc .= $self->maketext( $msg, $alias_name, $alias_id, $status_str );
-                $msg_en .= $self->maketext_en( $msg, $alias_name, $alias_id, $status_str );
+                $self->msg->push( 'error', "Failed to set Alias [_1] (#[_2]) [_3].", $alias_name, $alias_id, $status_str );
             }
         }
 
@@ -223,23 +178,17 @@ use Class::Std;
             $target = join( ",", split( /\s*,\s*/, $target ) );
         }
         if ( $target && !&VBoxAdm::Utils::is_valid_addresses_rfc822($target) ) {
-            my $msg = "Invalid address in destination!";
-            $msg_loc .= $self->maketext($msg);
-            $msg_en  .= $self->maketext_en($msg);
+            $self->msg->push( 'error', "Invalid address in destination!" );
         }
         elsif ( $alias_id && $target ) {
             my $query = "UPDATE aliases SET goto = ? WHERE id = ?";
             if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $target, $alias_id ) ) {
-                my $msg = "Alias [_1] (#[_2]) redirected to [_3].";
-                $msg_loc .= $self->maketext( $msg, $alias_name, $alias_id, $target );
-                $msg_en .= $self->maketext_en( $msg, $alias_name, $alias_id, $target );
+                $self->msg->push( 'error', "Alias [_1] (#[_2]) redirected to [_3].", $alias_name, $alias_id, $target );
                 $sth->finish();
             }
             else {
                 $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $target, $alias_id ) ), $sth->errstr );
-                my $msg = "Failed to redirect Alias [_1] (#[_2]) to [_3].";
-                $msg_loc .= $self->maketext( $msg, $alias_name, $alias_id, $target );
-                $msg_en .= $self->maketext_en( $msg, $alias_name, $alias_id, $target );
+                $self->msg->push( 'error', "Failed to redirect Alias [_1] (#[_2]) to [_3].", $alias_name, $alias_id, $target );
             }
         }
 

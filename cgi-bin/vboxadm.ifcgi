@@ -2,7 +2,7 @@
 use lib qw(../lib);
 
 use CGI::Fast();
-use VBoxAdm::Frontend '@VERSION@';
+use VBoxAdm::Controller::Frontend '@VERSION@';
 
 binmode STDIN,  ":utf8";
 binmode STDOUT, ":utf8";

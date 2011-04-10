@@ -1,4 +1,4 @@
-package VBoxAdm::Frontend;
+package VBoxAdm::Controller::Frontend;
 
 use base 'CGI::Application';
 

@@ -63,11 +63,12 @@ LIBFILES = \
 	lib/VBoxAdm/Model/Domain.pm \
 	lib/VBoxAdm/Model/DomainAlias.pm \
 	lib/VBoxAdm/Model/Mailbox.pm \
+	lib/VBoxAdm/Model/MessageQueue.pm \
 	lib/VBoxAdm/Model/User.pm \
 	lib/VBoxAdm/Model/VacationBlacklist.pm \
 	lib/VBoxAdm/DB.pm \
 	lib/VBoxAdm/SaltedHash.pm \
-	lib/VBoxAdm/Frontend.pm \
+	lib/VBoxAdm/Controller/Frontend.pm \
 	lib/VBoxAdm/SmtpProxy.pm \
 	lib/VBoxAdm/Utils.pm \
 	lib/VBoxAdm/L10N.pm \
@@ -100,12 +101,13 @@ TESTFILES = \
 	t/VBoxAdm/Model/Domain.t \
 	t/VBoxAdm/Model/DomainAlias.t \
 	t/VBoxAdm/Model/Mailbox.t \
+	t/VBoxAdm/Model/MessageQueue.t \
 	t/VBoxAdm/Model/User.t \
 	t/VBoxAdm/Model/VacationBlacklist.t \
 	t/VBoxAdm/API.t \
 	t/VBoxAdm/DB.t \
 	t/VBoxAdm/SaltedHash.t \
-	t/VBoxAdm/Frontend.t \
+	t/VBoxAdm/Controller/Frontend.t \
 	t/VBoxAdm/L10N.t \
 	t/VBoxAdm/Mailarchive.t \
 	t/VBoxAdm/SmtpProxy.t \
@@ -166,7 +168,7 @@ install: clean real-install
 real-install: all test man rcvboxadm
 	$(INSTALL) -d $(BINDIR) $(SBINDIR) $(DESTDIR)/etc
 	$(INSTALL) -d $(CFGDIR)/vboxadm
-	$(INSTALL) -d $(LIBDIR)/VBoxAdm/L10N $(LIBDIR)/VBoxAdm/SMTP $(LIBDIR)/VBoxAdm/API
+	$(INSTALL) -d $(LIBDIR)/VBoxAdm/L10N $(LIBDIR)/VBoxAdm/SMTP $(LIBDIR)/VBoxAdm/Model $(LIBDIR)/VBoxAdm/Controller
 	$(INSTALL) -d $(MANDIR)/man1 $(MANDIR)/man3 $(MANDIR)/man8
 	$(INSTALL) -d $(VBOXLIBDIR)/bin $(VBOXLIBDIR)/tpl
 	$(INSTALL) -g www-data -d $(VHDIR)/cgi-bin $(VHDIR)/htdocs/css $(VHDIR)/htdocs/images/knob
@@ -201,7 +203,7 @@ real-install: all test man rcvboxadm
 	$(INSTALL_DATA) lib/VBoxAdm/Model/VacationBlacklist.pm $(LIBDIR)/VBoxAdm/Model/VacationBlacklist.pm
 	$(INSTALL_DATA) lib/VBoxAdm/DB.pm $(LIBDIR)/VBoxAdm/DB.pm
 	$(INSTALL_DATA) lib/VBoxAdm/SaltedHash.pm $(LIBDIR)/VBoxAdm/SaltedHash.pm
-	$(INSTALL_DATA) lib/VBoxAdm/Frontend.pm $(LIBDIR)/VBoxAdm/Frontend.pm
+	$(INSTALL_DATA) lib/VBoxAdm/Controller/Frontend.pm $(LIBDIR)/VBoxAdm/Controller/Frontend.pm
 	$(INSTALL_DATA) lib/VBoxAdm/Mailarchive.pm $(LIBDIR)/VBoxAdm/Mailarchive.pm
 	$(INSTALL_DATA) lib/VBoxAdm/Migration.pm $(LIBDIR)/VBoxAdm/Migration.pm
 	$(INSTALL_DATA) lib/VBoxAdm/SmtpProxy.pm $(LIBDIR)/VBoxAdm/SmtpProxy.pm
