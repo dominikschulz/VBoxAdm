@@ -8,14 +8,12 @@ use Sys::Syslog;
 
 use VBoxAdm::SaltedHash '@VERSION@';
 
-# TODO use MessageQueue
-
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
 
     # Attributes
-    # none
+    my %fields_of : ATTR;
 
     sub BUILD {
         my ( $self, $ident, $arg_ref ) = @_;
@@ -23,6 +21,14 @@ use Class::Std;
         if ( !$self->user->is_user() ) {
             return;    # Need user object
         }
+
+        $fields_of{$ident} = [
+            qw(
+              id domain_id local_part password name is_active max_msg_size
+              is_on_vacation vacation_subj vacation_msg vacation_start vacation_end
+              quota is_domainadmin is_superadmin sa_active sa_kill_score
+              )
+        ];
     }
 
     sub create {
@@ -31,19 +37,11 @@ use Class::Std;
 
         $local_part = &VBoxAdm::Utils::trim( lc($local_part) );
 
-        my $Domain = VBoxAdm::Model::Domain->new(
-            {
-                'dbh'  => $self->dbh,
-                'User' => $self->user,
-            }
-        );
+        my $Domain = VBoxAdm::Model::Domain->new( { 'Model' => $self, } );
         my $domain_name = $Domain->get_name_by_id($domain_id);
 
         my $system_domain = $self->config->{'default'}{'domain'}   || 'localhost';
         my $pwscheme      = $self->config->{'default'}{'pwscheme'} || 'ssha256';
-
-        my $msg_loc = '';
-        my $msg_en  = '';
 
         my %args = (
             'local_part'     => $local_part,
@@ -86,9 +84,7 @@ use Class::Std;
         # No Passwords given, generate one
         if ( !$params->{'password'} && !$params->{'password_again'} ) {
             $args{'password'} = Crypt::GeneratePassword::word( 8, 16 );
-            my $msg = 'Generated Password: [_1]. ';
-            $msg_loc .= $self->maketext( $msg, $args{'password'} );
-            $msg_en .= $self->maketext_en( $msg, $args{'password'} );
+            $self->msg->push( 'information', 'Generated Password: [_1].', $args{'password'} );
         }
 
         # Passwords given and matching
@@ -100,14 +96,10 @@ use Class::Std;
         if ( $domain_id && !$self->user->is_superadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get_domain_id() ) {
 
             # if domainadmin, verify that its his domain
-            my $msg = "You are not authorized to modify this domain!";
-            $msg_loc .= $self->maketext($msg);
-            $msg_en  .= $self->maketext_en($msg);
+            $self->msg->push( 'error', "You are not authorized to modify this domain!" );
         }
         elsif ( $local_part && !&VBoxAdm::Utils::is_valid_localpart_rfc822($local_part) ) {
-            my $msg = "Invalid local part. This address is not RFC822 compliant!";
-            $msg_loc .= $self->maketext($msg);
-            $msg_en  .= $self->maketext_en($msg);
+            $self->msg->push( 'error', "Invalid local part. This address is not RFC822 compliant!" );
         }
         else {
             $args{'password'} = &VBoxAdm::SaltedHash::make_pass( $args{'password'}, $pwscheme );
@@ -116,9 +108,7 @@ use Class::Std;
             $query .= "?)";
             if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, values %args ) ) {
                 $sth->finish();
-                my $msg = "Added Mailbox [_1] for [_2].";
-                $msg_loc .= $self->maketext( $msg, "$local_part\@$domain_name", $args{'name'} );
-                $msg_en .= $self->maketext_en( $msg, "$local_part\@$domain_name", $args{'name'} );
+                $self->msg->push( 'information', "Added Mailbox [_1] for [_2].", "$local_part\@$domain_name", $args{'name'} );
 
                 # send_welcome_mail
                 my $emsg = '';
@@ -132,12 +122,9 @@ use Class::Std;
             }
             else {
                 $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", (%args) ), $sth->errstr );
-                my $msg = "Failed to add Mailbox [_1] for [_2]. Database Error.";
-                $msg_loc .= $self->maketext( $msg, "$local_part\@$domain_name", $args{'name'} );
-                $msg_en .= $self->maketext_en( $msg, "$local_part\@$domain_name", $args{'name'} );
+                $self->msg->push( 'error', "Failed to add Mailbox [_1] for [_2]. Database Error.", "$local_part\@$domain_name", $args{'name'} );
             }
         }
-
         return;
     }
 
@@ -148,9 +135,7 @@ use Class::Std;
         my $msg_loc = '';
         my $msg_en  = '';
         if ( !$mailbox_id ) {
-            my $msg = "Failed to remove mailbox. Insufficient parameters.";
-            $msg_loc .= $self->maketext($msg);
-            $msg_en  .= $self->maketext_en($msg);
+            $self->msg->push( 'error', "Failed to remove mailbox. Insufficient parameters." );
             return;
         }
         my $query        = "SELECT CONCAT(m.local_part,'\@',d.name) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
@@ -166,15 +151,11 @@ use Class::Std;
             push( @args, $self->get_users_domainid() );
         }
         if ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
-            my $msg = "Mailbox [_1] (#[_2]) removed.";
-            $msg_loc .= $self->maketext( $msg, $mailbox_name, $mailbox_id );
-            $msg_en .= $self->maketext_en( $msg, $mailbox_name, $mailbox_id );
+            $self->msg->push( 'information', "Mailbox [_1] (#[_2]) removed.", $mailbox_name, $mailbox_id );
         }
         else {
             $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            my $msg = "Failed to remove Mailbox [_1] (#[_2]). Database Error.";
-            $msg_loc .= $self->maketext( $msg, $mailbox_name, $mailbox_id );
-            $msg_en .= $self->maketext_en( $msg, $mailbox_name, $mailbox_id );
+            $self->msg->push( 'error', "Failed to remove Mailbox [_1] (#[_2]). Database Error.", $mailbox_name, $mailbox_id );
         }
 
         return 1;
@@ -214,16 +195,12 @@ use Class::Std;
 
                 # Check password length
                 if ( length( $params->{'password'} ) < 8 ) {
-                    my $msg = 'Bad password - Password too short. Need at least 8 characters.';
-                    $msg_loc .= $self->maketext($msg);
-                    $msg_en  .= $self->maketext_en($msg);
+                    $self->msg->push( 'warning', 'Bad password - Password too short. Need at least 8 characters.' );
                 }
 
                 # Check password strength
                 if ( my $str = Data::Password::IsBadPassword( $params->{'password'} ) ) {
-                    my $msg = 'Weak password - [_1].';
-                    $msg_loc .= $self->maketext( $msg, $str );
-                    $msg_en .= $self->maketext_en( $msg, $str );
+                    $self->msg->push( 'warning', 'Weak password - [_1].', $str );
                 }
                 $query .= "password = ?, ";
                 push( @args, VBoxAdm::SaltedHash::make_pass( $params->{'password'}, $pwscheme ) );
@@ -288,12 +265,10 @@ use Class::Std;
             $query .= "sa_kill_score = ?, ";
             push( @args, $params->{'sa_kill_score'} );
             if ( $params->{'sa_kill_score'} > 10 ) {
-                my $msg = 'SpamAssassin kill score probably set too high! Should be below 10.';
-                $msg_loc .= $self->maketext($msg);
-                $msg_en  .= $self->maketext_en($msg);
+                $self->msg->push( 'warning', 'SpamAssassin kill score probably set too high! Should be below 10.' );
             }
             elsif ( $params->{'sa_kill_score'} < 5 ) {
-                $self->add_message( 'warning', $self->{lh}->maketext('SpamAssassin kill score probably set too low! Should be above 5.') );
+                $self->msg->push( 'warning', 'SpamAssassin kill score probably set too low! Should be above 5.' );
             }
         }
 
@@ -323,27 +298,21 @@ use Class::Std;
                     $params->{'is_on_vacation'} = 1;
                 }
                 else {
-                    my $msg = 'Attempt to enable Vacation w/o vacation message or subject denied!';
-                    $msg_loc = $self->maketext($msg);
-                    $msg_en  = $self->maketext_en($msg);
+                    $self->msg->push( 'warning', 'Attempt to enable Vacation w/o vacation message or subject denied!' );
                 }
                 if ( $params->{'vacation_start'} && $params->{'vacation_start'} =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
                     $params->{'vacation_start'} = "$3-$2-$1";
                 }
                 else {
                     $params->{'vacation_start'} = '0000-00-00';
-                    my $msg = 'Invalid vacation start date!';
-                    $msg_loc = $self->maketext($msg);
-                    $msg_en  = $self->maketext_en($msg);
+                    $self->msg->push( 'error', 'Invalid vacation start date!' );
                 }
                 if ( $params->{'vacation_end'} && $params->{'vacation_end'} =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
                     $params->{'vacation_end'} = "$3-$2-$1";
                 }
                 else {
                     $params->{'vacation_end'} = '0000-00-00';
-                    my $msg = 'Invalid vacation end date!';
-                    $msg_loc = $self->maketext($msg);
-                    $msg_en  = $self->maketext_en($msg);
+                    $self->msg->push( 'error', 'Invalid vacation end date!' );
                 }
                 $query .= "is_on_vacation = ?, vacation_msg = ?, vacation_subj = ?, vacation_start = ?, vacation_end = ? ";
                 push( @args, $params->{'is_on_vacation'} );
@@ -376,21 +345,15 @@ use Class::Std;
                 push( @args, $self->get_users_domainid() );
             }
             if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
-                my $msg = "Updated Mailbox [_1] (#[_2]).";
-                $msg_loc .= $self->maketext( $msg, $mailbox_name, $mailbox_id );
-                $msg_en .= $self->maketext_en( $msg, $mailbox_name, $mailbox_id );
+                $self->msg->push( 'information', "Updated Mailbox [_1] (#[_2]).", $mailbox_name, $mailbox_id );
             }
             else {
                 $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-                my $msg = "Failed to update Mailbox [_1] (#[_2]). Database Error.";
-                $msg_loc .= $self->maketext( $msg, $mailbox_name, $mailbox_id );
-                $msg_en .= $self->maketext_en( $msg, $mailbox_name, $mailbox_id );
+                $self->msg->push( 'error', "Failed to update Mailbox [_1] (#[_2]). Database Error.", $mailbox_name, $mailbox_id );
             }
         }
         else {
-            my $msg = "No Parameter changed.";
-            $msg_loc = $self->maketext($msg);
-            $msg_en  = $self->maketext_en($msg);
+            $self->msg->push( 'warning', 'No Parameter changed.' );
         }
 
         return;
@@ -400,15 +363,10 @@ use Class::Std;
         my ( $self, $mailbox_id ) = @_;
         my $ident = ident $self;
 
-        my @fields = qw(
-          id domain_id local_part password name is_active max_msg_size
-          is_on_vacation vacation_subj vacation_msg vacation_start vacation_end
-          quota is_domainadmin is_superadmin sa_active sa_kill_score
-        );
-        my $sql = "SELECT " . join( ",", @fields ) . " FROM mailboxes WHERE id = ?";
+        my $sql = "SELECT " . join( ",", @{ $fields_of{$ident} } ) . " FROM mailboxes WHERE id = ?";
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $mailbox_id );
         my %result;
-        @result{@fields} = $sth->fetchrow_array();
+        @result{ @{ $fields_of{$ident} } } = $sth->fetchrow_array();
         $sth->finish();
         return \%result;
     }
@@ -417,13 +375,9 @@ use Class::Std;
         my ( $self, $param ) = @_;
         my $ident = ident $self;
 
-        my @fields = qw(
-          id domain_id local_part password name is_active max_msg_size
-          is_on_vacation vacation_subj vacation_msg vacation_start vacation_end
-          quota is_domainadmin is_superadmin sa_active sa_kill_score
-        );
-        my $sql = "SELECT m." . join( ",m.", @fields ) . ",d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE 1";
-        my @args = ();
+        my @fields = @{ $fields_of{$ident} };
+        my $sql    = "SELECT m." . join( ",m.", @fields ) . ",d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE 1";
+        my @args   = ();
         if ( $param->{'Search'} ) {
             $sql .= " AND local_part LIKE ? OR domain LIKE ? OR name LIKE ?";
             my $term = $param->{'Search'};
@@ -446,12 +400,39 @@ use Class::Std;
         push( @fields, 'domain' );
         while ( my @row = $sth->fetchrow_array() ) {
             my %h;
-            @h{@fields} = @row;
+            @h{ @{@fields} } = @row;
             push( @entries, \%h );
         }
         $sth->finish();
 
         return @entries;
+    }
+
+    sub get_email {
+        my ( $self, $id ) = @_;
+        my $ident = ident $self;
+        my $query = "SELECT m.local_part,d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
+        my $sth   = &VBoxAdm::DB::prepexec( $self->dbh, $query, $id );
+        my ( $local_part, $domain ) = $sth->fetchrow_array();
+        $sth->finish();
+        return wantarray ? ( $local_part, $domain ) : $local_part . '@' . $domain;
+    }
+
+    sub get_id {
+        my ( $self, $email ) = @_;
+        my $ident = ident $self;
+
+        if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+            return;
+        }
+
+        my ( $local_part, $domain ) = split /@/, $email;
+
+        my $query = "SELECT m.id FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
+        my $sth   = &VBoxAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain );
+        my $id    = $sth->fetchrow_array();
+        $sth->finish();
+        return $id;
     }
 }
 1;

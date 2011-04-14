@@ -15,8 +15,6 @@ use Class::Std;
     # Attributes
     # none
 
-    # TODO add sql helper to base class!
-
     sub BUILD {
         my ( $self, $ident, $arg_ref ) = @_;
 

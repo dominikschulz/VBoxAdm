@@ -9,7 +9,7 @@ use Class::Std;
 {
 
     # Attributes
-    # none
+    my %fields_of : ATTR;
 
     sub BUILD {
         my ( $self, $ident, $arg_ref ) = @_;
@@ -17,6 +17,8 @@ use Class::Std;
         if ( !$self->user->is_user() ) {
             return;    # Need user object
         }
+
+        $fields_of{$ident} = [qw(id name domain_id is_active)];
     }
 
     sub create {
@@ -25,8 +27,6 @@ use Class::Std;
 
         my $domain_alias = &VBoxAdm::Utils::trim( lc($domain) );
 
-        my $msg_loc = '';
-        my $msg_en  = '';
         if ( $domain_alias && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain_alias) ) {
             $self->msg->push( 'error', "Invalid syntax. Domain is not RFC822 compliant!" );
             return;
@@ -101,22 +101,16 @@ use Class::Std;
         my ( $self, $domain_alias_id, $params ) = @_;
         my $ident = ident $self;
 
-        my $domain_name = '';
-        if ($domain_alias_id) {
-            my $query = "SELECT name FROM domain_aliases WHERE id = ?";
-            my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain_alias_id );
-            $domain_name = $sth->fetchrow_array();
-            $sth->finish();
-        }
+        my $domain_name = $self->get_name($domain_alias_id) if $domain_alias_id;
 
         if ( $domain_alias_id && defined( $params->{'is_active'} ) ) {
             my $query = "UPDATE domain_aliases SET is_active = ? WHERE id = ?";
             my @args  = ();
             push( @args, $params->{'is_active'} );
             push( @args, $domain_alias_id );
-            if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+            if ( !$self->user->is_superadmin() && $self->user->is_domainadmin() ) {
                 $query .= "AND domain_id = ?";
-                push( @args, $self->get_users_domainid() );
+                push( @args, $self->user->get_domain_id() );
             }
             my $status_str = 'disabled';
             if ( $params->{'is_active'} ) {
@@ -159,19 +153,37 @@ use Class::Std;
     }
 
     sub read {
-        my ( $self, $domain_alias_id, $params ) = @_;
+        my ( $self, $id ) = @_;
         my $ident = ident $self;
 
-        warn "Not yet implemented!\n";
-        return;
+        return $self->_read( 'domain_aliases', $id, $fields_of{$ident} );
     }
 
     sub list {
         my ( $self, $params ) = @_;
         my $ident = ident $self;
 
-        warn "Not yet implemented!\n";
-        return;
+        return $self->_list( 'domain_aliases', $fields_of{$ident}, $params );
+    }
+
+    sub get_name {
+        my ( $self, $id ) = @_;
+        my $ident       = ident $self;
+        my $query       = "SELECT name FROM domain_aliases WHERE id = ?";
+        my $sth         = &VBoxAdm::DB::prepexec( $self->dbh, $query, $id );
+        my $domain_name = $sth->fetchrow_array();
+        $sth->finish();
+        return $domain_name;
+    }
+
+    sub get_id {
+        my ( $self, $name ) = @_;
+        my $ident     = ident $self;
+        my $query     = "SELECT id FROM domain_aliases WHERE name = ?";
+        my $sth       = &VBoxAdm::DB::prepexec( $self->dbh, $query, $name );
+        my $domain_id = $sth->fetchrow_array();
+        $sth->finish();
+        return $domain_id;
     }
 }
 1;

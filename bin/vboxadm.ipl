@@ -15,6 +15,8 @@ use Net::SMTP;
 use Net::POP3;
 use Net::IMAP::Client;
 
+# TODO use Sys::Syslog
+
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::Migration '@VERSION@';
@@ -24,6 +26,7 @@ use VBoxAdm::Model::AWL '@VERSION@';
 use VBoxAdm::Model::Domain '@VERSION@';
 use VBoxAdm::Model::DomainAlias '@VERSION@';
 use VBoxAdm::Model::Mailbox '@VERSION@';
+use VBoxAdm::Model::User '@VERSION@';
 use VBoxAdm::Model::VacationBlacklist '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
 
@@ -140,18 +143,29 @@ if ( !$dbh ) {
 # Authentication
 #
 # if user != root -> need to login as domainadmin
-if ( $EFFECTIVE_USER_ID != 0 ) {
-    if ( !&check_login( $dbh, \%config, $opts ) ) {
-        print "Not authorized. Aborting.\n";
-        exit 1;
-    }
+my $User = &check_login( $dbh, \%config, $opts );
+if ( !$User ) {
+    print "Not authorized. Aborting.\n";
+    exit 1;
 }
 
 #
 # Localization
 #
-$opts->{Lh}    = VBoxAdm::L10N->get_handle();
-$opts->{Lh_EN} = VBoxAdm::L10N->get_handle('en');
+$opts->{LH}    = VBoxAdm::L10N->get_handle();
+$opts->{LH_EN} = VBoxAdm::L10N->get_handle('en');
+
+# for MessageQueue: LH, LH_EN
+my $Messages = VBoxAdm::Model::MessageQueue->new($opts);
+
+# Requried Args:
+# for Model: Logger, Config, User, MessageQueue
+# TODO set Logger = syslog
+$opts->{Config}       = \%config;
+$opts->{User}         = $User;
+$opts->{MessageQueue} = $Messages;
+
+# TODO retrieve messages from queue!
 
 #
 # Action Dispatching
@@ -215,6 +229,8 @@ sub handle_user {
     local $opts->{IsSuperadmin}    = $config->{'is_superadmin'}    || undef;
     local $opts->{SAActive}        = $config->{'sa_active'}        || undef;
     local $opts->{SAKillScore}     = $config->{'sa_kill_score'}    || undef;
+
+    my $Mailbox = VBoxAdm::Model::Mailbox->new($opts);
 
     if ( $modes->[1] eq 'add' ) {
         &VBoxAdm::Model::Mailbox::create( $dbh, $modes->[2], $opts );
@@ -455,21 +471,22 @@ sub check_login {
         print "Invalid email address given.\n" unless $config->{'quiet'};
         return;
     }
-    my ( $local_part, $domain ) = split /@/, $user_config{'auth'}{'username'};
-    my $sql = "SELECT m.password,m.is_superadmin FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql, $local_part, $domain );
-    my ( $pw, $is_sa ) = $sth->fetchrow_array();
-    $sth->finish();
-    if ( !$is_sa ) {
+    my $User = VBoxAdm::Model::User->new(
+        {
+            'Username' => $user_config{'auth'}{'username'},
+            'Password' => $user_config{'auth'}{'password'},
+        }
+    );
+    if ( !$User ) {
+        print "Login invalid!\n";
+        return;
+    }
+    if ( !$User->is_siteadmin() ) {
         print "You are no siteadmin!\n";
         return;
     }
-    if ( !&VBoxAdm::SaltedHash::verify_pass( $user_config{'auth'}{'password'}, $pw ) ) {
-        print "Password invalid!\n";
-        return;
-    }
     print "Authorized as site-admin " . $user_config{'auth'}{'username'} . "\n" unless $config->{'quiet'};
-    return 1;
+    return $User;
 }
 
 sub setup {

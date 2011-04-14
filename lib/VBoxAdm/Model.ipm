@@ -101,5 +101,68 @@ use Class::Std;
 
         # NOP
     }
+
+    sub _read : RESTRICTED {
+        my ( $self, $table, $id, $fields ) = @_;
+        my $ident = ident $self;
+
+        my $sql = "SELECT " . join( ",", @{$fields} ) . " FROM $table WHERE id = ?";
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $id );
+        my %result;
+        @result{ @{$fields} } = $sth->fetchrow_array();
+        $sth->finish();
+        return \%result;
+    }
+
+    sub _list : RESTRICTED {
+        my ( $self, $table, $fields, $param ) = @_;
+        my $ident = ident $self;
+
+        my $sql = 'SELECT ' . join( ',', @{$fields} ) . ' FROM `' . $table . '` WHERE 1';
+        my @args = ();
+        if ( $param->{'Search'} ) {
+            $sql .= " AND (";
+            my $term = $param->{'Search'};
+            $term =~ s/[*%]+//g;
+            $term = '%' . $term . '%';
+            my $first = 1;
+            foreach my $field ( @{$fields} ) {
+                $sql .= " OR" unless $first;
+                $first = 0;
+                $sql .= ' ' . $field . ' LIKE ?';
+                push( @args, $term );
+            }
+            $sql .= ")";
+        }
+        foreach my $field ( @{$fields} ) {
+            if ( $param->{$field} ) {
+                $sql .= ' AND `' . $field . '` = ?';
+                push( @args, $param->{$field} );
+            }
+        }
+
+        # grep { $_ eq $var } @fields is equiv. to in_array(@array,$subject)
+        if ( $param->{'Order'} && grep { $_ eq $param->{'Order'} } @{$fields} ) {
+            $sql .= ' ORDER BY ' . $param->{'Order'};
+        }
+
+        # limit clause can be either a single integer (length) or two comma separated integers (for start and length)
+        if ( $param->{'Limit'} && $param->{'Limit'} =~ m/^\d+(?:,\d+)?$/ ) {
+            $sql .= ' LIMIT ' . $param->{'Limit'};
+        }
+
+        my $sth = $self->dbh->prepare($sql);
+        $sth->execute(@args);
+        my @entries = ();
+
+        while ( my @row = $sth->fetchrow_array() ) {
+            my %h;
+            @h{ @{$fields} } = @row;
+            push( @entries, \%h );
+        }
+        $sth->finish();
+
+        return @entries;
+    }
 }
 1;

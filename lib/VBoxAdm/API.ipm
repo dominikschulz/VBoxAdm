@@ -9,6 +9,58 @@ use Carp;
 
 our $VERSION = '@VERSION@';
 
-# TODO create an API for manipulating the DB
+# TODO implement the web-accessible API here
 1;
 __END__
+sub show_api {
+    my $self = shift;
+
+    # TODO implement the API here
+    # Warning: every method accessible through
+    # the API must be protected on its own since the api runmode
+    # is public.
+
+    # TODO as a first step allow the vacation responder to be
+    # set via the API
+
+    # ?rm=api&version=1&action=update_mailbox&vacation_start=x&vacation_end=y&apikey=DEADBEEF
+    # apikey really is sha256(querystring w/o apikey + secret apikey)
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $api_version = $q->param('version');
+
+    my $str = "API\n";
+    $str .= "Version: $api_version\n";
+
+    if ( $api_version == 1 ) {
+
+        #&VBoxAdm::API::handle_v1($self);    # TODO move to VBoxAdm::API
+        my $action = $q->param('action');
+        my $apikey = $q->param('apikey');    # TODO verfiy API key
+        if ( !$action ) {
+            $self->header_add( -status => 400 );
+            return $str;
+        }
+        if ( $action eq 'update_mailbox' ) {
+            my $vacation_start = $q->param('vacation_start');
+            my $vacation_end   = $q->param('vacation_end');
+
+            # TODO add other opts here
+            my $local_part = $q->param('local_part');
+            my $domain     = $q->param('domain');
+            &VBoxAdm::API::mailbox_update(
+                'local_part'     => $local_part,
+                'domain'         => $domain,
+                'vacation_start' => $vacation_start,
+                'vacation_end'   => $vacation_end,
+            ) or $self->header_add( -status => 400 );
+        }
+    }
+    else {
+        $self->header_add( -status => 400 );
+    }
+
+    return $str;
+}

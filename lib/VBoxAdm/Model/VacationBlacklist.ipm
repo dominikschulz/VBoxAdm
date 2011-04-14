@@ -5,14 +5,15 @@ use warnings;
 
 use Carp;
 
-# TODO use MessageQueue
+use VBoxAdm::DB '@VERSION@';
+use VBoxAdm::Utils '@VERSION@';
 
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
 
     # Attributes
-    # none
+    my %fields_of : ATTR;
 
     sub BUILD {
         my ( $self, $ident, $arg_ref ) = @_;
@@ -20,53 +21,54 @@ use Class::Std;
         if ( !$self->user->is_user() ) {
             return;    # Need user object
         }
+
+        $fields_of{$ident} = [qw(id local_part domain)];
     }
 
     sub create {
         my ( $self, $email ) = @_;
         my $ident = ident $self;
 
-        my $msg_loc = '';
-        my $msg_en  = '';
-
         if ( $email && &VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
             my $query = "INSERT INTO vacation_blacklist (local_part,domain) VALUES(?,?)";
-            my $sth   = $self->dbh->prepare($query)
-              or $self->log( 'Could not prepare Query: %s, Error: %s', $query, $self->dbh->errstr );
             my ( $local_part, $domain ) = split /@/, $email;
-            if ( $sth->execute( $local_part, $domain ) ) {
+            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain ) ) {
                 $sth->finish();
-                my $msg = "Added Vacation Blacklist Entry [_1].";
-                $msg_loc .= $self->maketext( $msg, $email );
-                $msg_en .= $self->maketext_en( $msg, $email );
-                return wantarray ? ( 1, $msg_loc, $msg_en ) : 1;
+                $self->msg->push( 'information', "Added Vacation Blacklist Entry [_1].", $email );
+                return 1;
             }
             else {
                 $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $local_part, $domain ) ), $sth->errstr );
-                my $msg = "Failed to add Vacation Blacklist Entry [_1]. Database Error.";
-                $msg_loc .= $self->maketext( $msg, $email );
-                $msg_en .= $self->maketext_en( $msg, $email );
-                return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+                $self->msg->push( 'error', "Failed to add Vacation Blacklist Entry [_1]. Database Error.", $email );
+                return;
             }
         }
         else {
-            my $msg = 'Invalid email given. Please provide a valid RFC822 email address.';
-            $msg_loc .= $self->maketext( $msg, $email );
-            $msg_en .= $self->maketext_en( $msg, $email );
-            return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+            $self->msg->push( 'error', 'Invalid email address given. Please provide a valid RFC822 email address.' );
+            return;
         }
 
         return;
     }
 
-    sub delete {
+    sub get_id {
         my ( $self, $email ) = @_;
-        my $ident    = ident $self;
-        my $entry_id = $self->get_id($email);
-        return $self->delete_wid($entry_id);
+        my $ident = ident $self;
+
+        if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+            return;
+        }
+
+        my ( $local_part, $domain ) = split /@/, $email;
+
+        my $sql = "SELECT id FROM vacation_blacklist WHERE local_part = ? AND domain = ?";
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $local_part, $domain );
+        my $id  = $sth->fetchrow_array();
+        $sth->finish();
+        return $id;
     }
 
-    sub delete_wid {
+    sub delete {
         my ( $self, $entry_id ) = @_;
         my $ident = ident $self;
 
@@ -85,24 +87,18 @@ use Class::Std;
               or $self->log( 'Could not prepare Query: %s, Error: %s', $query, $self->dbh->errstr );
             if ( $sth->execute($entry_id) ) {
                 $sth->finish();
-                my $msg = "Delete Vacation Blacklist Entry [_1].";
-                $msg_loc .= $self->maketext( $msg, $email );
-                $msg_en .= $self->maketext_en( $msg, $email );
-                return wantarray ? ( 1, $msg_loc, $msg_en ) : 1;
+                $self->msg->push( 'information', "Deleted Vacation Blacklist Entry [_1].", $email );
+                return 1;
             }
             else {
                 $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, $entry_id, $sth->errstr );
-                my $msg = "Failed to remove Vacation Blacklist Entry [_1]. Database Error.";
-                $msg_loc .= $self->maketext( $msg, $email );
-                $msg_en .= $self->maketext_en( $msg, $email );
-                return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+                $self->msg->push( 'error', "Failed to remove Vacation Blacklist Entry [_1]. Database Error.", $email );
+                return;
             }
         }
         else {
-            my $msg = 'Invalid id given. Please provide a valid id.';
-            $msg_loc .= $self->maketext($msg);
-            $msg_en  .= $self->maketext_en($msg);
-            return wantarray ? ( 0, $msg_loc, $msg_en ) : 0;
+            $self->msg->push( 'error', 'Invalid id given. Please provide a valid id.' );
+            return;
         }
 
         return;
@@ -113,44 +109,17 @@ use Class::Std;
     }
 
     sub read {
-        my ( $self, $email ) = @_;
+        my ( $self, $id ) = @_;
         my $ident = ident $self;
 
-        warn "Not yet implemented!\n";
-
-        return;
+        return $self->_read( 'vacation_blacklist', $id, $fields_of{$ident} );
     }
 
     sub list {
-        my ( $self, $param ) = @_;
+        my ( $self, $params ) = @_;
         my $ident = ident $self;
 
-        my $sql  = "SELECT id,local_part,domain FROM vacation_blacklist";
-        my @args = ();
-        if ( $param->{'Search'} ) {
-            $sql .= " WHERE local_part LIKE ? OR domain LIKE ?";
-            my $term = $param->{'Search'};
-            $term =~ s/[*%]+//g;
-            $term = '%' . $term . '%';
-            push( @args, $term );
-            push( @args, $term );
-        }
-
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
-        my @entries = ();
-        while ( my ( $id, $local_part, $domain ) = $sth->fetchrow_array() ) {
-            push(
-                @entries,
-                {
-                    'id'         => $id,
-                    'local_part' => $local_part,
-                    'domain'     => $domain,
-                }
-            );
-        }
-        $sth->finish();
-
-        return @entries;
+        return $self->_list( 'vacation_blacklist', $fields_of{$ident}, $params );
     }
 }
 1;

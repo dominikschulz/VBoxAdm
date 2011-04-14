@@ -8,12 +8,13 @@ use Carp;
 use Sys::Syslog;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
+
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
 
     # Attributes
-    # none
+    my %fields_of : ATTR;
 
     sub BUILD {
         my ( $self, $ident, $arg_ref ) = @_;
@@ -21,6 +22,8 @@ use Class::Std;
         if ( !$self->user->is_user() ) {
             return;    # Need user object
         }
+
+        $fields_of{$ident} = [qw(id name is_active)];
     }
 
     sub create {
@@ -98,43 +101,20 @@ use Class::Std;
     }
 
     sub read {
-        my ( $self, $param ) = @_;
+        my ( $self, $id ) = @_;
         my $ident = ident $self;
-        warn "Not yet implemented!\n";
-        return;
+
+        return $self->_read( 'domains', $id, $fields_of{$ident} );
     }
 
     sub list {
-        my ( $self, $param ) = @_;
+        my ( $self, $params ) = @_;
         my $ident = ident $self;
 
-        my @fields = qw(
-          id name is_active
-        );
-        my $sql = "SELECT " . join( ",", @fields ) . " FROM domains WHERE 1";
-        my @args = ();
-        if ( $param->{'Search'} ) {
-            $sql .= " AND name LIKE ?";
-            my $term = $param->{'Search'};
-            $term =~ s/[*%]+//g;
-            $term = '%' . $term . '%';
-            push( @args, $term );
-        }
-
-        my $sth = $self->dbh->prepare($sql);
-        $sth->execute(@args);
-        my @entries = ();
-        while ( my @row = $sth->fetchrow_array() ) {
-            my %h;
-            @h{@fields} = @row;
-            push( @entries, \%h );
-        }
-        $sth->finish();
-
-        return @entries;
+        return $self->_list( 'domains', $fields_of{$ident}, $params );
     }
 
-    sub get_name_by_id {
+    sub get_name {
         my ( $self, $id ) = @_;
         my $ident       = ident $self;
         my $query       = "SELECT name FROM domains WHERE id = ?";
@@ -144,7 +124,7 @@ use Class::Std;
         return $domain_name;
     }
 
-    sub get_id_by_name {
+    sub get_id {
         my ( $self, $name ) = @_;
         my $ident     = ident $self;
         my $query     = "SELECT id FROM domains WHERE name = ?";

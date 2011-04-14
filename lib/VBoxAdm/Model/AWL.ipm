@@ -13,7 +13,7 @@ use Class::Std;
 {
 
     # Attributes
-    # none
+    my %fields_of : ATTR;
 
     sub BUILD {
         my ( $self, $ident, $arg_ref ) = @_;
@@ -21,6 +21,8 @@ use Class::Std;
         if ( !$self->user->is_user() ) {
             return;    # Need user object
         }
+
+        $fields_of{$ident} = [qw(id email last_seen disabled)];
     }
 
     sub create {
@@ -84,16 +86,18 @@ use Class::Std;
         die("There will be no AWL::delete - ever.");
     }
 
-    sub list {
+    sub read {
+        my ( $self, $id ) = @_;
+        my $ident = ident $self;
 
-        # TODO implement
-        return;
+        return $self->_read( 'awl', $id, $fields_of{$ident} );
     }
 
-    sub read {
+    sub list {
+        my ( $self, $params ) = @_;
+        my $ident = ident $self;
 
-        # TODO implement
-        return;
+        return $self->_list( 'awl', $fields_of{$ident}, $params );
     }
 }
 1;
