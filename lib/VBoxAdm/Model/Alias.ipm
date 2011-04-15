@@ -18,7 +18,7 @@ use Class::Std;
     sub BUILD {
         my ( $self, $ident, $arg_ref ) = @_;
 
-        if ( !$self->user->is_user() ) {
+        if ( !$self->user || !$self->user->is_user() ) {
             return;    # Need user object
         }
     }
@@ -225,11 +225,11 @@ use Class::Std;
             push(
                 @results,
                 {
-                    'id'          => $id,
-                    'local_part'  => $local_part,
-                    'domain_name' => $domain_name,
-                    'goto'        => $goto,
-                    'is_active'   => $is_active,
+                    'id'         => $id,
+                    'local_part' => $local_part,
+                    'domain'     => $domain_name,
+                    'goto'       => $goto,
+                    'is_active'  => $is_active,
                 }
             );
         }

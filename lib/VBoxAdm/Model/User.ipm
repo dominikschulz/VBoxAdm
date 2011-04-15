@@ -17,7 +17,7 @@ use Class::Std;
 
     sub BUILD {
         my ( $self, $ident, $arg_ref ) = @_;
-        if ( !$self->check_login( $arg_ref->{'Username'}, $arg_ref->{'Password'} ) ) {
+        if ( !$self->dbh || !$self->dbh->ping() || !$self->check_login( $arg_ref->{'Username'}, $arg_ref->{'Password'} ) ) {
             return;
         }
     }

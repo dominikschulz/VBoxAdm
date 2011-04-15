@@ -1,4 +1,4 @@
-package VBoxAdm::API::Mailbox;
+package VBoxAdm::Model::Mailbox;
 
 use strict;
 use warnings;
@@ -18,8 +18,8 @@ use Class::Std;
     sub BUILD {
         my ( $self, $ident, $arg_ref ) = @_;
 
-        if ( !$self->user->is_user() ) {
-            return;    # Need user object
+        if ( !$self->user || !$self->user->is_user() ) {
+            die("Need user object in VBoxAdm::Model::Mailbox->new");
         }
 
         $fields_of{$ident} = [
@@ -38,7 +38,7 @@ use Class::Std;
         $local_part = &VBoxAdm::Utils::trim( lc($local_part) );
 
         my $Domain = VBoxAdm::Model::Domain->new( { 'Model' => $self, } );
-        my $domain_name = $Domain->get_name_by_id($domain_id);
+        my $domain_name = $Domain->get_name($domain_id);
 
         my $system_domain = $self->config->{'default'}{'domain'}   || 'localhost';
         my $pwscheme      = $self->config->{'default'}{'pwscheme'} || 'ssha256';
@@ -400,7 +400,7 @@ use Class::Std;
         push( @fields, 'domain' );
         while ( my @row = $sth->fetchrow_array() ) {
             my %h;
-            @h{ @{@fields} } = @row;
+            @h{@fields} = @row;
             push( @entries, \%h );
         }
         $sth->finish();

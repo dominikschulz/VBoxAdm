@@ -6,6 +6,7 @@ use English qw(-no_match_vars);
 
 use CPAN;
 use DBI;
+use Data::Dumper;
 use Getopt::Long;
 use File::Temp;
 use Config::Std;
@@ -14,6 +15,7 @@ use Net::Domain;
 use Net::SMTP;
 use Net::POP3;
 use Net::IMAP::Client;
+use Sys::Syslog;
 
 # TODO use Sys::Syslog
 
@@ -28,7 +30,12 @@ use VBoxAdm::Model::DomainAlias '@VERSION@';
 use VBoxAdm::Model::Mailbox '@VERSION@';
 use VBoxAdm::Model::User '@VERSION@';
 use VBoxAdm::Model::VacationBlacklist '@VERSION@';
+use VBoxAdm::Model::MessageQueue '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
+
+binmode( STDIN, ':utf8' );
+
+openlog( 'vboxadm-vacation', 'ndelay,nofatal', 'mail' );
 
 my ( $conffile_used, %config, @modes, $opts );
 $opts = {};
@@ -138,6 +145,19 @@ if ( !$dbh ) {
     print "Could not connect to DB!\n";
     exit 1;
 }
+else {
+    print "Connected to DB\n" if $config{'verbose'};
+}
+
+#
+# Localization
+#
+my $Messages = VBoxAdm::Model::MessageQueue->new(
+    {
+        'LH'    => VBoxAdm::L10N->get_handle(),
+        'LH_EN' => VBoxAdm::L10N->get_handle('en'),
+    }
+);
 
 #
 # Authentication
@@ -148,24 +168,115 @@ if ( !$User ) {
     print "Not authorized. Aborting.\n";
     exit 1;
 }
+else {
+    print "Login validated\n" if $config{'verbose'};
+}
 
-#
-# Localization
-#
-$opts->{LH}    = VBoxAdm::L10N->get_handle();
-$opts->{LH_EN} = VBoxAdm::L10N->get_handle('en');
-
-# for MessageQueue: LH, LH_EN
-my $Messages = VBoxAdm::Model::MessageQueue->new($opts);
-
-# Requried Args:
-# for Model: Logger, Config, User, MessageQueue
-# TODO set Logger = syslog
-$opts->{Config}       = \%config;
-$opts->{User}         = $User;
-$opts->{MessageQueue} = $Messages;
+$opts->{User} = $User;
 
 # TODO retrieve messages from queue!
+my $arg_ref = {
+    'dbh'          => $dbh,
+    'User'         => $User,
+    'MessageQueue' => $Messages,
+    'Logger'       => \&syslog,
+    'Config'       => \%config,
+};
+my $Alias             = VBoxAdm::Model::Alias->new($arg_ref);
+my $AWL               = VBoxAdm::Model::AWL->new($arg_ref);
+my $Domain            = VBoxAdm::Model::Domain->new($arg_ref);
+my $DomainAlias       = VBoxAdm::Model::DomainAlias->new($arg_ref);
+my $Mailbox           = VBoxAdm::Model::Mailbox->new($arg_ref);
+my $VacationBlacklist = VBoxAdm::Model::VacationBlacklist->new($arg_ref);
+
+my @a;
+
+@a = $Alias->list();
+print "Got " . scalar(@a) . " Entries from Alias->list()\n";
+@a = $AWL->list();
+print "Got " . scalar(@a) . " Entries from AWL->list()\n";
+@a = $Domain->list();
+print "Got " . scalar(@a) . " Entries from Domain->list()!\n";
+@a = $DomainAlias->list();
+print "Got " . scalar(@a) . " Entries from DomainAlias->list()\n";
+@a = $Mailbox->list();
+print "Got " . scalar(@a) . " Entries from Mailbox->list()\n";
+@a = $VacationBlacklist->list();
+print "Got " . scalar(@a) . " Entries from VacationBlacklist->list()\n";
+
+#=begin dispatch table test
+my %actions = (
+    'user' => {
+        'add' => sub {
+            my $email = shift;
+            print "Add User: $email\n";
+        },
+        'update' => sub {
+            my $email = shift;
+            print "Update User: $email\n";
+        },
+        'delete' => sub {
+            my $email = shift;
+            print "Delete User: $email\n";
+        },
+        'list' => sub {
+            print "Listing Users:\n";
+            foreach my $mailbox ( $Mailbox->list() ) {
+
+                #print Dumper($mailbox);
+                print $mailbox->{'local_part'} . '@' . $mailbox->{'domain'} . "\n";
+            }
+          }
+    },
+    'alias' => {
+        'add' => sub {
+            print "Add Alias.\n";
+        },
+        'update' => sub {
+            print "Update Alias.\n";
+        },
+        'delete' => sub {
+            print "Delete Alias.\n";
+        },
+        'list' => sub {
+            print "Listing Aliases:\n";
+            foreach my $alias ( $Alias->list() ) {
+
+                #print Dumper($alias);
+                print $alias->{'local_part'} . '@' . $alias->{'domain'} . "\n";
+            }
+          }
+    },
+    'domain' => {
+        'add' => sub {
+            print "Add Domain.\n";
+        },
+        'update' => sub {
+            print "Update Domain.\n";
+        },
+        'delete' => sub {
+            print "Delete Domain.\n";
+        },
+        'list' => sub {
+            print "Listing Domains.\n";
+        },
+    },
+);
+
+my $module = shift @modes;
+my $action = shift @modes;
+if ( ref( $actions{$module}{$action} ) eq 'CODE' && ( $action eq 'list' || scalar(@modes) > 0 ) ) {
+    &{ $actions{$module}{$action} }(@modes);
+}
+else {
+    print "Invalid command.\n";
+}
+
+#=cut
+
+###########################################################################
+die("TESTING\n");
+###########################################################################
 
 #
 # Action Dispatching
@@ -203,6 +314,7 @@ elsif ( $modes[0] eq 'migrate' ) {
     &migrate( $dbh, \%config, \@modes, $opts );
 }
 $dbh->disconnect();
+closelog();
 exit 0;
 
 ###########################################################################
@@ -230,7 +342,20 @@ sub handle_user {
     local $opts->{SAActive}        = $config->{'sa_active'}        || undef;
     local $opts->{SAKillScore}     = $config->{'sa_kill_score'}    || undef;
 
-    my $Mailbox = VBoxAdm::Model::Mailbox->new($opts);
+    #print "handle_user - opts:\n";
+    #print Dumper($opts);
+    my $o2 = {
+        'dbh' => $opts->{'dbh'},
+
+        #'Config' => $opts->{'Config'},
+        'MessageQueue' => $opts->{'MessageQueue'},
+        'Logger'       => $opts->{'Logger'},
+        'User'         => $opts->{'User'},
+    };
+    print "hanlde_user - o2:\n";
+    print Dumper($o2);
+
+    my $Mailbox = VBoxAdm::Model::Mailbox->new($o2);
 
     if ( $modes->[1] eq 'add' ) {
         &VBoxAdm::Model::Mailbox::create( $dbh, $modes->[2], $opts );
@@ -473,6 +598,7 @@ sub check_login {
     }
     my $User = VBoxAdm::Model::User->new(
         {
+            'dbh'      => $dbh,
             'Username' => $user_config{'auth'}{'username'},
             'Password' => $user_config{'auth'}{'password'},
         }

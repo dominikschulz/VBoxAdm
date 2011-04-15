@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use Carp;
+use Data::Dumper;
 
 our $VERSION = '@VERSION@';
 
@@ -12,8 +13,6 @@ use Class::Std;
 
     # Attributes
     my %dbh_of : ATTR;
-    my %lh_of : ATTR;
-    my %lh_en_of : ATTR;
     my %logger_of : ATTR;
     my %config_of : ATTR;
     my %user_of : ATTR;
@@ -24,14 +23,12 @@ use Class::Std;
 
         $dbh_of{$ident} = undef;
 
-        if ( $arg_ref->{'dbh'} && $arg_ref->{'dbh'}->ping() ) {
-            $dbh_of{$ident} = $arg_ref->{'dbh'};
-        }
-        else {
-            return;
-        }
+        #print "Arg-Ref in VBoxAdm::Model for ".caller(0).'/'.caller(1).":\n";
+        #print Dumper($arg_ref);# TODO DEBUG
 
         if ( $arg_ref->{'Model'} && $arg_ref->{'Model'}->isa('VBoxAdm::Model') ) {
+
+            #print "inheriting from Model class ...\n";
 
             # 'Inherit' from another VBoxAdm::Model class
             my $ModelClass = $arg_ref->{'Model'};
@@ -39,8 +36,18 @@ use Class::Std;
             $config_of{$ident} = $ModelClass->config();
             $user_of{$ident}   = $ModelClass->user();
             $msgq_of{$ident}   = $ModelClass->msg();
+            $dbh_of{$ident}    = $ModelClass->dbh();
         }
         else {
+
+            #print "not inheriting ...\n";
+
+            if ( $arg_ref->{'dbh'} && $arg_ref->{'dbh'}->ping() ) {
+                $dbh_of{$ident} = $arg_ref->{'dbh'};
+            }
+            else {
+                die( "Missing DBH handle in VBoxAdm::Model constructor for " . caller(1) . "\n" );
+            }
 
             # Setup Logger
             $logger_of{$ident} = $arg_ref->{'Logger'} if $arg_ref->{'Logger'};

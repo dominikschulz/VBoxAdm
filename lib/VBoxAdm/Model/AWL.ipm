@@ -1,4 +1,4 @@
-package VBoxAdm::API::AWL;
+package VBoxAdm::Model::AWL;
 
 use strict;
 use warnings;
@@ -9,6 +9,7 @@ use Sys::Syslog;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
+use base qw(VBoxAdm::Model);
 use Class::Std;
 {
 
@@ -18,7 +19,7 @@ use Class::Std;
     sub BUILD {
         my ( $self, $ident, $arg_ref ) = @_;
 
-        if ( !$self->user->is_user() ) {
+        if ( !$self->user || !$self->user->is_user() ) {
             return;    # Need user object
         }
 

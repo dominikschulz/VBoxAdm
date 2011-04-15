@@ -1,4 +1,4 @@
-package VBoxAdm::MessageQueue;
+package VBoxAdm::Model::MessageQueue;
 
 use strict;
 use warnings;

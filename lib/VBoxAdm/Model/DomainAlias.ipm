@@ -1,4 +1,4 @@
-package VBoxAdm::API::DomainAlias;
+package VBoxAdm::Model::DomainAlias;
 
 use strict;
 use warnings;
