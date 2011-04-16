@@ -8,6 +8,8 @@ use Carp;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
+# TODO verify ACLs
+
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
@@ -29,6 +31,7 @@ use Class::Std;
         my ( $self, $email ) = @_;
         my $ident = ident $self;
 
+        # TODO handle duplicate key errors
         if ( $email && &VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
             my $query = "INSERT INTO vacation_blacklist (local_part,domain) VALUES(?,?)";
             my ( $local_part, $domain ) = split /@/, $email;
@@ -72,11 +75,8 @@ use Class::Std;
         my ( $self, $entry_id ) = @_;
         my $ident = ident $self;
 
-        my $msg_loc = '';
-        my $msg_en  = '';
-
         if ($entry_id) {
-            my $query = "SELECT local_part,domain FROM vacation_blacklist WHERE id = ?";
+            my $query = "SELECT CONCAT(local_part,'\@',domain) FROM vacation_blacklist WHERE id = ?";
             my $sth   = $self->dbh->prepare($query);
             $sth->execute($entry_id);
             my $email = $sth->fetchrow_array();

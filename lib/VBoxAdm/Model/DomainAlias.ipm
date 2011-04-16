@@ -4,6 +4,9 @@ use strict;
 use warnings;
 
 use Carp;
+
+# TODO verify ACLs
+
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
@@ -25,13 +28,15 @@ use Class::Std;
         my ( $self, $domain, $domain_id ) = @_;
         my $ident = ident $self;
 
+        # TODO handle duplicate key errors
+
         my $domain_alias = &VBoxAdm::Utils::trim( lc($domain) );
 
         if ( $domain_alias && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain_alias) ) {
             $self->msg->push( 'error', "Invalid syntax. Domain is not RFC822 compliant!" );
             return;
         }
-        elsif ( $domain_id && !$self->user->is_superadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get__domain_id() ) {
+        elsif ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get__domain_id() ) {
 
             # if domainadmin, verify that its his domain
             $self->msg->push( 'error', "You are not authorized to modify this domain!" );
@@ -80,7 +85,7 @@ use Class::Std;
         $query = "DELETE FROM domain_aliases WHERE id = ?";
         my @args = ();
         push( @args, $domain_alias_id );
-        if ( !$self->user->is_superadmin() && $self->user->is_domainadmin() ) {
+        if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
             $query .= "AND domain_id = ?";
             push( @args, $self->user->get_domain_id() );
         }
@@ -108,7 +113,7 @@ use Class::Std;
             my @args  = ();
             push( @args, $params->{'is_active'} );
             push( @args, $domain_alias_id );
-            if ( !$self->user->is_superadmin() && $self->user->is_domainadmin() ) {
+            if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
                 $query .= "AND domain_id = ?";
                 push( @args, $self->user->get_domain_id() );
             }
@@ -125,7 +130,7 @@ use Class::Std;
             }
         }
 
-        if ( $params->{'target'} && !$self->user->is_superadmin() && $self->user->is_domainadmin() && $params->{'target'} != $self->user->get_domain_id() ) {
+        if ( $params->{'target'} && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $params->{'target'} != $self->user->get_domain_id() ) {
 
             # if domainadmin, verify that its his domain
             $self->msg->push( 'error', "You are not authorized to modify the domain [_1]!", $domain_name );

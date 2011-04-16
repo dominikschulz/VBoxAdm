@@ -8,6 +8,8 @@ use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::SaltedHash '@VERSION@';
 
+# TODO verify ACLs
+
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {

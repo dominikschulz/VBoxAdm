@@ -8,6 +8,8 @@ use Sys::Syslog;
 
 use VBoxAdm::SaltedHash '@VERSION@';
 
+# TODO verify ACLs
+
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
@@ -70,7 +72,7 @@ use Class::Std;
         #
         # Admin Status
         #
-        if ( $self->user->is_superadmin() ) {
+        if ( $self->user->is_siteadmin() ) {
             $args{'is_superadmin'}  = $params->{'is_superadmin'};
             $args{'is_domainadmin'} = $params->{'is_domainadmin'};
         }
@@ -93,7 +95,7 @@ use Class::Std;
         }
 
         # Check authorization, syntax and create mailbox
-        if ( $domain_id && !$self->user->is_superadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get_domain_id() ) {
+        if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get_domain_id() ) {
 
             # if domainadmin, verify that its his domain
             $self->msg->push( 'error', "You are not authorized to modify this domain!" );
@@ -106,6 +108,8 @@ use Class::Std;
             my $query = "INSERT INTO mailboxes (" . join( ",", keys %args ) . ") VALUES(";
             $query .= "?," x scalar( keys %args ) - 1;
             $query .= "?)";
+
+            # TODO handle duplicate key errors
             if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, values %args ) ) {
                 $sth->finish();
                 $self->msg->push( 'information', "Added Mailbox [_1] for [_2].", "$local_part\@$domain_name", $args{'name'} );
@@ -240,7 +244,7 @@ use Class::Std;
         #
         # Is Superadmin / Is Domainadmin
         #
-        if ( $self->user->is_superadmin() ) {
+        if ( $self->user->is_siteadmin() ) {
             $query .= "is_superadmin = ?, ";
             if ( $params->{'is_superadmin'} ) {
                 push( @args, 1 );

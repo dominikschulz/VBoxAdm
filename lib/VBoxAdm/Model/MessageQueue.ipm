@@ -7,6 +7,8 @@ use Carp;
 
 our $VERSION = '@VERSION@';
 
+# TODO verify ACLs
+
 use Class::Std;
 {
 
@@ -91,7 +93,7 @@ use Class::Std;
             }
         }
         else {
-            @msgs = @{ $msgs_of{$ident} };
+            @msgs = @{ $msgs_of{$ident} } if ref( $msgs_of{$ident} ) eq 'ARRAY';
             @{ $msgs_of{$ident} } = ();
         }
         return @msgs;
@@ -120,7 +122,7 @@ use Class::Std;
             }
         }
         else {
-            @msgs = @{ $msgs_of{$ident} };
+            @msgs = @{ $msgs_of{$ident} } if ref( $msgs_of{$ident} ) eq 'ARRAY';
         }
         return @msgs;
     }

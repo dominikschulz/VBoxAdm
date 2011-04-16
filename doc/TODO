@@ -26,6 +26,8 @@ Make sure class-C ip subnet auto-whitelists are supported
 
 - CGI::Application:
 -- add ActionDispatch when Bug #65224 is fixed - test if cgi.fix_pathinfo = 1 solves this issue
+-- Replace Authen Driver::DBI with Driver::VBoxAdm which provides a way to get the User object
+   see http://cpansearch.perl.org/src/SILASMONK/CGI-Application-Plugin-Authentication-0.19/lib/CGI/Application/Plugin/Authentication/Driver/DBI.pm
 
 - Aliases:
 -- allow multiple entries for each alias, i.e. make UNIQUE(local_part,domain_id,goto) and use GROUP_CONCAT

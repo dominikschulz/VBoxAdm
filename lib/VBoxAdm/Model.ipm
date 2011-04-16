@@ -91,7 +91,7 @@ use Class::Std;
         return $logger_of{$ident};
     }
 
-    sub msg : RESTRICTED {
+    sub msg {
         my ($self) = @_;
         my $ident = ident $self;
         return $msgq_of{$ident};

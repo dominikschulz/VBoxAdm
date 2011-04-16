@@ -8,6 +8,8 @@ use Carp;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
+# TODO verify ACLs
+
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
@@ -50,7 +52,8 @@ use Class::Std;
         my $Domain = VBoxAdm::Model::Domain->new( { 'Model' => $self, } );
         my $domain_name = $Domain->get_name_by_id($domain_id);
 
-        if ( $domain_id && !$self->user->is_superadmin() && $self->user->is_domainadmin && $domain_id != $self->user->get_domain_id() ) {
+        # TODO handle duplicate key errors
+        if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin && $domain_id != $self->user->get_domain_id() ) {
 
             # if domainadmin, verify that its his domain
             $self->msg->push( 'error', "You are not authorized to modify this domain!" );
@@ -103,7 +106,7 @@ use Class::Std;
             $query = "DELETE FROM aliases WHERE id = ?";
             my @args = ();
             push( @args, $alias_id );
-            if ( !$self->user->is_superadmin() ) {
+            if ( !$self->user->is_siteadmin() ) {
                 $query .= "AND domain_id = ?";
                 push( @args, $self->user->get_domain_id() );
             }
@@ -152,7 +155,7 @@ use Class::Std;
             push( @args, $alias_id );
 
             # Authorization
-            if ( !$self->user->is_superadmin() && $self->user->is_domainadmin() ) {
+            if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
                 $query .= "AND domain_id = ?";
                 push( @args, $self->user->get_domain_id() );
             }
