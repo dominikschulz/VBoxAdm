@@ -204,7 +204,7 @@ sub setup {
     # if the application if run as a FastCGI app, the server might
     # provide an additional configuration location. if the points to file
     # add it to the list of possible locations
-    if ( -f $ENV{CGIAPP_CONFIG_FILE} ) {
+    if ( $ENV{CGIAPP_CONFIG_FILE} && -f $ENV{CGIAPP_CONFIG_FILE} ) {
         unshift( @conffile_locations, $ENV{CGIAPP_CONFIG_FILE} );
     }
 
