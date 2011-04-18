@@ -72,7 +72,7 @@ use Class::Std;
             if ( my $sth = $self->dbh->prepare($query) ) {
                 if ( $sth->execute( $disabled, $entry_id ) ) {
                     $sth->finish();
-                    $self->msg->push( 'information', "Updated entry [_1].", $entry_id );
+                    $self->msg->push( 'information', "Updated entry [_1]. Set disabled = [_2].", $entry_id, $disabled );
                     return 1;
                 }
             }

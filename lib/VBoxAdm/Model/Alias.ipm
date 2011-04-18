@@ -35,7 +35,7 @@ use Class::Std;
 
         my ( $local_part, $domain ) = split /@/, $email;
 
-        my $sql = "SELECT id FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.local_part = ? AND d.name = ?";
+        my $sql = "SELECT a.id FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.local_part = ? AND d.name = ?";
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $local_part, $domain );
         my $id  = $sth->fetchrow_array();
         $sth->finish();
@@ -50,7 +50,7 @@ use Class::Std;
         $goto       = &VBoxAdm::Utils::trim( lc($goto) );
 
         my $Domain = VBoxAdm::Model::Domain->new( { 'Model' => $self, } );
-        my $domain_name = $Domain->get_name_by_id($domain_id);
+        my $domain_name = $Domain->get_name($domain_id);
 
         # TODO handle duplicate key errors
         if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin && $domain_id != $self->user->get_domain_id() ) {
@@ -138,7 +138,7 @@ use Class::Std;
         my $alias_name = '';
         if ($alias_id) {
             my $query = "SELECT a.local_part,d.name FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
-            my $sth = &VBoxAdm::DB::prepxec( $self->dbh, $query, $alias_id );
+            my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $alias_id );
             $alias_name = $sth->fetchrow_array();
             $sth->finish();
         }
@@ -184,7 +184,7 @@ use Class::Std;
         elsif ( $alias_id && $target ) {
             my $query = "UPDATE aliases SET goto = ? WHERE id = ?";
             if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $target, $alias_id ) ) {
-                $self->msg->push( 'error', "Alias [_1] (#[_2]) redirected to [_3].", $alias_name, $alias_id, $target );
+                $self->msg->push( 'information', "Alias [_1] (#[_2]) redirected to [_3].", $alias_name, $alias_id, $target );
                 $sth->finish();
             }
             else {

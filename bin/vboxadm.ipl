@@ -62,6 +62,8 @@ GetOptions(
     # shift removes name of the option (config) and leaves the value for unshift
     # unshift prepends to the list of valid config files so it is tried first
     'config=s' => sub { shift; unshift( @conffile_locations, @_ ); },
+    'active|s=i' => \$opts->{IsActive},
+    'goto|g=s'   => \$opts->{Goto},
 ) or die("Unknown Command");
 
 # Try all config file locations
@@ -80,9 +82,7 @@ $config{'default'}{'dbport'} ||= 3306;
 $config{'default'}{'dbdb'}   ||= 'vboxadm';
 $config{'cgi'}{'pwscheme'}   ||= 'sha256';
 
-print "#########################\n" unless $config{'quiet'};
-print ">>>>>>> VBoxAdm CLI <<<<<\n" unless $config{'quiet'};
-print "#########################\n" unless $config{'quiet'};
+print "# VBoxAdm CLI\n" unless $config{'quiet'};
 
 =begin commands
 
@@ -194,12 +194,29 @@ my %actions = (
             my $email = shift;
             my $goto  = shift;
             print "Add Alias.\n";
-            $Alias->create( $email, $goto );
+            if ( !$email ) {
+                print "Need alias address\n";
+                return;
+            }
+            if ( !$goto ) {
+                print "Need goto address\n";
+                return;
+            }
+            my ( $local_part, $domain ) = split /@/, $email;
+            my $domain_id = $Domain->get_id($domain);
+            if ( !$domain_id ) {
+                print "Need valid domain\n";
+                return;
+            }
+            $Alias->create( $local_part, $domain_id, $goto );
             display_messages( $Alias->msg() );
         },
         'update' => sub {
             my $email = shift;
-            my $params;    # TODO fill params
+            my $params;
+            foreach my $key (qw(IsActive Goto)) {
+                $params->{$key} = $opts->{$key} if defined( $opts->{$key} );
+            }
             print "Update Alias.\n";
             $Alias->update( $Alias->get_id($email), $params );
             display_messages( $Alias->msg() );
@@ -229,9 +246,10 @@ my %actions = (
         },
         'update' => sub {
             my $email = shift;
-            my $params;    # TODO fill params
+            my $params;
+            $params->{Disabled} = !$opts->{IsActive} if defined( $opts->{IsActive} );
             print "Update AWL.\n";
-            $AWL->update( $email, $params );
+            $AWL->update( $AWL->get_id($email), $params );
             display_messages( $AWL->msg() );
         },
         'list' => sub {
@@ -382,10 +400,6 @@ else {
     print "Invalid command.\n";
 }
 
-###########################################################################
-die("TESTING\n");
-###########################################################################
-
 $dbh->disconnect();
 closelog();
 exit 0;
@@ -521,7 +535,7 @@ sub check_login {
         print "You are no siteadmin!\n";
         return;
     }
-    print "Authorized as site-admin " . $user_config{'auth'}{'username'} . "\n" unless $config->{'quiet'};
+    print "Authorized as site-admin " . $user_config{'auth'}{'username'} . "\n" if $config->{'verbose'};
     return $User;
 }
 

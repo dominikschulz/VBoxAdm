@@ -3,6 +3,12 @@ TODO:
 - Quotas
 
 - Relay Domains
+transport_maps = btree:/etc/postfix/maps/transport, proxy:mysql:/etc/postfix/maps/virtual_transport_maps.cf
+relay_domains = proxy:mysql:/etc/postfix/maps/virtual_relay_domains.cf
+-- Data-Storage:
+ * own Table -> clean db layout, possible duplication of domains (already possible with alias domains)
+ * modify domains table -> cluttered db, no duplication of domains
+ * need to store "target" for transport maps
 
 - Enhance vboxadm.pl to provide full cli functionality
 
