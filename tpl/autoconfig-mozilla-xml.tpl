@@ -10,7 +10,7 @@
       <hostname>[% imap_hostname %]</hostname>
       <port>993</port>
       <socketType>SSL</socketType>
-      <authentication>password-encrypted</authentication>
+      <authentication>[% IF pwenc %]password-encrypted[% ELSE %]plain[% END %]</authentication>
       <username>[% username %]</username>
     </incomingServer>
 [% END %]
@@ -19,7 +19,7 @@
       <hostname>[% imap_hostname %]</hostname>
       <port>143</port>
       <socketType>STARTTLS</socketType>
-      <authentication>password-encrypted</authentication>
+      <authentication>[% IF pwenc %]password-encrypted[% ELSE %]plain[% END %]</authentication>
       <username>[% username %]</username>
     </incomingServer>
 [% END %]
@@ -28,7 +28,7 @@
       <hostname>[% pop3_hostname %]</hostname>
       <port>995</port>
       <socketType>SSL</socketType>
-      <authentication>password-cleartext</authentication>
+      <authentication>[% IF pwenc %]password-encrypted[% ELSE %]plain[% END %]</authentication>
       <username>[% username %]</username>
     </incomingServer>
 [% END %]
@@ -37,7 +37,7 @@
       <hostname>[% pop3_hostname %]</hostname>
       <port>110</port>
       <socketType>STARTTLS</socketType>
-      <authentication>password-cleartext</authentication>
+      <authentication>[% IF pwenc %]password-encrypted[% ELSE %]plain[% END %]</authentication>
       <username>[% username %]</username>
     </incomingServer>
 [% END %]
@@ -46,7 +46,7 @@
       <hostname>[% smtp_hostname %]</hostname>
       <port>465</port>
       <socketType>SSL</socketType>
-      <authentication>password-encrypted</authentication>
+      <authentication>[% IF pwenc %]password-encrypted[% ELSE %]plain[% END %]</authentication>
       <username>[% username %]</username>
     </outgoingServer>
 [% END %]
@@ -55,7 +55,7 @@
       <hostname>[% smtp_hostname %]</hostname>
       <port>587</port>
       <socketType>STARTTLS</socketType>
-      <authentication>password-encrypted</authentication>
+      <authentication>[% IF pwenc %]password-encrypted[% ELSE %]plain[% END %]</authentication>
       <username>[% username %]</username>
     </outgoingServer>
 [% END %]

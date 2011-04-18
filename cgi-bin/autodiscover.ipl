@@ -55,14 +55,15 @@ if ( $post_body && $post_body =~ m/<EMailAddress>([^<]+)<\/EMailAddress>/i ) {
 my $imap_hostname = $config{'autodiscover'}{'imap_hostname'} || 'mail.' . $config{'default'}{'domain'};
 my $pop3_hostname = $config{'autodiscover'}{'pop3_hostname'} || 'mail.' . $config{'default'}{'domain'};
 my $smtp_hostname = $config{'autodiscover'}{'smtp_hostname'} || 'mail.' . $config{'default'}{'domain'};
-my $imap_ssl      = $config{'autodiscover'}{'imap_ssl'}      || 1;
-my $imap_tls      = $config{'autodiscover'}{'imap_tls'}      || 1;
-my $pop3_ssl      = $config{'autodsicover'}{'pop3_ssl'}      || 1;
-my $pop3_tls      = $config{'autodiscover'}{'pop3_tls'}      || 1;
-my $smtp_ssl      = $config{'autodiscover'}{'smtp_ssl'}      || 1;
-my $smtp_sma      = $config{'autodiscvoer'}{'smtp_sma'}      || 1;
+my $imap_ssl      = $config{'autodiscover'}{'imap_ssl'};
+my $imap_tls      = $config{'autodiscover'}{'imap_tls'};
+my $pop3_ssl      = $config{'autodsicover'}{'pop3_ssl'};
+my $pop3_tls      = $config{'autodiscover'}{'pop3_tls'};
+my $smtp_ssl      = $config{'autodiscover'}{'smtp_ssl'};
+my $smtp_sma      = $config{'autodiscvoer'}{'smtp_sma'};
 my $title         = $config{'autodiscover'}{'title'}         || $config{'default'}{'domain'};
 my $short_name    = $config{'autodiscover'}{'short_name'}    || $title;
+my $pwenc         = $config{'autodiscover'}{'pw_encrypt'};
 
 my %params = (
     'title'         => $title,
@@ -78,6 +79,7 @@ my %params = (
     'smtp_sma'      => $smtp_sma,
     'smtp_hostname' => $smtp_hostname,
     'username'      => $email,
+    'pwenc'         => $pwenc,
 );
 
 if ( $ENV{'REQUEST_URI'} =~ m#/mail/config-v1\.1\.xml# && $email ) {
