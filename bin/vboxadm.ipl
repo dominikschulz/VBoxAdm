@@ -271,7 +271,10 @@ my %actions = (
         },
         'update' => sub {
             my $domain = shift;
-            my $params;    # TODO fill params
+            my $params;
+            foreach my $key (qw(IsActive)) {
+                $params->{$key} = $opts->{$key} if defined( $opts->{$key} );
+            }
             print "Update Domain.\n";
             $Domain->update( $Domain->get_id($domain), $params );
             display_messages( $Domain->msg() );

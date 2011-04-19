@@ -9,7 +9,7 @@ binmode STDOUT, ":utf8";
 binmode STDERR, ":utf8";
 
 while ( my $q = new CGI::Fast ) {
-    my $vbox = VBoxAdm::Frontend->new(
+    my $vbox = VBoxAdm::Controller::Frontend->new(
         PARAMS => {
             'require_ssl'    => 1,
             'rewrite_to_ssl' => 1,

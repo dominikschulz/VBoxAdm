@@ -42,7 +42,7 @@ use Class::Std;
         elsif ($domain) {
             my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
 
-            if ( my $sth = &VBoxAdm::DB::prepexec( $self->sql, $query, $domain ) ) {
+            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain ) ) {
                 $self->msg->push( 'information', "Domain '[_1]' added", $domain );
                 $sth->finish();
                 return 1;
@@ -64,7 +64,7 @@ use Class::Std;
         my ( $self, $domain_id ) = @_;
         my $ident = ident $self;
         my $sql   = "DELETE FROM domains WHERE id = ? LIMIT 1";
-        my $sth   = &VBoxAdm::DB::prepexec( $self->dbh, $domain_id );
+        my $sth   = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $domain_id );
         $sth->finish();
         return;
     }
@@ -73,14 +73,14 @@ use Class::Std;
         my ( $self, $domain_id, $params ) = @_;
         my $ident = ident $self;
 
-        my $domain_name = $self->get_name_by_id($domain_id);
+        my $domain_name = $self->get_name($domain_id);
 
         my $sql  = "UPDATE domains SET ";
         my @args = ();
 
-        if ( defined( $params->{'is_active'} ) ) {
+        if ( defined( $params->{'IsActive'} ) ) {
             $sql .= "is_active = ? ";
-            if ( $params->{'is_active'} ) {
+            if ( $params->{'IsActive'} ) {
                 push( @args, 1 );
             }
             else {

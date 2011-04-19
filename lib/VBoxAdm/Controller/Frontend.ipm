@@ -219,7 +219,7 @@ sub setup {
         }
     }
     if ( !$conffile_used ) {
-        syslog( 2, "setup - Warning: No config file found!" );
+        syslog( 2, "setup - Warning: No config file found in search path! (".join(':',@conffile_locations).")" );
     }
     $self->{config} = \%config;
 
@@ -248,7 +248,11 @@ sub setup {
                 }
             );
         }
-    ) or syslog( 2, "setup - Failed to establish DB connection!" );
+    );
+    if(!$self->dbh) {
+    	syslog( 2, "setup - Failed to establish DB connection with DSN $dsn!" );
+    	die("Could not connect to DB.");
+    }
 
     # Prepare connection for UTF-8
     # Scripts, Database, Sourcecode, Userdata ... everything should be in UTF-8
