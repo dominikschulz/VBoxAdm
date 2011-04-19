@@ -108,17 +108,17 @@ use Class::Std;
 
         my $domain_name = $self->get_name($domain_alias_id) if $domain_alias_id;
 
-        if ( $domain_alias_id && defined( $params->{'is_active'} ) ) {
+        if ( $domain_alias_id && defined( $params->{'IsActive'} ) ) {
             my $query = "UPDATE domain_aliases SET is_active = ? WHERE id = ?";
             my @args  = ();
-            push( @args, $params->{'is_active'} );
+            push( @args, $params->{'IsActive'} );
             push( @args, $domain_alias_id );
             if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
                 $query .= "AND domain_id = ?";
                 push( @args, $self->user->get_domain_id() );
             }
             my $status_str = 'disabled';
-            if ( $params->{'is_active'} ) {
+            if ( $params->{'IsActive'} ) {
                 $status_str = 'enabled';
             }
             if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
@@ -130,27 +130,27 @@ use Class::Std;
             }
         }
 
-        if ( $params->{'target'} && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $params->{'target'} != $self->user->get_domain_id() ) {
+        if ( $params->{'Goto'} && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $params->{'Goto'} != $self->user->get_domain_id() ) {
 
             # if domainadmin, verify that its his domain
             $self->msg->push( 'error', "You are not authorized to modify the domain [_1]!", $domain_name );
         }
-        elsif ( $domain_alias_id && $params->{'target'} ) {
+        elsif ( $domain_alias_id && $params->{'Goto'} ) {
             my $query              = "SELECT name FROM domains WHERE id = ?";
-            my $sth                = &VBoxAdm::DB::prepexec( $self->dbh, $query, $params->{'target'} );
+            my $sth                = &VBoxAdm::DB::prepexec( $self->dbh, $query, $params->{'Goto'} );
             my $target_domain_name = $sth->fetchrow_array();
             $sth->finish();
 
             $query = "UPDATE domain_aliases SET domain_id = ? WHERE id = ?";
 
-            if ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $params->{'target'}, $domain_alias_id ) ) {
+            if ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $params->{'Goto'}, $domain_alias_id ) ) {
                 $self->msg->push( 'information', "Domain-Alias [_1] (#[_2]) redirected to Domain [_3] (#[_4]).",
-                    $domain_name, $domain_alias_id, $target_domain_name, $params->{'target'} );
+                    $domain_name, $domain_alias_id, $target_domain_name, $params->{'Goto'} );
             }
             else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $params->{'target'}, $domain_alias_id ) ), $sth->errstr );
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $params->{'Goto'}, $domain_alias_id ) ), $sth->errstr );
                 $self->msg->push( 'error', "Failed to redirect Domain-Alias [_1] (#[_2]) to Domain [_3] (#[_4]).",
-                    $domain_name, $domain_alias_id, $target_domain_name, $params->{'target'} );
+                    $domain_name, $domain_alias_id, $target_domain_name, $params->{'Goto'} );
             }
         }
 

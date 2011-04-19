@@ -118,7 +118,7 @@ TESTFILES = \
 
 .PHONY: install tidy critic test
 
-%.pl: %.ipl
+%.pl: %.ipl $(LIBFILES)
 	$(SED) -e s/@BUILDDATE@/$(BUILDDATE)/ \
 		   -e s/@VERSION@/$(VERSION)/ < $< > $@
 	$(CHMOD) 755 $@
@@ -126,7 +126,7 @@ TESTFILES = \
 	$(CHMOD) +x $@
 	$(PERL) -I lib/ -c $@
 
-%.fcgi: %.ifcgi
+%.fcgi: %.ifcgi $(LIBFILES)
 	$(SED) -e s/@BUILDDATE@/$(BUILDDATE)/ \
 		   -e s/@VERSION@/$(VERSION)/ < $< > $@
 	$(CHMOD) 755 $@

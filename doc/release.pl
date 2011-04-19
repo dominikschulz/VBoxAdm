@@ -35,7 +35,7 @@ my @conffile_locations = qw(
 unshift(@conffile_locations,$ENV{'HOME'}.'/.release.conf');
 
 # Get Options
-my ($opt_major, $opt_minor, $opt_version, $opt_local, $cmd, $changes_file, $dry, $verbose, $nobuild, $keyid, $nodeb);
+my ($opt_major, $opt_minor, $opt_version, $opt_local, $cmd, $changes_file, $dry, $verbose, $nobuild, $keyid, $nodeb, $jobs);
 GetOptions(
     'major!'        => \$opt_major,
     'minor!'        => \$opt_minor,
@@ -47,6 +47,7 @@ GetOptions(
     'nodeb'         => \$nodeb,
     'name=s'        => \$name,
     'keyid=s'       => \$keyid,
+    'jobs|j=i'			=> \$jobs,
     # shift removes name of the option (config) and leaves the value for unshift
     # unshift prepends to the list of valid config files so it is tried first
     'config=s' => sub { shift; unshift( @conffile_locations, @_ ); },
@@ -218,6 +219,9 @@ if($keyid) {
 }
 if($opt_local) {
     $cmd = "QUICK_TEST=1 ".$cmd;
+}
+if($jobs) {
+	$cmd = 'DEB_BUILD_OPTIONS="parallel='.$jobs.'" '.$cmd;
 }
 run_cmd($cmd);
 

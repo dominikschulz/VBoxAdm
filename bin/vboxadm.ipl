@@ -16,8 +16,7 @@ use Net::SMTP;
 use Net::POP3;
 use Net::IMAP::Client;
 use Sys::Syslog;
-
-# TODO use Sys::Syslog
+use Text::Levenshtein qw(distance);
 
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
@@ -62,7 +61,7 @@ GetOptions(
     # shift removes name of the option (config) and leaves the value for unshift
     # unshift prepends to the list of valid config files so it is tried first
     'config=s' => sub { shift; unshift( @conffile_locations, @_ ); },
-    'active|s=i' => \$opts->{IsActive},
+    'active|a=i' => \$opts->{IsActive},
     'goto|g=s'   => \$opts->{Goto},
 ) or die("Unknown Command");
 
@@ -310,8 +309,18 @@ my %actions = (
         },
         'update' => sub {
             my $domain = shift;
-            my $params;             # TODO fill params
-            print "Update DomainAlias.\n";
+            my $params;
+            foreach my $key (qw(IsActive Goto)) {
+                if ( defined( $opts->{$key} ) ) {
+                    if ( $key eq 'Goto' ) {
+                        $params->{$key} = $Domain->get_id( $opts->{$key} );
+                    }
+                    else {
+                        $params->{$key} = $opts->{$key};
+                    }
+                }
+            }
+            print "Update DomainAlias $domain.\n";
             $DomainAlias->update( $DomainAlias->get_id($domain), $params );
             display_messages( $DomainAlias->msg() );
         },
@@ -386,21 +395,20 @@ my %actions = (
     }
 );
 
-sub display_messages {
-    my $msgq   = shift;
-    my $format = "[%10s] %s\n";
-    foreach my $msg ( $msgq->pop() ) {
-        printf( $format, uc( $msg->{'severity'} ), $msg->{'en'} );
-    }
-}
-
 my $module = shift @modes;
 my $action = shift @modes;
-if ( ref( $actions{$module}{$action} ) eq 'CODE' && ( $action eq 'list' || scalar(@modes) > 0 ) ) {
+
+if ( $module && $action && ref( $actions{$module}{$action} ) eq 'CODE' && ( $action eq 'list' || scalar(@modes) > 0 ) ) {
     &{ $actions{$module}{$action} }(@modes);
 }
 else {
-    print "Invalid command.\n";
+    print "Invalid/Missing module and/or action.\n";
+    if ( $module && $action && $actions{$module} ) {
+        print "Did you mean " . get_similar_action( $action, $module, \%actions ) . "?\n";
+    }
+    elsif ( $module && !$actions{$module} ) {
+        print "Did you mean " . get_similar_module( $module, \%actions ) . "?\n";
+    }
 }
 
 $dbh->disconnect();
@@ -410,6 +418,29 @@ exit 0;
 ###########################################################################
 # SUBS
 ###########################################################################
+sub display_messages {
+    my $msgq   = shift;
+    my $format = "[%10s] %s\n";
+    foreach my $msg ( $msgq->pop() ) {
+        printf( $format, uc( $msg->{'severity'} ), $msg->{'en'} );
+    }
+}
+
+sub get_similar_module {
+    my $cmd     = shift;
+    my $actions = shift;
+    my @a       = sort { distance( $cmd, $a ) <=> distance( $cmd, $b ) } keys %{$actions};
+    return $a[0];
+}
+
+sub get_similar_action {
+    my $cmd     = shift;
+    my $module  = shift;
+    my $actions = shift;
+    my @a       = sort { distance( $cmd, $a ) <=> distance( $cmd, $b ) } keys %{ $actions{$module} };
+    return $a[0];
+}
+
 sub migrate {
     my $dbh    = shift;
     my $config = shift;
