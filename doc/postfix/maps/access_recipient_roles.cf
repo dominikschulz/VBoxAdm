@@ -1,0 +1,5 @@
+user = postfix
+password = PASSWORD
+hosts = localhost
+dbname = vboxadm
+query = SELECT CONCAT(local_part,'@') AS goto, 'permit_auth_destination' FROM role_accounts

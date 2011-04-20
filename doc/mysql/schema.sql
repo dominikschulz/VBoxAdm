@@ -91,6 +91,15 @@ CREATE TRIGGER `pwts_upd` BEFORE UPDATE ON `mailboxes`
 //
 DELIMITER ;
 
+CREATE TABLE IF NOT EXISTS `role_accounts` (
+  `id` int(16) NOT NULL AUTO_INCREMENT,
+  `name` varchar(64) NOT NULL,
+  `local_part` varchar(64) NOT NULL,
+  `domain` varchar(255) NOT NULL,
+  `ts` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
 DROP TABLE IF EXISTS `rfc_notify`;
 CREATE TABLE IF NOT EXISTS `rfc_notify` (
   `id` int(16) NOT NULL AUTO_INCREMENT,

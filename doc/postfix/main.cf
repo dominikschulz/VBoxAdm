@@ -72,7 +72,8 @@ smtpd_sasl_auth_enable = yes
 # Recipient and Relay Checks - VERY IMPORTANT
 smtpd_recipient_restrictions =
 # Allow Postmaster, Abuse and other imporant role accounts
-        check_recipient_access btree:/etc/postfix/maps/access_recipient-rfc,
+#        check_recipient_access btree:/etc/postfix/maps/access_recipient-rfc,
+		check_recipient_access proxy:mysql:/etc/postfix/maps/access_recipient_roles.cf,
 # White- and Blacklisting
         check_client_access btree:/etc/postfix/maps/access_client,
         check_helo_access btree:/etc/postfix/maps/access_helo,
@@ -128,6 +129,9 @@ smtpd_client_recipient_rate_limit = 1000
 # Vacation
 transport_maps = btree:/etc/postfix/maps/transport
 vacation_destination_recipient_limit = 1
+
+# Custom reject code for unverified recipients
+unverified_recipient_reject_code=577
 
 # Mailarchive
 mailarchive_destination_recipient_limit = 1
