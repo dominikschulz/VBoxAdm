@@ -78,3 +78,4 @@ max_spare_servers=20
 max_requests=250
 nsloglevel=2
 logsock=unix
+recipient_delimiter=+

@@ -74,6 +74,7 @@ my $nodb                   = $config{'smtpproxy'}{'nodb'}                   || 0
 my $soft_bounce            = $config{'smtpproxy'}{'soft_bounce'}            || 0;
 my $sa_default_block_score = $config{'smtpproxy'}{'sa_default_block_score'} || 6.31;
 my $sa_default_status      = $config{'smtpproxy'}{'sa_default_status'}      || 1;
+my $recipient_delimiter    = $config{'smtpproxy'}{'recipient_delimiter'};
 
 # Database Hosts
 my @dbhosts = ();
@@ -169,6 +170,7 @@ my $server = bless {
         soft_bounce            => $soft_bounce,
         sa_default_block_score => $sa_default_block_score,
         sa_default_status      => $sa_default_status,
+        recipient_delimiter    => $recipient_delimiter,
 
         dbhosts => \@dbhosts,
         dbport  => $dbport,

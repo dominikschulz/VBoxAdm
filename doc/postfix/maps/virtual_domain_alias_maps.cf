@@ -2,4 +2,4 @@ user = postfix
 password = PASSWORD
 hosts = localhost
 dbname = vboxadm
-query = SELECT name FROM domain_aliases WHERE name = '%s' AND is_active
+query = /* virtual_domain_alias_maps.cf */ SELECT name FROM domain_aliases WHERE name = '%s' AND is_active

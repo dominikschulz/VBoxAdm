@@ -2,4 +2,4 @@ user = postfix
 password = PASSWORD
 hosts = localhost
 dbname = vboxadm
-query = SELECT name FROM domains WHERE name = '%s' AND is_active
+query = /* vitual_domain_maps.cf */ SELECT name FROM domains WHERE name = '%s' AND is_active

@@ -9,12 +9,14 @@ our $VERSION = '@VERSION@';
 # Usage      : my @recipients = &extract_recipients($recipients_string);
 # Purpose    : Turn a comma separted list of recipients into an array
 # Returns    : The list of recipients
-# Parameters : A string containing valid email adresses separted by commas
+# Parameters : A string containing valid email adresses separted by commas, a recipient delimiter.
+# 			   If the recipient delimiter is set remove those parts from the adresses.
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
 sub extract_recipients {
     my $recipients = shift;
+    my $recipient_delimiter = shift || undef;
 
     my @emails = ();
 
@@ -22,17 +24,19 @@ sub extract_recipients {
     $recipients =~ s/[\s;|]/,/g;
     my @recps = split( /\s*,\s*/, $recipients );
     foreach my $recp (@recps) {
+        my $email;
         if ( $recp =~ m/<([^>@]+@[^>]+)>/ ) {
-
-            # should match '<user@domain.tld>',
-            # Name <user@doman.tld>, etc.
-            my $email = lc($1);
-            push( @emails, $email );
+            $email = lc($1);    # should match '<user@domain.tld>',Name <user@doman.tld>, etc.
         }
         elsif ( $recp =~ m/^([^<@]+@\S+)$/ ) {
+            $email = lc($1);    # user@domain.tld
 
-            # user@domain.tld
-            my $email = lc($1);
+        }
+        if ( $email && $recipient_delimiter && $email =~ m/\Q$recipient_delimiter\E/ ) {
+            my ( $lp, $ext, $dom ) = split /[\Q$recipient_delimiter\E@]/, $email;
+            push( @emails, $lp . '@' . $dom );
+        }
+        elsif ($email) {
             push( @emails, $email );
         }
     }

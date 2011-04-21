@@ -2,4 +2,4 @@ user = postfix
 password = PASSWORD
 hosts = localhost
 dbname = vboxadm
-query = SELECT goto FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE d.name = '%d' AND a.local_part = '%u' AND a.is_active AND d.is_active UNION SELECT CONCAT(local_part,'@',domain) AS goto FROM role_accounts WHERE name = '%u' AND NOT (local_part = '%u' AND domain = '%d')
+query = /* virtual_alias_maps.cf */ SELECT goto FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE d.name = '%d' AND a.local_part = '%u' AND a.is_active AND d.is_active UNION SELECT CONCAT(local_part,'@',domain) AS goto FROM role_accounts WHERE name = '%u' AND NOT (local_part = '%u' AND domain = '%d') UNION SELECT CONCAT(ma.local_part,'@',d.name) FROM mailboxes AS ma LEFT JOIN domains AS d ON ma.domain_id = d.id WHERE ma.local_part = '%u' AND d.name = '%d'

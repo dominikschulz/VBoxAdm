@@ -350,7 +350,9 @@ sub sa_block_score {
     # set arbitrarily high limit
     my $lowest_kill_score = 0xFFFF;
 
-    foreach my $email ( &VBoxAdm::Utils::extract_recipients($recipients) ) {
+    my $delim = $self->{vbox}->{recipient_delimiter} || undef;
+
+    foreach my $email ( &VBoxAdm::Utils::extract_recipients( $recipients, $delim ) ) {
         if ( $self->{vbox}->{caching} && $self->{cache}->{sa_block_score}->{$email} ) {
 
             # try cached result first
@@ -396,8 +398,10 @@ sub want_sa {
 
     my $want_sa = 0;
 
+    my $delim = $self->{vbox}->{recipient_delimiter} || undef;
+
     # iterate over all recipients, if one wants sa checking, the message will be checked
-    foreach my $email ( &VBoxAdm::Utils::extract_recipients($recipients) ) {
+    foreach my $email ( &VBoxAdm::Utils::extract_recipients( $recipients, $delim ) ) {
         if ( $self->{vbox}->{caching} && defined( $self->{cache}->{want_sa} ) ) {
             $want_sa = $want_sa || $self->{cache}->{want_sa}->{$email} || 0;
         }
