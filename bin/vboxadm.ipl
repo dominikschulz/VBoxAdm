@@ -343,8 +343,14 @@ my %actions = (
     'mailbox' => {
         'add' => sub {
             my $email = shift;
+            my ( $local_part, $domain ) = split /@/, $email;
+            my $domain_id = $Domain->get_id($domain);
+            if ( !$domain_id ) {
+                print "Unknown Domain. Please create Domain first.\n";
+                return;
+            }
             print "Add User: $email\n";
-            $Mailbox->create($email);
+            $Mailbox->create( $local_part, $domain_id );
             display_messages( $Mailbox->msg() );
         },
         'update' => sub {

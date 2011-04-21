@@ -8,34 +8,34 @@ BEGIN { use_ok( 'VBoxAdm::Utils', '@VERSION@' ); }
 # undef, lists of undef
 
 # trim()
-is( VBoxAdm::Utils::trim("   hello, blaa    \t \n \r \f"), "hello, blaa", "'   hello, blaa  ' => 'hello, blaa'" );
+is( VBoxAdm::Utils::trim("   hello, blaa    \t \n \r \f"), "hello, blaa", "trim() - '   hello, blaa  ' => 'hello, blaa'" );
 
 # trim2()
-is( VBoxAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", '"  key = value # comment   " => "key = value"' );
+is( VBoxAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", 'trim2() - "  key = value # comment   " => "key = value"' );
 
 # Test extract_recipients
 {
     my %data = (
         'user1@domain.tld, <user2@domain.tld>, Mr. USer <User3@domain.tld>, <root@localhost>' =>
-          [qw(user1@domain.tld user2@domain.tld User3@domain.tld root@localhost)],
+          [qw(user1@domain.tld user2@domain.tld user3@domain.tld root@localhost)],
         'user1@domain.tld user2@domain.tld' => [qw(user1@domain.tld user2@domain.tld)],
         'user1@domain.tld;user2@domain.tld' => [qw(user1@domain.tld user2@domain.tld)],
     );
     foreach my $string ( keys %data ) {
         my @expect = @{ $data{$string} };
         my @emails = &VBoxAdm::Utils::extract_recipients($string);
-        foreach my $i ( 1 .. $#expect ) {
-            is( lc( $emails[$i] ), lc( $expect[$i] ), $expect[$i] . ' equals expectation in regular test.' );
+        foreach my $i ( 0 .. $#expect ) {
+            is( lc( $emails[$i] ), lc( $expect[$i] ), 'extract_recipients - ' . $expect[$i] . ' equals expectation in regular test.' );
         }
-        is( scalar(@emails), scalar(@expect), 'Number of recipients is equal.' );
+        is( scalar(@emails), scalar(@expect), 'Number of recipients is equal in regular test.' );
     }
     %data = (
         'user1+ext1@domain.tld, <user2+ext2@domain.tld>, Mr. USer <User3+ext3@domain.tld>, <root+rootext@localhost>' => {
-            'recipients' => [qw(user1@domain.tld user2@domain.tld User3@domain.tld root@localhost)],
+            'recipients' => [qw(user1@domain.tld user2@domain.tld user3@domain.tld root@localhost)],
             'delim'      => '+',
         },
-        'user1+ext1@domain.tld, <user2+ext2@domain.tld>, Mr. USer <User3+ext3@domain.tld>, <root+rootext@localhost>' => {
-            'recipients' => [qw(user1+ext1@domain.tld user2+ext2@domain.tld User3+ext3@domain.tld root+rootext@localhost)],
+        'user4+ext4@domain.tld, <user2+ext2@domain.tld>, Mr. USer <User3+ext3@domain.tld>, <root+rootext@localhost>' => {
+            'recipients' => [qw(user4+ext4@domain.tld user2+ext2@domain.tld user3+ext3@domain.tld root+rootext@localhost)],
             'delim'      => undef,
         },
     );
@@ -43,10 +43,10 @@ is( VBoxAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", '"  
         my @expect = @{ $data{$string}{'recipients'} };
         my $delim  = $data{$string}{'delim'};
         my @emails = &VBoxAdm::Utils::extract_recipients( $string, $delim );
-        foreach my $i ( 1 .. $#expect ) {
-            is( lc( $emails[$i] ), lc( $expect[$i] ), $expect[$i] . ' equals expectation in delim test.' );
+        foreach my $i ( 0 .. $#expect ) {
+            is( lc( $emails[$i] ), lc( $expect[$i] ), 'extract_recipients - ' . $expect[$i] . ' equals expectation in delim test.' );
         }
-        is( scalar(@emails), scalar(@expect), 'Number of recipients is equal.' );
+        is( scalar(@emails), scalar(@expect), 'Number of recipients is equal in delim test.' );
     }
 }
 

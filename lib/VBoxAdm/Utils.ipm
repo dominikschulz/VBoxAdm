@@ -239,7 +239,6 @@ sub trim2 {
     # See Also   : n/a
     sub is_valid_localpart_rfc822 {
         my $addy = shift;
-        print "\tis_valid_localpart_rfc822: $addy\n";
         return $addy =~ m/^$local_part$/;
     }
     ############################################

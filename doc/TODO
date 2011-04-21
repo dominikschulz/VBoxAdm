@@ -64,7 +64,8 @@ Make sure class-C ip subnet auto-whitelists are supported
 - Roundcube Plugin
 -- Use HTTP API once finished, this will reduce the logic reguired in the plugin to a minmal core
 
-- Evaluate Dancer
+- Evaluate Perl Dancer
+- Evaluate http://mojolicio.us/
 
 * - in progress
 

@@ -127,7 +127,7 @@ use Class::Std;
         return @msgs;
     }
 
-    sub maketext : PRIVATE {
+    sub maketext {
         my ( $self, $msg, @args ) = @_;
         my $ident = ident $self;
         if ( $lh_of{$ident} ) {
@@ -136,7 +136,7 @@ use Class::Std;
         return;
     }
 
-    sub maketext_en : PRIVATE {
+    sub maketext_en {
         my ( $self, $msg, @args ) = @_;
         my $ident = ident $self;
         if ( $lh_en_of{$ident} ) {

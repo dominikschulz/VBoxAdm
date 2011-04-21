@@ -106,22 +106,25 @@ use Class::Std;
         else {
             $args{'password'} = &VBoxAdm::SaltedHash::make_pass( $args{'password'}, $pwscheme );
             my $query = "INSERT INTO mailboxes (" . join( ",", keys %args ) . ") VALUES(";
-            $query .= "?," x scalar( keys %args ) - 1;
+            $query .= "?," x ( scalar( keys %args ) - 1 );
             $query .= "?)";
 
             # TODO handle duplicate key errors
+            foreach my $key ( keys %args ) {
+                $args{$key} = 0 unless defined( $args{$key} );
+            }
             if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, values %args ) ) {
                 $sth->finish();
                 $self->msg->push( 'information', "Added Mailbox [_1] for [_2].", "$local_part\@$domain_name", $args{'name'} );
 
                 # send_welcome_mail
                 my $emsg = '';
-                $emsg .= "Subject: " . $self->maketext("Welcome") . "\r\n";
+                $emsg .= "Subject: " . $self->msg->maketext("Welcome") . "\r\n";
                 $emsg .= "Auto-Submitted: auto-generated\r\n";
                 $emsg .= "From: VBoxAdm <vboxadm\@" . $system_domain . ">\r\n";
                 $emsg .= "To: <$local_part\@$domain_name>\r\n";
                 $emsg .= "\r\n";
-                $emsg .= $self->maketext("Welcome to your new mailbox.");
+                $emsg .= $self->msg->maketext("Welcome to your new mailbox.");
                 &VBoxAdm::Utils::sendmail( 'vboxadm@' . $system_domain, $emsg );
             }
             else {
@@ -150,7 +153,7 @@ use Class::Std;
         $query = "DELETE FROM mailboxes WHERE id = ?";
         my @args = ();
         push( @args, $mailbox_id );
-        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
             $query .= "AND domain_id = ?";
             push( @args, $self->get_users_domainid() );
         }
