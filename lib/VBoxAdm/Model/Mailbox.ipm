@@ -5,6 +5,8 @@ use warnings;
 
 use Carp;
 use Sys::Syslog;
+use Crypt::GeneratePassword;    # TODO use our own password methods
+use Data::Password;             # TODO use our own password methods
 
 use VBoxAdm::SaltedHash '@VERSION@';
 
@@ -139,9 +141,7 @@ use Class::Std;
         my ( $self, $mailbox_id ) = @_;
         my $ident = ident $self;
 
-        my $msg_loc = '';
-        my $msg_en  = '';
-        if ( !$mailbox_id ) {
+        if ( !$mailbox_id || $mailbox_id !~ m/^\d+$/ ) {
             $self->msg->push( 'error', "Failed to remove mailbox. Insufficient parameters." );
             return;
         }
@@ -173,8 +173,10 @@ use Class::Std;
         my $ident = ident $self;
 
         if ( !$mailbox_id || $mailbox_id !~ m/^\d+$/ ) {
+            $self->msg->push( 'error', 'Failed to update mailbox. Need a numeric mailbox id.' );
             return;    # need numeric mailbox id
         }
+
         my $query        = "SELECT CONCAT(m.local_part,'\@',d.name) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
         my $sth          = &VBoxAdm::DB::prepexec( $self->dbh, $query, $mailbox_id );
         my $mailbox_name = $sth->fetchrow_array();
@@ -192,56 +194,56 @@ use Class::Std;
         #
         # Password
         #
-        if ( $params->{'password'} && $params->{'password_again'} ) {
+        if ( $params->{'Password'} && $params->{'PasswordAgain'} ) {
 
             $Data::Password::MINLEN = 8;
             $Data::Password::MAXLEN = undef;
 
             # passwords must be equal and at least 8 chars long
-            if ( $params->{'password'} eq $params->{'password_again'} ) {
+            if ( $params->{'Password'} eq $params->{'PasswordAgain'} ) {
 
                 # Check password length
-                if ( length( $params->{'password'} ) < 8 ) {
+                if ( length( $params->{'Password'} ) < 8 ) {
                     $self->msg->push( 'warning', 'Bad password - Password too short. Need at least 8 characters.' );
                 }
 
                 # Check password strength
-                if ( my $str = Data::Password::IsBadPassword( $params->{'password'} ) ) {
+                if ( my $str = Data::Password::IsBadPassword( $params->{'Password'} ) ) {
                     $self->msg->push( 'warning', 'Weak password - [_1].', $str );
                 }
                 $query .= "password = ?, ";
-                push( @args, VBoxAdm::SaltedHash::make_pass( $params->{'password'}, $pwscheme ) );
+                push( @args, VBoxAdm::SaltedHash::make_pass( $params->{'Password'}, $pwscheme ) );
             }
         }
 
         #
         # Name
         #
-        if ( $params->{'name'} ) {
+        if ( $params->{'Name'} ) {
             $query .= "name = ?, ";
-            push( @args, $params->{'name'} );
+            push( @args, $params->{'Name'} );
         }
 
         #
         # Is_Active
         #
         my $status_str = 'disabled';
-        if ( $params->{'is_active'} ) {
+        if ( $params->{'IsActive'} ) {
             $status_str = 'enabled';
-            $params->{'is_active'} = 1;
+            $params->{'IsActive'} = 1;
         }
         else {
-            $params->{'is_active'} = 0;
+            $params->{'IsActive'} = 0;
         }
         $query .= "is_active = ?, ";
-        push( @args, $params->{'is_active'} );
+        push( @args, $params->{'IsActive'} );
 
         #
         # Max Msg Size
         #
-        if ( defined( $params->{'max_msg_size'} ) && $params->{'max_msg_size'} =~ m/^\d+$/ ) {
+        if ( defined( $params->{'MaxMsgSize'} ) && $params->{'MaxMsgSize'} =~ m/^\d+$/ ) {
             $query .= "max_msg_size = ?, ";
-            push( @args, $params->{'max_msg_size'} );
+            push( @args, $params->{'MaxMsgSize'} );
         }
 
         #
@@ -249,14 +251,14 @@ use Class::Std;
         #
         if ( $self->user->is_siteadmin() ) {
             $query .= "is_superadmin = ?, ";
-            if ( $params->{'is_superadmin'} ) {
+            if ( $params->{'IsSiteadmin'} ) {
                 push( @args, 1 );
             }
             else {
                 push( @args, 0 );
             }
             $query .= "is_domainadmin = ?, ";
-            if ( $params->{'is_domainadmin'} ) {
+            if ( $params->{'IsDomainadmin'} ) {
                 push( @args, 1 );
             }
             else {
@@ -268,26 +270,26 @@ use Class::Std;
         # SpamAssassin
         #
         # Kill Score
-        if ( defined( $params->{'sa_kill_score'} ) && $params->{'sa_kill_score'} =~ m/^\d+$/ ) {
+        if ( defined( $params->{'SAKillScore'} ) && $params->{'SAKillScore'} =~ m/^\d+$/ ) {
             $query .= "sa_kill_score = ?, ";
-            push( @args, $params->{'sa_kill_score'} );
-            if ( $params->{'sa_kill_score'} > 10 ) {
+            push( @args, $params->{'SAKillScore'} );
+            if ( $params->{'SAKillScore'} > 10 ) {
                 $self->msg->push( 'warning', 'SpamAssassin kill score probably set too high! Should be below 10.' );
             }
-            elsif ( $params->{'sa_kill_score'} < 5 ) {
+            elsif ( $params->{'SAKillScore'} < 5 ) {
                 $self->msg->push( 'warning', 'SpamAssassin kill score probably set too low! Should be above 5.' );
             }
         }
 
         # Scanning enabled
-        if ( defined( $params->{'sa_active'} ) ) {
-            if ( $params->{'sa_active'} ) {
-                $params->{'sa_active'} = 1;
+        if ( defined( $params->{'SAActive'} ) ) {
+            if ( $params->{'SAActive'} ) {
+                $params->{'SAActive'} = 1;
             }
             else {
-                $params->{'sa_active'} = 0;
+                $params->{'SAActive'} = 0;
             }
-            push( @args, $params->{'sa_active'} );
+            push( @args, $params->{'SAActive'} );
             $query .= "sa_active = ?, ";
         }
 
@@ -295,61 +297,78 @@ use Class::Std;
         # Vacation
         #
         # Is_On_Vacation / Vacation Msg
-        if ( defined( $params->{'is_on_vacation'} ) ) {
-            if ( $params->{'is_on_vacation'} ) {
-                if (   $params->{'vacation_subj'}
-                    && length( $params->{'vacation_subj'} )
-                    && $params->{'vacation_msg'}
-                    && length( $params->{'vacation_msg'} ) > 1 )
+        if ( defined( $params->{'IsOnVacation'} ) ) {
+            if ( $params->{'IsOnVacation'} ) {
+                if (   $params->{'VacationSubject'}
+                    && length( $params->{'VacationSubject'} )
+                    && $params->{'VacationMessage'}
+                    && length( $params->{'VacationMessage'} ) > 1 )
                 {
-                    $params->{'is_on_vacation'} = 1;
+                    $params->{'IsOnVacation'} = 1;
                 }
                 else {
                     $self->msg->push( 'warning', 'Attempt to enable Vacation w/o vacation message or subject denied!' );
                 }
-                if ( $params->{'vacation_start'} && $params->{'vacation_start'} =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
-                    $params->{'vacation_start'} = "$3-$2-$1";
+                if ( $params->{'VacationStart'} && $params->{'VacationStart'} =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
+                    $params->{'VacationStart'} = "$3-$2-$1";
+                }
+                elsif ( $params->{'VacationStart'} && $params->{'VacationStart'} =~ m/^\s*(\d\d\d\d)-(\d\d)-(\d\d)\s*$/ ) {
+                    $params->{'VacationStart'} = "$1-$2-$3";
                 }
                 else {
-                    $params->{'vacation_start'} = '0000-00-00';
+                    $params->{'VacationStart'} = '0000-00-00';
                     $self->msg->push( 'error', 'Invalid vacation start date!' );
                 }
-                if ( $params->{'vacation_end'} && $params->{'vacation_end'} =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
-                    $params->{'vacation_end'} = "$3-$2-$1";
+                if ( $params->{'VacationEnd'} && $params->{'VacationEnd'} =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
+                    $params->{'VacationEnd'} = "$3-$2-$1";
+                }
+                elsif ( $params->{'VacationEnd'} && $params->{'VacationEnd'} =~ m/^\s*(\d\d\d\d)-(\d\d)-(\d\d)\s*$/ ) {
+                    $params->{'VacationEnd'} = "$1-$2-$3";
                 }
                 else {
-                    $params->{'vacation_end'} = '0000-00-00';
+                    $params->{'VacationEnd'} = '0000-00-00';
                     $self->msg->push( 'error', 'Invalid vacation end date!' );
                 }
-                $query .= "is_on_vacation = ?, vacation_msg = ?, vacation_subj = ?, vacation_start = ?, vacation_end = ? ";
-                push( @args, $params->{'is_on_vacation'} );
-                push( @args, $params->{'vacation_msg'} );
-                push( @args, $params->{'vacation_subj'} );
-                push( @args, $params->{'vacation_start'} );
-                push( @args, $params->{'vacation_end'} );
+                $query .= "is_on_vacation = ?, vacation_msg = ?, vacation_subj = ?, vacation_start = ?, vacation_end = ?, ";
+                push( @args, $params->{'IsOnVacation'} );
+                push( @args, $params->{'VacationMessage'} );
+                push( @args, $params->{'VacationSubject'} );
+                push( @args, $params->{'VacationStart'} );
+                push( @args, $params->{'VacationEnd'} );
             }
             else {
-                $params->{'is_on_vacation'} = 0;
-                $params->{'vacation_start'} = '0000-00-00';
-                $params->{'vacation_end'}   = '0000-00-00';
-                $query .= "is_on_vacation = ?, vacation_start = ?, vacation_end = ? ";
-                push( @args, $params->{'is_on_vacation'} );
-                push( @args, $params->{'vacation_start'} );
-                push( @args, $params->{'vacation_end'} );
+                $params->{'IsOnVacation'}  = 0;
+                $params->{'VacationStart'} = '0000-00-00';
+                $params->{'VacationEnd'}   = '0000-00-00';
+                $query .= "is_on_vacation = ?, vacation_start = ?, vacation_end = ?, ";
+                push( @args, $params->{'IsOnVacation'} );
+                push( @args, $params->{'VacationStart'} );
+                push( @args, $params->{'VacationEnd'} );
             }
         }
 
         # at least on option has changed
         if ( scalar(@args) > 1 ) {
 
+            # remove (possible) trailing ,
+            $query =~ s/,\s*$//;
+
             # finialize query
             $query .= " WHERE id = ?";
             push( @args, $mailbox_id );
 
             # if domainadmin, verify that its his domain
-            if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+            if ( $self->user->is_siteadmin() ) {
+
+                # OK, go ahead. Do anything you want ...
+            }
+            elsif ( $self->user->is_domainadmin() ) {
                 $query .= "AND domain_id = ?";
-                push( @args, $self->get_users_domainid() );
+                push( @args, $self->user->get_domain_id() );
+            }
+            elsif ( $self->user->is_user() ) {
+                $query .= "AND id = ?";
+                push( @args, $self->user->get_id() );
             }
             if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
                 $self->msg->push( 'information', "Updated Mailbox [_1] (#[_2]).", $mailbox_name, $mailbox_id );

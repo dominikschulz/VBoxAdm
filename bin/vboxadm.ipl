@@ -47,22 +47,32 @@ my @conffile_locations = qw(
 );
 
 GetOptions(
-    'verbose|v+'    => \$config{'verbose'},
-    'dry|d!'        => \$config{'dry'},
-    'quiet|q!'      => \$config{'quiet'},
-    'force|f!'      => \$config{'force'},
-    'password|p=s'  => \$config{'password'},
-    'name|n=s'      => \$config{'name'},
-    'source|s=s'    => \$config{'source'},
-    'source-db|d=s' => \$config{'source-db'},
-    'truncate!'     => \$config{'truncate'},
+    'verbose|v+'    => \$opts->{Verbose},
+    'dry|d!'        => \$opts->{Dry},
+    'quiet|q!'      => \$opts->{Quiet},
+    'force|f!'      => \$opts->{Force},
+    'name|n=s'      => \$opts->{Name},
+    'source|s=s'    => \$opts->{Source},
+    'source-db|d=s' => \$opts->{SourceDb},
+    'truncate!'     => \$opts->{Truncate},
     '<>'            => sub { my $m = shift; push( @modes, lc($m) ); },
 
     # shift removes name of the option (config) and leaves the value for unshift
     # unshift prepends to the list of valid config files so it is tried first
     'config=s' => sub { shift; unshift( @conffile_locations, @_ ); },
-    'active|a=i' => \$opts->{IsActive},
-    'goto|g=s'   => \$opts->{Goto},
+    'active|a=i'      => \$opts->{IsActive},
+    'goto|g=s'        => \$opts->{Goto},
+    'password|p=s'    => sub { my $p = shift; $opts->{Password} = $p; $opts->{PasswordAgain} = $p; },
+    'maxmsgsize|m=i'  => \$opts->{MaxMsgSize},
+    'siteadmin=s'     => \$opts->{IsSiteadmin},
+    'domainadmin=s'   => \$opts->{IsDomainadmin},
+    'sakillscore|k=i' => \$opts->{SAKillScore},
+    'saactive=i'      => \$opts->{SAActive},
+    'vacation|v=i'    => \$opts->{IsOnVacation},
+    'vacsubj=s'       => \$opts->{VacationSubject},
+    'vacmsg=s'        => \$opts->{VacationMessage},
+    'vacstart=s'      => \$opts->{VacationStart},
+    'vacend=s'        => \$opts->{VacationEnd},
 ) or die("Unknown Command");
 
 # Try all config file locations
@@ -223,7 +233,14 @@ my %actions = (
         'delete' => sub {
             my $email = shift;
             print "Delete Alias.\n";
-            $Alias->delete( $Alias->get_id($email) );
+            my $alias_id;
+            if ( $email =~ m/^\d+$/ ) {
+                $alias_id = $email;
+            }
+            else {
+                $alias_id = $Alias->get_id($email);
+            }
+            $Alias->delete($alias_id);
             display_messages( $Alias->msg() );
         },
         'list' => sub {
@@ -355,15 +372,45 @@ my %actions = (
         },
         'update' => sub {
             my $email = shift;
-            my $params;    # TODO fill params
+            my $mailbox_id;
+            if ( $email =~ m/^\d+$/ ) {
+                $mailbox_id = $email;
+            }
+            else {
+                $mailbox_id = $Mailbox->get_id($email);
+            }
+            my $params;
+            foreach my $key (
+                qw(
+                Password PasswordAgain
+                Name IsActive MaxMsgSize IsSiteadmin IsDomainadmin
+                SAKillScore SAActive
+                IsOnVacation VacationSubject VacationMessage VacationStart VacationEnd
+                )
+              )
+            {
+                $params->{$key} = $opts->{$key} if defined( $opts->{$key} );
+            }
+
+            # Longer vacation messages can not be given on the commandline, they may also be a file
+            if ( $params->{VacationMessage} && -f $params->{VacationMessage} ) {
+                $params->{VacationMessage} = &VBoxAdm::Utils::slurp( $params->{VacationMessage} );
+            }
             print "Update User: $email\n";
-            $Mailbox->update( $Mailbox->get_id($email), $params );
+            $Mailbox->update( $mailbox_id, $params );
             display_messages( $Mailbox->msg() );
         },
         'delete' => sub {
             my $email = shift;
             print "Delete User: $email\n";
-            $Mailbox->delete( $Mailbox->get_id($email) );
+            my $mailbox_id;
+            if ( $email =~ m/^\d+$/ ) {
+                $mailbox_id = $email;
+            }
+            else {
+                $mailbox_id = $Mailbox->get_id($email);
+            }
+            $Mailbox->delete($mailbox_id);
             display_messages( $Mailbox->msg() );
         },
         'list' => sub {
