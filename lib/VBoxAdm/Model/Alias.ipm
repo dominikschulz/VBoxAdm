@@ -8,8 +8,6 @@ use Carp;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
-# TODO handle duplicate key and other DB errors
-
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
@@ -50,6 +48,10 @@ use Class::Std;
             push( @args, $self->user->get_domain_id() );
         }
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+        if ( !$sth ) {
+            $self->msg->push( 'error', 'Database error.' );
+            return;
+        }
         my $id = $sth->fetchrow_array();
         $sth->finish();
         return $id;
@@ -122,8 +124,11 @@ use Class::Std;
             # get alias name for message
             my $query =
               'SELECT CONCAT(a.local_part,\'@\',d.name) AS alias,a.goto FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?';
-            my $sth = $self->dbh->prepare($query);
-            $sth->execute($alias_id);
+            my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $alias_id );
+            if ( !$sth ) {
+                $self->msg->push( 'error', 'Database error.' );
+                return;
+            }
             my ( $alias, $goto ) = $sth->fetchrow_array();
             $sth->finish();
 
@@ -169,6 +174,10 @@ use Class::Std;
         if ($alias_id) {
             my $query = "SELECT a.local_part,d.name FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
             my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $alias_id );
+            if ( !$sth ) {
+                $self->msg->push( 'error', 'Database error.' );
+                return;
+            }
             $alias_name = $sth->fetchrow_array();
             $sth->finish();
         }
@@ -252,9 +261,14 @@ use Class::Std;
             push( @args, $self->user->get_domain_id() );
         }
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $id );
+        if ( !$sth ) {
+            $self->msg->push( 'error', 'Database error.' );
+            return;
+        }
         my %result;
         @result{qw(id local_part domain goto is_active)} = $sth->fetchrow_array();
         $sth->finish();
+
         return \%result;
     }
 
@@ -285,6 +299,10 @@ use Class::Std;
             push( @args, $self->user->get_domain_id() );
         }
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+        if ( !$sth ) {
+            $self->msg->push( 'error', 'Database error.' );
+            return;
+        }
         my @results = ();
         while ( my ( $id, $local_part, $domain_name, $goto, $is_active ) = $sth->fetchrow_array() ) {
             push(

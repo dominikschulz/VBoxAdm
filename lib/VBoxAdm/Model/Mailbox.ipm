@@ -9,8 +9,6 @@ use Sys::Syslog;
 use VBoxAdm::SaltedHash '@VERSION@';
 use VBoxAdm::Password '@VERSION@';
 
-# TODO handle duplicate key and other DB errors
-
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
@@ -417,6 +415,12 @@ use Class::Std;
         }
 
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $mailbox_id );
+
+        if ( !$sth ) {
+            $self->msg->push( 'error', 'Database error.' );
+            return;
+        }
+
         my %result;
         @result{ @{ $fields_of{$ident} } } = $sth->fetchrow_array();
         $sth->finish();
@@ -451,8 +455,13 @@ use Class::Std;
             push( @args, $param->{'domain_id'} );
         }
 
-        my $sth = $self->dbh->prepare($sql);
-        $sth->execute(@args);
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+
+        if ( !$sth ) {
+            $self->msg->push( 'error', 'Database error.' );
+            return;
+        }
+
         my @entries = ();
 
         # domain name was not in the field list 'coz it is prefixed with d., not m.
@@ -479,6 +488,12 @@ use Class::Std;
 
         my $query = "SELECT m.local_part,d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $id );
+
+        if ( !$sth ) {
+            $self->msg->push( 'error', 'Database error.' );
+            return;
+        }
+
         my ( $local_part, $domain ) = $sth->fetchrow_array();
         $sth->finish();
 
@@ -502,8 +517,14 @@ use Class::Std;
         my ( $local_part, $domain ) = split /@/, $email;
 
         my $query = "SELECT m.id FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
-        my $sth   = &VBoxAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain );
-        my $id    = $sth->fetchrow_array();
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain );
+
+        if ( !$sth ) {
+            $self->msg->push( 'error', 'Database error.' );
+            return;
+        }
+
+        my $id = $sth->fetchrow_array();
         $sth->finish();
 
         return $id;

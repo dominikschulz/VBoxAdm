@@ -9,8 +9,6 @@ use Sys::Syslog;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
-# TODO handle duplicate key and other DB errors
-
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
@@ -38,9 +36,14 @@ use Class::Std;
             return;
         }
 
-        # TODO handle duplicate key errors
         my $sql = "INSERT IGNORE INTO awl (email,last_seen,disabled) VALUES(?,NOW(),0)";
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $email );
+
+        if ( !$sth ) {
+            $self->msg->push( 'error', 'Database error.' );
+            return;
+        }
+
         $sth->finish();
 
         return 1;
@@ -63,7 +66,14 @@ use Class::Std;
         my $sql = "SELECT id FROM awl WHERE email = ?";
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $email );
         my $id  = $sth->fetchrow_array();
+
+        if ( !$sth ) {
+            $self->msg->push( 'error', 'Database error.' );
+            return;
+        }
+
         $sth->finish();
+
         return $id;
     }
 
@@ -99,6 +109,8 @@ use Class::Std;
                 return;
             }
         }
+
+        return;
     }
 
     # There will be no AWL::delete - ever. Why?

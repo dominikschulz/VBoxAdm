@@ -115,6 +115,12 @@ use Class::Std;
 
         my $sql = "SELECT " . join( ",", @{$fields} ) . " FROM $table WHERE id = ?";
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $id );
+
+        if ( !$sth ) {
+            $self->msg->push( 'error', 'Database error.' );
+            return;
+        }
+
         my %result;
         @result{ @{$fields} } = $sth->fetchrow_array();
         $sth->finish();
@@ -158,8 +164,13 @@ use Class::Std;
             $sql .= ' LIMIT ' . $param->{'Limit'};
         }
 
-        my $sth = $self->dbh->prepare($sql);
-        $sth->execute(@args);
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+
+        if ( !$sth ) {
+            $self->msg->push( 'error', 'Database error.' );
+            return;
+        }
+
         my @entries = ();
 
         while ( my @row = $sth->fetchrow_array() ) {

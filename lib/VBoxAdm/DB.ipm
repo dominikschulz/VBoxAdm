@@ -72,6 +72,7 @@ sub connect {
 
     # No eval error handling. If the connection timed out $dbh will be undef anyway ...
     if ($dbh) {
+        $dbh->{HandleError} = sub { confess(shift) };
         if ( !$opts->{NoUTF8} ) {
             $dbh->do('SET NAMES utf8');
         }
@@ -95,11 +96,12 @@ sub connect {
 sub prepexec {
     my ( $dbh, $sqlstr, @params ) = @_;
     my $sth;
-    $sth = $dbh->prepare($sqlstr)
-      or confess( "Couldn't prepare statement: $sqlstr - Error: " . $sth->errstr );
-    $sth->execute(@params)
-      or confess( "Couldn't execute statement: $sqlstr - Error: " . $sth->errstr );
-    return $sth;
+    if ( $sth = $dbh->prepare($sqlstr) ) {
+        if ( $sth->execute(@params) ) {
+            return $sth;
+        }
+    }
+    return;
 }
 
 1;

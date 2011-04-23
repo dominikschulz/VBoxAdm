@@ -46,6 +46,12 @@ use Class::Std;
         my $sql =
 "SELECT m.id,m.password,m.is_domainadmin,m.is_superadmin,d.id FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $local_part, $domain );
+
+        if ( !$sth ) {
+            $self->msg->push( 'error', 'Database error.' );
+            return;
+        }
+
         my ( $id, $pw, $is_da, $is_sa, $domain_id ) = $sth->fetchrow_array();
         $sth->finish();
         if ( !&VBoxAdm::SaltedHash::verify_pass( $password, $pw ) ) {

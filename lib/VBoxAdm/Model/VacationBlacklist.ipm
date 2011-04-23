@@ -8,8 +8,6 @@ use Carp;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
-# TODO handle duplicate key and other DB errors
-
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
@@ -78,7 +76,13 @@ use Class::Std;
 
         my $sql = "SELECT id FROM vacation_blacklist WHERE local_part = ? AND domain = ?";
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $local_part, $domain );
-        my $id  = $sth->fetchrow_array();
+
+        if ( !$sth ) {
+            $self->msg->push( 'error', 'Database error.' );
+            return;
+        }
+
+        my $id = $sth->fetchrow_array();
         $sth->finish();
         return $id;
     }
@@ -101,9 +105,7 @@ use Class::Std;
             $sth->finish();
 
             $query = "DELETE FROM vacation_blacklist WHERE id = ?";
-            $sth   = $self->dbh->prepare($query)
-              or $self->log( 'Could not prepare Query: %s, Error: %s', $query, $self->dbh->errstr );
-            if ( $sth->execute($entry_id) ) {
+            if ( &VBoxAdm::DB::prepexec( $self->dbh, $query, $entry_id ) ) {
                 $sth->finish();
                 $self->msg->push( 'information', "Deleted Vacation Blacklist Entry [_1].", $email );
                 return 1;

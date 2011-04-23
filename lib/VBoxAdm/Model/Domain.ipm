@@ -9,8 +9,6 @@ use Sys::Syslog;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
-# TODO handle duplicate key and other DB errors
-
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
@@ -78,6 +76,12 @@ use Class::Std;
 
         my $sql = "DELETE FROM domains WHERE id = ? LIMIT 1";
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $domain_id );
+
+        if ( !$sth ) {
+            $self->msg->push( 'error', 'Database error.' );
+            return;
+        }
+
         $sth->finish();
 
         return;
@@ -159,8 +163,14 @@ use Class::Std;
             return;
         }
 
-        my $query       = "SELECT name FROM domains WHERE id = ?";
-        my $sth         = &VBoxAdm::DB::prepexec( $self->dbh, $query, $id );
+        my $query = "SELECT name FROM domains WHERE id = ?";
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $id );
+
+        if ( !$sth ) {
+            $self->msg->push( 'error', 'Database error.' );
+            return;
+        }
+
         my $domain_name = $sth->fetchrow_array();
         $sth->finish();
 
@@ -177,8 +187,14 @@ use Class::Std;
             return;
         }
 
-        my $query     = "SELECT id FROM domains WHERE name = ?";
-        my $sth       = &VBoxAdm::DB::prepexec( $self->dbh, $query, $name );
+        my $query = "SELECT id FROM domains WHERE name = ?";
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $name );
+
+        if ( !$sth ) {
+            $self->msg->push( 'error', 'Database error.' );
+            return;
+        }
+
         my $domain_id = $sth->fetchrow_array();
         $sth->finish();
 
