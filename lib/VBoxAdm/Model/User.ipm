@@ -8,8 +8,6 @@ use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::SaltedHash '@VERSION@';
 
-# TODO verify ACLs
-
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
@@ -19,8 +17,19 @@ use Class::Std;
 
     sub BUILD {
         my ( $self, $ident, $arg_ref ) = @_;
-        if ( !$self->dbh || !$self->dbh->ping() || !$self->check_login( $arg_ref->{'Username'}, $arg_ref->{'Password'} ) ) {
-            return;
+        if ( !$self->dbh || !$self->dbh->ping() ) {
+            die("Need DBH connection!");
+        }
+        if ( $arg_ref->{'SystemUser'} ) {
+            $data_of{$ident}{'domainadmin'} = 1;
+            $data_of{$ident}{'siteadmin'}   = 1;
+            $data_of{$ident}{'local_part'}  = 'root';
+            $data_of{$ident}{'domain'}      = 'localhost';
+            $data_of{$ident}{'id'}          = 0;
+            $data_of{$ident}{'domain_id'}   = 0;
+        }
+        elsif ( !$self->check_login( $arg_ref->{'Username'}, $arg_ref->{'Password'} ) ) {
+            die("Need valid username and password.");
         }
     }
 
@@ -93,7 +102,13 @@ use Class::Std;
         return $data_of{$ident}{'siteadmin'};
     }
 
-    sub is_user {
+    sub is_admin {
+        my ($self) = @_;
+        my $ident = ident $self;
+        return $data_of{$ident}{'domainadmin'} + $data_of{$ident}{'siteadmin'};
+    }
+
+    sub is_user : BOOLIFY {
         my ($self) = @_;
 
         # a successfully created class means that the user is a valid user

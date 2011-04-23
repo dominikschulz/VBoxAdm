@@ -8,7 +8,7 @@ use Carp;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
-# TODO verify ACLs
+# TODO handle duplicate key and other DB errors
 
 use base qw(VBoxAdm::Model);
 use Class::Std;
@@ -30,6 +30,12 @@ use Class::Std;
     sub create {
         my ( $self, $email ) = @_;
         my $ident = ident $self;
+
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
 
         # TODO handle duplicate key errors
         if ( $email && &VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
@@ -58,6 +64,12 @@ use Class::Std;
         my ( $self, $email ) = @_;
         my $ident = ident $self;
 
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
         if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
             return;
         }
@@ -74,6 +86,12 @@ use Class::Std;
     sub delete {
         my ( $self, $entry_id ) = @_;
         my $ident = ident $self;
+
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
 
         if ($entry_id) {
             my $query = "SELECT CONCAT(local_part,'\@',domain) FROM vacation_blacklist WHERE id = ?";
@@ -105,12 +123,18 @@ use Class::Std;
     }
 
     sub update {
-        die("No VacationBlacklist::update");
+        die("No need for VacationBlacklist::update.");
     }
 
     sub read {
         my ( $self, $id ) = @_;
         my $ident = ident $self;
+
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
 
         return $self->_read( 'vacation_blacklist', $id, $fields_of{$ident} );
     }
@@ -118,6 +142,12 @@ use Class::Std;
     sub list {
         my ( $self, $params ) = @_;
         my $ident = ident $self;
+
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
 
         return $self->_list( 'vacation_blacklist', $fields_of{$ident}, $params );
     }

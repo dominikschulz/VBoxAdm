@@ -7,8 +7,6 @@ use Carp;
 
 our $VERSION = '@VERSION@';
 
-# TODO verify ACLs
-
 use Class::Std;
 {
 
@@ -47,12 +45,12 @@ use Class::Std;
         my ( $self, $severity, $msg, @args ) = @_;
         my $ident = ident $self;
 
-        # TODO use caller() to take reference from whom the msg came
         my $msg_ref = {
             'severity' => $severity,
             'raw'      => $msg,
             'loc'      => $self->maketext( $msg, @args ),
             'en'       => $self->maketext_en( $msg, @args ),
+            'caller'   => ( caller(0), caller(1) ),
         };
 
         # Session

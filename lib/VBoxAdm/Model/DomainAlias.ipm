@@ -5,7 +5,7 @@ use warnings;
 
 use Carp;
 
-# TODO verify ACLs
+# TODO handle duplicate key and other DB errors
 
 use base qw(VBoxAdm::Model);
 use Class::Std;
@@ -27,6 +27,12 @@ use Class::Std;
     sub create {
         my ( $self, $domain, $domain_id ) = @_;
         my $ident = ident $self;
+
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
 
         # TODO handle duplicate key errors
 
@@ -73,6 +79,12 @@ use Class::Std;
         my ( $self, $domain_alias_id ) = @_;
         my $ident = ident $self;
 
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
         if ( !$domain_alias_id ) {
             $self->msg->push( 'error', 'Failed to remove domain alias. Missing domain id.' );
             return;
@@ -105,6 +117,12 @@ use Class::Std;
     sub update {
         my ( $self, $domain_alias_id, $params ) = @_;
         my $ident = ident $self;
+
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
 
         my $domain_name = $self->get_name($domain_alias_id) if $domain_alias_id;
 
@@ -161,6 +179,12 @@ use Class::Std;
         my ( $self, $id ) = @_;
         my $ident = ident $self;
 
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
         return $self->_read( 'domain_aliases', $id, $fields_of{$ident} );
     }
 
@@ -168,26 +192,48 @@ use Class::Std;
         my ( $self, $params ) = @_;
         my $ident = ident $self;
 
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
         return $self->_list( 'domain_aliases', $fields_of{$ident}, $params );
     }
 
     sub get_name {
         my ( $self, $id ) = @_;
-        my $ident       = ident $self;
+        my $ident = ident $self;
+
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
         my $query       = "SELECT name FROM domain_aliases WHERE id = ?";
         my $sth         = &VBoxAdm::DB::prepexec( $self->dbh, $query, $id );
         my $domain_name = $sth->fetchrow_array();
         $sth->finish();
+
         return $domain_name;
     }
 
     sub get_id {
         my ( $self, $name ) = @_;
-        my $ident     = ident $self;
+        my $ident = ident $self;
+
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
         my $query     = "SELECT id FROM domain_aliases WHERE name = ?";
         my $sth       = &VBoxAdm::DB::prepexec( $self->dbh, $query, $name );
         my $domain_id = $sth->fetchrow_array();
         $sth->finish();
+
         return $domain_id;
     }
 }

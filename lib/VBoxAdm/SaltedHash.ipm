@@ -7,7 +7,8 @@ use MIME::Base64;
 use Digest::MD5;
 use Digest::Perl::MD5;
 use Digest::SHA;
-use Crypt::GeneratePassword;
+
+use VBoxAdm::Password '@VERSION@';
 
 our $VERSION = '@VERSION@';
 
@@ -250,17 +251,7 @@ sub make_pass {
 # Comments   : none
 # See Also   : http://wiki.dovecot.org/Authentication/PasswordSchemes
 sub make_salt {
-    return Crypt::GeneratePassword::word( 8, 12 );
-}
-
-# This does not always whats expected.
-sub _make_salt {
-    my $len   = 8 + int( rand(8) );
-    my @bytes = ();
-    for my $i ( 1 .. $len ) {
-        push( @bytes, rand(255) );
-    }
-    return pack( 'C*', @bytes );
+    return VBoxAdm::Password::pwgen(4);
 }
 
 ############################################

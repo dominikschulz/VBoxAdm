@@ -25,7 +25,6 @@ How to Install VBoxAdm
 - DBD MySQL
 - Class::Std
 - Config::Std
-- Crypt::GeneratePassword
 - CGI::Application
 - CGI::Application::Plugin::DBH
 - CGI::Application::Plugin::Redirect
@@ -34,7 +33,6 @@ How to Install VBoxAdm
 - CGI::Application::Plugin::RequireSSL
 - CGI::Application::Plugin::Authentication
 - Data::Page
-- Data::Password
 - Digest::Perl::MD5
 - FCGI
 - HTML::Clean
@@ -49,10 +47,10 @@ How to Install VBoxAdm
 - Postfix 2.6+
 
 Debian based (Debian Squeeze, Ubuntu):
-  aptitude install perl perltidy libdbi-perl libdbd-mysql-perl libconfig-std-perl libtest-pod-perl libmail-sender-perl libcgi-application-perl libcgi-application-basic-plugin-bundle-perl libcgi-application-extra-plugin-bundle-perl famfamfam-silk-png libmime-encwords-perl libhtml-clean-perl libtemplate-perl lighttpd mysql-server php5-cgi postfix postfix-pcre postfix-mysql dovecot-imapd libcrypt-generatepassword-perl libdata-password-perl
+  aptitude install perl perltidy libdbi-perl libdbd-mysql-perl libconfig-std-perl libtest-pod-perl libmail-sender-perl libcgi-application-perl libcgi-application-basic-plugin-bundle-perl libcgi-application-extra-plugin-bundle-perl famfamfam-silk-png libmime-encwords-perl libhtml-clean-perl libtemplate-perl lighttpd mysql-server php5-cgi postfix postfix-pcre postfix-mysql dovecot-imapd
 
 Red Hat based (RHEL, CentOS, Fedora):
-  yum install perl perltidy perl-DBI spamassassin mysql-server perl-Locale-Maketext-Simple perl-Text-CSV_XS perl-Readonly perl-Net-Server perl-Data-Password perl-Data-Page perl-CGI-Application-Plugin-Authentication perl-CGI-Application-Plugin-TT perl-CGI-Application-Plugin-DBH perl-CGI-Application-Plugin-Redirect perl-CGI-Application-Plugin-Session perl-Template-Toolkit perl-FCGI perl-Class-Std perl-Crypt-GeneratePassword perl-DBD-MySQL perl-DBI
+  yum install perl perltidy perl-DBI spamassassin mysql-server perl-Locale-Maketext-Simple perl-Text-CSV_XS perl-Readonly perl-Net-Server perl-Data-Password perl-Data-Page perl-CGI-Application-Plugin-Authentication perl-CGI-Application-Plugin-TT perl-CGI-Application-Plugin-DBH perl-CGI-Application-Plugin-Redirect perl-CGI-Application-Plugin-Session perl-Template-Toolkit perl-FCGI perl-Class-Std perl-DBD-MySQL perl-DBI
 
 Other Distributions:
 Users of other distributions will have to figure out themself what packages they need to install. If you use a distribution not listed here and have figured out which packages to install tell me and I'll and the information to this file.
@@ -237,9 +235,10 @@ START_SMTPPROXY in the file /etc/default/vboxadm-sa to true.
 
 * Create your Siteadmin
 -----------------------
-Use the script contrib/mkadmin.pl to create a new siteadmin.
+Use the script bin/vboxadm.pl to create a new siteadmin. In order for the bootstrap option to work you'll have
+to run this script as root.
 
-$> contrib/mkadmin.pl --username your.name@domain.tld
+$> bin/vboxadm.pl mailbox add your.name@domain.tld --bootstrap -a 1 --siteadmin=1
 
 Use the supplied information to log in to VBoxAdm and create your
 users and mailboxes.

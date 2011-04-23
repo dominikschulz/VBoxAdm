@@ -25,12 +25,10 @@ my @modules = qw(
   Class::Std/0/1/libclass-std-perl/perl-Class-Std
   Config::Std/0.007/1/libconfig-std-perl/perl-Config-Std/
   CPAN/1.9402/1/perl-modules/perl-CPAN
-  Crypt::GeneratePassword/0.03/1/libcrypt-generatepassword-perl/perl-Crypt-GeneratePassword
   Crypt::OpenSSL::RSA/0.25/1/libcrypt-openssl-rsa-perl/perl-Crypt-OpenSSL-RSA
   Cwd/3.3/1/perl-base/perl
   Data::Dumper/2.124/1/perl/perl
   Data::Page/2.02/1/libdata-perl-perl/perl-Data-Page
-  Data::Password/1.07/1/libdata-password-perl/perl-Data-Password
   DBI/1.612/1/libdbi-perl/perl-DBI
   DBD::MySQL/0/1/libdbd-mysql-perl/perl-DBD-MySQL
   Digest::MD5/2.39/1/perl/perl-Digest-MD5

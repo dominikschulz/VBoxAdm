@@ -25,9 +25,7 @@ use CGI::Application::Plugin::RequireSSL;
 use CGI::Application::Plugin::Authentication;
 
 use Config::Std;
-use Crypt::GeneratePassword;
 use DBI;
-use Data::Password;
 use Sys::Syslog;
 use Data::Page;
 use Readonly;
@@ -2176,7 +2174,7 @@ sub show_add_mailbox {
 
     # no pws given, generate one
     if ( !$password && !$password_2 ) {
-        $password = Crypt::GeneratePassword::word( 8, 12 );
+        $password = &VBoxAdm::Password::pwgen( 12 );
         $password_2 = $password;
         my $msg = 'Generated Password: [_1]. ';
         $self->add_message( 'info', $self->{lh}->maketext( $msg, $password ) );
@@ -2454,9 +2452,6 @@ sub show_update_mailbox {
         # Password
         if ( $password && $password_2 ) {
 
-            $Data::Password::MINLEN = 8;
-            $Data::Password::MAXLEN = undef;
-
             # passwords must be equal and at least 8 chars long
             if ( $password eq $password_2 ) {
 
@@ -2468,8 +2463,9 @@ sub show_update_mailbox {
                 }
 
                 # Check password strength
-                if ( my $str = Data::Password::IsBadPassword($password) ) {
-                    my $msg = $self->{lh}->maketext( 'Weak password - [_1].', $str );
+                my $strength = &VBoxAdm::Password::strength($password);
+                if ( $strength < 2 ) {
+                    my $msg = $self->{lh}->maketext( 'Weak password - Strength: [_1].', $strength );
                     $self->add_message( 'warning', $msg );
                     $msg1 .= $msg . ' ';
                 }

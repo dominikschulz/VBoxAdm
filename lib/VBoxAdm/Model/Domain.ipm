@@ -9,7 +9,7 @@ use Sys::Syslog;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
-# TODO verify ACLs
+# TODO handle duplicate key and other DB errors
 
 use base qw(VBoxAdm::Model);
 use Class::Std;
@@ -31,6 +31,12 @@ use Class::Std;
     sub create {
         my ( $self, $domain ) = @_;
         my $ident = ident $self;
+
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
 
         $domain = &VBoxAdm::Utils::trim( lc($domain) );
 
@@ -63,15 +69,29 @@ use Class::Std;
     sub delete {
         my ( $self, $domain_id ) = @_;
         my $ident = ident $self;
-        my $sql   = "DELETE FROM domains WHERE id = ? LIMIT 1";
-        my $sth   = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $domain_id );
+
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
+        my $sql = "DELETE FROM domains WHERE id = ? LIMIT 1";
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $domain_id );
         $sth->finish();
+
         return;
     }
 
     sub update {
         my ( $self, $domain_id, $params ) = @_;
         my $ident = ident $self;
+
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
 
         my $domain_name = $self->get_name($domain_id);
 
@@ -107,6 +127,12 @@ use Class::Std;
         my ( $self, $id ) = @_;
         my $ident = ident $self;
 
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
         return $self->_read( 'domains', $id, $fields_of{$ident} );
     }
 
@@ -114,26 +140,48 @@ use Class::Std;
         my ( $self, $params ) = @_;
         my $ident = ident $self;
 
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
         return $self->_list( 'domains', $fields_of{$ident}, $params );
     }
 
     sub get_name {
         my ( $self, $id ) = @_;
-        my $ident       = ident $self;
+        my $ident = ident $self;
+
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
         my $query       = "SELECT name FROM domains WHERE id = ?";
         my $sth         = &VBoxAdm::DB::prepexec( $self->dbh, $query, $id );
         my $domain_name = $sth->fetchrow_array();
         $sth->finish();
+
         return $domain_name;
     }
 
     sub get_id {
         my ( $self, $name ) = @_;
-        my $ident     = ident $self;
+        my $ident = ident $self;
+
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
         my $query     = "SELECT id FROM domains WHERE name = ?";
         my $sth       = &VBoxAdm::DB::prepexec( $self->dbh, $query, $name );
         my $domain_id = $sth->fetchrow_array();
         $sth->finish();
+
         return $domain_id;
     }
 }

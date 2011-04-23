@@ -67,6 +67,7 @@ LIBFILES = \
 	lib/VBoxAdm/Model/User.pm \
 	lib/VBoxAdm/Model/VacationBlacklist.pm \
 	lib/VBoxAdm/DB.pm \
+	lib/VBoxAdm/Password.pm \
 	lib/VBoxAdm/SaltedHash.pm \
 	lib/VBoxAdm/Controller/Frontend.pm \
 	lib/VBoxAdm/SMTP/Proxy.pm \
@@ -274,6 +275,9 @@ clean:
 	$(RM) -f lib/VBoxAdm/*.bak
 	$(RM) -f lib/VBoxAdm/*.pm.LOG
 	$(RM) -f lib/VBoxAdm/*.pm
+	$(RM) -f lib/VBoxAdm/Controller/*.bak
+	$(RM) -f lib/VBoxAdm/Controller/*.pm.LOG
+	$(RM) -f lib/VBoxAdm/Controller/*.pm
 	$(RM) -f lib/VBoxAdm/Model/*.bak
 	$(RM) -f lib/VBoxAdm/Model/*.pm.LOG
 	$(RM) -f lib/VBoxAdm/Model/*.pm

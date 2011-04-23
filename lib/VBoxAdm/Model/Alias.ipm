@@ -8,7 +8,7 @@ use Carp;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
-# TODO verify ACLs
+# TODO handle duplicate key and other DB errors
 
 use base qw(VBoxAdm::Model);
 use Class::Std;
@@ -29,6 +29,12 @@ use Class::Std;
         my ( $self, $email ) = @_;
         my $ident = ident $self;
 
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
         if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
             return;
         }
@@ -36,8 +42,15 @@ use Class::Std;
         my ( $local_part, $domain ) = split /@/, $email;
 
         my $sql = "SELECT a.id FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.local_part = ? AND d.name = ?";
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $local_part, $domain );
-        my $id  = $sth->fetchrow_array();
+        my @args = ( $local_part, $domain );
+
+        # non-siteadmins may only retreive information for their domain
+        if ( !$self->user->is_siteadmin() ) {
+            $sql .= " AND a.domain_id = ?";
+            push( @args, $self->user->get_domain_id() );
+        }
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+        my $id = $sth->fetchrow_array();
         $sth->finish();
         return $id;
     }
@@ -46,13 +59,18 @@ use Class::Std;
         my ( $self, $local_part, $domain_id, $goto ) = @_;
         my $ident = ident $self;
 
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
         $local_part = &VBoxAdm::Utils::trim( lc($local_part) );
         $goto       = &VBoxAdm::Utils::trim( lc($goto) );
 
         my $Domain = VBoxAdm::Model::Domain->new( { 'Model' => $self, } );
         my $domain_name = $Domain->get_name($domain_id);
 
-        # TODO handle duplicate key errors
         if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin && $domain_id != $self->user->get_domain_id() ) {
 
             # if domainadmin, verify that its his domain
@@ -93,6 +111,12 @@ use Class::Std;
         my ( $self, $alias_id ) = @_;
         my $ident = ident $self;
 
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
         if ( $alias_id && $alias_id =~ m/^\d+$/ ) {
 
             # get alias name for message
@@ -132,6 +156,12 @@ use Class::Std;
         my ( $self, $alias_id, $params ) = @_;
         my $ident = ident $self;
 
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
         my $is_active = $params->{IsActive};
         my $target    = &VBoxAdm::Utils::trim( $params->{Goto} );
 
@@ -155,7 +185,7 @@ use Class::Std;
             push( @args, $alias_id );
 
             # Authorization
-            if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
+            if ( !$self->user->is_siteadmin() ) {
                 $query .= "AND domain_id = ?";
                 push( @args, $self->user->get_domain_id() );
             }
@@ -183,6 +213,13 @@ use Class::Std;
         }
         elsif ( $alias_id && $target ) {
             my $query = "UPDATE aliases SET goto = ? WHERE id = ?";
+            my @args = ( $target, $alias_id );
+
+            # Authorization
+            if ( !$self->user->is_siteadmin() ) {
+                $query .= " AND domain_id = ?";
+                push( @args, $self->user->get_domain_id() );
+            }
             if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $target, $alias_id ) ) {
                 $self->msg->push( 'information', "Alias [_1] (#[_2]) redirected to [_3].", $alias_name, $alias_id, $target );
                 $sth->finish();
@@ -200,7 +237,20 @@ use Class::Std;
         my ( $self, $id ) = @_;
         my $ident = ident $self;
 
-        my $sql = "SELECT a.id,a.local_part,d.name,a.goto,a.is_active FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
+        my $sql  = "SELECT a.id,a.local_part,d.name,a.goto,a.is_active FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
+        my @args = ($id);
+
+        # Authorization
+        if ( !$self->user->is_siteadmin() ) {
+            $sql .= " AND a.domain_id = ?";
+            push( @args, $self->user->get_domain_id() );
+        }
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $id );
         my %result;
         @result{qw(id local_part domain goto is_active)} = $sth->fetchrow_array();
@@ -212,15 +262,27 @@ use Class::Std;
         my ( $self, $params ) = @_;
         my $ident = ident $self;
 
-        my $sql  = "SELECT a.id,a.local_part,d.name,a.goto,a.is_active FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id";
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
+        my $sql  = "SELECT a.id,a.local_part,d.name,a.goto,a.is_active FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE 1";
         my @args = ();
         if ( $params->{Search} ) {
-            $sql .= " WHERE a.local_part LIKE ? OR d.name LIKE ? OR a.goto LIKE ?";
+            $sql .= " AND (a.local_part LIKE ? OR d.name LIKE ? OR a.goto LIKE ?)";
             my $term = $params->{'Search'};
             $term =~ s/[*%]+//g;
             $term = '%' . $term . '%';
             push( @args, $term );
             push( @args, $term );
+        }
+
+        # Authorization
+        if ( !$self->user->is_siteadmin() ) {
+            $sql .= " AND a.domain_id = ?";
+            push( @args, $self->user->get_domain_id() );
         }
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
         my @results = ();

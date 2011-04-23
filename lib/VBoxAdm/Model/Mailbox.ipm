@@ -5,12 +5,11 @@ use warnings;
 
 use Carp;
 use Sys::Syslog;
-use Crypt::GeneratePassword;    # TODO use our own password methods
-use Data::Password;             # TODO use our own password methods
 
 use VBoxAdm::SaltedHash '@VERSION@';
+use VBoxAdm::Password '@VERSION@';
 
-# TODO verify ACLs
+# TODO handle duplicate key and other DB errors
 
 use base qw(VBoxAdm::Model);
 use Class::Std;
@@ -38,6 +37,12 @@ use Class::Std;
     sub create {
         my ( $self, $local_part, $domain_id, $params ) = @_;
         my $ident = ident $self;
+
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
 
         $local_part = &VBoxAdm::Utils::trim( lc($local_part) );
 
@@ -87,7 +92,7 @@ use Class::Std;
         #
         # No Passwords given, generate one
         if ( !$params->{'password'} && !$params->{'password_again'} ) {
-            $args{'password'} = Crypt::GeneratePassword::word( 8, 16 );
+            $args{'password'} = &VBoxAdm::Password::pwgen(16);
             $self->msg->push( 'information', 'Generated Password: [_1].', $args{'password'} );
         }
 
@@ -141,6 +146,12 @@ use Class::Std;
         my ( $self, $mailbox_id ) = @_;
         my $ident = ident $self;
 
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
         if ( !$mailbox_id || $mailbox_id !~ m/^\d+$/ ) {
             $self->msg->push( 'error', "Failed to remove mailbox. Insufficient parameters." );
             return;
@@ -172,6 +183,8 @@ use Class::Std;
         my ( $self, $mailbox_id, $params ) = @_;
         my $ident = ident $self;
 
+        # Authorization - Regular Users may access this method!
+
         if ( !$mailbox_id || $mailbox_id !~ m/^\d+$/ ) {
             $self->msg->push( 'error', 'Failed to update mailbox. Need a numeric mailbox id.' );
             return;    # need numeric mailbox id
@@ -196,9 +209,6 @@ use Class::Std;
         #
         if ( $params->{'Password'} && $params->{'PasswordAgain'} ) {
 
-            $Data::Password::MINLEN = 8;
-            $Data::Password::MAXLEN = undef;
-
             # passwords must be equal and at least 8 chars long
             if ( $params->{'Password'} eq $params->{'PasswordAgain'} ) {
 
@@ -208,8 +218,9 @@ use Class::Std;
                 }
 
                 # Check password strength
-                if ( my $str = Data::Password::IsBadPassword( $params->{'Password'} ) ) {
-                    $self->msg->push( 'warning', 'Weak password - [_1].', $str );
+                my $strength = &VBoxAdm::Password::strength( $params->{'Password'} );
+                if ( $strength < 2 ) {
+                    $self->msg->push( 'warning', 'Weak password - Strength: [_1].', $strength );
                 }
                 $query .= "password = ?, ";
                 push( @args, VBoxAdm::SaltedHash::make_pass( $params->{'Password'}, $pwscheme ) );
@@ -243,7 +254,7 @@ use Class::Std;
         #
         if ( defined( $params->{'MaxMsgSize'} ) && $params->{'MaxMsgSize'} =~ m/^\d+$/ ) {
             $query .= "max_msg_size = ?, ";
-            push( @args, $params->{'MaxMsgSize'} );
+            push( @args, $params->{'MaxMsgSize'} * 1024 );
         }
 
         #
@@ -360,13 +371,17 @@ use Class::Std;
             # if domainadmin, verify that its his domain
             if ( $self->user->is_siteadmin() ) {
 
-                # OK, go ahead. Do anything you want ...
+                # Siteadmin? - OK, go ahead. Do anything you want ...
             }
             elsif ( $self->user->is_domainadmin() ) {
+
+                # Domainadmin? - Only your domain please!
                 $query .= "AND domain_id = ?";
                 push( @args, $self->user->get_domain_id() );
             }
             elsif ( $self->user->is_user() ) {
+
+                # Regular User? - Only your mailbox please!
                 $query .= "AND id = ?";
                 push( @args, $self->user->get_id() );
             }
@@ -390,16 +405,34 @@ use Class::Std;
         my $ident = ident $self;
 
         my $sql = "SELECT " . join( ",", @{ $fields_of{$ident} } ) . " FROM mailboxes WHERE id = ?";
+        my @args = ($mailbox_id);
+
+        if ( !$self->user->is_siteadmin() ) {
+            $sql .= " AND domain_id = ?";
+            push( @args, $self->user->get_domain_id() );
+        }
+        elsif ( !$self->user->is_admin() ) {
+            $sql .= " AND id = ?";
+            push( @args, $self->user->get_id() );
+        }
+
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $mailbox_id );
         my %result;
         @result{ @{ $fields_of{$ident} } } = $sth->fetchrow_array();
         $sth->finish();
+
         return \%result;
     }
 
     sub list {
         my ( $self, $param ) = @_;
         my $ident = ident $self;
+
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
 
         my @fields = @{ $fields_of{$ident} };
         my $sql    = "SELECT m." . join( ",m.", @fields ) . ",d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE 1";
@@ -437,16 +470,30 @@ use Class::Std;
     sub get_email {
         my ( $self, $id ) = @_;
         my $ident = ident $self;
+
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
+
         my $query = "SELECT m.local_part,d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
-        my $sth   = &VBoxAdm::DB::prepexec( $self->dbh, $query, $id );
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $id );
         my ( $local_part, $domain ) = $sth->fetchrow_array();
         $sth->finish();
+
         return wantarray ? ( $local_part, $domain ) : $local_part . '@' . $domain;
     }
 
     sub get_id {
         my ( $self, $email ) = @_;
         my $ident = ident $self;
+
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+            return;
+        }
 
         if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
             return;
@@ -458,6 +505,7 @@ use Class::Std;
         my $sth   = &VBoxAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain );
         my $id    = $sth->fetchrow_array();
         $sth->finish();
+
         return $id;
     }
 }
