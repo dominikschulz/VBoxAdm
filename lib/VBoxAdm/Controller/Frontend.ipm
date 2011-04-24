@@ -31,6 +31,8 @@ use Data::Page;
 use Readonly;
 use HTML::Clean;
 
+# TODO replace crud methods by their API calls
+
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
 use VBoxAdm::SaltedHash '@VERSION@';
@@ -369,12 +371,15 @@ sub cgiapp_init {
 sub tt_post_process {
     my $self    = shift;
     my $htmlref = shift;
+    
+    if($self->{config}->{clean_html}) {
 
-    # clean up the resulting HTML
-    my $h = HTML::Clean->new($htmlref);
-    $h->strip;
-    my $newref = $h->data;
-    $$htmlref = $$newref;
+	    # clean up the resulting HTML
+	    my $h = HTML::Clean->new($htmlref);
+	    $h->strip;
+	    my $newref = $h->data;
+	    $$htmlref = $$newref;
+    }
     return;
 }
 
@@ -1728,8 +1733,6 @@ sub show_add_alias {
     # Get CGI Query object
     my $q = $self->query();
 
-    # TODO use VBoxAdm::API::Alias::create(...);
-
     my $local_part = &VBoxAdm::Utils::trim( lc( $q->param('local_part') ) );
     my $domain_id  = $q->param('domain');
     my $goto       = $q->param('goto');
@@ -1800,8 +1803,6 @@ sub show_remove_alias {
 
     # Get CGI Query object
     my $q = $self->query();
-
-    # TODO use VBoxAdm::API::Alias::delete(...);
 
     my $alias_id = $q->param('alias_id');
 
@@ -1905,8 +1906,6 @@ sub show_update_alias {
 
     # Get CGI Query object
     my $q = $self->query();
-
-    # TODO use &VBoxAdm::API::Alias::update(...);
 
     my $alias_id  = $q->param('alias_id');
     my $is_active = $q->param('is_active');
@@ -2322,7 +2321,6 @@ sub show_edit_mailbox {
 
     my $mailbox_id = $q->param('mailbox_id');
 
-    # TODO add column: pw_update_ts - last password change timestamp
     my $query = "SELECT m.local_part,d.name,m.name,m.is_active,m.max_msg_size,";
     $query .= "m.is_on_vacation,m.vacation_msg,m.quota,m.is_domainadmin,";
     $query .= "m.is_superadmin,d.id,m.sa_active,m.sa_kill_score,m.vacation_subj,m.vacation_start,m.vacation_end ";

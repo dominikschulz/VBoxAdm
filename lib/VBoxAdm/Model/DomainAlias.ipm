@@ -32,8 +32,6 @@ use Class::Std;
             return;
         }
 
-        # TODO handle duplicate key errors
-
         my $domain_alias = &VBoxAdm::Utils::trim( lc($domain) );
 
         if ( $domain_alias && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain_alias) ) {

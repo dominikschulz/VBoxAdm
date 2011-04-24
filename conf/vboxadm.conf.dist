@@ -17,6 +17,7 @@ pwscheme=ssha256
 no_ssl=1
 base_url=/cgi-bin/vboxadm.pl
 media_prefix=
+clean_html=1
 
 # config for vacation autoresonder
 [vacation]
