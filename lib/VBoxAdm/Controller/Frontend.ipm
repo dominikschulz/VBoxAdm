@@ -328,6 +328,43 @@ sub setup {
     );
     $self->tt_params( base_url     => $self->{base_url} );
     $self->tt_params( media_prefix => $self->{media_prefix} );
+    
+    # setup classes if the user is logged in
+    if($self->authen->is_authenticated && $self->authen->username) {
+	    my $Messages = VBoxAdm::Model::MessageQueue->new({
+	    	'LH' => $self->{'lh'},
+	    	'LH_EN' => $self->{'lh_en'},
+	    	'Session' => $self->session,
+	    });
+			my $User = VBoxAdm::Model::User->new({
+	    	'dbh' => $self->dbh,
+	    	'Username' => $self->authen->username,
+	    	'ForceLogin' => 1,
+	    	'MessageQueue' => $Messages,
+	    	'Logger' => \&syslog,
+	    	'Config' => $self->{'config'},
+	    });
+	    $self->{'User'} = $User;
+	    my $arg_ref = {
+			    'dbh'          => $self->dbh,
+			    'User' 				 => $User,
+			    'MessageQueue' => $Messages,
+			    'Logger'       => \&syslog,
+			    'Config'       => $self->{'config'},
+			};
+			my $Alias             = VBoxAdm::Model::Alias->new($arg_ref);
+			my $AWL               = VBoxAdm::Model::AWL->new($arg_ref);
+			my $Domain            = VBoxAdm::Model::Domain->new($arg_ref);
+			my $DomainAlias       = VBoxAdm::Model::DomainAlias->new($arg_ref);
+			my $Mailbox           = VBoxAdm::Model::Mailbox->new($arg_ref);
+			my $VacationBlacklist = VBoxAdm::Model::VacationBlacklist->new($arg_ref);
+			$self->{'Alias'} = $Alias;
+			$self->{'AWL'} = $AWL;
+			$self->{'Domain'} = $Domain;
+			$self->{'DomainAlias'} = $DomainAlias;
+			$self->{'Mailbox'} = $Mailbox;
+			$self->{'VacationBlacklist'} = $VacationBlacklist;
+    }
 
     # to make perlcritic happy
     return 1;
@@ -454,25 +491,7 @@ sub log {
 # See Also   : n/a
 sub post_login_callback {
     my $self = shift;
-
-    # setup users session, i.e. is he superadmin, domainadmin,
-    # get domain id, mailbox id, ip, ...
-    $self->{'MQ'} = VBoxAdm::Model::MessageQueue->new({
-    	'LH' => $self->{'lh'},
-    	'LH_EN' => $self->{'lh_en'},
-    	'Session' => $self->session,
-    });
-    $self->log("post_login_callback - Username: ".$self->authen->username);
-    my $User = VBoxAdm::Model::User->new({
-    	'dbh' => $self->dbh,
-    	'Username' => $self->authen->username,
-    	'ForceLogin' => 1,
-    	'MessageQueue' => $self->{'MQ'},
-    	'Logger' => \&syslog,
-    	'Config' => $self->{'config'},
-    });
-    $self->{'User'} = $User;
-    $self->log("post_login_callback - User ID: ".$self->{'User'}->get_id());
+    
     $self->log_login();
 
     return 1;
