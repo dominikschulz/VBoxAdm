@@ -50,7 +50,7 @@ use Class::Std;
             'raw'      => $msg,
             'loc'      => $self->maketext( $msg, @args ),
             'en'       => $self->maketext_en( $msg, @args ),
-            'caller'   => ( caller(0), caller(1) ),
+            'caller'   => [ caller(0), caller(1) ],
         };
 
         # Session

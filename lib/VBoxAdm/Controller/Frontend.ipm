@@ -31,7 +31,7 @@ use Data::Page;
 use Readonly;
 use HTML::Clean;
 
-# TODO replace crud methods by their API calls
+# TODO replace CRUD methods by their API calls
 
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
@@ -164,6 +164,7 @@ sub setup {
 
                 # WARNING: This contraint relies on an implementation detail of Plugin::Authentication!
                 # This is bad style, but there is no other way right now.
+                # The correct way would probably to create a custom Authen plugin.
                 '(mailboxes.is_superadmin OR mailboxes.is_domainadmin) AND 1' => '1',
             },
             COLUMNS => { 'dovecotpw:mailboxes.password' => '__CREDENTIAL_2__', },

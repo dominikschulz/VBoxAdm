@@ -63,7 +63,7 @@ GetOptions(
     'config=s' => sub { shift; unshift( @conffile_locations, @_ ); },
     'active|a=i'      => \$opts->{IsActive},
     'goto|g=s'        => \$opts->{Goto},
-    'password|p=s'    => sub { my $p = shift; $opts->{Password} = $p; $opts->{PasswordAgain} = $p; },
+    'password|p=s'    => sub { shift; my $p = shift; $opts->{Password} = $p; $opts->{PasswordAgain} = $p; },
     'maxmsgsize|m=i'  => \$opts->{MaxMsgSize},
     'siteadmin=s'     => \$opts->{IsSiteadmin},
     'domainadmin=s'   => \$opts->{IsDomainadmin},
@@ -93,56 +93,6 @@ $config{'default'}{'dbdb'}   ||= 'vboxadm';
 $config{'cgi'}{'pwscheme'}   ||= 'sha256';
 
 print "# VBoxAdm CLI\n" unless $config{'quiet'};
-
-=begin commands
-
-Common opts:
--f - force
--q - quiet
--v - verbose
-
-=head1 User
-
-user add [-p <password>] [-n <name>] <email> - Add a new user/mailbox
-user update [-p <password>] [-n <name>] [- ...] <email> - Modify mailbox
-user delete <email> - Delete mailbox
-
-=head1 Alias
-
-alias add <email> <goto>
-alias update <email> <goto>
-alias delete <email>
-
-=head1 Domain
-
-domain add <domain>
-domain update [...] <domain>
-domain delete <domain>
-
-=head1 Domain Alias
-
-domainalias add <domain> <goto>
-domainalias update [...] <domain>
-domainalias delete <domain>
-
-=head1 Vacation Blacklist
-
-vbl add <email>
-
-=head1 AWL
-
-awl add <email>
-awl lock <email>
-
-=head1 Setup
-
-setup - enter interactive setup
-
-=head1 migrate
-
-migrate -s <source-db> -t <source-type>
-
-=cut
 
 #
 # Database connection
@@ -1736,3 +1686,49 @@ sub check_smtp {
     return ( $status, $msg );
 }
 __END__
+
+Common opts:
+-f - force
+-q - quiet
+-v - verbose
+
+=head1 User
+
+user add [-p <password>] [-n <name>] <email> - Add a new user/mailbox
+user update [-p <password>] [-n <name>] [- ...] <email> - Modify mailbox
+user delete <email> - Delete mailbox
+
+=head1 Alias
+
+alias add <email> <goto>
+alias update <email> <goto>
+alias delete <email>
+
+=head1 Domain
+
+domain add <domain>
+domain update [...] <domain>
+domain delete <domain>
+
+=head1 Domain Alias
+
+domainalias add <domain> <goto>
+domainalias update [...] <domain>
+domainalias delete <domain>
+
+=head1 Vacation Blacklist
+
+vbl add <email>
+
+=head1 AWL
+
+awl add <email>
+awl lock <email>
+
+=head1 Setup
+
+setup - enter interactive setup
+
+=head1 migrate
+
+migrate -s <source-db> -t <source-type>

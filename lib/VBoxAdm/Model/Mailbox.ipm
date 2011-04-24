@@ -65,8 +65,8 @@ use Class::Std;
         #
         # is_active
         #
-        if ( defined( $params->{'is_active'} ) ) {
-            if ( $params->{'is_active'} ) {
+        if ( defined( $params->{'IsActive'} ) ) {
+            if ( $params->{'IsActive'} ) {
                 $args{'is_active'} = 1;
             }
             else {
@@ -78,25 +78,35 @@ use Class::Std;
         # Admin Status
         #
         if ( $self->user->is_siteadmin() ) {
-            $args{'is_superadmin'}  = $params->{'is_superadmin'};
-            $args{'is_domainadmin'} = $params->{'is_domainadmin'};
+            $args{'is_superadmin'}  = $params->{'IsSiteadmin'};
+            $args{'is_domainadmin'} = $params->{'IsDomainadmin'};
         }
         elsif ( $self->user->is_domainadmin() && $domain_id == $self->user->get_domain_id() ) {
-            $args{'is_domainadmin'} = $params->{'is_domainadmin'};
+            $args{'is_domainadmin'} = $params->{'IsDomainadmin'};
+        }
+
+        #
+        # Name
+        #
+        if ( $params->{'Name'} ) {
+            $args{'name'} = $params->{'Name'};
+        }
+        else {
+            $args{'name'} = $local_part . '@' . $domain_name;
         }
 
         #
         # Passwords
         #
         # No Passwords given, generate one
-        if ( !$params->{'password'} && !$params->{'password_again'} ) {
+        if ( !$params->{'Password'} && !$params->{'PasswordAgain'} ) {
             $args{'password'} = &VBoxAdm::Password::pwgen(16);
             $self->msg->push( 'information', 'Generated Password: [_1].', $args{'password'} );
         }
 
         # Passwords given and matching
-        if ( $params->{'password'} && $params->{'password_again'} && $params->{'password'} eq $params->{'password_again'} ) {
-            $args{'password'} = $params->{'password'};
+        if ( $params->{'Password'} && $params->{'PasswordAgain'} && $params->{'Password'} eq $params->{'PasswordAgain'} ) {
+            $args{'password'} = $params->{'Password'};
         }
 
         # Check authorization, syntax and create mailbox
@@ -114,7 +124,6 @@ use Class::Std;
             $query .= "?," x ( scalar( keys %args ) - 1 );
             $query .= "?)";
 
-            # TODO handle duplicate key errors
             foreach my $key ( keys %args ) {
                 $args{$key} = 0 unless defined( $args{$key} );
             }
