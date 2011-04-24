@@ -336,6 +336,7 @@ sub setup {
 	    	'LH_EN' => $self->{'lh_en'},
 	    	'Session' => $self->session,
 	    });
+	    $self->{'Messages'} = $Messages;
 			my $User = VBoxAdm::Model::User->new({
 	    	'dbh' => $self->dbh,
 	    	'Username' => $self->authen->username,
@@ -525,12 +526,8 @@ sub add_message {
     my $self       = shift;
     my $type       = shift;
     my $msg        = shift;
-    my $notify_ref = $self->session->param('notify') || [];
-    if ( ref($notify_ref) ne 'ARRAY' ) {
-        $notify_ref = [];
-    }
-    push( @{$notify_ref}, { 'type' => $type, 'text' => $msg, } );
-    $self->session->param( 'notify', $notify_ref );
+    return if !$self->{'Messages'};
+    $self->{'Messages'}->push($type,$msg);
     return 1;
 }
 
@@ -545,10 +542,9 @@ sub add_message {
 # get and reset notify
 sub get_messages {
     my $self = shift;
-    return if $self->session->is_empty();
-    my $notify_ref = $self->session->param('notify');
-    $self->session->param( 'notify', {} );
-    return $notify_ref;
+    return if !$self->{'Messages'};
+    my @msgs = $self->{'Messages'}->pop();
+    return \@msgs;
 }
 
 ############################################
@@ -562,8 +558,9 @@ sub get_messages {
 # get notify (no reset)
 sub peek_message {
     my $self       = shift;
-    my $notify_ref = $self->session->param('notify');
-    return $notify_ref;
+    return if !$self->{'Messages'};
+    my @msgs = $self->{'Messages'}->peek();
+    return \@msgs;
 }
 
 ############################################
@@ -633,20 +630,8 @@ sub is_localnet {
 sub get_domain_byid {
     my $self      = shift;
     my $domain_id = shift;
-
-    my $query = "SELECT name FROM domains WHERE id = ?";
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $sth = $dbh->prepare($query)
-      or syslog( 2, 'get_domain_byid - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-    $sth->execute($domain_id)
-      or syslog( 2, 'get_domain_byid - Could not execute Query: %s, Args: %s, Error: %s', $query, $domain_id, $sth->errstr );
-
-    my $domain = $sth->fetchrow_array() || '';
-    $sth->finish();
-    return $domain;
+    
+    return $self->{'Domain'}->get_name($domain_id);
 }
 
 #
@@ -970,7 +955,7 @@ sub show_add_domain {
         $msg = $self->{lh}->maketext('Invalid syntax. Domain is not RFC822 compliant!');
         $self->add_message( 'error', $msg );
     }
-    elsif ( $domain && $create_domainadmin ) {
+    elsif ( $domain ) {
         my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
         my $sth   = $dbh->prepare($query)
           or syslog( 2, 'show_add_domain - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
@@ -1642,6 +1627,17 @@ sub show_create_alias {
 
 sub show_add_alias {
     my $self = shift;
+    
+    # Get CGI Query object
+    my $q = $self->query();
+    
+    my $local_part = &VBoxAdm::Utils::trim( lc( $q->param('local_part') ) );
+    my $domain_id  = $q->param('domain');
+    my $goto       = $q->param('goto');
+    
+    $self->{'Alias'}->create($local_part, $domain_id, $goto);
+    
+=begin cut
 
     if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
@@ -1707,12 +1703,22 @@ sub show_add_alias {
         $self->add_message( 'error', $msg );
     }
     $self->log( $msg . ". User: " . $self->authen->username );
+=cut
     $self->redirect( $self->{base_url} . '?rm=aliases' );
     return;
 }
 
 sub show_remove_alias {
     my $self = shift;
+    
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $alias_id = $q->param('alias_id');
+    
+    $self->{'Alias'}->delete($alias_id);
+    
+=begin cut
 
     if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
@@ -1724,11 +1730,6 @@ sub show_remove_alias {
 
     # Get our database connection
     my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $alias_id = $q->param('alias_id');
 
     my $msg = '';
 
@@ -1765,6 +1766,7 @@ sub show_remove_alias {
         $self->add_message( 'error', $msg );
     }
     $self->log( $msg . ". User: " . $self->authen->username );
+=cut
     $self->redirect( $self->{base_url} . '?rm=aliases' );
     return;
 }
@@ -1787,6 +1789,8 @@ sub show_edit_alias {
     my $q = $self->query();
 
     my $alias_id = $q->param('alias_id');
+    
+    # TODO use alias read to fill the forms
 
     my $query = "SELECT a.local_part,d.name,a.goto,a.is_active FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
     my @args  = ();
@@ -1816,6 +1820,20 @@ sub show_edit_alias {
 
 sub show_update_alias {
     my $self = shift;
+    
+    # Get CGI Query object
+    my $q = $self->query();
+    
+    my %params = (
+    	'IsActive' => $q->param('is_active'),
+    	'Goto' => &VBoxAdm::Utils::trim( $q->param('goto') ),
+    );
+
+    my $alias_id  = $q->param('alias_id');
+    
+    $self->{'Alias'}->update($alias_id, \%params);
+    
+=begin cut
 
     if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
@@ -1827,13 +1845,6 @@ sub show_update_alias {
 
     # Get our database connection
     my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $alias_id  = $q->param('alias_id');
-    my $is_active = $q->param('is_active');
-    my $target    = &VBoxAdm::Utils::trim( $q->param('goto') );
 
     my $msg1       = '';
     my $alias_name = '';
@@ -1901,6 +1912,7 @@ sub show_update_alias {
         }
     }
     $self->log( $msg1 . ". User: " . $self->authen->username );
+=cut
     $self->redirect( $self->{base_url} . '?rm=aliases' );
     return;
 }

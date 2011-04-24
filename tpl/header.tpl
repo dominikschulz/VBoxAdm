@@ -45,6 +45,6 @@
 	[% INCLUDE navigation.tpl %]
 	[% END %]
 	[% FOREACH message IN messages %]
-		<div class="[% message.type %]">[% message.text %]</div>
+		<div class="[% message.severity %]">[% message.loc %]</div>
 	[% END %]
     </header>

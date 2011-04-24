@@ -7,6 +7,9 @@ use Carp;
 
 our $VERSION = '@VERSION@';
 
+#use Sys::Syslog;
+#use Data::Dumper;
+
 use Class::Std;
 {
 
@@ -24,7 +27,10 @@ use Class::Std;
         $lh_en_of{$ident} = $arg_ref->{'LH_EN'} if $arg_ref->{'LH_EN'};
 
         # Session
-        $session_of{$ident} = $arg_ref->{'Session'} if $arg_ref->{'Session'};
+        if ( $arg_ref->{'Session'} ) {
+            $session_of{$ident} = $arg_ref->{'Session'};
+        }
+
     }
 
     # Alias to push
@@ -60,7 +66,7 @@ use Class::Std;
                 $notify_ref = [];
             }
             push( @{$notify_ref}, $msg_ref );
-            $self->session->param( 'notify', $notify_ref );
+            $session_of{$ident}->param( 'notify', $notify_ref );
         }
         else {
 
@@ -85,7 +91,7 @@ use Class::Std;
         my $ident  = ident $self;
         my @msgs   = ();
         if ( $session_of{$ident} ) {
-            if ( !$session_of{$ident}->is_empty() ) {
+            if ( !$session_of{$ident}->is_empty() && $session_of{$ident}->param('notify') && ref( $session_of{$ident}->param('notify') ) eq 'ARRAY' ) {
                 @msgs = @{ $session_of{$ident}->param('notify') };
                 $session_of{$ident}->param( 'notify', [] );
             }
@@ -115,7 +121,7 @@ use Class::Std;
         my $ident  = ident $self;
         my @msgs   = ();
         if ( $session_of{$ident} ) {
-            if ( !$session_of{$ident}->is_empty() ) {
+            if ( !$session_of{$ident}->is_empty() && $session_of{$ident}->param('notify') && ref( $session_of{$ident}->param('notify') ) eq 'ARRAY' ) {
                 @msgs = @{ $session_of{$ident}->param('notify') };
             }
         }
