@@ -20,6 +20,8 @@ use Class::Std;
         if ( !$self->dbh || !$self->dbh->ping() ) {
             die("Need DBH connection!");
         }
+
+        # SystemUser is used (only) for bootstrap where no users does exist, yet.
         if ( $arg_ref->{'SystemUser'} ) {
             $data_of{$ident}{'domainadmin'} = 1;
             $data_of{$ident}{'siteadmin'}   = 1;
@@ -28,13 +30,15 @@ use Class::Std;
             $data_of{$ident}{'id'}          = 0;
             $data_of{$ident}{'domain_id'}   = 0;
         }
-        elsif ( !$self->check_login( $arg_ref->{'Username'}, $arg_ref->{'Password'} ) ) {
+
+        # ForceLogin is used when we know that a login is ok, but we don't have the (plaintext) password
+        elsif ( !$self->check_login( $arg_ref->{'Username'}, $arg_ref->{'Password'}, $arg_ref->{'ForceLogin'} ) ) {
             die("Need valid username and password.");
         }
     }
 
     sub check_login : PRIVATE {
-        my ( $self, $username, $password ) = @_;
+        my ( $self, $username, $password, $force ) = @_;
         my $ident = ident $self;
 
         # check if login works
@@ -54,7 +58,7 @@ use Class::Std;
 
         my ( $id, $pw, $is_da, $is_sa, $domain_id ) = $sth->fetchrow_array();
         $sth->finish();
-        if ( !&VBoxAdm::SaltedHash::verify_pass( $password, $pw ) ) {
+        if ( !$force && !&VBoxAdm::SaltedHash::verify_pass( $password, $pw ) ) {
             print "Password invalid!\n" unless $self->config->{'quiet'};
             return;
         }

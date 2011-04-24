@@ -37,6 +37,15 @@ use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
 use VBoxAdm::SaltedHash '@VERSION@';
 
+use VBoxAdm::Model::Alias '@VERSION@';
+use VBoxAdm::Model::AWL '@VERSION@';
+use VBoxAdm::Model::Domain '@VERSION@';
+use VBoxAdm::Model::DomainAlias '@VERSION@';
+use VBoxAdm::Model::Mailbox '@VERSION@';
+use VBoxAdm::Model::MessageQueue '@VERSION@';
+use VBoxAdm::Model::User '@VERSION@';
+use VBoxAdm::Model::VacationBlacklist '@VERSION@';
+
 our $VERSION = '@VERSION@';
 
 Readonly my $ENTRIES_PER_PAGE => 20;
@@ -391,8 +400,8 @@ sub tt_pre_process {
     $vars->{system_domain}  = $self->{config}{'default'}{'domain'} || 'localhost';
     $vars->{version}        = $VERSION;
     $vars->{messages}       = $self->get_messages();
-    $vars->{is_superadmin}  = $self->is_superadmin();
-    $vars->{is_domainadmin} = $self->is_domainadmin();
+    $vars->{is_superadmin}  = $self->user->is_siteadmin() if $self->user();
+    $vars->{is_domainadmin} = $self->user->is_domainadmin() if $self->user();
     return;
 }
 
@@ -448,7 +457,22 @@ sub post_login_callback {
 
     # setup users session, i.e. is he superadmin, domainadmin,
     # get domain id, mailbox id, ip, ...
-    $self->get_user_details();
+    $self->{'MQ'} = VBoxAdm::Model::MessageQueue->new({
+    	'LH' => $self->{'lh'},
+    	'LH_EN' => $self->{'lh_en'},
+    	'Session' => $self->session,
+    });
+    $self->log("post_login_callback - Username: ".$self->authen->username);
+    my $User = VBoxAdm::Model::User->new({
+    	'dbh' => $self->dbh,
+    	'Username' => $self->authen->username,
+    	'ForceLogin' => 1,
+    	'MessageQueue' => $self->{'MQ'},
+    	'Logger' => \&syslog,
+    	'Config' => $self->{'config'},
+    });
+    $self->{'User'} = $User;
+    $self->log("post_login_callback - User ID: ".$self->{'User'}->get_id());
     $self->log_login();
 
     return 1;
@@ -552,6 +576,11 @@ sub is_shell {
     }
 }
 
+sub user {
+	my $self = shift;
+	return $self->{'User'};
+}
+
 ############################################
 # Usage      : $self->is_localnet()
 # Purpose    : tell if the user is on a local, i.e. somewhat trusted, network
@@ -572,131 +601,6 @@ sub is_localnet {
             return;
         }
     }
-}
-
-############################################
-# Usage      : $self->is_domainadmin();
-# Purpose    : tell if the user is a domainadmin
-# Returns    :
-# Parameters :
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
-sub is_domainadmin {
-    my $self = shift;
-
-    return if $self->session->is_empty();
-
-    if ( defined( $self->session->param('user_is_domainadmin') ) ) {
-        return $self->session->param('user_is_domainadmin');
-    }
-
-    my ( undef, undef, undef, $is_domainadmin ) = $self->get_user_details();
-
-    if ($is_domainadmin) {
-        return 1;
-    }
-    else {
-        return;
-    }
-}
-
-############################################
-# Usage      : $self->is_superadmin();
-# Purpose    : tell if the user is a superadmin
-# Returns    :
-# Parameters :
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
-sub is_superadmin {
-    my $self = shift;
-
-    return if $self->session->is_empty();
-
-    if ( defined( $self->session->param('user_is_superadmin') ) ) {
-        return $self->session->param('user_is_superadmin');
-    }
-
-    my ( undef, undef, $is_superadmin, undef ) = $self->get_user_details();
-
-    if ($is_superadmin) {
-        return 1;
-    }
-    else {
-        return;
-    }
-}
-
-############################################
-# Usage      : $self->get_user_details();
-# Purpose    : Prefill the session with the essential information about this user.
-# Returns    : Mailbox-ID, Domain-ID, Superadmin- and Domainadmin- Flag.
-# Parameters : n/a (taken from session/auth-obj.)
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
-sub get_user_details {
-    my $self = shift;
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $query = "SELECT m.id,m.domain_id,m.is_superadmin,m.is_domainadmin FROM ";
-    $query .= "mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,'\@',d.name) = ?";
-    my $sth = $dbh->prepare($query)
-      or syslog( 2, 'get_user_details - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-    $sth->execute( $self->authen->username )
-      or syslog( 2, 'get_user_details - Could not prepare Query: %s, Args: %s', $query, $self->authen->username );
-    my ( $mailbox_id, $domain_id, $is_superadmin, $is_domainadmin ) = $sth->fetchrow_array();
-    $sth->finish();
-
-    $self->session->param( 'user_mailbox_id',     $mailbox_id );
-    $self->session->param( 'user_domain_id',      $domain_id );
-    $self->session->param( 'user_is_superadmin',  $is_superadmin );
-    $self->session->param( 'user_is_domainadmin', $is_domainadmin );
-
-    return ( $mailbox_id, $domain_id, $is_superadmin, $is_domainadmin );
-}
-
-############################################
-# Usage      : my $domain_id = $self->get_users_domainind();
-# Purpose    : Get the domain id of the currently logged in user.
-# Returns    :
-# Parameters :
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
-sub get_users_domainid {
-    my $self = shift;
-
-    if ( defined( $self->session->param('user_domain_id') ) ) {
-        return $self->session->param('user_domain_id');
-    }
-
-    my ( undef, $domain_id, undef, undef ) = $self->get_user_details();
-
-    return $domain_id;
-}
-
-############################################
-# Usage      :
-# Purpose    : Get the mailbox id of the currently logged in user.
-# Returns    :
-# Parameters :
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
-sub get_users_mailboxid {
-    my $self = shift;
-
-    if ( defined( $self->session->param('user_mailbox_id') ) ) {
-        return $self->session->param('user_mailbox_id');
-    }
-
-    my ( $mailbox_id, undef, undef, undef ) = $self->get_user_details();
-
-    return $mailbox_id;
 }
 
 ############################################
@@ -768,7 +672,7 @@ sub show_welcome {
 sub show_broadcast {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -798,7 +702,7 @@ sub show_broadcast {
 sub show_send_broadcast {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -851,7 +755,7 @@ sub show_send_broadcast {
 sub show_domains {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -881,9 +785,9 @@ sub show_domains {
         my $search_arg = "%" . $search . "%";
         push( @args, $search_arg );
     }
-    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
         $query_where .= "AND a.domain_id = ?";
-        push( @args, $self->get_users_domainid() );
+        push( @args, $self->user->get_domain_id() );
     }
     $query .= $query_where . " ORDER BY name";
 
@@ -927,7 +831,7 @@ sub show_domains {
 sub show_domain {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -1006,7 +910,7 @@ sub show_domain {
 sub show_create_domain {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -1025,7 +929,7 @@ sub show_create_domain {
 sub show_add_domain {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -1077,7 +981,7 @@ sub show_add_domain {
 sub show_remove_domain {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -1131,7 +1035,7 @@ sub show_remove_domain {
 sub show_update_domain {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -1162,9 +1066,9 @@ sub show_update_domain {
         my @args = ();
         push( @args, $is_active );
         push( @args, $domain_id );
-        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
             $query .= "AND id = ?";
-            push( @args, $self->get_users_domainid() );
+            push( @args, $self->user->get_domain_id() );
         }
         $sth = $dbh->prepare($query)
           or syslog( 2, 'show_update_domain - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
@@ -1201,7 +1105,7 @@ sub show_update_domain {
 sub show_domain_aliases {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -1232,9 +1136,9 @@ sub show_domain_aliases {
     }
 
     # Authorization
-    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
         $query .= "AND da.domain_id = ? ";
-        push( @args, $self->get_users_domainid() );
+        push( @args, $self->user->get_domain_id() );
     }
 
     my $sth = $dbh->prepare( 'SELECT COUNT(*) ' . $query )
@@ -1276,7 +1180,7 @@ sub show_domain_aliases {
 sub show_create_domain_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -1289,9 +1193,9 @@ sub show_create_domain_alias {
 
     my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
     my @args  = ();
-    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
         $query .= "AND id = ? ";
-        push( @args, $self->get_users_domainid() );
+        push( @args, $self->user->get_domain_id() );
     }
     $query .= "ORDER BY name";
     my $sth = $dbh->prepare($query)
@@ -1316,7 +1220,7 @@ sub show_create_domain_alias {
 sub show_add_domain_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -1338,7 +1242,7 @@ sub show_add_domain_alias {
         $msg = $self->{lh}->maketext("Invalid syntax. Domain is not RFC822 compliant!");
         $self->add_message( 'error', $msg );
     }
-    elsif ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
+    elsif ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get_domain_id() ) {
 
         # if domainadmin, verify that its his domain
         $msg = $self->{lh}->maketext("You are not authorized to modify this domain!");
@@ -1382,7 +1286,7 @@ sub show_add_domain_alias {
 sub show_remove_domain_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -1409,9 +1313,9 @@ sub show_remove_domain_alias {
         $query = "DELETE FROM domain_aliases WHERE id = ?";
         my @args = ();
         push( @args, $domain_alias_id );
-        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
             $query .= "AND domain_id = ?";
-            push( @args, $self->get_users_domainid() );
+            push( @args, $self->user->get_domain_id() );
         }
         $sth = $dbh->prepare($query)
           or syslog( 2, 'show_remove_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
@@ -1437,7 +1341,7 @@ sub show_remove_domain_alias {
 sub show_edit_domain_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -1457,9 +1361,9 @@ sub show_edit_domain_alias {
     my @args  = ();
 
     # Authorization
-    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
         $query .= "AND id = ?";
-        push( @args, $self->get_users_domainid() );
+        push( @args, $self->user->get_domain_id() );
     }
     $query .= " ORDER BY name";
     my $sth = $dbh->prepare($query)
@@ -1477,9 +1381,9 @@ sub show_edit_domain_alias {
     $query .= "LEFT JOIN domains AS d ON da.domain_id = d.id WHERE da.id = ?";
     @args = ();
     push( @args, $domain_alias_id );
-    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
         $query .= "AND da.domain_id = ?";
-        push( @args, $self->get_users_domainid() );
+        push( @args, $self->user->get_domain_id() );
     }
     $sth = $dbh->prepare($query);
     $sth->execute(@args);
@@ -1502,7 +1406,7 @@ sub show_edit_domain_alias {
 sub show_update_domain_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -1535,9 +1439,9 @@ sub show_update_domain_alias {
         my @args  = ();
         push( @args, $is_active );
         push( @args, $domain_alias_id );
-        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
             $query .= "AND domain_id = ?";
-            push( @args, $self->get_users_domainid() );
+            push( @args, $self->user->get_domain_id() );
         }
         my $sth = $dbh->prepare($query)
           or syslog( 2, 'show_update_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
@@ -1559,7 +1463,7 @@ sub show_update_domain_alias {
         }
     }
 
-    if ( $target && !$self->is_superadmin() && $self->is_domainadmin() && $target != $self->get_users_domainid() ) {
+    if ( $target && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $target != $self->user->get_domain_id() ) {
 
         # if domainadmin, verify that its his domain
         my $msg = "You are not authorized to modify this domain!";
@@ -1609,7 +1513,7 @@ sub show_update_domain_alias {
 sub show_aliases {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -1636,9 +1540,9 @@ sub show_aliases {
         push( @args, $search_arg );
         push( @args, $search_arg );
     }
-    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
         $query .= "AND a.domain_id = ?";
-        push( @args, $self->get_users_domainid() );
+        push( @args, $self->user->get_domain_id() );
     }
 
     my $sth = $dbh->prepare( 'SELECT COUNT(*) ' . $query )
@@ -1680,7 +1584,7 @@ sub show_aliases {
 sub show_create_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -1693,9 +1597,9 @@ sub show_create_alias {
 
     my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
     my @args  = ();
-    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
         $query .= "AND id = ? ";
-        push( @args, $self->get_users_domainid() );
+        push( @args, $self->user->get_domain_id() );
     }
     $query .= "ORDER BY name";
     my $sth = $dbh->prepare($query)
@@ -1720,7 +1624,7 @@ sub show_create_alias {
 sub show_add_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -1740,7 +1644,7 @@ sub show_add_alias {
 
     my $msg = '';
 
-    if ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
+    if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get_domain_id() ) {
 
         # if domainadmin, verify that its his domain
         $msg = $self->{lh}->maketext("You are not authorized to modify this domain!");
@@ -1791,7 +1695,7 @@ sub show_add_alias {
 sub show_remove_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -1821,9 +1725,9 @@ sub show_remove_alias {
         $query = "DELETE FROM aliases WHERE id = ?";
         my @args = ();
         push( @args, $alias_id );
-        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
             $query .= "AND domain_id = ?";
-            push( @args, $self->get_users_domainid() );
+            push( @args, $self->user->get_domain_id() );
         }
         $sth = $dbh->prepare($query)
           or syslog( 2, 'show_remove_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
@@ -1849,7 +1753,7 @@ sub show_remove_alias {
 sub show_edit_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -1868,9 +1772,9 @@ sub show_edit_alias {
     my $query = "SELECT a.local_part,d.name,a.goto,a.is_active FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
     my @args  = ();
     push( @args, $alias_id );
-    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
         $query .= "AND a.domain_id = ?";
-        push( @args, $self->get_users_domainid() );
+        push( @args, $self->user->get_domain_id() );
     }
     my $sth = $dbh->prepare($query)
       or syslog( 2, 'show_edit_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
@@ -1894,7 +1798,7 @@ sub show_edit_alias {
 sub show_update_alias {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -1929,9 +1833,9 @@ sub show_update_alias {
         push( @args, $alias_id );
 
         # Authorization
-        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
             $query .= "AND domain_id = ?";
-            push( @args, $self->get_users_domainid() );
+            push( @args, $self->user->get_domain_id() );
         }
         my $sth = $dbh->prepare($query)
           or syslog( 2, 'show_update_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
@@ -1989,7 +1893,7 @@ sub show_update_alias {
 sub show_mailboxes {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -2020,9 +1924,9 @@ sub show_mailboxes {
     }
 
     # Authorization
-    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
         $query .= "AND m.domain_id = ? ";
-        push( @args, $self->get_users_domainid() );
+        push( @args, $self->user->get_domain_id() );
     }
 
     my $sth = $dbh->prepare( 'SELECT COUNT(*) ' . $query )
@@ -2081,7 +1985,7 @@ sub show_mailboxes {
 sub show_create_mailbox {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -2096,9 +2000,9 @@ sub show_create_mailbox {
     my @args  = ();
 
     # Authorization
-    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
         $query .= "AND id = ? ";
-        push( @args, $self->get_users_domainid() );
+        push( @args, $self->user->get_domain_id() );
     }
     $query .= "ORDER BY name";
     my $sth = $dbh->prepare($query)
@@ -2123,7 +2027,7 @@ sub show_create_mailbox {
 sub show_add_mailbox {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -2159,10 +2063,10 @@ sub show_add_mailbox {
 
     my $system_domain = $self->{config}{'default'}{'domain'} || 'localhost';
 
-    if ( $self->is_superadmin() ) {
+    if ( $self->user->is_siteadmin() ) {
         $is_superadmin = $q->param('is_superadmin') || 0;
     }
-    elsif ( $self->is_domainadmin() && $domain_id == $self->get_users_domainid() ) {
+    elsif ( $self->user->is_domainadmin() && $domain_id == $self->user->get_domain_id() ) {
         $is_domainadmin = $q->param('is_domainadmin') || 0;
     }
 
@@ -2180,7 +2084,7 @@ sub show_add_mailbox {
         $self->add_message( 'info', $self->{lh}->maketext( $msg, $password ) );
     }
 
-    if ( $domain_id && !$self->is_superadmin() && $self->is_domainadmin() && $domain_id != $self->get_users_domainid() ) {
+    if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get_domain_id() ) {
 
         # if domainadmin, verify that its his domain
         my $msg = "You are not authorized to modify this domain!";
@@ -2249,7 +2153,7 @@ sub show_add_mailbox {
 sub show_remove_mailbox {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -2277,9 +2181,9 @@ sub show_remove_mailbox {
         $query = "DELETE FROM mailboxes WHERE id = ?";
         my @args = ();
         push( @args, $mailbox_id );
-        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
             $query .= "AND domain_id = ?";
-            push( @args, $self->get_users_domainid() );
+            push( @args, $self->user->get_domain_id() );
         }
         $sth = $dbh->prepare($query)
           or syslog( 2, 'show_remove_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
@@ -2306,7 +2210,7 @@ sub show_remove_mailbox {
 sub show_edit_mailbox {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( $self->{lh}->maketext($msg) );
@@ -2329,9 +2233,9 @@ sub show_edit_mailbox {
     $query .= "ON m.domain_id = d.id WHERE m.id = ? ";
     my @args = ();
     push( @args, $mailbox_id );
-    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
         $query .= "AND m.domain_id = ?";
-        push( @args, $self->get_users_domainid() );
+        push( @args, $self->user->get_domain_id() );
     }
     my $sth = $dbh->prepare($query)
       or syslog( 2, 'show_edit_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
@@ -2353,9 +2257,9 @@ sub show_edit_mailbox {
     @args  = ();
     push( @args, $mailbox_id );
     push( @args, $domain_id );
-    if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
         $query .= "AND domain_id = ?";
-        push( @args, $self->get_users_domainid() );
+        push( @args, $self->user->get_domain_id() );
     }
     $sth = $dbh->prepare($query);
     $sth->execute(@args);
@@ -2389,7 +2293,7 @@ sub show_edit_mailbox {
         cc_id              => $cc_id,
         mb_is_domainadmin  => $row[8],
         mb_is_superadmin   => $row[9],
-        user_is_superadmin => $self->is_superadmin(),
+        user_is_superadmin => $self->user->is_siteadmin(),
         sa_active          => $row[11],
         sa_kill_score      => $row[12],
         'current'          => 'mailboxes',
@@ -2401,7 +2305,7 @@ sub show_edit_mailbox {
 sub show_update_mailbox {
     my $self = shift;
 
-    if ( !$self->is_superadmin() && !$self->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -2499,7 +2403,7 @@ sub show_update_mailbox {
         }
 
         # Is Superadmin / Is Domainadmin
-        if ( $self->is_superadmin() ) {
+        if ( $self->user->is_siteadmin() ) {
             $query .= "is_superadmin = ?, ";
             if ( defined($is_superadmin) && $is_superadmin eq 'on' ) {
                 push( @params, 1 );
@@ -2580,9 +2484,9 @@ sub show_update_mailbox {
         push( @params, $mailbox_id );
 
         # if domainadmin, verify that its his domain
-        if ( !$self->is_superadmin() && $self->is_domainadmin() ) {
+        if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
             $query .= "AND domain_id = ?";
-            push( @params, $self->get_users_domainid() );
+            push( @params, $self->user->get_domain_id() );
         }
 
         # at least on option has changed
@@ -2626,7 +2530,7 @@ sub show_update_mailbox {
 sub show_log {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -2697,7 +2601,7 @@ sub show_log {
 sub show_vacation_blacklist {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -2750,7 +2654,7 @@ sub show_vacation_blacklist {
 sub show_create_vacbl_entry {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -2775,7 +2679,7 @@ sub show_create_vacbl_entry {
 sub show_add_vacbl_entry {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -2825,7 +2729,7 @@ sub show_add_vacbl_entry {
 sub show_remove_vacbl_entry {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -2880,7 +2784,7 @@ sub show_remove_vacbl_entry {
 sub show_vacation_replies {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -2938,7 +2842,7 @@ sub show_vacation_replies {
 sub show_rfc_notify {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -2994,7 +2898,7 @@ sub show_rfc_notify {
 sub show_awl {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -3048,7 +2952,7 @@ sub show_awl {
 sub show_update_awl {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -3096,7 +3000,7 @@ sub show_update_awl {
 sub show_admins {
     my $self = shift;
 
-    if ( !$self->is_superadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
