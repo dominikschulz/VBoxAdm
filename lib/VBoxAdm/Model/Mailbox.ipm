@@ -60,10 +60,11 @@ use Class::Std;
             'sa_kill_score'  => 6.31,
             'is_domainadmin' => 0,
             'is_superadmin'  => 0,
+            'max_msg_size'   => 15 * 1024,
         );
 
         #
-        # is_active
+        # IsActive
         #
         if ( defined( $params->{'IsActive'} ) ) {
             if ( $params->{'IsActive'} ) {
@@ -93,6 +94,23 @@ use Class::Std;
         }
         else {
             $args{'name'} = $local_part . '@' . $domain_name;
+        }
+
+        #
+        # MaxMessageSize
+        #
+        if ( $params->{'MaxMsgSize'} ) {
+            $args{'max_msg_size'} = $params->{'MaxMsgSize'} * 1024;
+        }
+
+        #
+        # SpamAssassin
+        #
+        if ( defined( $params->{'SAActive'} ) ) {
+            $args{'sa_active'} = $params->{'SAActive'};
+        }
+        if ( $params->{'SAKillScore'} ) {
+            $args{'sa_kill_score'} = $params->{'SAKillScore'};
         }
 
         #
@@ -132,14 +150,16 @@ use Class::Std;
                 $self->msg->push( 'information', "Added Mailbox [_1] for [_2].", "$local_part\@$domain_name", $args{'name'} );
 
                 # send_welcome_mail
-                my $emsg = '';
-                $emsg .= "Subject: " . $self->msg->maketext("Welcome") . "\r\n";
-                $emsg .= "Auto-Submitted: auto-generated\r\n";
-                $emsg .= "From: VBoxAdm <vboxadm\@" . $system_domain . ">\r\n";
-                $emsg .= "To: <$local_part\@$domain_name>\r\n";
-                $emsg .= "\r\n";
-                $emsg .= $self->msg->maketext("Welcome to your new mailbox.");
-                &VBoxAdm::Utils::sendmail( 'vboxadm@' . $system_domain, $emsg );
+                if ( $params->{'SendWelcomeMail'} ) {
+                    my $emsg = '';
+                    $emsg .= "Subject: " . $self->msg->maketext("Welcome") . "\r\n";
+                    $emsg .= "Auto-Submitted: auto-generated\r\n";
+                    $emsg .= "From: VBoxAdm <vboxadm\@" . $system_domain . ">\r\n";
+                    $emsg .= "To: <$local_part\@$domain_name>\r\n";
+                    $emsg .= "\r\n";
+                    $emsg .= $self->msg->maketext("Welcome to your new mailbox.");
+                    &VBoxAdm::Utils::sendmail( 'vboxadm@' . $system_domain, $emsg );
+                }
             }
             else {
                 $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", (%args) ), $sth->errstr );

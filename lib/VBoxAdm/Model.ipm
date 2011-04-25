@@ -23,12 +23,7 @@ use Class::Std;
 
         $dbh_of{$ident} = undef;
 
-        #print "Arg-Ref in VBoxAdm::Model for ".caller(0).'/'.caller(1).":\n";
-        #print Dumper($arg_ref);# TODO DEBUG
-
         if ( $arg_ref->{'Model'} && $arg_ref->{'Model'}->isa('VBoxAdm::Model') ) {
-
-            #print "inheriting from Model class ...\n";
 
             # 'Inherit' from another VBoxAdm::Model class
             my $ModelClass = $arg_ref->{'Model'};
@@ -39,8 +34,6 @@ use Class::Std;
             $dbh_of{$ident}    = $ModelClass->dbh();
         }
         else {
-
-            #print "not inheriting ...\n";
 
             if ( $arg_ref->{'dbh'} && $arg_ref->{'dbh'}->ping() ) {
                 $dbh_of{$ident} = $arg_ref->{'dbh'};

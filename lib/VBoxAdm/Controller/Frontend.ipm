@@ -759,6 +759,51 @@ sub show_send_broadcast {
 sub show_domains {
     my $self = shift;
 
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $page   = $q->param('page')   || 1;
+    my $search = $q->param('search');
+    my %params = (
+    	'Search' => $search,
+    );
+    
+    my $sql_aliases = "SELECT COUNT(*) FROM aliases WHERE domain_id = ?";
+    my $sth_aliases = $dbh->prepare($sql_aliases);
+    my $sql_mailboxes = "SELECT COUNT(*) FROM mailboxes WHERE domain_id = ?";
+    my $sth_mailboxes = $dbh->prepare($sql_mailboxes);
+    my $sql_domainaliases = "SELECT COUNT(*) FROM domain_aliases WHERE domain_id = ?";
+    my $sth_domainaliases = $dbh->prepare($sql_domainaliases);
+    
+    my @domains = $self->{'Domain'}->list(\%params);
+    my $pager = Data::Page->new();
+    $pager->total_entries(scalar(@domains));
+    $pager->entries_per_page($ENTRIES_PER_PAGE);
+    $pager->current_page($page);
+    $params{'Limit'} = $pager->skipped.','.$pager->entries_per_page;
+    @domains = $self->{'Domain'}->list(\%params);
+    
+    foreach my $domain (@domains) {
+    	if($sth_aliases->execute($domain->{'id'})) {
+    		$domain->{'num_aliases'} = $sth_aliases->fetchrow_array();
+    	}
+    	if($sth_mailboxes->execute($domain->{'id'})) {
+    		$domain->{'num_mailboxes'} = $sth_mailboxes->fetchrow_array();
+    	}
+    	if($sth_domainaliases->execute($domain->{'id'})) {
+    		$domain->{'num_domainaliases'} = $sth_domainaliases->fetchrow_array();
+    	}
+    }
+    
+    $sth_aliases->finish;
+    $sth_mailboxes->finish();
+    $sth_domainaliases->finish();
+    
+=begin cut
+
     if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
@@ -766,15 +811,6 @@ sub show_domains {
         $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $search = $q->param('search') || undef;
-    my $page   = $q->param('page')   || 1;
 
     my $query = "SELECT id,name,is_active,";
     $query .= "(SELECT COUNT(*) FROM aliases WHERE domain_id = domains.id) AS num_aliases,";
@@ -821,7 +857,8 @@ sub show_domains {
     }
     $sth->finish();
 
-    my %params = (
+=cut
+    %params = (
         'title'   => $self->{lh}->maketext('VBoxAdm Domains'),
         'current' => 'domains',
         'domains' => \@domains,
@@ -932,6 +969,19 @@ sub show_create_domain {
 
 sub show_add_domain {
     my $self = shift;
+    
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain             = &VBoxAdm::Utils::trim( lc( $q->param('domain') ) );
+    my $create_domainadmin = $q->param('create_domainadmin');
+    
+    if($self->{'Domain'}->create($domain) && $create_domainadmin) {
+    	my $domain_id = $self->{'Domain'}->get_id($domain);
+    	$self->{'Mailbox'}->create('domainadmin',$domain_id);
+    }
+    
+=begin cut
 
     if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
@@ -943,12 +993,6 @@ sub show_add_domain {
 
     # Get our database connection
     my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $domain             = &VBoxAdm::Utils::trim( lc( $q->param('domain') ) );
-    my $create_domainadmin = $q->param('create_domainadmin');
 
     my $msg = '';
     if ( $domain && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain) ) {
@@ -978,12 +1022,22 @@ sub show_add_domain {
     }
 
     $self->log( $msg . ". User: " . $self->authen->username );
+=cut
     $self->redirect( $self->{base_url} . '?rm=domains' );
     return;
 }
 
 sub show_remove_domain {
     my $self = shift;
+    
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain_id = $q->param('domain_id');
+    
+    $self->{'Domain'}->delete($domain_id);
+    
+=begin cut
 
     if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
@@ -995,12 +1049,6 @@ sub show_remove_domain {
 
     # Get our database connection
     my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $domain_id = $q->param('domain_id');
-
     my $msg = '';
     if ($domain_id) {
 
@@ -1032,12 +1080,25 @@ sub show_remove_domain {
     }
 
     $self->log( $msg . ". User: " . $self->authen->username );
+=cut
     $self->redirect( $self->{base_url} . '?rm=domains' );
     return;
 }
 
 sub show_update_domain {
     my $self = shift;
+    
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain_id = $q->param('domain_id');
+    my %params = (
+    	'IsActive' => $q->param('is_active'),
+    );
+    
+    $self->{'Domain'}->update($domain_id, \%params);
+    
+=begin cut
 
     if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
@@ -1049,12 +1110,6 @@ sub show_update_domain {
 
     # Get our database connection
     my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $domain_id = $q->param('domain_id');
-    my $is_active = $q->param('is_active');
 
     my $msg = '';
     if ( $domain_id && defined($is_active) ) {
@@ -1098,6 +1153,7 @@ sub show_update_domain {
     }
 
     $self->log( $msg . ". User: " . $self->authen->username );
+=cut
     $self->redirect( $self->{base_url} . '?rm=domains' );
     return;
 }
@@ -1106,8 +1162,30 @@ sub show_update_domain {
 # Domain Aliases
 #
 
-sub show_domain_aliases {
+sub show_domain_aliases {    
     my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $page   = $q->param('page')   || 1;
+    my $search = $q->param('search');
+    my %params = (
+    	'Search' => $search,
+    );
+    
+    my @domains = $self->{'DomainAlias'}->list(\%params);
+    my $pager = Data::Page->new();
+    $pager->total_entries(scalar(@domains));
+    $pager->entries_per_page($ENTRIES_PER_PAGE);
+    $pager->current_page($page);
+    $params{'Limit'} = $pager->skipped.','.$pager->entries_per_page;
+    @domains = $self->{'DomainAlias'}->list(\%params);
+    
+=begin cut
 
     if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
@@ -1119,12 +1197,6 @@ sub show_domain_aliases {
 
     # Get our database connection
     my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $search = $q->param('search') || undef;
-    my $page   = $q->param('page')   || 1;
 
     my $query = "FROM domain_aliases AS da LEFT JOIN domains AS d ON da.domain_id = d.id";
     $query .= ' WHERE 1 ';
@@ -1169,8 +1241,10 @@ sub show_domain_aliases {
         push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], target => $row[3], } );
     }
     $sth->finish();
+    
+=cut
 
-    my %params = (
+    %params = (
         'title'   => $self->{lh}->maketext('VBoxAdm Domain-Aliases'),
         'current' => 'domain_aliases',
         'domains' => \@domains,
@@ -1223,6 +1297,16 @@ sub show_create_domain_alias {
 
 sub show_add_domain_alias {
     my $self = shift;
+    
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain_alias = &VBoxAdm::Utils::trim( lc( $q->param('domain_alias') ) );
+    my $domain_id    = $q->param('domain');
+    
+    $self->{'DomainAlias'}->create($domain_alias,$domain_id);
+    
+=begin cut
 
     if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
@@ -1234,12 +1318,6 @@ sub show_add_domain_alias {
 
     # Get our database connection
     my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $domain_alias = &VBoxAdm::Utils::trim( lc( $q->param('domain_alias') ) );
-    my $domain_id    = $q->param('domain');
 
     my $msg = '';
     if ( $domain_alias && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain_alias) ) {
@@ -1283,12 +1361,22 @@ sub show_add_domain_alias {
         $self->add_message( 'error', $msg );
     }
     $self->log( $msg . ". User: " . $self->authen->username );
+=cut
     $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
     return;
 }
 
 sub show_remove_domain_alias {
     my $self = shift;
+    
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain_alias_id = $q->param('domain_alias_id');
+    
+    $self->{'DomainAlias'}->delete($domain_alias_id);
+    
+=begin cut
 
     if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
@@ -1300,12 +1388,7 @@ sub show_remove_domain_alias {
 
     # Get our database connection
     my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $domain_alias_id = $q->param('domain_alias_id');
-
+    
     my $msg = '';
     if ($domain_alias_id) {
         my $query = "SELECT name FROM domain_aliases WHERE id = ?";
@@ -1338,6 +1421,7 @@ sub show_remove_domain_alias {
         $self->add_message( 'error', $msg );
     }
     $self->log( $msg . ". User: " . $self->authen->username );
+=cut
     $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
     return;
 }
@@ -1409,6 +1493,19 @@ sub show_edit_domain_alias {
 
 sub show_update_domain_alias {
     my $self = shift;
+    
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain_alias_id = $q->param('domain_alias_id');
+    my %params = (
+	    'IsActive'       => $q->param('is_active'),
+	    'Goto'          => $q->param('target'),
+    );
+    
+    $self->{'DomainAlias'}->update($domain_alias_id);
+    
+=begin cut
 
     if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
@@ -1420,13 +1517,6 @@ sub show_update_domain_alias {
 
     # Get our database connection
     my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $domain_alias_id = $q->param('domain_alias_id');
-    my $is_active       = $q->param('is_active');
-    my $target          = $q->param('target');
 
     my $msg1        = '';
     my $domain_name = '';
@@ -1506,6 +1596,7 @@ sub show_update_domain_alias {
         }
     }
     $self->log( $msg1 . ". User: " . $self->authen->username );
+=cut
     $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
     return;
 }
@@ -1515,6 +1606,29 @@ sub show_update_domain_alias {
 #
 
 sub show_aliases {
+    my $self = shift;
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $page   = $q->param('page')   || 1;
+    my $search = $q->param('search');
+    my %params = (
+    	'Search' => $search,
+    );
+    
+    my @aliases = $self->{'Alias'}->list(\%params);
+    my $pager = Data::Page->new();
+    $pager->total_entries(scalar(@aliases));
+    $pager->entries_per_page($ENTRIES_PER_PAGE);
+    $pager->current_page($page);
+    $params{'Limit'} = $pager->skipped.','.$pager->entries_per_page;
+    @aliases = $self->{'Alias'}->list(\%params);
+    
+=begin cut
     my $self = shift;
 
     if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
@@ -1573,8 +1687,8 @@ sub show_aliases {
         push( @aliases, { id => $row[0], local_part => $row[1], is_active => $row[2], target => $row[3], domain => $row[4], } );
     }
     $sth->finish();
-
-    my %params = (
+=cut
+    %params = (
         'title'   => $self->{lh}->maketext('VBoxAdm Aliases'),
         'current' => 'aliases',
         'aliases' => \@aliases,
@@ -1924,6 +2038,29 @@ sub show_update_alias {
 sub show_mailboxes {
     my $self = shift;
 
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $page   = $q->param('page')   || 1;
+    my $search = $q->param('search');
+    my %params = (
+    	'Search' => $search,
+    );
+    
+    my @mailboxes = $self->{'Mailbox'}->list(\%params);
+    my $pager = Data::Page->new();
+    $pager->total_entries(scalar(@mailboxes));
+    $pager->entries_per_page($ENTRIES_PER_PAGE);
+    $pager->current_page($page);
+    $params{'Limit'} = $pager->skipped.','.$pager->entries_per_page;
+    @mailboxes = $self->{'Mailbox'}->list(\%params);
+    
+=begin cut
+    my $self = shift;
+
     if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
@@ -2001,8 +2138,8 @@ sub show_mailboxes {
         );
     }
     $sth->finish();
-
-    my %params = (
+=cut
+    %params = (
         'title'     => $self->{lh}->maketext('VBoxAdm Mailboxes'),
         'current'   => 'mailboxes',
         'mailboxes' => \@mailboxes,
@@ -2057,6 +2194,32 @@ sub show_create_mailbox {
 
 sub show_add_mailbox {
     my $self = shift;
+    
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain_id         = $q->param('domain');
+    my $local_part          = &VBoxAdm::Utils::trim( lc( $q->param('username') ) );
+    my %params = (
+	    'Password'          => $q->param('password'),
+	    'PasswordAgain'     => $q->param('password_2'),
+	    'Name'              => $q->param('name'),
+	    'IsActive'          => $q->param('is_active'),
+	    'SendWelcomeMail' => $q->param('send_welcome_mail'),
+	    'MaxMsgSize'   => $q->param('max_msg_size_mb'),
+	    'SAActive'      => $q->param('sa_active'),
+	    'SAKillScore'  => $q->param('sa_kill_score') || 6.31,
+	    'IsSiteadmin' => 0,
+	    'IsDomainadmin' => 0,
+    );
+
+    if ( $params{'IsActive'} && $params{'IsActive'} eq 'on' ) {
+        $params{'IsActive'} = 1;
+    }
+    
+    $self->{'Mailbox'}->create($local_part,$domain_id,\%params);
+    
+=begin cut
 
     if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
@@ -2068,29 +2231,6 @@ sub show_add_mailbox {
 
     # Get our database connection
     my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $domain_id         = $q->param('domain');
-    my $username          = &VBoxAdm::Utils::trim( lc( $q->param('username') ) );
-    my $password          = $q->param('password');
-    my $password_2        = $q->param('password_2');
-    my $name              = $q->param('name');
-    my $is_active         = $q->param('is_active');
-    my $send_welcome_mail = $q->param('send_welcome_mail');
-    my $msg_max_size_mb   = $q->param('max_msg_size_mb');
-    $msg_max_size_mb ||= 15;    # default to 15 MB
-    my $max_msg_size   = $msg_max_size_mb * 1024;
-    my $sa_active      = $q->param('sa_active') || 1;
-    my $sa_kill_score  = $q->param('sa_kill_score') || 6.31;
-    my $is_superadmin  = 0;
-    my $is_domainadmin = 0;
-    my $pwscheme       = $self->{config}{'cgi'}{'pwscheme'} || 'ssha256';
-
-    if ( $is_active && $is_active eq 'on' ) {
-        $is_active = 1;
-    }
 
     my $system_domain = $self->{config}{'default'}{'domain'} || 'localhost';
 
@@ -2177,12 +2317,22 @@ sub show_add_mailbox {
     }
 
     $self->log( $msg1 . ". User: " . $self->authen->username );
+=cut
     $self->redirect( $self->{base_url} . '?rm=mailboxes' );
     return;
 }
 
 sub show_remove_mailbox {
     my $self = shift;
+    
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $mailbox_id = $q->param('mailbox_id');
+    
+    $self->{'Mailbox'}->delete($mailbox_id);
+    
+=begin cut
 
     if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
@@ -2194,11 +2344,6 @@ sub show_remove_mailbox {
 
     # Get our database connection
     my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $mailbox_id = $q->param('mailbox_id');
 
     my $msg = '';
 
@@ -2234,6 +2379,7 @@ sub show_remove_mailbox {
     }
 
     $self->log( $msg . ". User: " . $self->authen->username );
+=cut
     $self->redirect( $self->{base_url} . '?rm=mailboxes' );
     return;
 }
@@ -2335,6 +2481,31 @@ sub show_edit_mailbox {
 
 sub show_update_mailbox {
     my $self = shift;
+    
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $mailbox_id      = $q->param('mailbox_id');
+    my %params = (
+	    'Password'          => $q->param('password'),
+	    'PasswordAgain'     => $q->param('password_2'),
+	    'Name'              => $q->param('name'),
+	    'IsActive'          => $q->param('is_active'),
+	    'MaxMsgSize'   			=> $q->param('max_msg_size_mb'),
+	    'SAActive'      		=> $q->param('sa_active'),
+	    'SAKillScore'  			=> $q->param('sa_kill_score') || 6.31,
+	    'IsSiteadmin' 			=> $q->param('is_superadmin'),
+	    'IsDomainadmin' 		=> $q->param('is_domainadmin'),
+	    'IsOnVacation'			=> $q->param('is_on_vacation'),
+	    'VacationMessage'		=> $q->param('vacation_msg'),
+	    'VacationSubject'		=> $q->param('vacation_subj'),
+	    'VacationStart'			=> $q->param('vacation_start'),
+	    'VacationEnd'				=> $q->param('vacation_end'),
+    );
+    
+    $self->{'Mailbox'}->update($mailbox_id,\%params);
+    
+=begin cut
 
     if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
         my $msg = "You are not authorized to access this page.";
@@ -2346,28 +2517,6 @@ sub show_update_mailbox {
 
     # Get our database connection
     my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $mailbox_id      = $q->param('mailbox_id');
-    my $password        = $q->param('password');
-    my $password_2      = $q->param('password_2');
-    my $name            = $q->param('name');
-    my $is_active       = $q->param('is_active');
-    my $msg_max_size_mb = $q->param('max_msg_size_mb');
-    $msg_max_size_mb ||= 15;    # default to 15 MB
-    my $max_msg_size   = $msg_max_size_mb * 1024;
-    my $is_on_vacation = $q->param('is_on_vacation');
-    my $vacation_msg   = $q->param('vacation_msg');
-    my $vacation_subj  = $q->param('vacation_subj');
-    my $vacation_start = $q->param('vacation_start');
-    my $vacation_end   = $q->param('vacation_end');
-    my $is_domainadmin = $q->param('is_domainadmin');
-    my $is_superadmin  = $q->param('is_superadmin');
-    my $sa_active      = $q->param('sa_active');
-    my $sa_kill_score  = $q->param('sa_kill_score');
-    my $pwscheme       = $self->{config}{'cgi'}{'pwscheme'} || 'ssha256';
 
     my $msg1 = '';
 
@@ -2550,6 +2699,7 @@ sub show_update_mailbox {
     }
 
     $self->log( $msg1 . ". User: " . $self->authen->username );
+=cut
     $self->redirect( $self->{base_url} . '?rm=mailboxes' );
     return;
 }
@@ -2632,6 +2782,30 @@ sub show_log {
 sub show_vacation_blacklist {
     my $self = shift;
 
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $page   = $q->param('page')   || 1;
+    my $search = $q->param('search');
+    my %params = (
+    	'Search' => $search,
+    	'Order'  => 'domain',
+    );
+    
+    my @blacklist = $self->{'VacationBlacklist'}->list(\%params);
+    my $pager = Data::Page->new();
+    $pager->total_entries(scalar(@blacklist));
+    $pager->entries_per_page($ENTRIES_PER_PAGE);
+    $pager->current_page($page);
+    $params{'Limit'} = $pager->skipped.','.$pager->entries_per_page;
+    @blacklist = $self->{'VacationBlacklist'}->list(\%params);
+    
+=begin cut
+    my $self = shift;
+
     if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
@@ -2671,8 +2845,8 @@ sub show_vacation_blacklist {
         );
     }
     $sth->finish();
-
-    my %params = (
+=cut
+    %params = (
         'title'     => $self->{lh}->maketext('VBoxAdm Vacation Blacklist'),
         'current'   => 'vacation',
         'blacklist' => \@blacklist,
@@ -2709,6 +2883,15 @@ sub show_create_vacbl_entry {
 
 sub show_add_vacbl_entry {
     my $self = shift;
+    
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $email = $q->param('email') || undef;
+    
+    $self->{'VacationBlacklist'}->create($email);
+    
+=begin cut
 
     if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
@@ -2717,14 +2900,11 @@ sub show_add_vacbl_entry {
         $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
-
-    # Get CGI Query object
-    my $q = $self->query();
-
+    
     # Get our database connection
     my $dbh = $self->dbh();
 
-    my $email = $q->param('email') || undef;
+    
 
     my $msg1 = '';
 
@@ -2753,12 +2933,22 @@ sub show_add_vacbl_entry {
     }
 
     $self->log( $msg1 . ". User: " . $self->authen->username );
+=cut
     $self->redirect( $self->{base_url} . '?rm=vac_bl' );
     return;
 }
 
 sub show_remove_vacbl_entry {
     my $self = shift;
+    
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $entry_id = $q->param('entry_id') || undef;
+    
+    $self->{'VacationBlacklist'}->delete($entry_id);
+    
+=begin cut
 
     if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
@@ -2767,14 +2957,11 @@ sub show_remove_vacbl_entry {
         $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
-
-    # Get CGI Query object
-    my $q = $self->query();
-
+    
     # Get our database connection
     my $dbh = $self->dbh();
 
-    my $entry_id = $q->param('entry_id') || undef;
+    
 
     my $msg1 = '';
 
@@ -2808,6 +2995,7 @@ sub show_remove_vacbl_entry {
     }
 
     $self->log( $msg1 . ". User: " . $self->authen->username );
+=cut
     $self->redirect( $self->{base_url} . '?rm=vac_bl' );
     return;
 }
@@ -2929,6 +3117,30 @@ sub show_rfc_notify {
 sub show_awl {
     my $self = shift;
 
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $page   = $q->param('page')   || 1;
+    my $search = $q->param('search');
+    my %params = (
+    	'Search' => $search,
+    	'Order'  => 'email',
+    );
+    
+    my @awl = $self->{'AWL'}->list(\%params);
+    my $pager = Data::Page->new();
+    $pager->total_entries(scalar(@awl));
+    $pager->entries_per_page($ENTRIES_PER_PAGE);
+    $pager->current_page($page);
+    $params{'Limit'} = $pager->skipped.','.$pager->entries_per_page;
+    @awl = $self->{'AWL'}->list(\%params);
+    
+=begin cut
+    my $self = shift;
+
     if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
@@ -2969,8 +3181,8 @@ sub show_awl {
         );
     }
     $sth->finish();
-
-    my %params = (
+=cut
+    %params = (
         'title'   => $self->{lh}->maketext('VBoxAdm Auto-Whitelist'),
         'current' => 'awl',
         'awl'     => \@awl,
@@ -2982,6 +3194,18 @@ sub show_awl {
 
 sub show_update_awl {
     my $self = shift;
+    
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $entry_id = $q->param('entry_id') || undef;
+    my %params = (
+    	'Disabled' => $q->param('disabled'),
+    );
+    
+    $self->{'AWL'}->update($entry_id,\%params);
+    
+=begin cut
 
     if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
@@ -2990,15 +3214,11 @@ sub show_update_awl {
         $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
-
-    # Get CGI Query object
-    my $q = $self->query();
-
+    
     # Get our database connection
     my $dbh = $self->dbh();
 
-    my $entry_id = $q->param('entry_id') || undef;
-    my $disabled = $q->param('disabled');
+    
 
     if ( $entry_id && defined($disabled) ) {
         if ( $disabled =~ m/^(?:yes|1|true|on)$/i ) {
@@ -3019,7 +3239,7 @@ sub show_update_awl {
             $self->log( $msg . ". User: " . $self->authen->username );
         }
     }
-
+=cut
     $self->redirect( $self->{base_url} . '?rm=awl' );
     return;
 }

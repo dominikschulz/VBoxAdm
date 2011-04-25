@@ -300,7 +300,7 @@ git: tidy all clean
 	$(GIT) status
 	$(GIT) diff
 	$(GIT) commit -a -s || true
-	$(GIT) push origin
+	$(GIT) push origin master
 	test -d /projects/ && $(GIT) push projects || true
 
 help:
