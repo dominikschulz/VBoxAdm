@@ -27,7 +27,7 @@
 					<a href="[% base_url %]?rm=edit_alias&alias_id=[% line.id %]">[% line.local_part | highlight(search) %]@[% line.domain | highlight(search) %]</a>
 				</td>
 				<td>
-					[% line.target.substr(0,60) | highlight(search) %]
+					[% line.goto.substr(0,60) | highlight(search) %]
 				</td>
 				<td>
 					[% IF line.is_active == 1 %]

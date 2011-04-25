@@ -31,8 +31,6 @@ use Data::Page;
 use Readonly;
 use HTML::Clean;
 
-# TODO replace CRUD methods by their API calls
-
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
 use VBoxAdm::SaltedHash '@VERSION@';
@@ -802,62 +800,6 @@ sub show_domains {
     $sth_mailboxes->finish();
     $sth_domainaliases->finish();
     
-=begin cut
-
-    if ( !$self->user->is_siteadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    my $query = "SELECT id,name,is_active,";
-    $query .= "(SELECT COUNT(*) FROM aliases WHERE domain_id = domains.id) AS num_aliases,";
-    $query .= "(SELECT COUNT(*) FROM mailboxes WHERE domain_id = domains.id) AS num_mailboxes,";
-    $query .= "(SELECT COUNT(*) FROM domain_aliases WHERE domain_id = domains.id) AS num_domainaliases";
-    $query .= " FROM domains";
-    my $query_where = ' WHERE 1 ';
-    my @args        = ();
-    if ($search) {
-        $query_where .= "AND (name LIKE ?) ";
-        $search =~ s/%//g;
-        my $search_arg = "%" . $search . "%";
-        push( @args, $search_arg );
-    }
-    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-        $query_where .= "AND a.domain_id = ?";
-        push( @args, $self->user->get_domain_id() );
-    }
-    $query .= $query_where . " ORDER BY name";
-
-    my $sth = $dbh->prepare( 'SELECT COUNT(*) FROM domains' . $query_where )
-      or syslog( 2, 'show_domains - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-    $sth->execute(@args)
-      or syslog( 2, 'show_domains - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-    my $num_rows = $sth->fetchrow_array();
-    $sth->finish();
-
-    my $pager = Data::Page->new();
-    $pager->total_entries($num_rows);
-    $pager->entries_per_page($ENTRIES_PER_PAGE);
-    $pager->current_page($page);
-
-    $sth = $dbh->prepare( $query . ' LIMIT ?, ?' )
-      or syslog( 2, 'show_domains - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-    push( @args, $pager->skipped );
-    push( @args, $pager->entries_per_page );
-    $sth->execute(@args)
-      or syslog( 2, 'show_domains - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-
-    my @domains = ();
-    while ( my @row = $sth->fetchrow_array() ) {
-        push( @domains,
-            { id => $row[0], name => $row[1], is_active => $row[2], num_aliases => $row[3], num_mailboxes => $row[4], num_domainaliases => $row[5], } );
-    }
-    $sth->finish();
-
-=cut
     %params = (
         'title'   => $self->{lh}->maketext('VBoxAdm Domains'),
         'current' => 'domains',
@@ -981,48 +923,6 @@ sub show_add_domain {
     	$self->{'Mailbox'}->create('domainadmin',$domain_id);
     }
     
-=begin cut
-
-    if ( !$self->user->is_siteadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $msg = '';
-    if ( $domain && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain) ) {
-        $msg = $self->{lh}->maketext('Invalid syntax. Domain is not RFC822 compliant!');
-        $self->add_message( 'error', $msg );
-    }
-    elsif ( $domain ) {
-        my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
-        my $sth   = $dbh->prepare($query)
-          or syslog( 2, 'show_add_domain - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-
-        if ( $sth->execute($domain) ) {
-            $msg = $self->{lh}->maketext( "Domain '[_1]' added", $domain );
-            $self->add_message( 'success', $msg );
-        }
-        else {
-            syslog( 2, 'show_add_domain - Could not execute Query: %s, Args: %s, Error: %s', $query, $domain, $sth->errstr );
-            $msg = $self->{lh}->maketext( "Failed to add Domain '[_1]'. Database error.", $domain );
-            $self->add_message( 'error', $msg );
-        }
-        $sth->finish();
-
-    }
-    else {
-        $msg = $self->{lh}->maketext("Failed to add Domain. Insufficient parameters.");
-        $self->add_message( 'error', $msg );
-    }
-
-    $self->log( $msg . ". User: " . $self->authen->username );
-=cut
     $self->redirect( $self->{base_url} . '?rm=domains' );
     return;
 }
@@ -1037,50 +937,6 @@ sub show_remove_domain {
     
     $self->{'Domain'}->delete($domain_id);
     
-=begin cut
-
-    if ( !$self->user->is_siteadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-    my $msg = '';
-    if ($domain_id) {
-
-        # get domain name for message
-        my $query = 'SELECT name FROM domains WHERE id = ?';
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($domain_id);
-        my ($domain_name) = $sth->fetchrow_array();
-        $sth->finish();
-
-        $query = "DELETE FROM domains WHERE id = ?";
-        $sth   = $dbh->prepare($query)
-          or syslog( 2, 'show_remove_domain - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        if ( $sth->execute($domain_id) ) {
-            $msg = $self->{lh}->maketext( "Domain [_1] (#[_2]) removed", $domain_name, $domain_id );
-            $self->add_message( 'success', $msg );
-        }
-        else {
-            syslog( 2, 'show_remove_domain - Could not execute Query: %s, Args: %s, Error: %s', $query, $domain_id, $sth->errstr );
-            $msg = $self->{lh}->maketext( "Failed to remove Domain [_1] (#[_2]). Database error.", $domain_name, $domain_id );
-            $self->add_message( 'error', $msg );
-        }
-        $sth->finish();
-
-    }
-    else {
-        $msg = $self->{lh}->maketext('Failed to remove domain. Insufficient Parameters.');
-        $self->add_message( 'error', $msg );
-    }
-
-    $self->log( $msg . ". User: " . $self->authen->username );
-=cut
     $self->redirect( $self->{base_url} . '?rm=domains' );
     return;
 }
@@ -1098,62 +954,6 @@ sub show_update_domain {
     
     $self->{'Domain'}->update($domain_id, \%params);
     
-=begin cut
-
-    if ( !$self->user->is_siteadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $msg = '';
-    if ( $domain_id && defined($is_active) ) {
-
-        # get domain name for message
-        my $query = 'SELECT name FROM domains WHERE id = ?';
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($domain_id);
-        my ($domain_name) = $sth->fetchrow_array();
-        $sth->finish();
-
-        $query = "UPDATE domains SET is_active = ? WHERE id = ?";
-        my @args = ();
-        push( @args, $is_active );
-        push( @args, $domain_id );
-        if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-            $query .= "AND id = ?";
-            push( @args, $self->user->get_domain_id() );
-        }
-        $sth = $dbh->prepare($query)
-          or syslog( 2, 'show_update_domain - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        my $status_str = 'disabled';
-        if ($is_active) {
-            $status_str = 'enabled';
-        }
-        if ( $sth->execute(@args) ) {
-            $msg = $self->{lh}->maketext( "Domain [_1] (#[_2]) [_3].", $domain_name, $domain_id, $status_str );
-            $self->add_message( 'success', $msg );
-        }
-        else {
-            syslog( 2, 'show_update_domain - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            $msg = $self->{lh}->maketext( "Failed to set Domain [_1] (#[_2]) [_3].", $domain_name, $domain_id, $status_str );
-            $self->add_message( 'error', $msg );
-        }
-        $sth->finish();
-
-    }
-    else {
-        $msg = $self->{lh}->maketext('Failed to update Domain. Insufficient parameters');
-        $self->add_message( 'error', $msg );
-    }
-
-    $self->log( $msg . ". User: " . $self->authen->username );
-=cut
     $self->redirect( $self->{base_url} . '?rm=domains' );
     return;
 }
@@ -1184,65 +984,6 @@ sub show_domain_aliases {
     $pager->current_page($page);
     $params{'Limit'} = $pager->skipped.','.$pager->entries_per_page;
     @domains = $self->{'DomainAlias'}->list(\%params);
-    
-=begin cut
-
-    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $query = "FROM domain_aliases AS da LEFT JOIN domains AS d ON da.domain_id = d.id";
-    $query .= ' WHERE 1 ';
-    my @args = ();
-
-    # Search
-    if ($search) {
-        $query .= "AND (da.name LIKE ? OR d.name LIKE ?) ";
-        $search =~ s/%//g;
-        my $search_arg = "%" . $search . "%";
-        push( @args, $search_arg );
-        push( @args, $search_arg );
-    }
-
-    # Authorization
-    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-        $query .= "AND da.domain_id = ? ";
-        push( @args, $self->user->get_domain_id() );
-    }
-
-    my $sth = $dbh->prepare( 'SELECT COUNT(*) ' . $query )
-      or syslog( 2, 'show_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-    $sth->execute(@args)
-      or syslog( 2, 'show_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-    my $num_rows = $sth->fetchrow_array();
-    $sth->finish();
-
-    my $pager = Data::Page->new();
-    $pager->total_entries($num_rows);
-    $pager->entries_per_page($ENTRIES_PER_PAGE);
-    $pager->current_page($page);
-
-    $sth = $dbh->prepare( 'SELECT da.id,da.name,da.is_active,d.name ' . $query . ' ORDER BY da.name LIMIT ?, ?' )
-      or syslog( 2, 'show_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-    push( @args, $pager->skipped );
-    push( @args, $pager->entries_per_page );
-    $sth->execute(@args)
-      or syslog( 2, 'show_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-
-    my @domains = ();
-    while ( my @row = $sth->fetchrow_array() ) {
-        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], target => $row[3], } );
-    }
-    $sth->finish();
-    
-=cut
 
     %params = (
         'title'   => $self->{lh}->maketext('VBoxAdm Domain-Aliases'),
@@ -1305,63 +1046,7 @@ sub show_add_domain_alias {
     my $domain_id    = $q->param('domain');
     
     $self->{'DomainAlias'}->create($domain_alias,$domain_id);
-    
-=begin cut
 
-    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $msg = '';
-    if ( $domain_alias && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain_alias) ) {
-        $msg = $self->{lh}->maketext("Invalid syntax. Domain is not RFC822 compliant!");
-        $self->add_message( 'error', $msg );
-    }
-    elsif ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get_domain_id() ) {
-
-        # if domainadmin, verify that its his domain
-        $msg = $self->{lh}->maketext("You are not authorized to modify this domain!");
-        $self->add_message( 'error', $msg );
-    }
-    elsif ( $domain_alias && $domain_id ) {
-        my $query = "SELECT name FROM domains WHERE id = ?";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($domain_id);
-        my $domain_name = $sth->fetchrow_array();
-        $sth->finish();
-
-        $query = "INSERT INTO domain_aliases (name,domain_id,is_active) VALUES(?,?,1)";
-        $sth   = $dbh->prepare($query)
-          or syslog( 2, 'show_add_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        if ( $sth->execute( $domain_alias, $domain_id ) ) {
-            $msg = $self->{lh}->maketext( "Added domain alias '[_1]' to domain [_2] (#[_3]).", $domain_alias, $domain_name, $domain_id );
-            $self->add_message( 'success', $msg );
-        }
-        else {
-            syslog(
-                2, 'show_add_domain_alias - Could not execute Query: %s, Args: %s, Error: %s',
-                $query, join( "-", ( $domain_alias, $domain_id ) ),
-                $sth->errstr
-            );
-            $msg =
-              $self->{lh}->maketext( "Failed to add domain alias '[_1]' to domain [_2] (#[_3]). Database Error.", $domain_alias, $domain_name, $domain_id );
-            $self->add_message( 'error', $msg );
-        }
-        $sth->finish();
-    }
-    else {
-        $msg = $self->{lh}->maketext("Failed to add domain alias. No domain_alias or target domain given!");
-        $self->add_message( 'error', $msg );
-    }
-    $self->log( $msg . ". User: " . $self->authen->username );
-=cut
     $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
     return;
 }
@@ -1375,53 +1060,7 @@ sub show_remove_domain_alias {
     my $domain_alias_id = $q->param('domain_alias_id');
     
     $self->{'DomainAlias'}->delete($domain_alias_id);
-    
-=begin cut
 
-    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-    
-    my $msg = '';
-    if ($domain_alias_id) {
-        my $query = "SELECT name FROM domain_aliases WHERE id = ?";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($domain_alias_id);
-        my $domain_name = $sth->fetchrow_array();
-        $sth->finish();
-
-        $query = "DELETE FROM domain_aliases WHERE id = ?";
-        my @args = ();
-        push( @args, $domain_alias_id );
-        if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-            $query .= "AND domain_id = ?";
-            push( @args, $self->user->get_domain_id() );
-        }
-        $sth = $dbh->prepare($query)
-          or syslog( 2, 'show_remove_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        if ( $sth->execute(@args) ) {
-            $msg = $self->{lh}->maketext( "Domain-Alias [_1] (#[_2]) removed.", $domain_name, $domain_alias_id );
-            $self->add_message( 'success', $msg );
-        }
-        else {
-            syslog( 2, 'show_remove_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            $msg = $self->{lh}->maketext( "Failed to remove Domain-Alias [_1] (#[_2]). Database error.", $domain_name, $domain_alias_id );
-            $self->add_message( 'error', $msg );
-        }
-    }
-    else {
-        $msg = $self->{lh}->maketext('Failed to remove domain alias. Insufficient parameters.');
-        $self->add_message( 'error', $msg );
-    }
-    $self->log( $msg . ". User: " . $self->authen->username );
-=cut
     $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
     return;
 }
@@ -1479,13 +1118,13 @@ sub show_edit_domain_alias {
     $sth->finish();
 
     my %params = (
-        title           => $self->{lh}->maketext('Edit Domain Alias'),
+        'title'           => $self->{lh}->maketext('Edit Domain Alias'),
         'current'       => 'domain_aliases',
-        domain_name     => $row[1],
-        is_active       => $row[3],
-        target          => $row[2],
-        domain_alias_id => $domain_alias_id,
-        domains         => \@domains,
+        'domain_name'     => $row[1],
+        'is_active'       => $row[3],
+        'target'          => $row[2],
+        'domain_alias_id' => $domain_alias_id,
+        'domains'         => \@domains,
     );
 
     return $self->tt_process( 'domain-alias-edit.tpl', \%params );
@@ -1505,98 +1144,6 @@ sub show_update_domain_alias {
     
     $self->{'DomainAlias'}->update($domain_alias_id);
     
-=begin cut
-
-    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $msg1        = '';
-    my $domain_name = '';
-    if ($domain_alias_id) {
-        my $query = "SELECT name FROM domain_aliases WHERE id = ?";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($domain_alias_id);
-        $domain_name = $sth->fetchrow_array();
-        $sth->finish();
-    }
-
-    if ( $domain_alias_id && defined($is_active) ) {
-        my $query = "UPDATE domain_aliases SET is_active = ? WHERE id = ?";
-        my @args  = ();
-        push( @args, $is_active );
-        push( @args, $domain_alias_id );
-        if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-            $query .= "AND domain_id = ?";
-            push( @args, $self->user->get_domain_id() );
-        }
-        my $sth = $dbh->prepare($query)
-          or syslog( 2, 'show_update_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        my $status_str = 'disabled';
-        if ( $is_active eq 'on' || $is_active eq 'true' ) {
-            $status_str = 'enabled';
-            $is_active  = 1;
-        }
-        if ( $sth->execute(@args) ) {
-            my $msg = $self->{lh}->maketext( "Domain-Alias [_1] (#[_2]) $status_str.", $domain_name, $domain_alias_id );
-            $self->add_message( 'success', $msg );
-            $msg1 .= $msg . ' ';
-        }
-        else {
-            syslog( 2, 'show_update_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            my $msg = $self->{lh}->maketext( "Failed to set Domain-Alias [_1] (#[_2]) [_3]. Database Error.", $domain_name, $domain_alias_id, $status_str );
-            $self->add_message( 'error', $msg );
-            $msg1 .= $msg . ' ';
-        }
-    }
-
-    if ( $target && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $target != $self->user->get_domain_id() ) {
-
-        # if domainadmin, verify that its his domain
-        my $msg = "You are not authorized to modify this domain!";
-        $self->add_message( 'errror', $msg );
-        $msg1 .= $msg . ' ';
-    }
-    elsif ( $domain_alias_id && $target ) {
-        my $query = "SELECT name FROM domains WHERE id = ?";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($target);
-        my $target_domain_name = $sth->fetchrow_array();
-        $sth->finish();
-
-        $query = "UPDATE domain_aliases SET domain_id = ? WHERE id = ?";
-        $sth   = $dbh->prepare($query)
-          or syslog( 2, 'show_update_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        if ( $sth->execute( $target, $domain_alias_id ) ) {
-            my $msg =
-              $self->{lh}
-              ->maketext( "Domain-Alias [_1] (#[_2]) redirected to Domain [_3] (#[_4]).", $domain_name, $domain_alias_id, $target_domain_name, $target );
-            $self->add_message( 'success', $msg );
-            $msg1 .= $msg . ' ';
-        }
-        else {
-            syslog(
-                2, 'show_update_domain_alias - Could not execute Query: %s, Args: %s, Error: %s',
-                $query, join( "-", ( $target, $domain_alias_id ) ),
-                $sth->errstr
-            );
-            my $msg =
-              $self->{lh}
-              ->maketext( "Failed to redirect Domain-Alias [_1] (#[_2]) to Domain [_3] (#[_4]).", $domain_name, $domain_alias_id, $target_domain_name,
-                $target );
-            $self->add_message( 'error', $msg );
-            $msg1 .= $msg . ' ';
-        }
-    }
-    $self->log( $msg1 . ". User: " . $self->authen->username );
-=cut
     $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
     return;
 }
@@ -1628,66 +1175,6 @@ sub show_aliases {
     $params{'Limit'} = $pager->skipped.','.$pager->entries_per_page;
     @aliases = $self->{'Alias'}->list(\%params);
     
-=begin cut
-    my $self = shift;
-
-    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $search = $q->param('search') || undef;
-    my $page   = $q->param('page')   || 1;
-
-    my $query = "FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE 1 ";
-    my @args  = ();
-    if ($search) {
-        $query .= "AND (a.local_part LIKE ? OR d.name LIKE ? OR a.goto LIKE ?) ";
-        $search =~ s/%//g;
-        my $search_arg = "%" . $search . "%";
-        push( @args, $search_arg );
-        push( @args, $search_arg );
-        push( @args, $search_arg );
-    }
-    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-        $query .= "AND a.domain_id = ?";
-        push( @args, $self->user->get_domain_id() );
-    }
-
-    my $sth = $dbh->prepare( 'SELECT COUNT(*) ' . $query )
-      or syslog( 2, 'show_aliases - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-    $sth->execute(@args)
-      or syslog( 2, 'show_aliases - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-    my $num_rows = $sth->fetchrow_array();
-    $sth->finish();
-
-    my $pager = Data::Page->new();
-    $pager->total_entries($num_rows);
-    $pager->entries_per_page($ENTRIES_PER_PAGE);
-    $pager->current_page($page);
-
-    $sth = $dbh->prepare( 'SELECT a.id,a.local_part,a.is_active,a.goto,d.name ' . $query . ' ORDER BY a.local_part,d.name LIMIT ?,?' )
-      or syslog( 2, 'show_aliases - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-    push( @args, $pager->skipped );
-    push( @args, $pager->entries_per_page );
-    $sth->execute(@args)
-      or syslog( 2, 'show_aliases - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-
-    my @aliases = ();
-    while ( my @row = $sth->fetchrow_array() ) {
-        push( @aliases, { id => $row[0], local_part => $row[1], is_active => $row[2], target => $row[3], domain => $row[4], } );
-    }
-    $sth->finish();
-=cut
     %params = (
         'title'   => $self->{lh}->maketext('VBoxAdm Aliases'),
         'current' => 'aliases',
@@ -1751,73 +1238,6 @@ sub show_add_alias {
     
     $self->{'Alias'}->create($local_part, $domain_id, $goto);
     
-=begin cut
-
-    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $local_part = &VBoxAdm::Utils::trim( lc( $q->param('local_part') ) );
-    my $domain_id  = $q->param('domain');
-    my $goto       = $q->param('goto');
-
-    my $msg = '';
-
-    if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get_domain_id() ) {
-
-        # if domainadmin, verify that its his domain
-        $msg = $self->{lh}->maketext("You are not authorized to modify this domain!");
-        $self->add_message( 'error', $msg );
-    }
-    elsif ( $local_part && !&VBoxAdm::Utils::is_valid_localpart_rfc822($local_part) ) {
-        $msg = $self->{lh}->maketext("Invalid local part. This address is not RFC822 compliant!");
-        $self->add_message( 'error', $msg );
-    }
-    elsif ( $goto && !&VBoxAdm::Utils::is_valid_addresses_rfc822($goto) ) {
-        $msg = $self->{lh}->maketext("Invalid address in destination!");
-        $self->add_message( 'error', $msg );
-    }
-    elsif ( $local_part && $domain_id && $goto ) {
-        my $query = "SELECT name FROM domains WHERE id = ?";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($domain_id);
-        my $domain_name = $sth->fetchrow_array();
-        $sth->finish();
-
-        $query = "INSERT INTO aliases (domain_id,local_part,goto,is_active) VALUES(?,?,?,1)";
-        $sth   = $dbh->prepare($query)
-          or syslog( 2, 'show_add_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        if ( $sth->execute( $domain_id, $local_part, $goto ) ) {
-            $msg = $self->{lh}->maketext( "Alias [_1] to [_2] added.", "$local_part\@$domain_name", $goto );
-            $self->add_message( 'success', $msg );
-        }
-        else {
-            syslog(
-                2, 'show_add_alias - Could not execute Query: %s, Args: %s, Error: %s',
-                $query, join( "-", ( $domain_id, $local_part, $goto ) ),
-                $sth->errstr
-            );
-            $msg = $self->{lh}->maketext( "Failed to add alias [_1] => [_2]. Database Error.", "$local_part\@$domain_name", $goto );
-            $self->add_message( 'error', $msg );
-        }
-        $sth->finish();
-    }
-    else {
-        $msg = $self->{lh}->maketext("Failed to add alias. Missing local_part, domain_id or target.");
-        $self->add_message( 'error', $msg );
-    }
-    $self->log( $msg . ". User: " . $self->authen->username );
-=cut
     $self->redirect( $self->{base_url} . '?rm=aliases' );
     return;
 }
@@ -1832,55 +1252,6 @@ sub show_remove_alias {
     
     $self->{'Alias'}->delete($alias_id);
     
-=begin cut
-
-    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $msg = '';
-
-    if ($alias_id) {
-
-        # get alias name for message
-        my $query = 'SELECT CONCAT(a.local_part,\'@\',d.name) AS alias,a.goto FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?';
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($alias_id);
-        my ( $alias, $goto ) = $sth->fetchrow_array();
-        $sth->finish();
-
-        $query = "DELETE FROM aliases WHERE id = ?";
-        my @args = ();
-        push( @args, $alias_id );
-        if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-            $query .= "AND domain_id = ?";
-            push( @args, $self->user->get_domain_id() );
-        }
-        $sth = $dbh->prepare($query)
-          or syslog( 2, 'show_remove_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        if ( $sth->execute(@args) ) {
-            $msg = $self->{lh}->maketext( "Alias [_1] => [_2] (#[_3]) removed.", $alias, $goto, $alias_id );
-            $self->add_message( 'success', $msg );
-        }
-        else {
-            syslog( 2, 'show_remove_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            $msg = $self->{lh}->maketext( "Failed to remove Alias [_1] => [_2] (#[_3]). Database Error.", $alias, $goto, $alias_id );
-            $self->add_message( 'error', $msg );
-        }
-    }
-    else {
-        $msg = $self->{lh}->maketext('Failed to remove alias. Insufficient parameters.');
-        $self->add_message( 'error', $msg );
-    }
-    $self->log( $msg . ". User: " . $self->authen->username );
-=cut
     $self->redirect( $self->{base_url} . '?rm=aliases' );
     return;
 }
@@ -1903,31 +1274,17 @@ sub show_edit_alias {
     my $q = $self->query();
 
     my $alias_id = $q->param('alias_id');
+    my $alias_ref = $self->{'Alias'}->read($alias_id);
     
-    # TODO use alias read to fill the forms
-
-    my $query = "SELECT a.local_part,d.name,a.goto,a.is_active FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
-    my @args  = ();
-    push( @args, $alias_id );
-    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-        $query .= "AND a.domain_id = ?";
-        push( @args, $self->user->get_domain_id() );
-    }
-    my $sth = $dbh->prepare($query)
-      or syslog( 2, 'show_edit_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-    $sth->execute(@args)
-      or syslog( 2, 'show_edit_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-    my @row = $sth->fetchrow_array();
-
     my %params = (
-        title      => $self->{lh}->maketext('Edit Alias'),
-        alias_id   => $alias_id,
-        local_part => $row[0],
-        domain     => $row[1],
-        'goto'     => $row[2],
-        is_active  => $row[3],
+        'title'      => $self->{lh}->maketext('Edit Alias'),
+        'alias_id'   => $alias_id,
         'current'  => 'aliases',
     );
+    
+    foreach my $key (keys %{$alias_ref}) {
+    	$params{$key} = $alias_ref->{$key};
+    }
 
     return $self->tt_process( 'alias-edit.tpl', \%params );
 }
@@ -1938,95 +1295,14 @@ sub show_update_alias {
     # Get CGI Query object
     my $q = $self->query();
     
-    my %params = (
-    	'IsActive' => $q->param('is_active'),
-    	'Goto' => &VBoxAdm::Utils::trim( $q->param('goto') ),
-    );
+    my %params = ();
+   	$params{'IsActive'} 	= $q->param('is_active');
+    $params{'Goto'} = &VBoxAdm::Utils::trim($q->param('goto'));
 
     my $alias_id  = $q->param('alias_id');
     
     $self->{'Alias'}->update($alias_id, \%params);
     
-=begin cut
-
-    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $msg1       = '';
-    my $alias_name = '';
-    if ($alias_id) {
-        my $query = "SELECT a.local_part,d.name FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($alias_id);
-        $alias_name = $sth->fetchrow_array();
-        $sth->finish();
-    }
-
-    if ( $alias_id && defined($is_active) ) {
-        my $query = "UPDATE aliases SET is_active = ? WHERE id = ?";
-        my @args  = ();
-        push( @args, $is_active );
-        push( @args, $alias_id );
-
-        # Authorization
-        if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-            $query .= "AND domain_id = ?";
-            push( @args, $self->user->get_domain_id() );
-        }
-        my $sth = $dbh->prepare($query)
-          or syslog( 2, 'show_update_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        my $status_str = 'disabled';
-        if ($is_active) {
-            $status_str = 'enabled';
-        }
-        if ( $sth->execute(@args) ) {
-            my $msg = $self->{lh}->maketext( "Alias [_1] (#[_2]) [_3].", $alias_name, $alias_id, $status_str );
-            $self->add_message( 'success', $msg );
-            $msg1 .= $msg . ' ';
-        }
-        else {
-            syslog( 2, 'show_update_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            my $msg = $self->{lh}->maketext( "Failed to set Alias [_1] (#[_2]) [_3].", $alias_name, $alias_id, $status_str );
-            $self->add_message( 'error', $msg );
-            $msg1 .= $msg . ' ';
-        }
-    }
-
-    # clean target string
-    if ($target) {
-        $target = join( ",", split( /\s*,\s*/, $target ) );
-    }
-    if ( $target && !&VBoxAdm::Utils::is_valid_addresses_rfc822($target) ) {
-        my $msg = $self->{lh}->maketext("Invalid address in destination!");
-        $self->add_message( 'error', $msg );
-        $msg1 .= $msg . ' ';
-    }
-    elsif ( $alias_id && $target ) {
-        my $query = "UPDATE aliases SET goto = ? WHERE id = ?";
-        my $sth   = $dbh->prepare($query)
-          or syslog( 2, 'show_mailboxes - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        if ( $sth->execute( $target, $alias_id ) ) {
-            my $msg .= $self->{lh}->maketext( "Alias [_1] (#[_2]) redirected to [_3].", $alias_name, $alias_id, $target );
-            $self->add_message( 'success', $msg );
-            $msg1 .= $msg . ' ';
-        }
-        else {
-            syslog( 2, 'show_mailboxes - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $target, $alias_id ) ), $sth->errstr );
-            my $msg = $self->{lh}->maketext( "Failed to redirect Alias [_1] (#[_2]) to [_3].", $alias_name, $alias_id, $target );
-            $self->add_message( 'error', $msg );
-            $msg1 .= $msg . ' ';
-        }
-    }
-    $self->log( $msg1 . ". User: " . $self->authen->username );
-=cut
     $self->redirect( $self->{base_url} . '?rm=aliases' );
     return;
 }
@@ -2058,87 +1334,6 @@ sub show_mailboxes {
     $params{'Limit'} = $pager->skipped.','.$pager->entries_per_page;
     @mailboxes = $self->{'Mailbox'}->list(\%params);
     
-=begin cut
-    my $self = shift;
-
-    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $search = $q->param('search') || undef;
-    my $page   = $q->param('page')   || 1;
-
-    my $query = "FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE 1 ";
-    my @args  = ();
-
-    # Search
-    if ($search) {
-        $query .= "AND (m.local_part LIKE ? OR d.name LIKE ? OR m.name LIKE ?) ";
-        $search =~ s/%//g;
-        my $search_arg = "%" . $search . "%";
-        push( @args, $search_arg );
-        push( @args, $search_arg );
-        push( @args, $search_arg );
-    }
-
-    # Authorization
-    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-        $query .= "AND m.domain_id = ? ";
-        push( @args, $self->user->get_domain_id() );
-    }
-
-    my $sth = $dbh->prepare( 'SELECT COUNT(*) ' . $query )
-      or syslog( 2, 'show_mailboxes - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-    $sth->execute(@args)
-      or syslog( 2, 'show_mailboxes - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-    my $num_rows = $sth->fetchrow_array();
-    $sth->finish();
-
-    my $pager = Data::Page->new();
-    $pager->total_entries($num_rows);
-    $pager->entries_per_page($ENTRIES_PER_PAGE);
-    $pager->current_page($page);
-
-    $sth = $dbh->prepare(
-        'SELECT m.id,m.local_part,m.is_active,d.name,m.max_msg_size,m.is_on_vacation,m.quota,m.name ' . $query . ' ORDER BY m.local_part,d.name LIMIT ?, ?' )
-      or syslog( 2, 'show_mailboxes - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-    push( @args, $pager->skipped );
-    push( @args, $pager->entries_per_page );
-    $sth->execute(@args)
-      or syslog( 2, 'show_mailboxes - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-
-    my @mailboxes = ();
-    while ( my @row = $sth->fetchrow_array() ) {
-        my $msg_msg_size_mb = $row[4];
-        if ( $msg_msg_size_mb > 0 ) {
-            $msg_msg_size_mb /= 1024;
-        }
-        push(
-            @mailboxes,
-            {
-                id              => $row[0],
-                local_part      => $row[1],
-                is_active       => $row[2],
-                domain          => $row[3],
-                max_msg_size_mb => $msg_msg_size_mb,
-                is_on_vacation  => $row[5],
-                quota           => $row[6],
-                name            => $row[7],
-            }
-        );
-    }
-    $sth->finish();
-=cut
     %params = (
         'title'     => $self->{lh}->maketext('VBoxAdm Mailboxes'),
         'current'   => 'mailboxes',
@@ -2219,105 +1414,6 @@ sub show_add_mailbox {
     
     $self->{'Mailbox'}->create($local_part,$domain_id,\%params);
     
-=begin cut
-
-    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $system_domain = $self->{config}{'default'}{'domain'} || 'localhost';
-
-    if ( $self->user->is_siteadmin() ) {
-        $is_superadmin = $q->param('is_superadmin') || 0;
-    }
-    elsif ( $self->user->is_domainadmin() && $domain_id == $self->user->get_domain_id() ) {
-        $is_domainadmin = $q->param('is_domainadmin') || 0;
-    }
-
-    my $msg1        = '';
-    my $domain_name = 'localhost';
-    if ($domain_id) {
-        $domain_name = $self->get_domain_byid($domain_id) || 'localhost';
-    }
-
-    # no pws given, generate one
-    if ( !$password && !$password_2 ) {
-        $password = &VBoxAdm::Password::pwgen( 12 );
-        $password_2 = $password;
-        my $msg = 'Generated Password: [_1]. ';
-        $self->add_message( 'info', $self->{lh}->maketext( $msg, $password ) );
-    }
-
-    if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get_domain_id() ) {
-
-        # if domainadmin, verify that its his domain
-        my $msg = "You are not authorized to modify this domain!";
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $msg1 = $msg;
-    }
-    elsif ( $username && !&VBoxAdm::Utils::is_valid_localpart_rfc822($username) ) {
-        my $msg = "Invalid local part. This address is not RFC822 compliant!";
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $msg1 = $msg;
-    }
-    elsif ( $password && $password_2 && $password ne $password_2 ) {
-        my $msg = "Passwords do not match.";
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $msg1 = $msg;
-    }
-    elsif ( $domain_id && $username && $password && $name && $password eq $password_2 ) {
-        my $query =
-          "INSERT INTO mailboxes (domain_id,local_part,password,is_active,name,sa_active,sa_kill_score,is_domainadmin,is_superadmin) VALUES(?,?,?,?,?,?,?,?,?)";
-        my $sth = $dbh->prepare($query)
-          or syslog( 2, 'show_add_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        if (
-            $sth->execute(
-                $domain_id, $username, VBoxAdm::SaltedHash::make_pass( $password, $pwscheme ),
-                $is_active, $name, $sa_active, $sa_kill_score, $is_domainadmin, $is_superadmin
-            )
-          )
-        {
-            my $msg = "Added Mailbox [_1] for [_2].";
-            $self->add_message( 'success', $self->{lh}->maketext( $msg, "$username\@$domain_name", $name ) );
-            $msg1 .= $self->{lh_en}->maketext( $msg, "$username\@$domain_name", $name );
-
-            # send_welcome_mail
-            my $emsg = '';
-            $emsg .= "Subject: " . $self->{lh}->maketext("Welcome") . "\r\n";
-            $emsg .= "Auto-Submitted: auto-generated\r\n";
-            $emsg .= "From: VBoxAdm <vboxadm\@" . $system_domain . ">\r\n";
-            $emsg .= "To: <$username\@$domain_name>\r\n";
-            $emsg .= "\r\n";
-            $emsg .= $self->{lh}->maketext("Welcome to your new mailbox.");
-            &VBoxAdm::Utils::sendmail( 'vboxadm@' . $system_domain, $emsg );
-        }
-        else {
-            syslog(
-                2, 'show_add_mailbox - Could not execute Query: %s, Args: %s, Error: %s',
-                $query, join( "-", ( $domain_id, $username, $password, $is_active ) ),
-                $sth->errstr
-            );
-            my $msg = "Failed to add Mailbox [_1] for [_2]. Database Error.";
-            $self->add_message( 'error', $self->{lh}->maketext( $msg, "$username\@$domain_name", $name ) );
-            $msg1 = $self->{lh_en}->maketext( $msg, "$username\@$domain_name", $name );
-        }
-        $sth->finish();
-    }
-    else {
-        my $msg = "Failed to add Mailbox. Insufficient parameters.";
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $msg1 = $msg;
-    }
-
-    $self->log( $msg1 . ". User: " . $self->authen->username );
-=cut
     $self->redirect( $self->{base_url} . '?rm=mailboxes' );
     return;
 }
@@ -2332,54 +1428,6 @@ sub show_remove_mailbox {
     
     $self->{'Mailbox'}->delete($mailbox_id);
     
-=begin cut
-
-    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $msg = '';
-
-    if ($mailbox_id) {
-        my $query = "SELECT CONCAT(m.local_part,'\@',d.name) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($mailbox_id);
-        my $mailbox_name = $sth->fetchrow_array();
-        $sth->finish();
-
-        $query = "DELETE FROM mailboxes WHERE id = ?";
-        my @args = ();
-        push( @args, $mailbox_id );
-        if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-            $query .= "AND domain_id = ?";
-            push( @args, $self->user->get_domain_id() );
-        }
-        $sth = $dbh->prepare($query)
-          or syslog( 2, 'show_remove_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        if ( $sth->execute(@args) ) {
-            $msg = $self->{lh}->maketext( "Mailbox [_1] (#[_2]) removed.", $mailbox_name, $mailbox_id );
-            $self->add_message( 'success', $msg );
-        }
-        else {
-            syslog( 2, 'show_remove_mailbox - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-            $msg = $self->{lh}->maketext( "Failed to remove Mailbox [_1] (#[_2]). Database Error.", $mailbox_name, $mailbox_id );
-            $self->add_message( 'error', $msg );
-        }
-    }
-    else {
-        $msg = $self->{lh}->maketext("Failed to remove mailbox. Insufficient parameters.");
-        $self->add_message( 'error', $msg );
-    }
-
-    $self->log( $msg . ". User: " . $self->authen->username );
-=cut
     $self->redirect( $self->{base_url} . '?rm=mailboxes' );
     return;
 }
@@ -2401,81 +1449,38 @@ sub show_edit_mailbox {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $mailbox_id = $q->param('mailbox_id');
-
-    my $query = "SELECT m.local_part,d.name,m.name,m.is_active,m.max_msg_size,";
-    $query .= "m.is_on_vacation,m.vacation_msg,m.quota,m.is_domainadmin,";
-    $query .= "m.is_superadmin,d.id,m.sa_active,m.sa_kill_score,m.vacation_subj,m.vacation_start,m.vacation_end ";
-    $query .= "FROM mailboxes AS m LEFT JOIN domains AS d ";
-    $query .= "ON m.domain_id = d.id WHERE m.id = ? ";
-    my @args = ();
-    push( @args, $mailbox_id );
-    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-        $query .= "AND m.domain_id = ?";
-        push( @args, $self->user->get_domain_id() );
-    }
-    my $sth = $dbh->prepare($query)
-      or syslog( 2, 'show_edit_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-    $sth->execute(@args)
-      or syslog( 2, 'show_edit_mailbox - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-    my @row = $sth->fetchrow_array();
-    $sth->finish();
-
-    my $max_msg_size_mb = $row[4];
-    if ( $max_msg_size_mb > 0 ) {
-        $max_msg_size_mb /= 1024;
-    }
-
-    my $domain_id = $row[10];
+    my $mailbox_id = $q->param('mailbox_id');    
+    my $mailbox_ref = $self->{'Mailbox'}->read($mailbox_id);
+		my $domain_id = $mailbox_ref->{'domain_id'};
 
     # show aliases pointing to this mbox, don't forget domain aliases!
     # show cc (aliases w/ the same name as this mailbox)
-    $query = "SELECT id,goto FROM aliases WHERE local_part = (SELECT local_part FROM mailboxes WHERE id = ?) AND domain_id = ? ";
-    @args  = ();
+    my $query = "SELECT id,goto FROM aliases WHERE local_part = (SELECT local_part FROM mailboxes WHERE id = ?) AND domain_id = ? ";
+    my @args  = ();
     push( @args, $mailbox_id );
     push( @args, $domain_id );
     if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
         $query .= "AND domain_id = ?";
         push( @args, $self->user->get_domain_id() );
     }
-    $sth = $dbh->prepare($query);
+    my $sth = $dbh->prepare($query);
     $sth->execute(@args);
     my ( $cc_id, $cc_goto ) = $sth->fetchrow_array();
     $sth->finish();
 
-    my $vacation_start = '';
-    if ( $row[14] =~ m/(\d\d\d\d)-(\d\d)-(\d\d)/ ) {
-        $vacation_start = "$3.$2.$1";
-    }
-    my $vacation_end = '';
-    if ( $row[15] =~ m/(\d\d\d\d)-(\d\d)-(\d\d)/ ) {
-        $vacation_end = "$3.$2.$1";
-    }
-
-    my %params = (
-        title              => $self->{lh}->maketext('Edit Mailbox'),
-        mailbox_id         => $mailbox_id,
-        local_part         => $row[0],
-        domain             => $row[1],
-        name               => $row[2],
-        is_active          => $row[3],
-        max_msg_size_mb    => $max_msg_size_mb,
-        is_on_vacation     => $row[5],
-        vacation_msg       => $row[6],
-        vacation_subj      => $row[13],
-        vacation_start     => $vacation_start,
-        vacation_end       => $vacation_end,
-        quota              => $row[7],
-        cc_goto            => $cc_goto,
-        cc_id              => $cc_id,
-        mb_is_domainadmin  => $row[8],
-        mb_is_superadmin   => $row[9],
-        user_is_superadmin => $self->user->is_siteadmin(),
-        sa_active          => $row[11],
-        sa_kill_score      => $row[12],
-        'current'          => 'mailboxes',
-    );
-
+		my %params = (
+			'title'              => $self->{lh}->maketext('Edit Mailbox'),
+      'mailbox_id'         => $mailbox_id,
+      'user_is_superadmin' => $self->user->is_siteadmin(),
+      'current' 					 => 'mailboxes',
+      'cc_goto'            => $cc_goto,
+        'cc_id'              => $cc_id,
+        'mb_is_domainadmin' => $mailbox_ref->{'is_domainadmin'},
+        'mb_is_superadmin' => $mailbox_ref->{'is_superadmin'},
+		);
+		foreach my $key (keys %{$mailbox_ref}) {
+			$params{$key} = $mailbox_ref->{$key};
+		}
     return $self->tt_process( 'mailbox-edit.tpl', \%params );
 }
 
@@ -2490,13 +1495,13 @@ sub show_update_mailbox {
 	    'Password'          => $q->param('password'),
 	    'PasswordAgain'     => $q->param('password_2'),
 	    'Name'              => $q->param('name'),
-	    'IsActive'          => $q->param('is_active'),
+	    'IsActive'          => ($q->param('is_active') ? 1 : 0),
 	    'MaxMsgSize'   			=> $q->param('max_msg_size_mb'),
-	    'SAActive'      		=> $q->param('sa_active'),
+	    'SAActive'      		=> ($q->param('sa_active') ? 1 : 0),
 	    'SAKillScore'  			=> $q->param('sa_kill_score') || 6.31,
-	    'IsSiteadmin' 			=> $q->param('is_superadmin'),
-	    'IsDomainadmin' 		=> $q->param('is_domainadmin'),
-	    'IsOnVacation'			=> $q->param('is_on_vacation'),
+	    'IsSiteadmin' 			=> ($q->param('is_superadmin') ? 1 : 0),
+	    'IsDomainadmin' 		=> ($q->param('is_domainadmin') ? 1 : 0),
+	    'IsOnVacation'			=> ($q->param('is_on_vacation') ? 1: 0),
 	    'VacationMessage'		=> $q->param('vacation_msg'),
 	    'VacationSubject'		=> $q->param('vacation_subj'),
 	    'VacationStart'			=> $q->param('vacation_start'),
@@ -2505,201 +1510,6 @@ sub show_update_mailbox {
     
     $self->{'Mailbox'}->update($mailbox_id,\%params);
     
-=begin cut
-
-    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $msg1 = '';
-
-    if ($mailbox_id) {
-        my $query = "SELECT CONCAT(m.local_part,'\@',d.name) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($mailbox_id);
-        my $mailbox_name = $sth->fetchrow_array();
-        $sth->finish();
-
-        $query = "UPDATE mailboxes SET ";
-
-        # only execute query if scalar(@params) > 0, i.e. at least on valid option
-        my @params = ();
-
-        # Password
-        if ( $password && $password_2 ) {
-
-            # passwords must be equal and at least 8 chars long
-            if ( $password eq $password_2 ) {
-
-                # Check password length
-                if ( length($password) < 8 ) {
-                    my $msg = 'Bad password - Password too short. Need at least 8 characters.';
-                    $self->add_message( 'warning', $self->{lh}->maketext($msg) );
-                    $msg1 .= $msg . ' ';
-                }
-
-                # Check password strength
-                my $strength = &VBoxAdm::Password::strength($password);
-                if ( $strength < 2 ) {
-                    my $msg = $self->{lh}->maketext( 'Weak password - Strength: [_1].', $strength );
-                    $self->add_message( 'warning', $msg );
-                    $msg1 .= $msg . ' ';
-                }
-                $query .= "password = ?, ";
-                push( @params, VBoxAdm::SaltedHash::make_pass( $password, $pwscheme ) );
-            }
-        }
-
-        # Name
-        if ($name) {
-            $query .= "name = ?, ";
-            push( @params, $name );
-        }
-
-        # Is_Active
-        # checkboxes are undefined if they are false!
-        my $status_str = 'disabled';
-        if ($is_active) {
-            $status_str = 'enabled';
-            $is_active  = 1;
-        }
-        else {
-            $is_active = 0;
-        }
-        $query .= "is_active = ?, ";
-        push( @params, $is_active );
-
-        # Max Msg Size
-        if ( defined($max_msg_size) ) {
-            $query .= "max_msg_size = ?, ";
-            push( @params, $max_msg_size );
-        }
-
-        # Is Superadmin / Is Domainadmin
-        if ( $self->user->is_siteadmin() ) {
-            $query .= "is_superadmin = ?, ";
-            if ( defined($is_superadmin) && $is_superadmin eq 'on' ) {
-                push( @params, 1 );
-            }
-            else {
-                push( @params, 0 );
-            }
-            $query .= "is_domainadmin = ?, ";
-            if ( defined($is_domainadmin) && $is_domainadmin eq 'on' ) {
-                push( @params, 1 );
-            }
-            else {
-                push( @params, 0 );
-            }
-        }
-
-        # SpamAssassin
-        if ( defined($sa_kill_score) ) {
-            $query .= "sa_kill_score = ?, ";
-            push( @params, $sa_kill_score );
-            if ( $sa_kill_score > 10 ) {
-                $self->add_message( 'warning', $self->{lh}->maketext('SpamAssassin kill score probably set too high! Should be below 10.') );
-            }
-            elsif ( $sa_kill_score < 5 ) {
-                $self->add_message( 'warning', $self->{lh}->maketext('SpamAssassin kill score probably set too low! Should be above 5.') );
-            }
-        }
-        if ( defined($sa_active) ) {
-            $sa_active = 1;
-        }
-        else {
-            $sa_active = 0;
-        }
-        push( @params, $sa_active );
-        $query .= "sa_active = ?, ";
-
-        # Is_On_Vacation / Vacation Msg
-        if ( defined($is_on_vacation) && $is_on_vacation eq 'on' ) {
-            if ( $vacation_subj && length($vacation_subj) && $vacation_msg && length($vacation_msg) > 1 ) {
-                $is_on_vacation = 1;
-            }
-            else {
-                $self->add_message( 'warning', $self->{lh}->maketext('Attempt to enable Vacation w/o vacation message or subject denied!') );
-            }
-            if ( $vacation_start && $vacation_start =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
-                $vacation_start = "$3-$2-$1";
-            }
-            else {
-                $vacation_start = '0000-00-00';
-                $self->add_message( 'warning', $self->{lh}->maketext('Invalid vacation start date!') );
-            }
-            if ( $vacation_end && $vacation_end =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
-                $vacation_end = "$3-$2-$1";
-            }
-            else {
-                $vacation_end = '0000-00-00';
-                $self->add_message( 'warning', $self->{lh}->maketext('Invalid vacation end date!') );
-            }
-            $query .= "is_on_vacation = ?, vacation_msg = ?, vacation_subj = ?, vacation_start = ?, vacation_end = ? ";
-            push( @params, $is_on_vacation );
-            push( @params, $vacation_msg );
-            push( @params, $vacation_subj );
-            push( @params, $vacation_start );
-            push( @params, $vacation_end );
-        }
-        else {
-            $is_on_vacation = 0;
-            $vacation_start = '0000-00-00';
-            $vacation_end   = '0000-00-00';
-            $query .= "is_on_vacation = ?, vacation_start = ?, vacation_end = ? ";
-            push( @params, $is_on_vacation );
-            push( @params, $vacation_start );
-            push( @params, $vacation_end );
-        }
-
-        # finialize query
-        $query .= " WHERE id = ?";
-        push( @params, $mailbox_id );
-
-        # if domainadmin, verify that its his domain
-        if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-            $query .= "AND domain_id = ?";
-            push( @params, $self->user->get_domain_id() );
-        }
-
-        # at least on option has changed
-        if ( scalar(@params) > 1 ) {
-            my $sth = $dbh->prepare($query)
-              or syslog( 2, 'show_update_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-
-            if ( $sth->execute(@params) ) {
-                my $msg = $self->{lh}->maketext( "Updated Mailbox [_1] (#[_2]).", $mailbox_name, $mailbox_id );
-                $self->add_message( 'success', $msg );
-                $msg1 .= $msg . ' ';
-            }
-            else {
-                syslog( 2, 'show_update_mailbox - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @params ), $sth->errstr );
-                my $msg = $self->{lh}->maketext( "Failed to update Mailbox [_1] (#[_2]). Database Error.", $mailbox_name, $mailbox_id );
-                $self->add_message( 'error', $msg );
-                $msg1 .= $msg . ' ';
-            }
-        }
-        else {
-            my $msg = "No Parameter changed. ";
-            $self->add_message( 'error', $self->{lh}->maketext($msg) );
-            $msg1 .= $msg . ' ';
-        }
-    }
-    else {
-        my $msg = "Failed to update Mailbox. No Mailbox-ID given. ";
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $msg1 .= $msg . ' ';
-    }
-
-    $self->log( $msg1 . ". User: " . $self->authen->username );
-=cut
     $self->redirect( $self->{base_url} . '?rm=mailboxes' );
     return;
 }
@@ -2802,50 +1612,7 @@ sub show_vacation_blacklist {
     $pager->current_page($page);
     $params{'Limit'} = $pager->skipped.','.$pager->entries_per_page;
     @blacklist = $self->{'VacationBlacklist'}->list(\%params);
-    
-=begin cut
-    my $self = shift;
 
-    if ( !$self->user->is_siteadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $search = $q->param('search') || undef;
-
-    my @args  = ();
-    my $query = "SELECT id,local_part,domain FROM vacation_blacklist ";
-    if ($search) {
-        $query .= "WHERE CONCAT(local_part,'\@',domain) LIKE ? ";
-        $search =~ s/%//g;
-        my $search_arg = "%" . $search . "%";
-        push( @args, $search_arg );
-    }
-    $query .= "ORDER BY domain,local_part";
-    my $sth = $dbh->prepare($query);
-    $sth->execute(@args);
-    my @blacklist = ();
-    while ( my ( $id, $local_part, $domain ) = $sth->fetchrow_array() ) {
-        push(
-            @blacklist,
-            {
-                'id'         => $id,
-                'local_part' => $local_part,
-                'domain'     => $domain,
-            }
-        );
-    }
-    $sth->finish();
-=cut
     %params = (
         'title'     => $self->{lh}->maketext('VBoxAdm Vacation Blacklist'),
         'current'   => 'vacation',
@@ -2890,50 +1657,7 @@ sub show_add_vacbl_entry {
     my $email = $q->param('email') || undef;
     
     $self->{'VacationBlacklist'}->create($email);
-    
-=begin cut
 
-    if ( !$self->user->is_siteadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-    
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    
-
-    my $msg1 = '';
-
-    if ( $email && &VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
-        my $query = "INSERT INTO vacation_blacklist (local_part,domain) VALUES(?,?)";
-        my $sth   = $dbh->prepare($query)
-          or syslog( 2, 'show_add_vacbl_entry - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        my ( $local_part, $domain ) = split /@/, $email;
-        if ( $sth->execute( $local_part, $domain ) ) {
-            $sth->finish();
-            my $msg = "Added Vacation Blacklist Entry [_1].";
-            $self->add_message( 'success', $self->{lh}->maketext( $msg, $email ) );
-            $msg1 .= $self->{lh_en}->maketext( $msg, $email );
-        }
-        else {
-            syslog( 2, 'show_add_vacbl_entry - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $local_part, $domain ) ), $sth->errstr );
-            my $msg = "Failed to add Vacation Blacklist Entry [_1]. Database Error.";
-            $self->add_message( 'error', $self->{lh}->maketext( $msg, $email ) );
-            $msg1 = $self->{lh_en}->maketext( $msg, $email );
-        }
-    }
-    else {
-        my $msg = 'Invalid email given. Please provide a valid RFC822 email address.';
-        $msg1 .= $msg;
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-    }
-
-    $self->log( $msg1 . ". User: " . $self->authen->username );
-=cut
     $self->redirect( $self->{base_url} . '?rm=vac_bl' );
     return;
 }
@@ -2948,54 +1672,6 @@ sub show_remove_vacbl_entry {
     
     $self->{'VacationBlacklist'}->delete($entry_id);
     
-=begin cut
-
-    if ( !$self->user->is_siteadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-    
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    
-
-    my $msg1 = '';
-
-    if ($entry_id) {
-        my $query = "SELECT local_part,domain FROM vacation_blacklist WHERE id = ?";
-        my $sth   = $dbh->prepare($query);
-        $sth->execute($entry_id);
-        my $email = $sth->fetchrow_array();
-        $sth->finish();
-
-        $query = "DELETE FROM vacation_blacklist WHERE id = ?";
-        $sth   = $dbh->prepare($query)
-          or syslog( 2, 'show_remove_vacbl_entry - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-        if ( $sth->execute($entry_id) ) {
-            $sth->finish();
-            my $msg = "Delete Vacation Blacklist Entry [_1].";
-            $self->add_message( 'success', $self->{lh}->maketext( $msg, $email ) );
-            $msg1 .= $self->{lh_en}->maketext( $msg, $email );
-        }
-        else {
-            syslog( 2, 'show_remove_vacbl_entry - Could not execute Query: %s, Args: %s, Error: %s', $query, $entry_id, $sth->errstr );
-            my $msg = "Failed to remove Vacation Blacklist Entry [_1]. Database Error.";
-            $self->add_message( 'error', $self->{lh}->maketext( $msg, $email ) );
-            $msg1 .= $self->{lh_en}->maketext( $msg, $email );
-        }
-    }
-    else {
-        my $msg = 'Invalid id given. Please provide a valid id.';
-        $msg1 .= $msg;
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-    }
-
-    $self->log( $msg1 . ". User: " . $self->authen->username );
-=cut
     $self->redirect( $self->{base_url} . '?rm=vac_bl' );
     return;
 }
@@ -3138,50 +1814,6 @@ sub show_awl {
     $params{'Limit'} = $pager->skipped.','.$pager->entries_per_page;
     @awl = $self->{'AWL'}->list(\%params);
     
-=begin cut
-    my $self = shift;
-
-    if ( !$self->user->is_siteadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $search = $q->param('search') || undef;
-
-    my @args  = ();
-    my $query = "SELECT id,email,last_seen,disabled FROM awl ";
-    if ($search) {
-        $query .= "WHERE email LIKE ? ";
-        $search =~ s/%//g;
-        my $search_arg = "%" . $search . "%";
-        push( @args, $search_arg );
-    }
-    $query .= "ORDER BY email";
-    my $sth = $dbh->prepare($query);
-    $sth->execute(@args);
-    my @awl = ();
-    while ( my ( $id, $email, $last_seen, $disabled ) = $sth->fetchrow_array() ) {
-        push(
-            @awl,
-            {
-                'id'        => $id,
-                'email'     => $email,
-                'last_seen' => $last_seen,
-                'disabled'  => $disabled,
-            }
-        );
-    }
-    $sth->finish();
-=cut
     %params = (
         'title'   => $self->{lh}->maketext('VBoxAdm Auto-Whitelist'),
         'current' => 'awl',
@@ -3204,42 +1836,7 @@ sub show_update_awl {
     );
     
     $self->{'AWL'}->update($entry_id,\%params);
-    
-=begin cut
 
-    if ( !$self->user->is_siteadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-    
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    
-
-    if ( $entry_id && defined($disabled) ) {
-        if ( $disabled =~ m/^(?:yes|1|true|on)$/i ) {
-            $disabled = 1;
-        }
-        else {
-            $disabled = 0;
-        }
-        my $query = "UPDATE awl SET disabled = ? WHERE id = ?";
-        if ( my $sth = $dbh->prepare($query) ) {
-            $sth->execute( $disabled, $entry_id );
-            $sth->finish();
-        }
-        else {
-            my $msg = "Unable to update awl. Database Error.";
-            $self->add_message( 'error', $self->{lh}->maketext($msg) );
-            $msg .= " DBI-Errstr: " . DBI->errstr;
-            $self->log( $msg . ". User: " . $self->authen->username );
-        }
-    }
-=cut
     $self->redirect( $self->{base_url} . '?rm=awl' );
     return;
 }

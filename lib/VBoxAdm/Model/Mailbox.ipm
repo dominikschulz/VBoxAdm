@@ -454,6 +454,21 @@ use Class::Std;
         @result{ @{ $fields_of{$ident} } } = $sth->fetchrow_array();
         $sth->finish();
 
+        # get domain_name
+        $sql = "SELECT name FROM domains WHERE id = ?";
+        $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $result{'domain_id'} );
+        if ($sth) {
+            $result{'domain'} = $sth->fetchrow_array();
+        }
+
+        # convert max_msg_size to MB
+        if ( $result{'max_msg_size'} > 0 ) {
+            $result{'max_msg_size_mb'} = $result{'max_msg_size'} / 1024;
+        }
+        else {
+            $result{'max_msg_size_mb'} = 0;
+        }
+
         return \%result;
     }
 

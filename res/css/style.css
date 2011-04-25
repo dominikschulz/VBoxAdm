@@ -551,7 +551,7 @@ div.setup li {
 	padding-bottom:1em;
 }
 
-.info, .success, .warning, .error, .validation {
+.info, .information, .success, .ok, .warning, .warn, .error, .validation {
 	border: 1px solid;
 	margin: 10px;
 	padding: 15px 10px 15px 50px;
@@ -559,17 +559,17 @@ div.setup li {
 	background-position: 10px center;
 	width: 500px;
 }
-.info {
+.info, .information {
 	color: #00529B;
 	background-color: #BDE5F8;
 	background-image: url('../images/knob/knob_info.png');
 }
-.success {
+.success, .ok {
 	color: #4F8A10;
 	background-color: #DFF2BF;
 	background-image:url('../images/knob/knob_valid_green.png');
 }
-.warning {
+.warning, .warn {
 	color: #9F6000;
 	background-color: #FEEFB3;
 	background-image: url('../images/knob/knob_attention.png');
