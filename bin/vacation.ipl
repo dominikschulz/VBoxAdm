@@ -200,7 +200,7 @@ if ( !&check_recipient( $config{'recipient'}, \%header ) ) {
     syslog( 2, 'Envelope-To Recipient not found in one of To, CC, BCC, Resent-To, Resent-CC or Reset-BCC - From: %s - To: %s - Exiting',
         $config{'sender'}, $config{'recipient'} );
     closelog();
-    exit 1;
+    exit 0;
 }
 
 my %reply_header = ();
@@ -222,7 +222,7 @@ elsif ( $config{'sender'} ) {
 else {
     syslog( 2, 'Could not find a valid sender address - From: %s - To: %s - Exiting', $config{'sender'}, $config{'recipient'} );
     closelog();
-    exit 1;
+    exit 0;
 }
 
 # set sender to (local) recipient
@@ -268,7 +268,7 @@ if ( !&is_on_vacation( $dbh, $config{'recipient'} ) ) {
     );
     closelog();
     $dbh->disconnect();
-    exit 1;
+    exit 0;
 }
 
 # check notification sent within ... (see above)
