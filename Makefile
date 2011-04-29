@@ -87,6 +87,7 @@ LIBFILES = \
 	lib/VBoxAdm/SMTP/Server.pm \
 	lib/VBoxAdm/API.pm \
 	lib/VBoxAdm/DB.pm \
+	lib/VBoxAdm/DNS.pm \
 	lib/VBoxAdm/L10N.pm \
 	lib/VBoxAdm/Migration.pm \
 	lib/VBoxAdm/Model.pm \
