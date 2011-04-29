@@ -498,11 +498,15 @@ use Class::Std;
             $sql .= " AND domain_id = ?";
             push( @args, $param->{'domain_id'} );
         }
+        if ( $param->{'IsAdmin'} ) {
+            $sql .= " AND (is_domainadmin OR is_superadmin)";
+        }
 
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
 
         if ( !$sth ) {
             $self->msg->push( 'error', 'Database error.' );
+            $self->log( 'Database Error during query ' . $sql . ': ' . $sth->errstr );
             return;
         }
 

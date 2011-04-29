@@ -12,14 +12,12 @@ relay_domains = proxy:mysql:/etc/postfix/maps/virtual_relay_domains.cf
  --> add table transport_map to store the transport maps
  * need to store "target" for transport maps
  
-- Role Accounts
+- Role Accounts*
 -- support role account aliases, i.e. user@*, e.g. postmaster@* -> admin@domain.tld
 | id | name | local_part | domain | ts |
    . | postmaster | admin | domain.tld |
 SELECT CONCAT(local_part,'@',domain) AS goto FROM role_accounts WHERE name = '%u' AND domain <> '%d'
 -- access_recipient-rfc should use this table, too
-
-- Enhance vboxadm.pl to provide full cli functionality
 
 - Demo mode
 
@@ -62,7 +60,7 @@ Make sure class-C ip subnet auto-whitelists are supported
 -- http://www.datatables.net/development/server-side/perl_mysql
 
 - Roundcube Plugin
--- Use HTTP API once finished, this will reduce the logic reguired in the plugin to a minmal core
+-- Use HTTP API once finished, this will reduce the logic required in the plugin to a minmal core
 
 - Evaluate Perl Dancer
 - Evaluate http://mojolicio.us/

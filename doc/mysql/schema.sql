@@ -97,7 +97,8 @@ CREATE TABLE IF NOT EXISTS `role_accounts` (
   `local_part` varchar(64) NOT NULL,
   `domain` varchar(255) NOT NULL,
   `ts` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `rfc_notify`;

@@ -79,8 +79,11 @@ LIBFILES = \
 	lib/VBoxAdm/Model/DomainAlias.pm \
 	lib/VBoxAdm/Model/Mailbox.pm \
 	lib/VBoxAdm/Model/MessageQueue.pm \
+	lib/VBoxAdm/Model/RFCNotify.pm \
+	lib/VBoxAdm/Model/RoleAccount.pm \
 	lib/VBoxAdm/Model/User.pm \
 	lib/VBoxAdm/Model/VacationBlacklist.pm \
+	lib/VBoxAdm/Model/VacationNotify.pm \
 	lib/VBoxAdm/SMTP/Client.pm \
 	lib/VBoxAdm/SMTP/Mailarchive.pm \
 	lib/VBoxAdm/SMTP/Proxy.pm \

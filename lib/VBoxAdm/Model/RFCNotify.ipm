@@ -1,10 +1,11 @@
-package VBoxAdm::Model::VacationBlacklist;
+package VBoxAdm::Model::RFCNotify;
 
 use strict;
 use warnings;
 
 use Carp;
 
+use Sys::Syslog;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
@@ -22,7 +23,7 @@ use Class::Std;
             return;    # Need user object
         }
 
-        $fields_of{$ident} = [qw(id local_part domain)];
+        $fields_of{$ident} = [qw(id email ts)];
     }
 
     sub create {
@@ -32,25 +33,6 @@ use Class::Std;
         # Authorization - No access for regular users
         if ( !$self->user->is_admin() ) {
             $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-
-        if ( $email && &VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
-            my $query = "INSERT INTO vacation_blacklist (local_part,domain) VALUES(?,?)";
-            my ( $local_part, $domain ) = split /@/, $email;
-            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain ) ) {
-                $sth->finish();
-                $self->msg->push( 'information', "Added Vacation Blacklist Entry [_1].", $email );
-                return 1;
-            }
-            else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $local_part, $domain ) ), $sth->errstr );
-                $self->msg->push( 'error', "Failed to add Vacation Blacklist Entry [_1]. Database Error.", $email );
-                return;
-            }
-        }
-        else {
-            $self->msg->push( 'error', 'Invalid email address given. Please provide a valid RFC822 email address.' );
             return;
         }
 
@@ -71,23 +53,22 @@ use Class::Std;
             return;
         }
 
-        my ( $local_part, $domain ) = split /@/, $email;
-
-        my $sql = "SELECT id FROM vacation_blacklist WHERE local_part = ? AND domain = ?";
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $local_part, $domain );
+        my $sql = "SELECT id FROM rfc_notify WHERE email = ?";
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $email );
+        my $id  = $sth->fetchrow_array();
 
         if ( !$sth ) {
             $self->msg->push( 'error', 'Database error.' );
             return;
         }
 
-        my $id = $sth->fetchrow_array();
         $sth->finish();
+
         return $id;
     }
 
-    sub delete {
-        my ( $self, $entry_id ) = @_;
+    sub update {
+        my ( $self, $entry_id, $params ) = @_;
         my $ident = ident $self;
 
         # Authorization - No access for regular users
@@ -96,35 +77,20 @@ use Class::Std;
             return;
         }
 
-        if ($entry_id) {
-            my $query = "SELECT CONCAT(local_part,'\@',domain) FROM vacation_blacklist WHERE id = ?";
-            my $sth   = $self->dbh->prepare($query);
-            $sth->execute($entry_id);
-            my $email = $sth->fetchrow_array();
-            $sth->finish();
+        return;
+    }
 
-            $query = "DELETE FROM vacation_blacklist WHERE id = ?";
-            if ( &VBoxAdm::DB::prepexec( $self->dbh, $query, $entry_id ) ) {
-                $sth->finish();
-                $self->msg->push( 'information', "Deleted Vacation Blacklist Entry [_1].", $email );
-                return 1;
-            }
-            else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, $entry_id, $sth->errstr );
-                $self->msg->push( 'error', "Failed to remove Vacation Blacklist Entry [_1]. Database Error.", $email );
-                return;
-            }
-        }
-        else {
-            $self->msg->push( 'error', 'Invalid id given. Please provide a valid id.' );
+    sub delete {
+        my ( $self, $entry_id, $params ) = @_;
+        my $ident = ident $self;
+
+        # Authorization - No access for regular users
+        if ( !$self->user->is_admin() ) {
+            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
             return;
         }
 
         return;
-    }
-
-    sub update {
-        die("No need for VacationBlacklist::update.");
     }
 
     sub read {
@@ -137,7 +103,7 @@ use Class::Std;
             return;
         }
 
-        return $self->_read( 'vacation_blacklist', $id, $fields_of{$ident} );
+        return $self->_read( 'rfc_notify', $id, $fields_of{$ident} );
     }
 
     sub list {
@@ -150,7 +116,7 @@ use Class::Std;
             return;
         }
 
-        return $self->_list( 'vacation_blacklist', $fields_of{$ident}, $params );
+        return $self->_list( 'rfc_notify', $fields_of{$ident}, $params );
     }
 }
 1;
@@ -158,16 +124,16 @@ __END__
 
 =head1 NAME
 
-VBoxAdm::Model::VacationBlacklist - Class for Vacation Blacklist.
+VBoxAdm::Model::RfcNotify - Class for RfcNotify
 
 =head1 VERSION
 
-This documentation refers to VBoxAdm::Model::VacationBlacklist version @VERSION@
+This documentation refers to VBoxAdm::Model::RfcNotify version @VERSION@
 built on @BUILDDATE@.
 
 =head1 SYNOPSIS
 
-    use VBoxAdm::Model::VacationBlacklist;
+    use VBoxAdm::Model::RfcNotify;
 
 =head1 DESCRIPTION
 
