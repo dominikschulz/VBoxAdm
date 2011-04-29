@@ -26,6 +26,11 @@
 
   <!-- CSS : implied media="all" -->
   <link rel="stylesheet" href="[% media_prefix %]/css/style.css?v=2">
+  
+  <style type="text/css" title="currentStyle">
+	@import "[% media_prefix %]/css/demo_table_jui.css";
+	@import "[% media_prefix %]/css/smoothness/jquery-ui-1.8.4.custom.css";
+  </style>
 
   <!-- Uncomment if you are specifically targeting less enabled mobile browsers
   <link rel="stylesheet" media="handheld" href="[% media_prefix %]/css/handheld.css?v=2">  -->

@@ -21,13 +21,22 @@
   <!-- Javascript at the bottom for fast page loading -->
 
   <!-- Grab Google CDN's jQuery. fall back to local if necessary -->
-  <!-- <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.js"></script> -->
-  <!-- <script>!window.jQuery && document.write(unescape('%3Cscript src="[% media_prefix %]/js/libs/jquery-1.4.2.js"%3E%3C/script%3E'))</script> -->
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="[% media_prefix %]/js/libs/jquery-1.4.2.js"%3E%3C/script%3E'))</script>
+  <script type="text/javascript" language="javascript" src="[% media_prefix %]/js/libs/jquery.dataTables.min.js"></script>
+  <script type="text/javascript" charset="utf-8">
+	$(document).ready(function() {
+		oTable = $('#datatable').dataTable({
+		"bJQueryUI": true,
+		"sPaginationType": "full_numbers"
+		});
+	} );
+  </script>
   
   <!-- scripts concatenated and minified via ant build script-->
   <!-- <script src="[% media_prefix %]/js/plugins.js"></script> -->
   <!-- <script src="[% media_prefix %]/js/script.js"></script> -->
-  <script src="[% media_prefix %]/js/sorttable.js"></script>
+  <!-- <script src="[% media_prefix %]/js/sorttable.js"></script> -->
   <!-- end concatenated and minified scripts-->
   
   <!--[if lt IE 7 ]>

@@ -241,11 +241,11 @@ a:hover {
 a:visited, a:active {
 	color: #888888;
 }
-
+/*
 table {
 	/* border-spacing: 0; */
 	/* padding: 0; */
-	border-collapse: collapse; /* for IE */
+	/*border-collapse: collapse;*/ /* for IE */ /*
 	width: 750px;
 	margin: 0px auto;
 	border: 1px solid #efefef;
@@ -279,6 +279,14 @@ thead {
 	line-height: 20px;
 	background: #efefef;
 	color: black;
+}
+*/
+.datatable_container {
+	width: 800px;
+}
+
+.datatable_container table {
+	width: 100%;
 }
 
 .button {
@@ -380,6 +388,42 @@ nav ul li a.current {
 	padding: 5px 15px 0;
 }
 
+/*
+nav {
+	width: 95%;
+	margin: 50px auto;
+}
+
+nav ul {
+	float: left;
+	list-style-type: none;
+	width: 90%;
+	height: 44px;
+
+	-moz-border-radius: 10px;
+	-webkit-border-radius: 10px;
+
+	background: #e3e3e3;
+	background: -moz-linear-gradient(top, #ccc, #999);
+	background: -webkit-gradient(linear, left top, left bottom, from(#ccc), to(#999));
+
+	-moz-box-shadow: 1px 1px 3px #333;
+	-webkit-box-shadow: 1px 1px 3px #333;
+	box-shadow: 1px 1px 3px #333;
+
+	text-shadow: 0 1px 0 white;
+}
+
+nav ul a{
+	display: block;
+	padding: 10px 20px 10px 20px;
+	list-style-type: none;
+	float: left;
+	color: #454545;
+	font-size: 1.5em;
+	text-decoration: none;
+}
+*/
 #main_menu, #edit_form {
 	width: 750px;
 	margin: 0 auto;
