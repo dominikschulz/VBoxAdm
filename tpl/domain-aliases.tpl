@@ -1,19 +1,11 @@
 [% INCLUDE header.tpl %]
-    <div id="main">
-	    <div id="overview">
-			[% "Search:" | l10n %]
-			<form name="search" method="GET" action="[% base_url %]">
-			<input type="hidden" name="rm" value="domain_aliases" />
-			<input type="textbox" name="search" size="20" value="[% search %]" />
-			</form>
-		</div>
+    <div id="main" class="datatable_container">
 		[% IF domains.size == 0 %]
 			[% "No Domains found." | l10n %]<br />
 		[% END %]
 		[% FOREACH line IN domains %]
 		[% IF loop.first %]
-		[% INCLUDE "page-navigation.tpl" %]
-		<table class="sortable hilight">
+		<table id="datatable">
 			<thead>
 			<tr>
 				<th>[% "Domain" | l10n %]</th>
@@ -51,7 +43,6 @@
 		<tfoot>
 		</tfoot>
 		</table>
-		[% INCLUDE "page-navigation.tpl" %]
 		[% END %]
 		[% END %]
 		<br />

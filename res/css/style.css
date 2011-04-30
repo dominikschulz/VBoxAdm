@@ -283,6 +283,7 @@ thead {
 */
 .datatable_container {
 	width: 800px;
+	margin: auto;
 }
 
 .datatable_container table {

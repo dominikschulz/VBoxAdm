@@ -1,16 +1,8 @@
 [% INCLUDE header.tpl %]
-    <div id="main">
-	    <div id="overview">
-			[% "Search:" | l10n %]
-			<form name="search" method="GET" action="[% base_url %]">
-			<input type="hidden" name="rm" value="awl" />
-			<input type="textbox" name="search" size="20" value="[% search %]" />
-			</form>
-		</div>
+    <div id="main" class="datatable_container">
 		[% FOREACH line IN awl %]
 		[% IF loop.first %]
-		[% INCLUDE "page-navigation.tpl" %]
-		<table class="sortable hilight">
+		<table id="datatable">
 			<thead>
 			<tr>
 				<th>[% "Email" | l10n %]</th>
@@ -40,7 +32,6 @@
 		<tfoot>
 		</tfoot>
 		</table>
-		[% INCLUDE "page-navigation.tpl" %]
 		[% END %]
 		[% END %]
     </div>
