@@ -158,16 +158,13 @@ TESTFILES = \
 	t/VBoxAdm/Utils.t
 
 CSSFILES = \
-	res/css/datatable/datatable_jui.css \
-	res/css/style.css
+	res/css/datatable/datatable_jui.min.css \
+	res/css/style.min.css
 
 JSFILES = \
-	res/js/libs/jquery-1.5.1.js \
-	res/js/libs/jquery.dataTables.js \
-	res/js/libs/modernizr-1.7.js
-
-TPLFILES = \
-	tpl/admins.html
+	res/js/libs/jquery-1.5.1.min.js \
+	res/js/libs/jquery.dataTables.min.js \
+	res/js/script.min.js
 
 .PHONY: install tidy critic test
 
@@ -215,7 +212,7 @@ TPLFILES = \
 %.8: %.pl
 	doc/make-man.pl $< $@
 
-all: $(LIBFILES) $(BINFILES) $(TESTFILES) $(MANFILES)
+all: $(LIBFILES) $(BINFILES) $(TESTFILES) $(MANFILES) $(CSSFILES) $(JSFILES)
 
 lib: $(LIBFILES)
 
@@ -327,6 +324,10 @@ clean:
 	$(RM) -f t/VBoxAdm/*.bak
 	$(RM) -f t/VBoxAdm/L10N/*.t
 	$(RM) -f t/VBoxAdm/L10N/*.bak
+	$(RM) -f res/js/*.min.js
+	$(RM) -f res/js/libs/*.min.js
+	$(RM) -f res/css/*.min.css
+	$(RM) -f res/css/datatable/*.min.css
 
 rcvboxadm:
 	cd contrib/roundcube/plugins/ && tar -cvzf ../../roundcube-plugin-vboxadm.tar.gz vboxadm/ && cd ../../../

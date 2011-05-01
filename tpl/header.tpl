@@ -25,18 +25,18 @@
   <link rel="apple-touch-icon" href="[% media_prefix %]/apple-touch-icon.png">
 
   <!-- CSS : implied media="all" -->
-  <link rel="stylesheet" href="[% media_prefix %]/css/style.css?v=2">
+  <link rel="stylesheet" href="[% media_prefix %]/css/style.min.css?v=@VERSION@">
   
   <style type="text/css" title="currentStyle">
-  	@import "[% media_prefix %]/css/datatable/datatable_jui.css";
-	@import "[% media_prefix %]/css/datatable/themes/smoothness/jquery-ui-1.8.4.custom.css";
+  	@import "[% media_prefix %]/css/datatable/datatable_jui.css?v=@VERSION@";
+	@import "[% media_prefix %]/css/datatable/themes/smoothness/jquery-ui-1.8.4.custom.css?v=@VERSION@";
   </style>
 
   <!-- Uncomment if you are specifically targeting less enabled mobile browsers
-  <link rel="stylesheet" media="handheld" href="[% media_prefix %]/css/handheld.css?v=2">  -->
+  <link rel="stylesheet" media="handheld" href="[% media_prefix %]/css/handheld.css?v=@VERSION@">  -->
  
   <!-- All JavaScript at the bottom, except for Modernizr which enables HTML5 elements & feature detects -->
-  <script src="[% media_prefix %]/js/libs/modernizr-1.7.min.js"></script>
+  <script src="[% media_prefix %]/js/libs/modernizr-1.7.js"></script>
 
 </head>
 
