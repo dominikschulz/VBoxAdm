@@ -166,6 +166,42 @@ JSFILES = \
 	res/js/libs/jquery.dataTables.min.js \
 	res/js/script.min.js
 
+TPLFILES = \
+	tpl/alias/create_partial.tpl \
+	tpl/alias/create.tpl \
+	tpl/alias/edit_partial.tpl \
+	tpl/alias/edit.tpl \
+	tpl/alias/list.tpl \
+	tpl/awl/list.tpl \
+	tpl/domain/create_partial.tpl \
+	tpl/domain/create.tpl \
+	tpl/domain/list.tpl \
+	tpl/domain/show.tpl \
+	tpl/domain_alias/create_partial.tpl \
+	tpl/domain_alias/create.tpl \
+	tpl/domain_alias/edit_partial.tpl \
+	tpl/domain_alias/edit.tpl \
+	tpl/domain_alias/list.tpl \
+	tpl/includes/footer.tpl \
+	tpl/includes/header.tpl \
+	tpl/includes/navigation.tpl \
+	tpl/mailbox/admins.tpl \
+	tpl/mailbox/create_partial.tpl \
+	tpl/mailbox/create.tpl \
+	tpl/mailbox/edit_partial.tpl \
+	tpl/mailbox/edit.tpl \
+	tpl/mailbox/list.tpl \
+	tpl/rfc_notify/list.tpl \
+	tpl/vacation_blacklist/create_partial.tpl \
+	tpl/vacation_blacklist/create.tpl \
+	tpl/vacation_blacklist/list.tpl \
+	tpl/vacation_notify/list.tpl \
+	tpl/broadcast_result.tpl \
+	tpl/broadcast.tpl \
+	tpl/log.tpl \
+	tpl/login.tpl \
+	tpl/welcome.tpl
+
 .PHONY: install tidy critic test
 
 %.min.js: %.js
@@ -174,8 +210,10 @@ JSFILES = \
 %.min.css: %.css
 	$(YUIC) --type css -o $@ $<
 
-%.tpl: %.html
-	$(HTMLC) -o $@ $<
+%.tpl: %.itpl
+	$(SED) -e s/@BUILDDATE@/$(BUILDDATE)/ \
+		   -e s/@VERSION@/$(VERSION)/ < $< > $@
+	$(HTMLC) -o $@ $@
 
 %.pl: %.ipl $(LIBFILES)
 	$(SED) -e s/@BUILDDATE@/$(BUILDDATE)/ \
@@ -212,7 +250,7 @@ JSFILES = \
 %.8: %.pl
 	build/make-man.pl $< $@
 
-all: $(LIBFILES) $(BINFILES) $(TESTFILES) $(MANFILES) $(CSSFILES) $(JSFILES)
+all: $(LIBFILES) $(BINFILES) $(TESTFILES) $(MANFILES) $(CSSFILES) $(JSFILES) $(TPLFILES)
 
 lib: $(LIBFILES)
 

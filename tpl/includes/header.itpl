@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="[% media_prefix %]/apple-touch-icon.png">
 
   <!-- CSS : implied media="all" -->
-  <link rel="stylesheet" href="[% media_prefix %]/css/style.css?v=@VERSION@">
+  <link rel="stylesheet" href="[% media_prefix %]/css/style.min.css?v=@VERSION@">
   
   <style type="text/css" title="currentStyle">
   	@import "[% media_prefix %]/css/datatable/datatable_jui.min.css?v=@VERSION@";
@@ -43,14 +43,9 @@
 <body>
 
   <div id="container">
-    <header>
+    <!--<header>
      <div id="logo">VBoxAdm</div>
-     [% FOREACH line IN breadcrumb %]
-     [% IF loop.first %]<div id="breadcrumb">[% END %]
-     <a href="?rm=[% line.rm %]">[% line.caption %]</a>
-     [% IF loop.last %]</div>[% END %]
-     [% END %]
-    </header>
+    </header>-->
     [% IF nonavigation != 1 %]
 	[% INCLUDE includes/navigation.tpl %]
 	[% END %]
