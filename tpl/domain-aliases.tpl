@@ -1,11 +1,11 @@
 [% INCLUDE header.tpl %]
-    <div id="main" class="datatable_container">
+    <div id="main" role="main">
 		[% IF domains.size == 0 %]
 			[% "No Domains found." | l10n %]<br />
 		[% END %]
 		[% FOREACH line IN domains %]
 		[% IF loop.first %]
-		<table id="datatable">
+		<table class="datatable">
 			<thead>
 			<tr>
 				<th>[% "Domain" | l10n %]</th>
@@ -17,7 +17,7 @@
 			</thead>
 			<tbody>
 		[% END %]
-			<tr>
+			<tr class="[% loop.parity %] [% IF line.is_active %]enabled[% ELSE %]disabled[% END %]">
 				<td>
 					[% line.name | highlight(search) %]
 				</td>

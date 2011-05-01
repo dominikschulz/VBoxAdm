@@ -29,7 +29,6 @@ use DBI;
 use Sys::Syslog;
 use Data::Page;
 use Readonly;
-use HTML::Clean;
 
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
@@ -418,19 +417,12 @@ sub cgiapp_init {
 # Template::Toolkit Hooks
 #
 
-# during post processing minify html
+# post processing hooks
 sub tt_post_process {
     my $self    = shift;
     my $htmlref = shift;
     
-    if($self->{config}->{clean_html}) {
-
-	    # clean up the resulting HTML
-	    my $h = HTML::Clean->new($htmlref);
-	    $h->strip;
-	    my $newref = $h->data;
-	    $$htmlref = $$newref;
-    }
+    # nop
     return;
 }
 
@@ -882,6 +874,11 @@ sub show_domain {
         push( @domain_aliases, { id => $id, name => $name, is_active => $is_active, } );
     }
     $sth->finish();
+    
+    my @bc = ();
+    push(@bc, { 'rm' => 'welcome', caption => 'Overview',});
+    push(@bc, { 'rm' => 'domains', caption => 'Domains',});
+    push(@bc, { 'rm' => 'domain&domain_id='.$domain_id, caption => 'View Domain '.$domain_name,});
 
     my %params = (
         'title'          => $self->{lh}->maketext( 'VBoxAdm Domain: [_1]', $domain_name ),
@@ -890,6 +887,7 @@ sub show_domain {
         'aliases'        => \@aliases,
         'mailboxes'      => \@mailboxes,
         'domain_aliases' => \@domain_aliases,
+        'breadcrumb' => \@bc,
     );
 
     return $self->tt_process( 'domain.tpl', \%params );

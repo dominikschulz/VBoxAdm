@@ -14,8 +14,8 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 
   <title>[% title | l10n %]</title>
-  <meta name="description" content="">
-  <meta name="author" content="">
+  <meta name="description" content="VBoxAdm Mailserver Web Management Interface">
+  <meta name="author" content="VBoxAdm by Dominik Schulz">
 
   <!--  Mobile viewport optimized: j.mp/bplateviewport -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -28,15 +28,15 @@
   <link rel="stylesheet" href="[% media_prefix %]/css/style.css?v=2">
   
   <style type="text/css" title="currentStyle">
-	@import "[% media_prefix %]/css/demo_table_jui.css";
-	@import "[% media_prefix %]/css/smoothness/jquery-ui-1.8.4.custom.css";
+  	@import "[% media_prefix %]/css/datatable/datatable_jui.css";
+	@import "[% media_prefix %]/css/datatable/themes/smoothness/jquery-ui-1.8.4.custom.css";
   </style>
 
   <!-- Uncomment if you are specifically targeting less enabled mobile browsers
   <link rel="stylesheet" media="handheld" href="[% media_prefix %]/css/handheld.css?v=2">  -->
  
   <!-- All JavaScript at the bottom, except for Modernizr which enables HTML5 elements & feature detects -->
-  <script src="[% media_prefix %]/js/libs/modernizr-1.6.min.js"></script>
+  <script src="[% media_prefix %]/js/libs/modernizr-1.7.min.js"></script>
 
 </head>
 
@@ -44,8 +44,13 @@
 
   <div id="container">
     <header>
-    <img src="[% media_prefix %]/images/vboxadm-logo.png" alt="VBox.Adm - Virtual Mailbox Admin" /><br />
-    <br />
+     <div id="logo">VBoxAdm</div>
+     [% FOREACH line IN breadcrumb %]
+     [% IF loop.first %]<div id="breadcrumb">[% END %]
+     <a href="?rm=[% line.rm %]">[% line.caption %]</a>
+     [% IF loop.last %]</div>[% END %]
+     [% END %]
+    </header>
     [% IF nonavigation != 1 %]
 	[% INCLUDE navigation.tpl %]
 	[% END %]

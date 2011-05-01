@@ -22,6 +22,8 @@ PERLTIDY = /usr/bin/perltidy -syn -l=160 -nce -nbl -b
 PERLCRITIC = /usr/bin/perlcritic
 PERL = /usr/bin/perl
 PROVE = /usr/bin/prove -l
+YUIC = /usr/bin/java -jar build/yuicompressor-2.4.2.jar --charset UTF-8 --line-break 4000
+HTMLC = /usr/bin/java -jar build/htmlcompressor-0.9.9.jar --type html --charset UTF-8 --remove-intertag-spaces --remove-quotes -p build/tt.tags --compress-js --compress-css --line-break 4000
 
 # some variables
 NAME = vboxadm
@@ -155,7 +157,28 @@ TESTFILES = \
 	t/VBoxAdm/SaltedHash.t \
 	t/VBoxAdm/Utils.t
 
+CSSFILES = \
+	res/css/datatable/datatable_jui.css \
+	res/css/style.css
+
+JSFILES = \
+	res/js/libs/jquery-1.5.1.js \
+	res/js/libs/jquery.dataTables.js \
+	res/js/libs/modernizr-1.7.js
+
+TPLFILES = \
+	tpl/admins.html
+
 .PHONY: install tidy critic test
+
+%.min.js: %.js
+	$(YUIC) --type js -o $@ $<
+
+%.min.css: %.css
+	$(YUIC) --type css -o $@ $<
+
+%.tpl: %.html
+	$(HTMLC) -o $@ $<
 
 %.pl: %.ipl $(LIBFILES)
 	$(SED) -e s/@BUILDDATE@/$(BUILDDATE)/ \

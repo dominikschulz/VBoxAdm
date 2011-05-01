@@ -1,8 +1,8 @@
 [% INCLUDE header.tpl %]
-    <div id="main" class="datatable_container">
+    <div id="main" role="main">
 		[% FOREACH line IN aliases %]
 		[% IF loop.first %]
-		<table id="datatable">
+		<table class="datatable">
 			<thead>
 			<tr>
 				<th>[% "Alias" | l10n %]</th>

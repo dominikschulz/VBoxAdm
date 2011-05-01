@@ -1,9 +1,8 @@
 [% INCLUDE header.tpl %]
-    <div id="main" class="datatable_container">
+    <div id="main" role="main">
 		[% FOREACH line IN admins %]
-		<!-- [% loop.parity %] [% loop.first %] [% loop.last %] [% loop.max %] -->
 		[% IF loop.first %]
-		<table id="datatable">
+		<table class="datatable">
 			<thead>
 			<tr>
 				<th>[% "User" | l10n %]</th>
@@ -16,7 +15,7 @@
 			</thead>
 			<tbody>
 		[% END %]
-			<tr class="[% loop.parity %]">
+			<tr class="[% loop.parity %] [% IF line.is_active %]enabled[% ELSE %]disabled[% END %]">
 				<td>
 					<a href="[% base_url %]?rm=edit_mailbox&mailbox_id=[% line.id %]">[% line.local_part %]@[% line.domain %]</a>
 				</td>

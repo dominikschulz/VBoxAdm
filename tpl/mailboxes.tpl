@@ -1,8 +1,8 @@
 [% INCLUDE header.tpl %]
-    <div id="main" class="datatable_container">
+    <div id="main" role="main">
 		[% FOREACH line IN mailboxes %]
 		[% IF loop.first %]
-		<table id="datatable">
+		<table class="datatable">
 			<thead>
 			<tr>
 				<th>[% "Mailbox" | l10n %]</th>
@@ -17,7 +17,7 @@
 			</thead>
 			<tbody>
 		[% END %]
-			<tr>
+			<tr class="[% loop.parity %] [% IF line.is_active %]enabled[% ELSE %]disabled[% END %]">
 				<td>
 					<a href="[% base_url %]?rm=edit_mailbox&mailbox_id=[% line.id %]">[% line.local_part | highlight(search) %]@[% line.domain | highlight(search) %]</a>
 				</td>

@@ -1,4 +1,5 @@
 <nav>
+	<h1>Navigation</h1>
 	<ul>
 		<li><a[% IF current == 'welcome' %] class="current"[% END %] href="[% base_url %]?rm=welcome">[% "Overview" | l10n %]</a></li>
 		[% IF is_superadmin %]
@@ -17,5 +18,3 @@
 		<li><a[% IF current == 'logout' %] class="current"[% END %] href="[% base_url %]?rm=login&authen_logout=1">[% "Logout" | l10n %]</a></li>
 	</ul>
 </nav>
-<br clear="all" />
-<br />

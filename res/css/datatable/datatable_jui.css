@@ -23,7 +23,7 @@
  *     ensure that you either have "example_alt_pagination" as a body class name, or better yet,
  *     modify that selector.
  *   Note that the path used for Images is relative. All images are by default located in
- *     ../images/ - relative to this CSS file.
+ *     ../img/ - relative to this CSS file.
  */
 
 
@@ -157,19 +157,19 @@ table.display thead th div.DataTables_sort_wrapper span {
 }
 
 .paginate_disabled_previous {
-	background-image: url('../images/datatables/back_disabled.jpg');
+	background-image: url('../img/back_disabled.jpg');
 }
 
 .paginate_enabled_previous {
-	background-image: url('../images/datatables/back_enabled.jpg');
+	background-image: url('../img/back_enabled.jpg');
 }
 
 .paginate_disabled_next {
-	background-image: url('../images/datatables/forward_disabled.jpg');
+	background-image: url('../img/forward_disabled.jpg');
 }
 
 .paginate_enabled_next {
-	background-image: url('../images/datatables/forward_enabled.jpg');
+	background-image: url('../img/forward_enabled.jpg');
 }
 
 
@@ -209,23 +209,23 @@ table.display td.center {
  */
 
 .sorting_asc {
-	background: url('../images/datatables/sort_asc.png') no-repeat center right;
+	background: url('../img/sort_asc.png') no-repeat center right;
 }
 
 .sorting_desc {
-	background: url('../images/datatables/sort_desc.png') no-repeat center right;
+	background: url('../img/sort_desc.png') no-repeat center right;
 }
 
 .sorting {
-	background: url('../images/datatables/sort_both.png') no-repeat center right;
+	background: url('../img/sort_both.png') no-repeat center right;
 }
 
 .sorting_asc_disabled {
-	background: url('../images/datatables/sort_asc_disabled.png') no-repeat center right;
+	background: url('../img/sort_asc_disabled.png') no-repeat center right;
 }
 
 .sorting_desc_disabled {
-	background: url('../images/datatables/sort_desc_disabled.png') no-repeat center right;
+	background: url('../img/sort_desc_disabled.png') no-repeat center right;
 }
 
 
@@ -234,44 +234,21 @@ table.display td.center {
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * DataTables row classes
  */
-table.display tr.odd.gradeA {
+
+table.display tr.odd.enabled {
 	background-color: #ddffdd;
 }
 
-table.display tr.even.gradeA {
+table.display tr.even.enabled {
 	background-color: #eeffee;
 }
 
-table.display tr.odd.gradeA {
-	background-color: #ddffdd;
-}
-
-table.display tr.even.gradeA {
-	background-color: #eeffee;
-}
-
-table.display tr.odd.gradeC {
-	background-color: #ddddff;
-}
-
-table.display tr.even.gradeC {
-	background-color: #eeeeff;
-}
-
-table.display tr.odd.gradeX {
+table.display tr.odd.disabled {
 	background-color: #ffdddd;
 }
 
-table.display tr.even.gradeX {
+table.display tr.even.disabled {
 	background-color: #ffeeee;
-}
-
-table.display tr.odd.gradeU {
-	background-color: #ddd;
-}
-
-table.display tr.even.gradeU {
-	background-color: #eee;
 }
 
 tr.odd {
@@ -281,6 +258,10 @@ tr.odd {
 tr.even {
 	background-color: white;
 }
+
+
+
+
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * Misc
@@ -404,102 +385,53 @@ tr.even td.sorting_3 {
 	  dd > d1
 	  ee > e2
  */
-tr.odd.gradeA td.sorting_1 {
+tr.odd.enabled td.sorting_1 {
 	background-color: #c4ffc4;
 }
 
-tr.odd.gradeA td.sorting_2 {
+tr.odd.enabled td.sorting_2 {
 	background-color: #d1ffd1;
 }
 
-tr.odd.gradeA td.sorting_3 {
+tr.odd.enabled td.sorting_3 {
 	background-color: #d1ffd1;
 }
 
-tr.even.gradeA td.sorting_1 {
+tr.even.enabled td.sorting_1 {
 	background-color: #d5ffd5;
 }
 
-tr.even.gradeA td.sorting_2 {
+tr.even.enabled td.sorting_2 {
 	background-color: #e2ffe2;
 }
 
-tr.even.gradeA td.sorting_3 {
+tr.even.enabled td.sorting_3 {
 	background-color: #e2ffe2;
 }
 
-tr.odd.gradeC td.sorting_1 {
-	background-color: #c4c4ff;
-}
-
-tr.odd.gradeC td.sorting_2 {
-	background-color: #d1d1ff;
-}
-
-tr.odd.gradeC td.sorting_3 {
-	background-color: #d1d1ff;
-}
-
-tr.even.gradeC td.sorting_1 {
-	background-color: #d5d5ff;
-}
-
-tr.even.gradeC td.sorting_2 {
-	background-color: #e2e2ff;
-}
-
-tr.even.gradeC td.sorting_3 {
-	background-color: #e2e2ff;
-}
-
-tr.odd.gradeX td.sorting_1 {
+tr.odd.disabled td.sorting_1 {
 	background-color: #ffc4c4;
 }
 
-tr.odd.gradeX td.sorting_2 {
+tr.odd.disabled td.sorting_2 {
 	background-color: #ffd1d1;
 }
 
-tr.odd.gradeX td.sorting_3 {
+tr.odd.disabled td.sorting_3 {
 	background-color: #ffd1d1;
 }
 
-tr.even.gradeX td.sorting_1 {
+tr.even.disabled td.sorting_1 {
 	background-color: #ffd5d5;
 }
 
-tr.even.gradeX td.sorting_2 {
+tr.even.disabled td.sorting_2 {
 	background-color: #ffe2e2;
 }
 
-tr.even.gradeX td.sorting_3 {
+tr.even.disabled td.sorting_3 {
 	background-color: #ffe2e2;
 }
-
-tr.odd.gradeU td.sorting_1 {
-	background-color: #c4c4c4;
-}
-
-tr.odd.gradeU td.sorting_2 {
-	background-color: #d1d1d1;
-}
-
-tr.odd.gradeU td.sorting_3 {
-	background-color: #d1d1d1;
-}
-
-tr.even.gradeU td.sorting_1 {
-	background-color: #d5d5d5;
-}
-
-tr.even.gradeU td.sorting_2 {
-	background-color: #e2e2e2;
-}
-
-tr.even.gradeU td.sorting_3 {
-	background-color: #e2e2e2;
-}
-
 
 /*
  * Row highlighting example

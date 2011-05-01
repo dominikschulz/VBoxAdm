@@ -1,8 +1,8 @@
 [% INCLUDE header.tpl %]
-    <div id="main" class="datatable_container">
+    <div id="main" role="main">
 		[% FOREACH line IN blacklist %]
 		[% IF loop.first %]
-		<table id="datatable">
+		<table class="datatable">
 			<thead>
 			<tr>
 				<th>[% "Email" | l10n %]</th>
@@ -11,7 +11,7 @@
 			</thead>
 			<tbody>
 		[% END %]
-			<tr>
+			<trclass="[% loop.parity %] [% IF line.is_active %]enabled[% ELSE %]disabled[% END %]">
 				<td>
 					[% line.local_part | highlight(search) %]@[% line.domain | highlight(search) %]
 				</td>

@@ -1,7 +1,6 @@
 [% INCLUDE header.tpl %]
-	<h2>Domain: [% domain %]</h2>
-	<br />
-    <div id="main">
+    <div id="main" role="main">
+    	<h2>Viewing Domain: [% domain %]</h2>
 		[% FOREACH line IN domain_aliases %]
 		[% IF loop.first %]
 		<h2>Domain-Aliases</h2>

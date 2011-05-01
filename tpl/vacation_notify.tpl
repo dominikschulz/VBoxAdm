@@ -1,16 +1,8 @@
 [% INCLUDE header.tpl %]
     <div id="main">
-	    <div id="overview">
-			[% "Search:" | l10n %]
-			<form name="search" method="GET" action="[% base_url %]">
-			<input type="hidden" name="rm" value="vac_notify" />
-			<input type="textbox" name="search" size="20" value="[% search %]" />
-			</form>
-		</div>
 		[% FOREACH line IN blacklist %]
 		[% IF loop.first %]
-		[% INCLUDE "page-navigation.tpl" %]
-		<table class="sortable hilight">
+		<table class="datatable">
 			<thead>
 			<tr>
 				<th>[% "Recipient" | l10n %]</th>
@@ -20,7 +12,7 @@
 			</thead>
 			<tbody>
 		[% END %]
-			<tr>
+			<tr class="[% loop.parity %] [% IF line.is_active %]enabled[% ELSE %]disabled[% END %]">
 				<td>
 					[% line.on_vacation | highlight(search) %]
 				</td>
@@ -36,7 +28,6 @@
 		<tfoot>
 		</tfoot>
 		</table>
-		[% INCLUDE "page-navigation.tpl" %]
 		[% END %]
 		[% END %]
 		<br />

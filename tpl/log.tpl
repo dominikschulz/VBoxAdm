@@ -1,16 +1,8 @@
 [% INCLUDE header.tpl %]
-    <div id="main">
-	<div id="overview">
-		[% "Search:" | l10n %]
-		<form name="search" method="GET" action="[% base_url %]">
-		<input type="hidden" name="rm" value="log" />
-		<input type="textbox" name="search" size="20" value="[% search %]" />
-		</form>
-	</div>
+    <div id="main" role="main">
 		[% FOREACH line IN log %]
 		[% IF loop.first %]
-		[% INCLUDE "page-navigation.tpl" %]
-		<table class="hilight">
+		<table class="datatable">
 			<thead>
 			<tr>
 				<th>[% "Date" | l10n %]</th>
@@ -19,7 +11,7 @@
 			</thead>
 			<tbody>
 		[% END %]
-			<tr>
+			<tr class="[% loop.parity %] [% IF line.is_active %]enabled[% ELSE %]disabled[% END %]">
 				<td>
 					[% line.ts %]
 				</td>
@@ -32,7 +24,6 @@
 		<tfoot>
 		</tfoot>
 		</table>
-		[% INCLUDE "page-navigation.tpl" %]
 		[% END %]
 		[% END %]
     </div>

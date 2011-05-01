@@ -1,8 +1,8 @@
 [% INCLUDE header.tpl %]
-    <div id="main" class="datatable_container">
+    <div id="main" role="main">
 		[% FOREACH line IN domains %]
 		[% IF loop.first %]
-		<table id="datatable">
+		<table class="datatable">
 			<thead>
 			<tr>
 				<th>[% "Domain" | l10n %]</th>
@@ -15,7 +15,7 @@
 			</thead>
 			<tbody>
 		[% END %]
-			<tr>
+			<tr class="[% loop.parity %] [% IF line.is_active %]enabled[% ELSE %]disabled[% END %]">
 				<td>
 					<a href="[% base_url %]?rm=domain&domain_id=[% line.id %]">[% line.name | highlight(search) %]</a>
 				</td>
@@ -29,7 +29,7 @@
 					[% line.num_domainaliases %]
 				</td>
 				<td>
-					[% IF line.is_active == 1 %]
+					[% IF line.is_active %]
 					<a href="[% base_url %]?rm=update_domain&domain_id=[% line.id %]&is_active=0">[% "Yes" | l10n %]</a>
 					[% ELSE %]
 					<a href="[% base_url %]?rm=update_domain&domain_id=[% line.id %]&is_active=1">[% "No" | l10n %]</a>
