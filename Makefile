@@ -23,7 +23,7 @@ PERLCRITIC = /usr/bin/perlcritic
 PERL = /usr/bin/perl
 PROVE = /usr/bin/prove -l
 YUIC = /usr/bin/java -jar build/yuicompressor-2.4.2.jar --charset UTF-8 --line-break 4000
-HTMLC = /usr/bin/java -jar build/htmlcompressor-0.9.9.jar --type html --charset UTF-8 --remove-intertag-spaces --remove-quotes -p build/tt.tags --compress-js --compress-css --line-break 4000
+HTMLC = /usr/bin/java -jar build/htmlcompressor-0.9.9.jar --type html --charset UTF-8 --remove-intertag-spaces --remove-quotes --compress-js --compress-css --line-break 4000
 
 # some variables
 NAME = vboxadm
@@ -366,6 +366,17 @@ clean:
 	$(RM) -f res/js/libs/*.min.js
 	$(RM) -f res/css/*.min.css
 	$(RM) -f res/css/datatable/*.min.css
+	$(RM) -f tpl/alias/*.tpl
+	$(RM) -f tpl/awl/*.tpl
+	$(RM) -f tpl/domain/*.tpl
+	$(RM) -f tpl/domain_alias/*.tpl
+	$(RM) -f tpl/includes/*.tpl
+	$(RM) -f tpl/mailbox/*.tpl
+	$(RM) -f tpl/rfc_notify/*.tpl
+	$(RM) -f tpl/role_account/*.tpl
+	$(RM) -f tpl/vacation_blacklist/*.tpl
+	$(RM) -f tpl/vacation_notify/*.tpl
+	$(RM) -f tpl/*.tpl
 
 rcvboxadm:
 	cd contrib/roundcube/plugins/ && tar -cvzf ../../roundcube-plugin-vboxadm.tar.gz vboxadm/ && cd ../../../
