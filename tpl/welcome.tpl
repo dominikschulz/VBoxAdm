@@ -1,4 +1,4 @@
-[% INCLUDE header.tpl %]
+[% INCLUDE includes/header.tpl %]
     <div id="main">
     	<div id="main_menu">
     	<table>
@@ -53,4 +53,4 @@
     	</table>
     	</div>
     </div>
-[% INCLUDE footer.tpl %]
+[% INCLUDE includes/footer.tpl %]

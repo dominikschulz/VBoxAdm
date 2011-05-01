@@ -1,4 +1,4 @@
-[% INCLUDE header.tpl %]
+[% INCLUDE includes/header.tpl %]
     <div id="main">
     <div id="edit_form">
     	<form action="[% base_url %]" method="POST">
@@ -39,4 +39,4 @@
     	</form>
     </div>
     </div>
-[% INCLUDE footer.tpl %]
+[% INCLUDE includes/footer.tpl %]

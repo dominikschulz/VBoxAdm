@@ -89,7 +89,7 @@ if ( $ENV{'REQUEST_URI'} =~ m#/mail/config-v1\.1\.xml# && $email ) {
     # TB will try to GET http://autoconfig.domain.tld/mail/config-v1.1.xml?emailaddress=user@domain.tld
     # Thunderbird, Evolution, Kmail, et. al.
     print $q->header( -type => 'text/xml', -charset => 'UTF-8', );
-    $tpl->process( 'autoconfig-mozilla-xml.tpl', \%params )
+    $tpl->process( 'autoconfig/mozilla-xml.tpl', \%params )
       or die $tpl->error() . "\n";
     syslog( 2, "Delivered mozilla autoconfiguration for $email" );
 }
@@ -99,7 +99,7 @@ elsif ( $ENV{'REQUEST_URI'} =~ m#/autodiscover/autodiscover.xml# && $email ) {
     #########################################################################
     # Outlook will try to POST to https://autodiscover.domain.tld/autodiscover/autodiscover.xml
     print $q->header( -type => 'text/xml', -status => '405 Microsoft Outlook Autoconfiguration', -charset => 'UTF-8', );
-    $tpl->process( 'autoconfig-outlook-xml.tpl', \%params )
+    $tpl->process( 'autoconfig/outlook-xml.tpl', \%params )
       or die $tpl->error() . "\n";
     syslog( 2, "Delivered microsoft autoconfiguration for $email" );
 }

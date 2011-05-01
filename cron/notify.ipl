@@ -177,60 +177,69 @@ sub parse_reject_line {
 
         if ( $vars->{'is_rdns'} || $vars->{'is_helo'} || $vars->{'is_other'} ) {
             my $postmaster_msg;
-            $tpl->process( 'rfc-notify-postmaster.tpl', $vars, \$postmaster_msg );
+            $tpl->process( 'notify/postmaster.tpl', $vars, \$postmaster_msg );
             my $emsg = '';
             $emsg .= "Subject: Dear Postmaster, please check your DNS- and/or HELO-name...\r\n";
             $emsg .= "Auto-Submitted: auto-generated\r\n";
             $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
             $emsg .= "To: <postmaster\@$from_domain>\r\n";
+            $emsg .= "BCC: <".$config{'notify'}{'cc'}.">\r\n" if $config{'notify'}{'cc'};
             $emsg .= "X-Client: VBoxAdm/RFC-Notify @VERSION@\r\n";
             $emsg .= "\r\n";
             $emsg .= $postmaster_msg;
 
-            if ( $config{'notify'}{'dry'} ) {
-                print "\tDRY - Would send message to POSTMASTER:\n" . $emsg . "\n" if $config{'notify'}{'verbose'};
-            }
-            else {
-                &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
-            }
+						if($config{'notify'}{'postmaster'}) {
+	            if ( $config{'notify'}{'dry'} ) {
+	                print "\tDRY - Would send message to POSTMASTER:\n" . $emsg . "\n" if $config{'notify'}{'verbose'};
+	            }
+	            else {
+	                &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
+	            }
+						}
 
             my $recipient_msg;
-            $tpl->process( 'rfc-notify-recipient.tpl', $vars, \$recipient_msg );
+            $tpl->process( 'notify/recipient.tpl', $vars, \$recipient_msg );
             $emsg = '';
             $emsg .= "Subject: Dear Postmaster, please check your DNS- and/or HELO-name...\r\n";
             $emsg .= "Auto-Submitted: auto-generated\r\n";
             $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
             $emsg .= "To: <$to>\r\n";
+            $emsg .= "BCC: <".$config{'notify'}{'cc'}.">\r\n" if $config{'notify'}{'cc'};
             $emsg .= "X-Client: VBoxAdm/RFC-Notify @VERSION@\r\n";
             $emsg .= "\r\n";
             $emsg .= $recipient_msg;
 
-            if ( $config{'notify'}{'dry'} ) {
-                print "\tDRY - Would send message to RECIPIENT:\n" . $emsg . "\n" if $config{'notify'}{'verbose'};
-            }
-            else {
-                &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
-            }
+						if ( $config{'notify'}{'recipient'}) {
+	            if ( $config{'notify'}{'dry'} ) {
+	                print "\tDRY - Would send message to RECIPIENT:\n" . $emsg . "\n" if $config{'notify'}{'verbose'};
+	            }
+	            else {
+	                &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
+	            }
+        		}
 
             my $sender_msg;
-            $tpl->process( 'rfc-notify-sender.tpl', $vars, \$sender_msg );
+            $tpl->process( 'notify/sender.tpl', $vars, \$sender_msg );
             $emsg = '';
             $emsg .= "Subject: Dear Postmaster, please check your DNS- and/or HELO-name...\r\n";
             $emsg .= "Auto-Submitted: auto-generated\r\n";
             $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
             $emsg .= "To: <$from>\r\n";
+            $emsg .= "BCC: <".$config{'notify'}{'cc'}.">\r\n" if $config{'notify'}{'cc'};
             $emsg .= "X-Client: VBoxAdm/RFC-Notify @VERSION@\r\n";
             $emsg .= "\r\n";
             $emsg .= $sender_msg;
 
-            if ( $config{'notify'}{'dry'} ) {
-                print "\tDRY - Would send message to SENDER:\n" . $emsg . "\n" if $config{'notify'}{'verbose'};
-            }
-            else {
-                &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
-            }
+						if($config{'notify'}{'sender'}) {
+	            if ( $config{'notify'}{'dry'} ) {
+	                print "\tDRY - Would send message to SENDER:\n" . $emsg . "\n" if $config{'notify'}{'verbose'};
+	            }
+	            else {
+	                &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
+	            }
+						}
 
-            &set_notified( $dbh, 'postmaster@' . $from_domain, \%config );
+            &set_notified( $dbh, 'postmaster@' . $from_domain, \%config ) if($config{'notify'}{'postmaster'});
         }
         else {
             print "ERROR Unknown Cause: $smtpmsg\n" if $config{'notify'}{'verbose'};

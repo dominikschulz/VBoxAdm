@@ -1,4 +1,4 @@
-[% INCLUDE header.tpl %]
+[% INCLUDE includes/header.tpl %]
     <div id="main">
 		<form name="loginform" action="[% base_url %]" method="POST">
 			<div class="login">
@@ -29,4 +29,4 @@
 			<input type="hidden" name="destination" value="[% base_url %]?rm=welcome" />
 		</form>
     </div>
-[% INCLUDE footer.tpl %]
+[% INCLUDE includes/footer.tpl %]

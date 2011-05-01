@@ -204,13 +204,13 @@ JSFILES = \
 	$(PERLTIDY) $@
 	
 %.1: %.pl
-	doc/make-man.pl $< $@
+	build/make-man.pl $< $@
 
 %.3: %.pm
-	doc/make-man.pl $< $@
+	build/make-man.pl $< $@
 
 %.8: %.pl
-	doc/make-man.pl $< $@
+	build/make-man.pl $< $@
 
 all: $(LIBFILES) $(BINFILES) $(TESTFILES) $(MANFILES) $(CSSFILES) $(JSFILES)
 
@@ -352,16 +352,16 @@ help:
 	@echo "\ttest - runs all tests. runs compile"
 
 dist: git
-	doc/release.pl --verbose
+	build/release.pl --verbose
 
 dist-local: git
-	doc/release.pl --verbose --local
+	build/release.pl --verbose --local
 
 dist-minor: git
-	doc/release.pl --verbose --minor
+	build/release.pl --verbose --minor
 
 dist-major: test-all git
-	doc/release.pl --verbose --major
+	build/release.pl --verbose --major
 
 critic:
 	$(PERLCRITIC) --stern bin/

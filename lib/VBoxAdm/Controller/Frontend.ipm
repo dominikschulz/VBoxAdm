@@ -744,7 +744,7 @@ sub show_send_broadcast {
         'num_sent' => $num_sent,
     );
 
-    return $self->tt_process( 'broadcast-result.tpl', \%params );
+    return $self->tt_process( 'broadcast_result.tpl', \%params );
 }
 
 #
@@ -805,7 +805,7 @@ sub show_domains {
         'page'    => $pager,
     );
 
-    return $self->tt_process( 'domains.tpl', \%params );
+    return $self->tt_process( 'domain/list.tpl', \%params );
 }
 
 sub show_domain {
@@ -890,7 +890,7 @@ sub show_domain {
         'breadcrumb' => \@bc,
     );
 
-    return $self->tt_process( 'domain.tpl', \%params );
+    return $self->tt_process( 'domain/show.tpl', \%params );
 }
 
 sub show_create_domain {
@@ -909,7 +909,7 @@ sub show_create_domain {
         'current' => 'domains',
     );
 
-    return $self->tt_process( 'domain-create.tpl', \%params );
+    return $self->tt_process( 'domain/create.tpl', \%params );
 }
 
 sub show_add_domain {
@@ -996,7 +996,7 @@ sub show_domain_aliases {
         'page'    => $pager,
     );
 
-    return $self->tt_process( 'domain-aliases.tpl', \%params );
+    return $self->tt_process( 'domain_alias/list.tpl', \%params );
 }
 
 sub show_create_domain_alias {
@@ -1036,7 +1036,7 @@ sub show_create_domain_alias {
         'current' => 'domain_aliases',
     );
 
-    return $self->tt_process( 'domain-alias-create.tpl', \%params );
+    return $self->tt_process( 'domain_alias/create.tpl', \%params );
 }
 
 sub show_add_domain_alias {
@@ -1130,7 +1130,7 @@ sub show_edit_domain_alias {
         'domains'         => \@domains,
     );
 
-    return $self->tt_process( 'domain-alias-edit.tpl', \%params );
+    return $self->tt_process( 'domain_alias/edit.tpl', \%params );
 }
 
 sub show_update_domain_alias {
@@ -1182,11 +1182,12 @@ sub show_aliases {
         'title'   => $self->{lh}->maketext('VBoxAdm Aliases'),
         'current' => 'aliases',
         'aliases' => \@aliases,
+        'domains' => $self->{'Domain'}->list(),
         'search'  => $search,
         'page'    => $pager,
     );
 
-    return $self->tt_process( 'aliases.tpl', \%params );
+    return $self->tt_process( 'alias/list.tpl', \%params );
 }
 
 sub show_create_alias {
@@ -1226,7 +1227,7 @@ sub show_create_alias {
         'domains' => \@domains,
     );
 
-    return $self->tt_process( 'alias-create.tpl', \%params );
+    return $self->tt_process( 'alias/create.tpl', \%params );
 }
 
 sub show_add_alias {
@@ -1289,7 +1290,7 @@ sub show_edit_alias {
     	$params{$key} = $alias_ref->{$key};
     }
 
-    return $self->tt_process( 'alias-edit.tpl', \%params );
+    return $self->tt_process( 'alias/edit.tpl', \%params );
 }
 
 sub show_update_alias {
@@ -1341,11 +1342,12 @@ sub show_mailboxes {
         'title'     => $self->{lh}->maketext('VBoxAdm Mailboxes'),
         'current'   => 'mailboxes',
         'mailboxes' => \@mailboxes,
+        'domains'   => $self->{'Domain'}->list(),
         'search'    => $search,
         'page'      => $pager,
     );
 
-    return $self->tt_process( 'mailboxes.tpl', \%params );
+    return $self->tt_process( 'mailbox/list.tpl', \%params );
 }
 
 sub show_create_mailbox {
@@ -1387,7 +1389,7 @@ sub show_create_mailbox {
         'current' => 'mailboxes',
     );
 
-    return $self->tt_process( 'mailbox-create.tpl', \%params );
+    return $self->tt_process( 'mailbox/create.tpl', \%params );
 }
 
 sub show_add_mailbox {
@@ -1484,7 +1486,7 @@ sub show_edit_mailbox {
 		foreach my $key (keys %{$mailbox_ref}) {
 			$params{$key} = $mailbox_ref->{$key};
 		}
-    return $self->tt_process( 'mailbox-edit.tpl', \%params );
+    return $self->tt_process( 'mailbox/edit.tpl', \%params );
 }
 
 sub show_update_mailbox {
@@ -1623,7 +1625,7 @@ sub show_vacation_blacklist {
         'search'    => $search,
     );
 
-    return $self->tt_process( 'vacation_blacklist.tpl', \%params );
+    return $self->tt_process( 'vacation_blacklist/list.tpl', \%params );
 }
 
 sub show_create_vacbl_entry {
@@ -1648,7 +1650,7 @@ sub show_create_vacbl_entry {
         'current' => 'vacation',
     );
 
-    return $self->tt_process( 'vacation-blacklist-add.tpl', \%params );
+    return $self->tt_process( 'vacation_blacklist/create.tpl', \%params );
 }
 
 sub show_add_vacbl_entry {
@@ -1730,7 +1732,7 @@ sub show_vacation_replies {
         'search'   => $search,
     );
 
-    return $self->tt_process( 'vacation_notify.tpl', \%params );
+    return $self->tt_process( 'vacation_notify/list.tpl', \%params );
 }
 
 #
@@ -1787,7 +1789,7 @@ sub show_rfc_notify {
         'search'   => $search,
     );
 
-    return $self->tt_process( 'rfc-notify.tpl', \%params );
+    return $self->tt_process( 'rfc_notify/list.tpl', \%params );
 }
 
 #
@@ -1824,7 +1826,7 @@ sub show_awl {
         'search'  => $search,
     );
 
-    return $self->tt_process( 'awl.tpl', \%params );
+    return $self->tt_process( 'awl/list.tpl', \%params );
 }
 
 sub show_update_awl {
@@ -1888,7 +1890,7 @@ sub show_admins {
         'page'    => $pager,
     );
 
-    return $self->tt_process( 'admins.tpl', \%params );
+    return $self->tt_process( 'mailbox/admins.tpl', \%params );
 }
 
 1;

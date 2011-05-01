@@ -11,7 +11,7 @@ $(document).ready(function() {
 // setup popup window
 // http://www.sohtanaka.com/web-design/inline-modal-window-w-css-and-jquery/#blog
 // When you click on a link with class of poplight and the href starts with a # 
-$('a.modallight[href^=#]').click(function() {
+$('a.modallight[href*=#]').click(function() {
   var popID = $(this).attr('rel'); // Get Popup Name
   var popURL = $(this).attr('href'); // Get Popup href to define size
   // Pull Query & Variables from href URL
