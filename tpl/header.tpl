@@ -25,10 +25,10 @@
   <link rel="apple-touch-icon" href="[% media_prefix %]/apple-touch-icon.png">
 
   <!-- CSS : implied media="all" -->
-  <link rel="stylesheet" href="[% media_prefix %]/css/style.min.css?v=@VERSION@">
+  <link rel="stylesheet" href="[% media_prefix %]/css/style.css?v=@VERSION@">
   
   <style type="text/css" title="currentStyle">
-  	@import "[% media_prefix %]/css/datatable/datatable_jui.css?v=@VERSION@";
+  	@import "[% media_prefix %]/css/datatable/datatable_jui.min.css?v=@VERSION@";
 	@import "[% media_prefix %]/css/datatable/themes/smoothness/jquery-ui-1.8.4.custom.css?v=@VERSION@";
   </style>
 

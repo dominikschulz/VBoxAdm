@@ -48,5 +48,9 @@
 		[% END %]
 		<br />
 		<a href="[% base_url %]?rm=create_domain"><img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" /> [% "Add Domain" | l10n %]</a>
+		<a href="#?w=500" rel="modal_new" class="modallight"><img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" /> [% "Add Domain" | l10n %]</a>
+    </div>
+    <div id="modal_new" class="modal_block">
+    	[% INCLUDE domain_create_partial.tpl %]
     </div>
 [% INCLUDE footer.tpl %]
