@@ -392,6 +392,7 @@ sub teardown {
 sub cgiapp_init {
     my $self = shift;
 
+	# TODO query before syslog ... syslog before query (in setup) ... something is wrong here
     # Everything should be in UTF-8!
     $self->query->charset('UTF-8');
 
