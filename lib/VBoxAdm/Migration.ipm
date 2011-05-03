@@ -14,28 +14,28 @@ sub migrate {
     my $source_type = shift;
     my $source_db   = shift;
     my $target_db   = shift;
-    my $opts = shift;
+    my $opts        = shift;
 
     $dbh and $config and $source_type and $source_db and $target_db or return;
 
-    my $sql_new_domain  = "INSERT INTO \`$target_db\`.domains (name,is_active) VALUES(?,?)";
-    my $sth_new_domain  = $dbh->prepare($sql_new_domain);
-    
-    my $sql_new_alias   = "INSERT INTO \`$target_db\`.aliases (domain_id,local_part,goto,is_active) VALUES(?,?,?,?)";
-    my $sth_new_alias   = $dbh->prepare($sql_new_alias);
-    
+    my $sql_new_domain = "INSERT INTO \`$target_db\`.domains (name,is_active) VALUES(?,?)";
+    my $sth_new_domain = $dbh->prepare($sql_new_domain);
+
+    my $sql_new_alias = "INSERT INTO \`$target_db\`.aliases (domain_id,local_part,goto,is_active) VALUES(?,?,?,?)";
+    my $sth_new_alias = $dbh->prepare($sql_new_alias);
+
     my $sql_new_mailbox = "INSERT INTO \`$target_db\`.mailboxes ";
     $sql_new_mailbox .= "(domain_id,local_part,password,name,is_active,max_msg_size,is_on_vacation,vacation_subj,vacation_msg,";
     $sql_new_mailbox .= "is_domainadmin,is_superadmin,sa_active,sa_kill_score) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)";
-    my $sth_new_mailbox      = $dbh->prepare($sql_new_mailbox);
-    
+    my $sth_new_mailbox = $dbh->prepare($sql_new_mailbox);
+
     my $sql_new_domain_alias = "INSERT INTO \`$target_db\`.domain_aliases (name,domain_id,is_active) VALUES(?,?,1)";
     my $sth_new_domain_alias = $dbh->prepare($sql_new_domain_alias);
-    
-    my $sql_vacation_status  = "INSERT INTO \`$target_db\`.vacation_notify (on_vacation,notified,notified_at) VALUES(?,?,?)";
-    my $sth_vacation_status  = $dbh->prepare($sql_vacation_status);
-    
-    my $sql_set_admin        = "UPDATE \`$target_db\`.mailboxes SET is_domainadmin = ?, is_superadmin = ? ";
+
+    my $sql_vacation_status = "INSERT INTO \`$target_db\`.vacation_notify (on_vacation,notified,notified_at) VALUES(?,?,?)";
+    my $sth_vacation_status = $dbh->prepare($sql_vacation_status);
+
+    my $sql_set_admin = "UPDATE \`$target_db\`.mailboxes SET is_domainadmin = ?, is_superadmin = ? ";
     $sql_set_admin .= "WHERE local_part = ? AND domain_id = (SELECT id FROM domains WHERE name = ?)";
     my $sth_set_admin = $dbh->prepare($sql_set_admin);
 
@@ -46,7 +46,7 @@ sub migrate {
         push( @queries, 'TRUNCATE TABLE `' . $target_db . '`.domains' );
         push( @queries, 'TRUNCATE TABLE `' . $target_db . '`.domain_aliases' );
         foreach my $q (@queries) {
-        	print "Query: $q\n" if $opts->{'Verbose'};
+            print "Query: $q\n" if $opts->{'Verbose'};
             $dbh->do($q)
               or die( "Could not execut query $q: " . $dbh->errstr );
         }
