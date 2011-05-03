@@ -501,6 +501,9 @@ if ( $module && $module eq 'help' ) {
         print $help{'help'} . "\n";
     }
 }
+elsif ( $module && $module eq 'migrate') {
+	&migrate($dbh, \%config, $opts);
+}
 elsif ( $module && $action && ref( $actions{$module}{$action} ) eq 'CODE' && ( $action eq 'list' || scalar(@modes) > 0 ) ) {
     &{ $actions{$module}{$action} }(@modes);
 }
@@ -549,21 +552,23 @@ sub migrate {
     my $config = shift;
     my $opts   = shift || {};
 
-    if ( !$config->{'source'} ) {
-        print "Need source-type\n";
+    if ( !$opts->{'Source'} ) {
+        print "Need source-type (--source).\n";
         return;
     }
 
-    if ( !$config->{'source-db'} ) {
-        $config{'source-db'} = $config{'source'};
+    if ( !$opts->{'SourceDb'} ) {
+        $opts{'SourceDb'} = $config{'Source'};
     }
+    
+    $config->{'truncate'} = 1 if $opts->{Truncate};
 
-    if ( &VBoxAdm::Migration::migrate( $dbh, \%config, $config{'source'}, $config{'source-db'}, 'vboxadm' ) ) {
-        print "Migration OK\n" unless $config->{'quiet'};
+    if ( &VBoxAdm::Migration::migrate( $dbh, \%config, $opts->{'Source'}, $opts->{'SourceDb'}, 'vboxadm', $opts ) ) {
+        print "Migration OK\n" unless $config->{'Quiet'};
         return 1;
     }
     else {
-        print "Migration FAILED\n" unless $config->{'quiet'};
+        print "Migration FAILED\n" unless $config->{'Quiet'};
         return;
     }
 }
