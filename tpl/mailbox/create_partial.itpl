@@ -6,7 +6,8 @@
     		[% "Username:" | l10n %]
     		<span class="small">The Email address of the new user</span>
     	</label>
-    	<input class="short" type="text" name="username" />@
+    	<input class="short" type="text" name="username" />
+    	<label for="domain" class="tiny">@</label>
 [% FOREACH line IN domains %]
 [% IF loop.first %]
 <select class="short" name="domain">
@@ -17,11 +18,15 @@
 [% END %]
 [% END %]
 
+		<div class="spacer"></div>
+		
 		<label for="password">
 			[% "Password:" | l10n %]
 			<span class="small">[% "Leave both password fields empty to autogenerate a password." | l10n %]</span>
 		</label>
 		<input type="password" name="password" />
+		
+		<div class="spacer"></div>
 		
 		<label for="password_2">
 			[% "Password (again):" | l10n %]

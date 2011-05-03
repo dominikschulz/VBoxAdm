@@ -451,18 +451,21 @@ footer {
 	width:200px;
 }
 .forms input, .forms select {
-	float:left;
-	font-size:12px;
-	padding:4px 2px;
-	border:solid 1px #aacfe4;
-	width:200px;
-	margin:2px 0 20px 10px;
+	float: left;
+	font-size: 12px;
+	padding: 4px 2px;
+	border: solid 1px #fff;
+	width: 200px;
+	margin: 2px 0 20px 10px;
 	color: #ffd800;
 	font-weight: bold;
 	background-color: #000;
 }
-.forms short {
+.forms .short {
 	width: 150px;
+}
+.forms .tiny {
+	width: 10px;
 }
 .forms button {
 	clear:both;
