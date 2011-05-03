@@ -1,6 +1,6 @@
 [% INCLUDE includes/header.tpl %]
     <div id="main">
-    	<div id="stylized" class="loginform">
+    	<div class="forms">
 			<form name="loginform" action="[% base_url %]" method="POST">
 				<h1>[% "Sign In" | l10n %]</h1>
 				<label for="authen_username">
