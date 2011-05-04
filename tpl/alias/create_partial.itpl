@@ -7,10 +7,12 @@
 			[% "Username:" | l10n %]
 			<span class="small">[% "Please enter the desired username here" | l10n %]
 		</label>
-		<input type="text" name="local_part" />@
+		<input class="short" type="text" name="local_part" />
+		
+		<label for="domain" class="tiny">@</label>
 		[% FOREACH line IN domains %]
 			[% IF loop.first %]
-			<select name="domain">
+			<select class="short" name="domain">
 			[% END %]
 				<option value="[% line.id %]">[% line.name %]</option>
 			[% IF loop.last %]
@@ -18,11 +20,15 @@
 			[% END %]
 		[% END %]
 		
+		<div class="spacer"></div>
+		
 		<label for="goto">
 			[% "Target:" | l10n %]
 			<span class="small">Please enter the email address(es) this should be forwarded to.</span>
 		</label>
 		<input type="text" name="goto" size="50" />
+		
+		<div class="spacer"></div>
 		
 		<button class="button" type="submit" name="submit">
 			<img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" />

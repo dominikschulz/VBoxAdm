@@ -1,56 +1,34 @@
 [% INCLUDE includes/header.tpl %]
     <div id="main">
-    	<div id="main_menu">
-    	<table>
-    		[% IF is_superadmin %]
-	    	<tr>
-	    		<td nowrap><a target="_top" href="[% base_url %]?rm=domains">[% "Domains" | l10n %]</a></td>
-	    		<td>[% "List and edit your Domains" | l10n %]</td>
-	    	</tr>
-	    	[% END %]
-	    	<tr>
-	    		<td nowrap><a target="_top" href="[% base_url %]?rm=domain_aliases">[% "Domain Aliases" | l10n %]</a></td>
-	    		<td>[% "Manage your Domain Aliases" | l10n %]</td>
-	    	</tr>
-	    	<tr>
-	    		<td nowrap><a target="_top" href="[% base_url %]?rm=aliases">[% "Aliases" | l10n %]</a></td>
-	    		<td>[% "Manage your Email Aliases" | l10n %]</td>
-	    	</tr>
-	    	<tr>
-	    		<td nowrap><a target="_top" href="[% base_url %]?rm=mailboxes">[% "Mailboxes" | l10n %]</a></td>
-	    		<td>[% "Manage your Mailboxes" | l10n %]</td>
-	    	</tr>
+    	<div id="accordion">
+	    	<h3><a href="#">Domains</a></h3>
+	    	<div>
+	    		<ul>
+	    		    <li><a target="_top" href="[% base_url %]?rm=domains">[% "Domains" | l10n %]</a> - [% "List and edit your Domains" | l10n %]</li>
+	    		    <li><a target="_top" href="[% base_url %]?rm=domain_aliases">[% "Domain Aliases" | l10n %]</a> - [% "Manage your Domain Aliases" | l10n %]</li>
+	    		</ul>
+	    	</div>
+	    	<h3><a href="#">Mailboxes</a></h3>
+	    	<div>
+	    		<ul>
+	    		    <li><a target="_top" href="[% base_url %]?rm=mailboxes">[% "Mailboxes" | l10n %]</a> - [% "Manage your Mailboxes" | l10n %]</li>
+	    		    <li><a target="_top" href="[% base_url %]?rm=aliases">[% "Aliases" | l10n %]</a> - [% "Manage your Email Aliases" | l10n %]</li>
+	    		</ul>
+	    	</div>
 	    	[% IF is_superadmin %]
-	    	<tr>
-	    		<td nowrap><a[% IF current == 'broadcast' %] class="current"[% END %] href="[% base_url %]?rm=broadcast">[% "Send Broadcast" | l10n %]</a></td>
-	    		<td>[% "Send a broadcast message to all users" | l10n %]</td>
-	    	</tr>
-	    	<tr>
-				<td nowrap><a[% IF current == 'vacation' %] class="current"[% END %] href="[% base_url %]?rm=vac_bl">[% "Vacation Blacklist" | l10n %]</a></td>
-				<td>[% "Show the Vacation Blacklist" | l10n %]</td>
-			</tr>
-	    	<tr>
-				<td nowrap><a[% IF current == 'vac_repl' %] class="current"[% END %] href="[% base_url %]?rm=vac_repl">[% "Vacation Replies" | l10n %]</a></td>
-				<td>[% "Show any Vacation Notifications sent" | l10n %]</td>
-			</tr>
-	    	<tr>
-				<td nowrap><a[% IF current == 'awl' %] class="current"[% END %] href="[% base_url %]?rm=awl">[% "Auto-Whitelist" | l10n %]</a></td>
-				<td>[% "Show the Auto-Whitelist" | l10n %]</td>
-			</tr>
-	    	<tr>
-				<td nowrap><a[% IF current == 'notify' %] class="current"[% END %] href="[% base_url %]?rm=notify">[% "RFC-Notify" | l10n %]</a></td>
-				<td>[% "Show the list of RFC Notifications sent" | l10n %]</td>
-			</tr>
-	    	<tr>
-				<td nowrap><a[% IF current == 'log' %] class="current"[% END %] href="[% base_url %]?rm=log">[% "View Log" | l10n %]</a></td>
-	    		<td>[% "View the transaction log" | l10n %]</td>
-	    	</tr>
+	    	<h3><a href="#">Admin Tools</a></h3>
+	    	<div>
+	    		<ul>
+	    		    <li><a[% IF current == 'broadcast' %] class="current"[% END %] href="[% base_url %]?rm=broadcast">[% "Send Broadcast" | l10n %]</a> - [% "Send a broadcast message to all users" | l10n %]</li>
+		    		<li><a[% IF current == 'vac_repl' %] class="current"[% END %] href="[% base_url %]?rm=vac_repl">[% "Vacation Replies" | l10n %]</a> - [% "Show any Vacation Notifications sent" | l10n %]</li>
+					<li><a[% IF current == 'awl' %] class="current"[% END %] href="[% base_url %]?rm=awl">[% "Auto-Whitelist" | l10n %]</a> - [% "Show the Auto-Whitelist" | l10n %]</li>
+					<li><a[% IF current == 'notify' %] class="current"[% END %] href="[% base_url %]?rm=notify">[% "RFC-Notify" | l10n %]</a> - [% "Show the list of RFC Notifications sent" | l10n %]</li>
+					<li><a[% IF current == 'log' %] class="current"[% END %] href="[% base_url %]?rm=log">[% "View Log" | l10n %]</a> - [% "View the transaction log" | l10n %]</li>
+				</ul>
+	    	</div>
 	    	[% END %]
-	    	<tr>
-	    		<td nowrap><a target="_top" href="[% base_url %]?rm=logout&authen_logout=1">[% "Logout" | l10n %]</a></td>
-	    		<td>[% "Quit your session" | l10n %]</td>
-	    	</tr>
-    	</table>
     	</div>
+    	<br />
+    	<a target="_top" href="[% base_url %]?rm=logout&authen_logout=1">[% "Logout" | l10n %] - [% "Quit your session" | l10n %]
     </div>
 [% INCLUDE includes/footer.tpl %]

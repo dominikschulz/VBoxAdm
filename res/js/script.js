@@ -71,5 +71,10 @@ $('a.close, #fade').live('click', function() { //When clicking on the close or f
 
 // setup datepicker
 /* http://jqueryui.com/demos/datepicker/#date-formats */
-$('#datepicker').datepicker();
-$('#datepicker').datepicker( "option", "dateFormat", "dd.mm.yyyy");
+$(function() {
+	$('#vacation_start').datepicker();
+	$('#vacation_start').datepicker( "option", "dateFormat", "dd.mm.yy");
+	$('#vacation_end').datepicker();
+	$('#vacation_end').datepicker( "option", "dateFormat", "dd.mm.yy");
+	$('#accordion').accordion();
+});

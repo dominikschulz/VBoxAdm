@@ -1,6 +1,7 @@
-<div id="edit_form">
+<div class="forms">
 	<form name="create_domain" method="POST">
 		<input type="hidden" name="rm" value="update_mailbox" />
+		
 		<h1>[% "Modify a mailbox" | l10n %]</h1>
 		
 		<label for="mailbox_id">
@@ -10,11 +11,15 @@
 		[% local_part %]@[% domain %]
 		<input type="hidden" name="mailbox_id" value="[% mailbox_id %]" />
 		
+		<div class="spacer"></div>
+		
 		<label for="password">
 			[% "Password:" | l10n %]
 			<span class="small"></span>
 		</label>
 		<input class="flat" type="password" name="password" autocomplete="off" />
+		
+		<div class="spacer"></div>
 		
 		<label for="password_2">
 			[% "Password (again):" | l10n %]
@@ -22,11 +27,15 @@
 		</label>
 		<input class="flat" type="password" name="password_2" autocomplete="off" />
 		
+		<div class="spacer"></div>
+		
 		<label for="name">
 			[% "Name:" | l10n %]
 			<span class="small"></span>
 		</label>
 		<input class="flat" type="text" name="name" value="[% name %]" />
+		
+		<div class="spacer"></div>
 		
 		<label for="is_active">
 			[% "Active:" | l10n %]
@@ -34,11 +43,15 @@
 		</label>
 		<input class="flat" type="checkbox" name="is_active"[% IF is_active %] checked[% END %] />
 		
+		<div class="spacer"></div>
+		
 		<label for="max_msg_size_mb">
 			[% "Max. Message Size:" | l10n %]
 			<span class="small"></span>
 		</label>
 		<input class="flat" type="text" name="max_msg_size_mb" value="[% max_msg_size_mb %]" /> MB
+		
+		<div class="spacer"></div>
 		
 		<label for="is_on_vacation">
 			[% "On Vacation:" | l10n %]
@@ -46,17 +59,23 @@
 		</label>
 		<input class="flat" type="checkbox" name="is_on_vacation"[% IF is_on_vacation %] checked[% END %] />
 		
+		<div class="spacer"></div>
+		
 		<label for="vacation_start">
 			[% "Begin of Vacation:" | l10n %] (dd.mm.yyyy)
 			<span class="small"></span>
 		</label>
-		<input id="datepicker" type="text" name="vacation_start" value="[% vacation_start %]" />
+		<input id="vacation_start" type="text" name="vacation_start" value="[% vacation_start %]" />
+		
+		<div class="spacer"></div>
 		
 		<label for="vacation_end">
 			[% "End of Vacation:" | l10n %] (dd.mm.yyyy)
 			<span class="small"></span>
 		</label>
-		<input class="flat" type="text" name="vacation_end" value="[% vacation_end %]" />
+		<input id="vacation_end" class="flat" type="text" name="vacation_end" value="[% vacation_end %]" />
+		
+		<div class="spacer"></div>
 		
 		<label for="vacation_subj">
 			[% "Vacation Subject:" | l10n %]
@@ -64,11 +83,15 @@
 		</label>
 		<input class="flat" type="text" name="vacation_subj" value="[% vacation_subj %]" />
 		
+		<div class="spacer"></div>
+		
 		<label for="vacation_msg">
 			[% "Vacation Message:" | l10n %]
 			<span class="small"></span>
 		</label>
 		<textarea name="vacation_msg" rows="10" cols="40">[% vacation_msg %]</textarea>
+		
+		<div class="spacer"></div>
 		
 		<label for="cc_goto">
 			[% "CC:" | l10n %]
@@ -76,6 +99,7 @@
 		</label>
 		<a href="[% base_url %]?rm=edit_alias&alias_id=[% cc_id %]">[% cc_goto %]</a>
 		
+		<div class="spacer"></div>
 		
 		[% IF user_is_superadmin %]
 		<label for="is_domainadmin">
@@ -84,6 +108,8 @@
 		</label>
 		<input class="flat" type="checkbox" name="is_domainadmin"[% IF mb_is_domainadmin %] checked[% END %] />
 		
+		<div class="spacer"></div>
+		
 		<label for="is_superadmin">
 			[% "Superadmin:" | l10n %]
 			<span class="small"></span>
@@ -91,17 +117,23 @@
 		<input class="flat" type="checkbox" name="is_superadmin"[% IF mb_is_superadmin %] checked[% END %] />
 		[% END %]
 		
+		<div class="spacer"></div>
+		
 		<label for="sa_active">
 			[% "SpamAssassin:" | l10n %]
 			<span class="small"></span>
 		</label>
 		<input class="flat" type="checkbox" name="sa_active"[% IF sa_active %] checked[% END %] />
 		
+		<div class="spacer"></div>
+		
 		<label for="sa_kill_score">
 			[% "SpamAssassin block score:" | l10n %]
 			<span class="small"></span>
 		</label>
 		<input class="flat" type="text" name="sa_kill_score" value="[% sa_kill_score %]" />
+		
+		<div class="spacer"></div>
 		
 		<button class="button" type="submit" name="submit">
 			<img src="[% media_prefix %]/icons/fffsilk/accept.png" border="0" />

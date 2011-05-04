@@ -1183,7 +1183,7 @@ sub show_aliases {
         'title'   => $self->{lh}->maketext('VBoxAdm Aliases'),
         'current' => 'aliases',
         'aliases' => \@aliases,
-        'domains' => $self->{'Domain'}->list(),
+        'domains' => [$self->{'Domain'}->list()],
         'search'  => $search,
         'page'    => $pager,
     );
@@ -1343,7 +1343,7 @@ sub show_mailboxes {
         'title'     => $self->{lh}->maketext('VBoxAdm Mailboxes'),
         'current'   => 'mailboxes',
         'mailboxes' => \@mailboxes,
-        'domains'   => $self->{'Domain'}->list(),
+        'domains'   => [$self->{'Domain'}->list()],
         'search'    => $search,
         'page'      => $pager,
     );

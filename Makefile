@@ -163,6 +163,7 @@ CSSFILES = \
 
 JSFILES = \
 	res/js/libs/jquery-1.5.1.min.js \
+	res/js/libs/jquery-ui-1.8.12.custom.min.js \
 	res/js/libs/jquery.dataTables.min.js \
 	res/js/script.min.js
 

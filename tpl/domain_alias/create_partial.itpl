@@ -1,17 +1,17 @@
-<div id="edit_form">
+<div class="forms">
 	<form name="create_domain" method="POST">
 		<input type="hidden" name="rm" value="add_domain_alias" />
 		<h1>[% "Add a new domain alias" | l10n %]</h1>
 		
 		<label for="domain_alias">
 			[% "Alias-Domain:" | l10n %]
-			<span class="small"></span>
+			<span class="small">The new domain you're adding.</span>
 		</label>
 		<input class="flat" type="text" name="domain_alias" size="20" />
 		
 		<label for="domain">
 			[% "Target:" | l10n %]
-			<span class="small"></span>
+			<span class="small">The new domain will behave exactly as this domain.</span>
 		</label>
 		[% FOREACH line IN domains %]
 			[% IF loop.first %]

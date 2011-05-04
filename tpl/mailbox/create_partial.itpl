@@ -34,11 +34,15 @@
 		</label>
 		<input type="password" name="password_2" />
 		
+		<div class="spacer"></div>
+		
 		<label for="name">
 			[% "Name:" | l10n %]
 			<span class="small">[% "A human-readable name of the new user." | l10n %]</span>
 		</label>
 		<input type="text" name="name" />
+		
+		<div class="spacer"></div>
 		
 		<label for="is_active">
 			[% "Active:" | l10n %]
@@ -46,11 +50,15 @@
 		</label>
 		<input class="flat" type="checkbox" name="is_active" checked />
 		
+		<div class="spacer"></div>
+		
 		<label for="send_welcome_mail">
 			[% "Send Welcome Mail:" | l10n %]
 			<span class="small">Send an mail to the new mailbox to make sure it is created.</span>
 		</label>
 		<input class="flat" type="checkbox" name="send_welcome_mail" checked />
+		
+		<div class="spacer"></div>
 		
 		<button class="button" type="submit" name="submit">
 			<img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" />

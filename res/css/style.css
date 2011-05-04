@@ -10,7 +10,6 @@
  * - praegnanz.de/weblog/htmlcssjs-kickstart
  */
 
-
 /**
  * html5doctor.com Reset Stylesheet (Eric Meyer's Reset Reloaded + HTML5 baseline)
  * v1.6.1 2010-09-17 | Authors: Eric Meyer & Richard Clark
@@ -456,6 +455,17 @@ footer {
 	padding: 4px 2px;
 	border: solid 1px #fff;
 	width: 200px;
+	margin: 2px 0 20px 10px;
+	color: #ffd800;
+	font-weight: bold;
+	background-color: #000;
+}
+.forms textarea {
+	float: left;
+	font-size: 12px;
+	padding: 4px 2px;
+	border: solid 1px #fff;
+	width: 550px;
 	margin: 2px 0 20px 10px;
 	color: #ffd800;
 	font-weight: bold;

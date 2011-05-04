@@ -1,10 +1,8 @@
 TODO:
 
-- Improve Build-Script
--- compress templates
-
 - Improve design
--- format forms
+-- format forms - use jQuery UI model forms for forms
+-- see http://jqueryui.com/demos/dialog/#modal-form
 
 - Quotas
 
@@ -61,9 +59,6 @@ Make sure class-C ip subnet auto-whitelists are supported
 
 - Maillog
 -- add rsyslog configuration and frontend
-
-- Evaluate datatables:
--- http://www.datatables.net/development/server-side/perl_mysql
 
 - Roundcube Plugin
 -- Use HTTP API once finished, this will reduce the logic required in the plugin to a minmal core

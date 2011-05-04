@@ -25,12 +25,9 @@
   <link rel="apple-touch-icon" href="[% media_prefix %]/apple-touch-icon.png">
 
   <!-- CSS : implied media="all" -->
-  <link rel="stylesheet" href="[% media_prefix %]/css/style.min.css?v=@VERSION@">
-  
-  <style type="text/css" title="currentStyle">
-  	@import "[% media_prefix %]/css/datatable/datatable_jui.min.css?v=@VERSION@";
-	@import "[% media_prefix %]/css/datatable/themes/smoothness/jquery-ui-1.8.4.custom.css?v=@VERSION@";
-  </style>
+  <link rel="stylesheet" href="[% media_prefix %]/css/style.min.css?v=@VERSION@" />
+  <link rel="stylesheet" href="[% media_prefix %]/css/datatable/datatable_jui.min.css?v=@VERSION@" />
+  <link rel="stylesheet" href="[% media_prefix %]/css/themes/ui-darkness/jquery-ui-1.8.12.custom.css?v=@VERSION@" />
 
   <!-- Uncomment if you are specifically targeting less enabled mobile browsers
   <link rel="stylesheet" media="handheld" href="[% media_prefix %]/css/handheld.css?v=@VERSION@">  -->
@@ -48,7 +45,4 @@
     </header>-->
     [% IF nonavigation != 1 %]
 	[% INCLUDE includes/navigation.tpl %]
-	[% END %]
-	[% FOREACH message IN messages %]
-		<div class="[% message.severity %]">[% message.loc %]</div>
 	[% END %]

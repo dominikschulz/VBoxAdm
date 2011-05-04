@@ -10,6 +10,8 @@
 		[% local_part %]@[% domain %]
 		<input type="hidden" name="alias_id" value="[% alias_id %]" />
 		
+		<div class="spacer"></div>
+		
 		<label for="goto">
 			[% "Target:" | l10n %]
 			<span class="small">The target or targets of this alias.</span>
@@ -19,6 +21,8 @@
 		[% ELSE %]
 		<input type="text" name="goto" size="80" value="[% goto %]" />
 		[% END %]
+		
+		<div class="spacer"></div>
 		
 		<button class="button" type="submit" name="submit">
 			<img src="[% media_prefix %]/icons/fffsilk/accept.png" border="0" />
