@@ -1,19 +1,28 @@
 <div class="forms">
-<form name="create_domain" method="POST">
-<input type="hidden" name="rm" value="update_alias" />
-<h1>[% "Modify an alias" | l10n %]</h1>
-[% "Alias:" | l10n %]
-[% local_part %]@[% domain %]
-<input type="hidden" name="alias_id" value="[% alias_id %]" />
-[% "Target:" | l10n %]
-[% IF goto.length > 80 %]
-<textarea class="flat" name="goto" cols="80" rows="20">[% goto %]</textarea>
-[% ELSE %]
-<input class="flat" type="text" name="goto" size="80" value="[% goto %]" />
-[% END %]
-<button class="button" type="submit" name="submit">
-<img src="[% media_prefix %]/icons/fffsilk/accept.png" border="0" />
-[% "Modify Alias" | l10n %]
-</button>
-</form>
+	<form name="create_domain" method="POST">
+		<input type="hidden" name="rm" value="update_alias" />
+		<h1>[% "Modify an alias" | l10n %]</h1>
+		
+		<label for="alias_id">
+			[% "Alias:" | l10n %]
+			<span class="small">You can not change the alias name here.</span>
+		</label>
+		[% local_part %]@[% domain %]
+		<input type="hidden" name="alias_id" value="[% alias_id %]" />
+		
+		<label for="goto">
+			[% "Target:" | l10n %]
+			<span class="small">The target or targets of this alias.</span>
+		</label>
+		[% IF goto.length > 80 %]
+		<textarea class="flat" name="goto" cols="80" rows="20">[% goto %]</textarea>
+		[% ELSE %]
+		<input type="text" name="goto" size="80" value="[% goto %]" />
+		[% END %]
+		
+		<button class="button" type="submit" name="submit">
+			<img src="[% media_prefix %]/icons/fffsilk/accept.png" border="0" />
+			[% "Modify Alias" | l10n %]
+		</button>
+	</form>
 </div>

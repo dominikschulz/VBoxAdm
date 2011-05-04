@@ -44,7 +44,7 @@ $('a.close, #fade').live('click', function() { //When clicking on the close or f
   });
   return false;
 });
-
+// setup navigation
 (function($){
 
 	//cache nav
@@ -68,3 +68,8 @@ $('a.close, #fade').live('click', function() { //When clicking on the close or f
 		}
 	});
 })(jQuery);
+
+// setup datepicker
+/* http://jqueryui.com/demos/datepicker/#date-formats */
+$('#datepicker').datepicker();
+$('#datepicker').datepicker( "option", "dateFormat", "dd.mm.yyyy");
