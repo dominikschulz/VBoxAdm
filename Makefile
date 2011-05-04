@@ -266,8 +266,12 @@ real-install: all test rcvboxadm
 	$(INSTALL) -d $(CFGDIR)/vboxadm
 	$(INSTALL) -d $(LIBDIR)/VBoxAdm/L10N $(LIBDIR)/VBoxAdm/SMTP $(LIBDIR)/VBoxAdm/Model $(LIBDIR)/VBoxAdm/Controller
 	$(INSTALL) -d $(MANDIR)/man1 $(MANDIR)/man3 $(MANDIR)/man8
-	$(INSTALL) -d $(VBOXLIBDIR)/bin $(VBOXLIBDIR)/tpl
-	$(INSTALL) -g www-data -d $(VHDIR)/cgi-bin $(VHDIR)/htdocs/css $(VHDIR)/htdocs/images/knob
+	$(INSTALL) -d $(VBOXLIBDIR)/bin
+	$(INSTALL) -d $(VBOXLIBDIR)/tpl/alias $(VBOXLIBDIR)/tpl/autoconfig $(VBOXLIBDIR)/tpl/awl $(VBOXLIBDIR)/tpl/domain
+	$(INSTALL) -d $(VBOXLIBDIR)/tpl/domain_alias $(VBOXLIBDIR)/tpl/includes $(VBOXLIBDIR)/tpl/mailbox $(VBOXLIBDIR)/tpl/notify
+	$(INSTALL) -d $(VBOXLIBDIR)/tpl/rfc_notify $(VBOXLIBDIR)/tpl/vacation_blacklist $(VBOXLIBDIR)/tpl/vacation_notify
+	$(INSTALL) -g www-data -d $(VHDIR)/cgi-bin $(VHDIR)/htdocs/images/knob $(VHDIR)/htdocs/images/datatables
+	$(INSTALL) -g www-data -d $(VHDIR)/htdocs/css/datatable $(VHDIR)/htdocs/css/themes/ui-darkness/images
 	$(INSTALL) -g www-data -d $(VHDIR)/htdocs/js/libs $(VHDIR)/htdocs/js/mylibs $(VHDIR)/htdocs/js/profiling
 	$(INSTALL_PROGRAM) bin/vboxadm-ma.pl $(SBINDIR)/vboxadm-ma
 	$(INSTALL_PROGRAM) bin/vacation.pl $(VBOXLIBDIR)/bin/vacation
@@ -293,9 +297,24 @@ real-install: all test rcvboxadm
 	$(INSTALL_DATA) lib/VBoxAdm/*.pm $(LIBDIR)/VBoxAdm/
 	$(INSTALL_DATA) lib/VBoxAdm/VBoxAdm::*.3 $(MANDIR)/man3/
 	$(INSTALL_DATA) tpl/*.tpl $(VBOXLIBDIR)/tpl/
+	$(INSTALL_DATA) tpl/alias/*.tpl $(VBOXLIBDIR)/tpl/alias/
+	$(INSTALL_DATA) tpl/autoconfig/*.tpl $(VBOXLIBDIR)/tpl/autoconfig/
+	$(INSTALL_DATA) tpl/awl/*.tpl $(VBOXLIBDIR)/tpl/awl/
+	$(INSTALL_DATA) tpl/domain/*.tpl $(VBOXLIBDIR)/tpl/domain/
+	$(INSTALL_DATA) tpl/domain_alias/*.tpl $(VBOXLIBDIR)/tpl/domain_alias/
+	$(INSTALL_DATA) tpl/includes/*.tpl $(VBOXLIBDIR)/tpl/includes/
+	$(INSTALL_DATA) tpl/mailbox/*.tpl $(VBOXLIBDIR)/tpl/mailbox/
+	$(INSTALL_DATA) tpl/notify/*.tpl $(VBOXLIBDIR)/tpl/notify/
+	$(INSTALL_DATA) tpl/rfc_notify/*.tpl $(VBOXLIBDIR)/tpl/rfc_notify/
+	$(INSTALL_DATA) tpl/vacation_blacklist/*.tpl $(VBOXLIBDIR)/tpl/vacation_blacklist/
+	$(INSTALL_DATA) tpl/vacation_notify/*.tpl $(VBOXLIBDIR)/tpl/vacation_notify/
 	$(INSTALL_DATA) res/css/*.css $(VHDIR)/htdocs/css/
+	$(INSTALL_DATA) res/css/datatable/*.css $(VHDIR)/htdocs/css/datatable/
+	$(INSTALL_DATA) res/css/themes/ui-darkness/*.css $(VHDIR)/htdocs/css/themes/ui-darkness/
+	$(INSTALL_DATA) res/css/themes/ui-darkness/images/*.png $(VHDIR)/htdocs/css/themes/ui-darkness/images/
 	$(INSTALL_DATA) res/images/*.png $(VHDIR)/htdocs/images/
 	$(INSTALL_DATA) res/images/knob/*.png $(VHDIR)/htdocs/images/knob/
+	$(INSTALL_DATA) res/images/datatables/*.png $(VHDIR)/htdocs/images/datatables/
 	$(INSTALL_DATA) res/js/*.js $(VHDIR)/htdocs/js/
 	$(INSTALL_DATA) res/js/libs/*.js $(VHDIR)/htdocs/js/libs/
 #	$(INSTALL_DATA) res/js/mylibs/*.js $(VHDIR)/htdocs/js/mylibs/
