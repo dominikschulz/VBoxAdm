@@ -9,6 +9,8 @@ use Sys::Syslog;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
+# TODO role accounts are for all domains, so only siteadmins should have access
+
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
@@ -103,9 +105,13 @@ use Class::Std;
                     $self->msg->push( 'information', "Updated entry [_1]. Set target to[_2]@[_3].", $entry_id, $local_part, $domain );
                     return 1;
                 }
+                else {
+                    $self->msg->push( 'error', "Unable to update RoleAccount. Database Error #0E." );
+                    return;
+                }
             }
             else {
-                $self->msg->push( 'error', "Unable to update RoleAccount. Database Error." );
+                $self->msg->push( 'error', "Unable to update RoleAccount. Database Error #0P" );
                 return;
             }
         }
@@ -123,7 +129,20 @@ use Class::Std;
             return;
         }
 
-        # TODO delete role account
+        # delete role account
+        if ( $entry_id && $entry_id =~ m/^\d+$/ ) {
+            my $query = "DELETE FROM role_accounts WHERE id = ?";
+            if ( my $sth = $self->dbh->prepare($query) ) {
+                if ( $sth->execute($entry_id) ) {
+                    $sth->finish();
+                    $self->msg->push( 'information', "Deleted entry [_1].", $entry_id );
+                    return 1;
+                }
+            }
+            else {
+                $self->msg->push( 'error', "Unable to delete RoleAccount $entry_id. Database Error." );
+            }
+        }
     }
 
     sub read {

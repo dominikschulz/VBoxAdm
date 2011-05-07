@@ -392,7 +392,7 @@ sub teardown {
 sub cgiapp_init {
     my $self = shift;
 
-	# TODO query before syslog ... syslog before query (in setup) ... something is wrong here
+	  # TODO query before syslog ... syslog before query (in setup) ... something is wrong here
     # Everything should be in UTF-8!
     $self->query->charset('UTF-8');
 
@@ -775,12 +775,6 @@ sub show_domains {
     my $sth_domainaliases = $dbh->prepare($sql_domainaliases);
     
     my @domains = $self->{'Domain'}->list(\%params);
-    my $pager = Data::Page->new();
-    $pager->total_entries(scalar(@domains));
-    $pager->entries_per_page($ENTRIES_PER_PAGE);
-    $pager->current_page($page);
-    $params{'Limit'} = $pager->skipped.','.$pager->entries_per_page;
-    @domains = $self->{'Domain'}->list(\%params);
     
     foreach my $domain (@domains) {
     	if($sth_aliases->execute($domain->{'id'})) {
@@ -803,7 +797,6 @@ sub show_domains {
         'current' => 'domains',
         'domains' => \@domains,
         'search'  => $search,
-        'page'    => $pager,
     );
 
     return $self->tt_process( 'domain/list.tpl', \%params );
@@ -975,26 +968,18 @@ sub show_domain_aliases {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $page   = $q->param('page')   || 1;
     my $search = $q->param('search');
     my %params = (
     	'Search' => $search,
     );
     
     my @domains = $self->{'DomainAlias'}->list(\%params);
-    my $pager = Data::Page->new();
-    $pager->total_entries(scalar(@domains));
-    $pager->entries_per_page($ENTRIES_PER_PAGE);
-    $pager->current_page($page);
-    $params{'Limit'} = $pager->skipped.','.$pager->entries_per_page;
-    @domains = $self->{'DomainAlias'}->list(\%params);
 
     %params = (
         'title'   => $self->{lh}->maketext('VBoxAdm Domain-Aliases'),
         'current' => 'domain_aliases',
         'domains' => \@domains,
         'search'  => $search,
-        'page'    => $pager,
     );
 
     return $self->tt_process( 'domain_alias/list.tpl', \%params );
@@ -1165,19 +1150,12 @@ sub show_aliases {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $page   = $q->param('page')   || 1;
     my $search = $q->param('search');
     my %params = (
     	'Search' => $search,
     );
     
     my @aliases = $self->{'Alias'}->list(\%params);
-    my $pager = Data::Page->new();
-    $pager->total_entries(scalar(@aliases));
-    $pager->entries_per_page($ENTRIES_PER_PAGE);
-    $pager->current_page($page);
-    $params{'Limit'} = $pager->skipped.','.$pager->entries_per_page;
-    @aliases = $self->{'Alias'}->list(\%params);
     
     %params = (
         'title'   => $self->{lh}->maketext('VBoxAdm Aliases'),
@@ -1185,7 +1163,6 @@ sub show_aliases {
         'aliases' => \@aliases,
         'domains' => [$self->{'Domain'}->list()],
         'search'  => $search,
-        'page'    => $pager,
     );
 
     return $self->tt_process( 'alias/list.tpl', \%params );
@@ -1332,12 +1309,6 @@ sub show_mailboxes {
     );
     
     my @mailboxes = $self->{'Mailbox'}->list(\%params);
-    my $pager = Data::Page->new();
-    $pager->total_entries(scalar(@mailboxes));
-    $pager->entries_per_page($ENTRIES_PER_PAGE);
-    $pager->current_page($page);
-    $params{'Limit'} = $pager->skipped.','.$pager->entries_per_page;
-    @mailboxes = $self->{'Mailbox'}->list(\%params);
     
     %params = (
         'title'     => $self->{lh}->maketext('VBoxAdm Mailboxes'),
@@ -1345,7 +1316,6 @@ sub show_mailboxes {
         'mailboxes' => \@mailboxes,
         'domains'   => [$self->{'Domain'}->list()],
         'search'    => $search,
-        'page'      => $pager,
     );
 
     return $self->tt_process( 'mailbox/list.tpl', \%params );
@@ -1400,18 +1370,18 @@ sub show_add_mailbox {
     my $q = $self->query();
 
     my $domain_id         = $q->param('domain');
-    my $local_part          = &VBoxAdm::Utils::trim( lc( $q->param('username') ) );
+    my $local_part        = &VBoxAdm::Utils::trim( lc( $q->param('username') ) );
     my %params = (
 	    'Password'          => $q->param('password'),
 	    'PasswordAgain'     => $q->param('password_2'),
 	    'Name'              => $q->param('name'),
 	    'IsActive'          => $q->param('is_active'),
-	    'SendWelcomeMail' => $q->param('send_welcome_mail'),
-	    'MaxMsgSize'   => $q->param('max_msg_size_mb'),
-	    'SAActive'      => $q->param('sa_active'),
-	    'SAKillScore'  => $q->param('sa_kill_score') || 6.31,
-	    'IsSiteadmin' => 0,
-	    'IsDomainadmin' => 0,
+	    'SendWelcomeMail'   => $q->param('send_welcome_mail'),
+	    'MaxMsgSize'   			=> $q->param('max_msg_size_mb'),
+	    'SAActive'      		=> $q->param('sa_active'),
+	    'SAKillScore'  			=> $q->param('sa_kill_score') || 6.31,
+	    'IsSiteadmin' 			=> 0,
+	    'IsDomainadmin' 		=> 0,
     );
 
     if ( $params{'IsActive'} && $params{'IsActive'} eq 'on' ) {
@@ -1480,9 +1450,9 @@ sub show_edit_mailbox {
       'user_is_superadmin' => $self->user->is_siteadmin(),
       'current' 					 => 'mailboxes',
       'cc_goto'            => $cc_goto,
-        'cc_id'              => $cc_id,
-        'mb_is_domainadmin' => $mailbox_ref->{'is_domainadmin'},
-        'mb_is_superadmin' => $mailbox_ref->{'is_superadmin'},
+      'cc_id'              => $cc_id,
+      'mb_is_domainadmin'  => $mailbox_ref->{'is_domainadmin'},
+      'mb_is_superadmin'   => $mailbox_ref->{'is_superadmin'},
 		);
 		foreach my $key (keys %{$mailbox_ref}) {
 			$params{$key} = $mailbox_ref->{$key};
@@ -1554,24 +1524,9 @@ sub show_log {
     }
     $query .= "ORDER BY ts DESC";
 
-    # Get number of entries for pager
-    my $sth = $dbh->prepare( 'SELECT COUNT(*) ' . $query )
-      or syslog( 2, 'show_log - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-    $sth->execute(@args)
-      or syslog( 2, 'show_log - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
-    my $num_rows = $sth->fetchrow_array();
-    $sth->finish();
-
-    my $pager = Data::Page->new();
-    $pager->total_entries($num_rows);
-    $pager->entries_per_page($ENTRIES_PER_PAGE);
-    $pager->current_page($page);
-
     # Get the actual data
-    $sth = $dbh->prepare( 'SELECT ts,msg ' . $query . ' LIMIT ?, ?' )
+    my $sth = $dbh->prepare( 'SELECT ts,msg ' . $query . ' LIMIT ?, ?' )
       or syslog( 2, 'show_log - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
-    push( @args, $pager->skipped );
-    push( @args, $pager->entries_per_page );
     $sth->execute(@args)
       or syslog( 2, 'show_log - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
 
@@ -1586,7 +1541,6 @@ sub show_log {
         'current' => 'log',
         'log'     => \@log,
         'search'  => $search,
-        'page'    => $pager,
     );
 
     return $self->tt_process( 'log.tpl', \%params );
@@ -1612,12 +1566,6 @@ sub show_vacation_blacklist {
     );
     
     my @blacklist = $self->{'VacationBlacklist'}->list(\%params);
-    my $pager = Data::Page->new();
-    $pager->total_entries(scalar(@blacklist));
-    $pager->entries_per_page($ENTRIES_PER_PAGE);
-    $pager->current_page($page);
-    $params{'Limit'} = $pager->skipped.','.$pager->entries_per_page;
-    @blacklist = $self->{'VacationBlacklist'}->list(\%params);
 
     %params = (
         'title'     => $self->{lh}->maketext('VBoxAdm Vacation Blacklist'),
@@ -1813,12 +1761,6 @@ sub show_awl {
     );
     
     my @awl = $self->{'AWL'}->list(\%params);
-    my $pager = Data::Page->new();
-    $pager->total_entries(scalar(@awl));
-    $pager->entries_per_page($ENTRIES_PER_PAGE);
-    $pager->current_page($page);
-    $params{'Limit'} = $pager->skipped.','.$pager->entries_per_page;
-    @awl = $self->{'AWL'}->list(\%params);
     
     %params = (
         'title'   => $self->{lh}->maketext('VBoxAdm Auto-Whitelist'),
@@ -1876,24 +1818,76 @@ sub show_admins {
     );
     
     my @mailboxes = $self->{'Mailbox'}->list(\%params);
-    my $pager = Data::Page->new();
-    $pager->total_entries(scalar(@mailboxes));
-    $pager->entries_per_page($ENTRIES_PER_PAGE);
-    $pager->current_page($page);
-    $params{'Limit'} = $pager->skipped.','.$pager->entries_per_page;
-    @mailboxes = $self->{'Mailbox'}->list(\%params);
 
     %params = (
         'title'   => $self->{lh}->maketext('VBoxAdm Admins'),
         'current' => 'admins',
         'admins'  => \@mailboxes,
         'search'  => $search,
-        'page'    => $pager,
     );
 
     return $self->tt_process( 'mailbox/admins.tpl', \%params );
 }
 
+#
+# RoleAccounts
+#
+sub show_roleaccs {
+		my $self = shift;
+	
+		# Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $search = $q->param('search');
+    my %params = (
+    	'Search' => $search,
+    	'Order'  => 'domain',
+    );
+    
+    my @roleacc = $self->{'RoleAccount'}->list(\%params);
+
+    %params = (
+        'title'     => $self->{lh}->maketext('VBoxAdm Role Accounts'),
+        'current'   => 'vacation',
+        'roleacc' => \@roleacc,
+        'search'    => $search,
+    );
+
+    return $self->tt_process( 'role_accounts/list.tpl', \%params );
+}
+
+sub show_add_role_account {
+	my $self = shift;
+	
+	# TODO implement
+}
+
+sub show_create_role_account {
+	my $self = shift;
+	
+	# TODO implement
+}
+
+sub show_edit_role_account {
+	my $self = shift;
+	
+	# TODO implement
+}
+
+sub show_remove_role_account {
+	my $self = shift;
+	
+	# TODO implement
+}
+
+sub show_update_role_account {
+	my $self = shift;
+	
+	# TODO implement
+}
 1;
 
 __END__

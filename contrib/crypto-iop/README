@@ -1,0 +1,8 @@
+API Prototpyes
+
+The roundcube plugin should have no "business logic" by itself. It will only dispatch requests to the HTTP API.
+
+Requests will be encrypted, each request will consist of:
+- u=username (email addy)
+- p=payload (encrypted request, users password - zero-padded/cut to 56 chars - is used as the key),
+iv is hardcoded

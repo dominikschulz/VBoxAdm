@@ -264,6 +264,7 @@ nav li a {
 	text-decoration:none;
 }
 nav li a:focus {
+	color: #fff;
 	outline:none;
 	text-decoration:underline;
 }
@@ -478,16 +479,20 @@ footer {
 	width: 10px;
 }
 .forms button {
-	clear:both;
-	margin-left:220px;
-	width:125px;
-	height:31px;
-	background:#666666 url(img/button.png) no-repeat;
-	text-align:center;
-	line-height:31px;
-	color:#FFFFFF;
-	font-size:11px;
-	font-weight:bold;
+	clear: both;
+	margin-left: 220px;
+	width: 125px;
+	height: 31px;
+	background: #000;
+	text-align: center;
+	line-height: 31px;
+	color: #fff;
+	font-size: 1.2em;
+	font-weight: bold;
+	border: 2px solid #ffd800;
+	-moz-border-radius:4px;
+	-webkit-border-radius:4px;
+	border-radius:4px;
 }
 
 /*
