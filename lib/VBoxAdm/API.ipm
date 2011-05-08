@@ -6,10 +6,153 @@ use strict;
 use warnings;
 
 use Carp;
+use JSON;
+use Crypt::CBC;
+use Digest::SHA;
+use MIME::Base64;
+
+use VBoxAdm::Utils '@VERSION@';
 
 our $VERSION = '@VERSION@';
 
 # TODO implement the web-accessible API here
+sub show_api {
+    my $self = shift;
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $api_version = $q->param('v');
+
+    if ( $api_version == 1 ) {
+        return &handle_v1($self);
+    }
+    else {
+        return "Unknown API Version.\n";
+    }
+}
+
+sub handle_v1 {
+    my $cgiapp = shift;
+
+    # Get CGI Query object
+    my $q = $cgiapp->query();
+
+    my $payload = $q->param('p');
+
+    if ( !$payload ) {
+        return "Missing parameters.\n";
+    }
+
+    $plaintext = &decrypt( $cgiapp, $payload );
+
+    if ( !$plaintext ) {
+        return "Unable to decode. Check you API key.\n";
+    }
+
+    # plaintext should now contain a JSON string
+    my $json     = JSON->new->utf8;
+    my $hash_ref = $json->decode($plaintext);
+
+    if ( ref($hash_ref) ne 'HASH' ) {
+        return "Illegal request.\n";
+    }
+
+    # $hash_ref->{mailbox}->{update}->{username}->{...}
+    # $hash_ref->{mailbox}->{read}->{username}
+
+    # TODO process requests in hash_ref
+    # return response as crypted, json encoded string
+}
+
+sub decrypt {
+    my $cgiapp     = shift;
+    my $ciphertext = shift;
+
+    # get the secret application key from the config
+    my $raw_key = $cgiapp->{config}->{'api'}->{'key'};
+
+    if ( !$raw_key || length($raw_key) < 12 ) {
+
+        # TODO syslog - misconfigured server
+        return;
+    }
+
+    my $key = &gen_key($raw_key);
+    my $iv  = &gen_iv($raw_key);
+
+    # the Crypt::CBC parameters are important,
+    # this set of parameters makes the ciphertext
+    # compatible with PHP's mcrypt_cbc method.
+    my $cipher = Crypt::CBC->new(
+        -key         => $key,
+        -cipher      => 'Blowfish',
+        -iv          => $iv,
+        -header      => 'none',
+        -padding     => 'null',
+        -literal_key => 1,
+        -keysize     => length($key),
+    );
+
+    my $plaintext = undef;
+    eval { $plaintext = $cipher->decrypt($ciphertext); };
+    if ( $@ || !$plaintext ) {
+        return;
+    }
+    else {
+        return $plaintext;
+    }
+}
+
+sub encrypt {
+    my $cgiapp    = shift;
+    my $plaintext = shift;
+
+    # get the secret application key from the config
+    my $raw_key = $cgiapp->{config}->{'api'}->{'key'};
+
+    if ( !$raw_key || length($raw_key) < 12 ) {
+
+        # TODO syslog - misconfigured server
+        return;
+    }
+
+    my $key = &gen_key($raw_key);
+    my $iv  = &gen_iv($raw_key);
+
+    # the Crypt::CBC parameters are important,
+    # this set of parameters makes the ciphertext
+    # compatible with PHP's mcrypt_cbc method.
+    my $cipher = Crypt::CBC->new(
+        -key         => $key,
+        -cipher      => 'Blowfish',
+        -iv          => $iv,
+        -header      => 'none',
+        -padding     => 'null',
+        -literal_key => 1,
+        -keysize     => length($key),
+    );
+
+    my $ciphertext = undef;
+    eval { $ciphertext = $cipher->encrypt($plaintext); };
+    if ( $@ || !$ciphertext ) {
+        return;
+    }
+    else {
+        return $ciphertext;
+    }
+}
+
+sub gen_key {
+    my $key = shift;
+    return substr( Digest::SHA::sha512($key), 0, 56 );
+}
+
+sub gen_iv {
+    my $key = shift;
+    return substr( Digest::SHA::sha512($key), 56 );
+}
+
 1;
 __END__
 sub show_api {

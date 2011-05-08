@@ -58,6 +58,7 @@ Readonly my $ENTRIES_PER_PAGE => 20;
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
+# setup is run right after cgiapp_init
 sub setup {
     my $self = shift;
 
@@ -141,6 +142,9 @@ sub setup {
 
         # Mailarchive
         # TODO show mailarchive if configured
+        
+        # RoleAccounts
+        # TODO show role accounts, once the templates are ready
     );
 
     # Authentication
@@ -389,10 +393,10 @@ sub teardown {
 #
 # CGI::Application Hooks
 #
+# cgiapp_init is run right before setup
 sub cgiapp_init {
     my $self = shift;
 
-	  # TODO query before syslog ... syslog before query (in setup) ... something is wrong here
     # Everything should be in UTF-8!
     $self->query->charset('UTF-8');
 
@@ -1324,7 +1328,7 @@ sub show_mailboxes {
 sub show_create_mailbox {
     my $self = shift;
 
-    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
+    if ( !$self->user->is_admin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
@@ -1860,33 +1864,106 @@ sub show_roleaccs {
 }
 
 sub show_add_role_account {
-	my $self = shift;
+		my $self = shift;
 	
-	# TODO implement
+		if ( !$self->user->is_siteadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+		my $role         = $q->param('role');
+    my $goto        = &VBoxAdm::Utils::trim( lc( $q->param('goto') ) );
+    
+    $self->{'RoleAccount'}->create($role,$goto);
+    
+    $self->redirect( $self->{base_url} . '?rm=roleaccs' );
+    return;
 }
 
 sub show_create_role_account {
 	my $self = shift;
 	
-	# TODO implement
+	if ( !$self->user->is_siteadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    my %params = (
+        'title'   => $self->{lh}->maketext('VBoxAdm Role Accounts - Create Entry'),
+        'current' => 'roleacc',
+    );
+
+    return $self->tt_process( 'role_account/create.tpl', \%params );
 }
 
 sub show_edit_role_account {
 	my $self = shift;
-	
-	# TODO implement
+
+    if ( !$self->user->is_admin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $roleacc_id = $q->param('roleacc_id');
+    my $roleacc_ref = $self->{'RoleAccount'}->read($roleacc_id);
+    
+    my %params = (
+        'title'      => $self->{lh}->maketext('Edit Alias'),
+        'roleacc_id'   => $roleacc_id,
+        'current'  => 'roleaccs',
+    );
+    
+    foreach my $key (keys %{$roleacc_ref}) {
+    	$params{$key} = $roleacc_ref->{$key};
+    }
+
+    return $self->tt_process( 'role_account/edit.tpl', \%params );
 }
 
 sub show_remove_role_account {
 	my $self = shift;
 	
-	# TODO implement
+	 # Get CGI Query object
+    my $q = $self->query();
+
+    my $roleacc_id = $q->param('roleacc_id');
+    
+    $self->{'RoleAccount'}->delete($roleacc_id);
+    
+    $self->redirect( $self->{base_url} . '?rm=roleaccs' );
+    return;
 }
 
 sub show_update_role_account {
 	my $self = shift;
 	
-	# TODO implement
+	  # Get CGI Query object
+    my $q = $self->query();
+
+    my $roleacc_id = $q->param('roleacc_id');
+    my %params = (
+    	'Goto' => $q->param('goto'),
+    );
+    
+    $self->{'RoleAccount'}->update($roleacc_id, \%params);
+    
+    $self->redirect( $self->{base_url} . '?rm=roleaccs' );
+    return;
 }
 1;
 
