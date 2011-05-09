@@ -44,7 +44,7 @@ sub handle_v1 {
         return "Missing parameters.\n";
     }
 
-    $plaintext = &decrypt( $cgiapp, $payload );
+    my $plaintext = &decrypt( $cgiapp, $payload );
 
     if ( !$plaintext ) {
         return "Unable to decode. Check you API key.\n";
@@ -63,6 +63,12 @@ sub handle_v1 {
 
     # TODO process requests in hash_ref
     # return response as crypted, json encoded string
+    foreach my $module (keys %{$hash_ref}) {
+    	next if ref($hash_ref->{$module} ne 'HASH');
+    	foreach my $action (keys %{$hash_ref->{$module}}) {
+    		# TODO
+    	}
+    }
 }
 
 sub decrypt {

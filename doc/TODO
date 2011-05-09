@@ -4,6 +4,8 @@ TODO:
 -- format forms - use jQuery UI model forms for forms
 -- see http://jqueryui.com/demos/dialog/#modal-form
 
+- "Back to ..." Link in should log the user out
+
 - Quotas
 
 - Relay Domains
@@ -25,21 +27,12 @@ SELECT CONCAT(local_part,'@',domain) AS goto FROM role_accounts WHERE name = '%u
 
 - Demo mode
 
-- Implement API (JSON/REST/... ?)
+- Implement API
 
 - Evaluate alternatives to postgrey
 Make sure class-C ip subnet auto-whitelists are supported
 
 - Allow dynamic mysql lookup tables in recipient checks?
-
-- Templates:
--- Add XML templates
--- Add CSV templates
--- Add alternate styles
--- Add plaintext templates
-
-- Translation:
--- Translate status messages*
 
 - CGI::Application:
 -- add ActionDispatch when Bug #65224 is fixed - test if cgi.fix_pathinfo = 1 solves this issue
@@ -65,6 +58,3 @@ Make sure class-C ip subnet auto-whitelists are supported
 
 - Evaluate Perl Dancer
 - Evaluate http://mojolicio.us/
-
-* - in progress
-

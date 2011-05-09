@@ -233,7 +233,7 @@ sub setup {
         }
     }
     if ( !$conffile_used ) {
-        syslog( 2, "setup - Warning: No config file found in search path! (".join(':',@conffile_locations).")" );
+        syslog( 2, "setup - Warning: No readable config file found in search path! (".join(':',@conffile_locations).")" );
     }
     $self->{config} = \%config;
 
@@ -264,7 +264,7 @@ sub setup {
         }
     );
     if(!$self->dbh) {
-    	syslog( 2, "setup - Failed to establish DB connection with DSN $dsn!" );
+    	syslog( 2, "setup - Failed to establish DB connection with DSN $dsn and error message: ".DBI->errstr );
     	die("Could not connect to DB.");
     }
 
@@ -292,9 +292,13 @@ sub setup {
     # Short version: they allow filters with more than one argument.
     # highlight provides syntax highlightning for the search
     # l10n provides localization via Locale::Maketext
+    my @include_path = qw(tpl ../tpl /usr/lib/vboxadm/tpl);
+    if($config{'cgi'}{'template_path'} && -d $config{'cgi'}{'template_path'}) {
+    	unshift(@include_path, $config{'cgi'}{'template_path'});
+    }
     $self->tt_config(
         TEMPLATE_OPTIONS => {
-            INCLUDE_PATH => [ 'tpl', '../tpl', '/usr/lib/vboxadm/tpl' ],
+            INCLUDE_PATH => \@include_path,
             POST_CHOMP   => 1,
             FILTERS      => {
                 'currency' => sub { sprintf( '%0.2f', @_ ) },

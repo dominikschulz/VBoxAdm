@@ -18,6 +18,7 @@ no_ssl=1
 base_url=/cgi-bin/vboxadm.pl
 media_prefix=
 clean_html=1
+#template_path=/my/custom/templates
 
 # config for vacation autoresonder
 [vacation]
