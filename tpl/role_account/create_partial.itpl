@@ -1,0 +1,23 @@
+<div id="edit_form">
+	<form name="create_domain" method="POST">
+		<input type="hidden" name="rm" value="add_vac_bl" />
+		<h1>[% "Create a new Role Account" | l10n %]</h1>
+		
+		<label for="name">
+			[% "Name:" | l10n %]
+			<span class="small">The local part of the Role Account you're creating.</span>
+		</label>
+		<input class="flat" type="text" name="name" />
+		
+		<label for="goto">
+			[% "Target:" | l10n %]
+			<span class="small">The mailbox who will receive mails for this role.</span>
+		</label>
+		<input class="flat" type="text" name="goto" />
+		
+		<button class="button" type="submit" name="submit">
+			<img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" />
+			[% "Add Entry" | l10n %]
+		</button>
+	</form>
+</div>

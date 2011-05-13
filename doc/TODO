@@ -1,8 +1,8 @@
 TODO:
 
 - Improve design
--- format forms - use jQuery UI model forms for forms
--- see http://jqueryui.com/demos/dialog/#modal-form
+-- format forms - use jQuery UI modal forms for forms
+-- seke http://jqueryui.com/demos/dialog/#modal-form
 
 - "Back to ..." Link in should log the user out
 
