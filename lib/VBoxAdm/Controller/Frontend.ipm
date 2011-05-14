@@ -145,6 +145,12 @@ sub setup {
         
         # RoleAccounts
         # TODO show role accounts, once the templates are ready
+        'role_accounts' => 'show_role_accounts',
+        'create_role_account' => 'show_create_role_account',
+        'add_role_account' => 'show_add_role_account',
+        'remove_role_account' => 'show_remove_role_account',
+        'edit_role_account' => 'show_edit_role_account',
+        'update_role_account' => 'show_update_role_account',
     );
 
     # Authentication
@@ -1840,7 +1846,7 @@ sub show_admins {
 #
 # RoleAccounts
 #
-sub show_roleaccs {
+sub show_role_accounts {
 		my $self = shift;
 	
 		# Get our database connection
@@ -1864,7 +1870,7 @@ sub show_roleaccs {
         'search'    => $search,
     );
 
-    return $self->tt_process( 'role_accounts/list.tpl', \%params );
+    return $self->tt_process( 'role_account/list.tpl', \%params );
 }
 
 sub show_add_role_account {
@@ -2013,6 +2019,7 @@ TODO
 None known.
 
 =head1 BUGS AND LIMITATIONS
+
 There are no known bugs in this module.
 Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
 Patches are welcome.

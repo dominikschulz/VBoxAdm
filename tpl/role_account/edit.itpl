@@ -1,0 +1,5 @@
+[% INCLUDE includes/header.tpl %]
+    <div id="main">
+		[% INCLUDE role_account/edit_partial.tpl %]
+    </div>
+[% INCLUDE includes/footer.tpl %]

@@ -48,6 +48,7 @@ BINFILES = \
 	cgi-bin/autodiscover.pl \
 	cgi-bin/vboxadm.pl \
 	cgi-bin/vboxadm.fcgi \
+	cgi-bin/vboxapi.pl \
 	cron/cleanup.pl \
 	cron/awl.pl \
 	cron/notify.pl \
@@ -59,6 +60,7 @@ BINFILES = \
 	contrib/is_utf8.pl
 
 LIBFILES = \
+	lib/VBoxAdm/Controller/API.pm \
 	lib/VBoxAdm/Controller/Frontend.pm \
 	lib/VBoxAdm/L10N/ar.pm \
 	lib/VBoxAdm/L10N/da.pm \

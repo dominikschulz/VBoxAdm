@@ -1,4 +1,4 @@
-package VBoxAdm::API;
+package VBoxAdm::Controller::API;
 
 use base 'CGI::Application';
 
@@ -27,14 +27,6 @@ use VBoxAdm::Model::VacationBlacklist '@VERSION@';
 use VBoxAdm::Model::VacationNotify '@VERSION@';
 
 our $VERSION = '@VERSION@';
-
-# TODO implement the web-accessible API here
-
-# TODO show_setup
-# -> read config
-# -> dbh setup
-# -> routing setup
-# -> L10N
 
 ############################################
 # Usage      : Invoked by CGIApp
@@ -392,18 +384,18 @@ __END__
 
 =head1 NAME
 
-VBoxAdm::API - HTTP-API for VBoxAdm
+VBoxAdm::Controller::API - HTTP-API for VBoxAdm
 
 =head1 VERSION
 
-This documentation refers to VBoxAdm::API version @VERSION@
+This documentation refers to VBoxAdm::Controller::API version @VERSION@
 built on @BUILDDATE@.
 
 =head1 SYNOPSIS
 
-    use VBoxAdm::API;
-		my $vadm = VBoxAdm::API->new();
-		$vadm->run();
+    use VBoxAdm::Controller::API;
+		my $vboxapi = VBoxAdm::Controller::API->new();
+		$vboxapi->run();
 
 =head1 DESCRIPTION
 

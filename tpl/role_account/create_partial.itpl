@@ -11,7 +11,7 @@
 		
 		<label for="goto">
 			[% "Target:" | l10n %]
-			<span class="small">The mailbox who will receive mails for this role.</span>
+			<span class="small">The mailbox which will receive mails for this role.</span>
 		</label>
 		<input class="flat" type="text" name="goto" />
 		

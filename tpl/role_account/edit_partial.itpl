@@ -1,0 +1,29 @@
+<div class="forms">
+	<form name="edit_role_account" method="POST">
+		<input type="hidden" name="rm" value="update_role_account" />
+		
+		<h1>[% "Modify a Role Account" | l10n %]</h1>
+		
+		<label for="name">
+			[% "Name:" | l10n %]
+			<span class="small">The name of the role.</span>
+		</label>
+		[% name %]@*
+		<input type="hidden" name="role_account_id" value="[% role_account_id %]" />
+		
+		<div class="spacer"></div>
+		
+		<label for="goto">
+			[% "Target:" | l10n %]
+			<span class="small">The mailbox which will receive mails for this role.</span>
+		</label>
+		<input class="flat" type="text" name="goto" autocomplete="off" />
+		
+		<div class="spacer"></div>
+		
+		<button class="button" type="submit" name="submit">
+			<img src="[% media_prefix %]/icons/fffsilk/accept.png" border="0" />
+			[% "Modify Role Account" | l10n %]
+		</button>
+	</form>
+</div>
