@@ -143,7 +143,6 @@ sub setup {
         # TODO show mailarchive if configured
         
         # RoleAccounts
-        # TODO show role accounts, once the templates are ready
         'role_accounts' => 'show_role_accounts',
         'create_role_account' => 'show_create_role_account',
         'add_role_account' => 'show_add_role_account',
@@ -366,20 +365,14 @@ sub setup {
 			    'Logger'       => \&syslog,
 			    'Config'       => $self->{'config'},
 			};
-			my $Alias             = VBoxAdm::Model::Alias->new($arg_ref);
-			my $AWL               = VBoxAdm::Model::AWL->new($arg_ref);
-			my $Domain            = VBoxAdm::Model::Domain->new($arg_ref);
-			my $DomainAlias       = VBoxAdm::Model::DomainAlias->new($arg_ref);
-			my $Mailbox           = VBoxAdm::Model::Mailbox->new($arg_ref);
-			my $RFCNotify					= VBoxAdm::Model::RFCNotify->new($arg_ref);
-			my $VacationBlacklist = VBoxAdm::Model::VacationBlacklist->new($arg_ref);
-			$self->{'Alias'} = $Alias;
-			$self->{'AWL'} = $AWL;
-			$self->{'Domain'} = $Domain;
-			$self->{'DomainAlias'} = $DomainAlias;
-			$self->{'Mailbox'} = $Mailbox;
-			$self->{'RFCNotify'} = $RFCNotify;
-			$self->{'VacationBlacklist'} = $VacationBlacklist;
+			$self->{'Alias'}             = VBoxAdm::Model::Alias->new($arg_ref);
+			$self->{'AWL'}               = VBoxAdm::Model::AWL->new($arg_ref);
+			$self->{'Domain'}            = VBoxAdm::Model::Domain->new($arg_ref);
+			$self->{'DomainAlias'}       = VBoxAdm::Model::DomainAlias->new($arg_ref);
+			$self->{'Mailbox'}           = VBoxAdm::Model::Mailbox->new($arg_ref);
+			$self->{'RFCNotify'}			   = VBoxAdm::Model::RFCNotify->new($arg_ref);
+			$self->{'RoleAccount'}			 = VBoxAdm::Model::RoleAccount->new($arg_ref);
+			$self->{'VacationBlacklist'} = VBoxAdm::Model::VacationBlacklist->new($arg_ref);
     }
 
     # to make perlcritic happy
@@ -1886,12 +1879,12 @@ sub show_add_role_account {
     # Get CGI Query object
     my $q = $self->query();
 
-		my $role         = $q->param('role');
-    my $goto        = &VBoxAdm::Utils::trim( lc( $q->param('goto') ) );
+		my $role = $q->param('role');
+    my $goto = &VBoxAdm::Utils::trim( lc( $q->param('goto') ) );
     
     $self->{'RoleAccount'}->create($role,$goto);
     
-    $self->redirect( $self->{base_url} . '?rm=roleaccs' );
+    $self->redirect( $self->{base_url} . '?rm=role_accounts' );
     return;
 }
 

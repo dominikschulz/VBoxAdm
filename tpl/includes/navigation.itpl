@@ -36,6 +36,7 @@
 				<li><a[% IF current == 'vacation' %] class="current"[% END %] href="[% base_url %]?rm=vac_bl">[% "Vacation Blacklist" | l10n %]</a></li>
 				<li><a[% IF current == 'awl' %] class="current"[% END %] href="[% base_url %]?rm=awl">[% "Auto-Whitelist" | l10n %]</a></li>
 				<li><a[% IF current == 'log' %] class="current"[% END %] href="[% base_url %]?rm=log">[% "View Log" | l10n %]</a></li>
+				<li><a[% IF current == 'role_accounts' %] class="current"[% END %] href="[% base_url %]?rm=role_accounts">[% "Role Accounts" | l10n %]</a></li>
 			</ul>
 		</li>
 		[% END %]

@@ -1,4 +1,4 @@
-<div id="edit_form">
+<div class="forms">
 	<form name="create_vacbl" method="POST">
 		<input type="hidden" name="rm" value="add_vac_bl" />
 		<h1>[% "Create a Vacation Blacklist Entry" | l10n %]</h1>
