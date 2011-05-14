@@ -45,6 +45,7 @@ BINFILES = \
 	bin/vboxadm-ma.pl \
 	bin/vboxadm-sa.pl \
 	bin/vboxadm.pl \
+	bin/vboxadmr.pl \
 	cgi-bin/autodiscover.pl \
 	cgi-bin/vboxadm.pl \
 	cgi-bin/vboxadm.fcgi \
@@ -113,6 +114,7 @@ MANFILES = \
 	cron/cleanup.8 \
 	cron/mailarchive.8 \
 	cron/notify.8 \
+	lib/VBoxAdm/Controller/API.3 \
 	lib/VBoxAdm/Controller/Frontend.3 \
 	lib/VBoxAdm/Model/Alias.3 \
 	lib/VBoxAdm/Model/AWL.3 \
@@ -136,6 +138,7 @@ MANFILES = \
 	lib/VBoxAdm/Utils.3
 
 TESTFILES = \
+	t/VBoxAdm/Controller/API.t \
 	t/VBoxAdm/Controller/Frontend.t \
 	t/VBoxAdm/L10N/de.t \
 	t/VBoxAdm/L10N/en.t \
@@ -195,6 +198,11 @@ TPLFILES = \
 	tpl/mailbox/edit.tpl \
 	tpl/mailbox/list.tpl \
 	tpl/rfc_notify/list.tpl \
+	tpl/role_account/create_partial.tpl \
+	tpl/role_account/create.tpl \
+	tpl/role_account/edit_partial.tpl \
+	tpl/role_account/edit.tpl \
+	tpl/role_account/list.tpl \
 	tpl/vacation_blacklist/create_partial.tpl \
 	tpl/vacation_blacklist/create.tpl \
 	tpl/vacation_blacklist/list.tpl \
@@ -279,6 +287,7 @@ real-install: all test rcvboxadm
 	$(INSTALL_PROGRAM) bin/vacation.pl $(VBOXLIBDIR)/bin/vacation
 	$(INSTALL_PROGRAM) bin/vboxadm-sa.pl $(SBINDIR)/vboxadm-sa
 	$(INSTALL_PROGRAM) bin/vboxadm.pl $(BINDIR)/vboxadm
+	$(INSTALL_PROGRAM) bin/vboxadmr.pl $(BINDIR)/vboxadmr
 	$(INSTALL_DATA) bin/*.8 $(MANDIR)/man8/
 	$(INSTALL_DATA) cgi-bin/*.1 $(MANDIR)/man1/
 	$(INSTALL_DATA) cron/*.8 $(MANDIR)/man8/

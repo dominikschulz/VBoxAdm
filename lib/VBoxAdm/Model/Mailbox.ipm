@@ -517,6 +517,7 @@ use Class::Std;
         while ( my @row = $sth->fetchrow_array() ) {
             my %h;
             @h{@fields} = @row;
+            delete( $h{'password'} ) unless $param->{'IncludePassword'};
             push( @entries, \%h );
         }
         $sth->finish();

@@ -1,0 +1,231 @@
+package VBoxAdm::API;
+
+use strict;
+use warnings;
+
+use Sys::Syslog;
+use LWP::UserAgent;
+use MIME::Base64;
+use Crypt::CBC;
+use Digest::SHA;
+use JSON;
+
+sub http_request {
+    my $url  = shift;
+    my $post = shift;
+    my $opts = shift || {};
+
+    my $ua = LWP::UserAgent->new;
+    $ua->agent('VBoxAdm/RemoteCLI @VERSION@');
+    my $req;
+    my $req_content = '';
+    if ($post) {
+        $req = HTTP::Request->new( POST => $url );
+        $req->content_type('application/x-www-form-urlencoded');
+        $req->content($req_content);
+        print "http_request($url) - INFO - POST Content: " . $req_content . "\n" if $opts->{'Debug'};
+    }
+    else {
+        $req = HTTP::Request->new( GET => $url );
+    }
+
+    if ( $opts->{'User'} && $opts->{'Pass'} ) {
+        $req->authorization_basic( $opts->{'User'}, $opts->{'Pass'} );
+    }
+
+    my $content;
+    my $response;
+    my $timeout = $opts->{Timeout} || 10;
+    eval {
+        local $SIG{ALRM} = sub { die "alarm\n"; };
+        my $prev_timeout = alarm $timeout;
+        $response = $ua->request($req);
+        $content  = $response->content;
+        if ( !$response->is_success ) {
+            die( "ERROR " . $response->code . " - " . $content . "\n" );
+            return;
+        }
+        die("HTTP request failed!") unless $content;
+        alarm $prev_timeout;
+    };
+    if ($@) {
+        warn "http_request($url) - WARNING: $@";
+        return;
+    }
+    else {
+        print "http_request($url) - SUCCESS!\n" if $opts->{'Debug'};
+        return wantarray ? ( $content, $response ) : $content;
+    }
+}
+
+sub decrypt {
+    my $raw_key    = shift;
+    my $ciphertext = shift;
+
+    $ciphertext = decode_base64( &VBoxAdm::Utils::urldecode($ciphertext) );
+
+    if ( !$raw_key || length($raw_key) < 12 ) {
+        syslog( 2, "Misconfigured Server. Invalid Key Length." );
+        return;
+    }
+
+    my $key = &gen_key($raw_key);
+    my $iv  = &gen_iv($raw_key);
+
+    # the Crypt::CBC parameters are important,
+    # this set of parameters makes the ciphertext
+    # compatible with PHP's mcrypt_cbc method.
+    my $cipher = Crypt::CBC->new(
+        -key         => $key,
+        -cipher      => 'Blowfish',
+        -iv          => $iv,
+        -header      => 'none',
+        -padding     => 'null',
+        -literal_key => 1,
+        -keysize     => length($key),
+    );
+
+    my $plaintext = undef;
+    eval { $plaintext = $cipher->decrypt($ciphertext); };
+    if ( $@ || !$plaintext ) {
+        syslog( 2, "Failed to decrypt ciphertext: $@" );
+        return;
+    }
+
+    # plaintext should now contain a JSON string
+    my $json     = JSON->new->utf8;
+    my $hash_ref = undef;
+    eval { $hash_ref = $json->decode($plaintext); };
+    if ( $@ || !$hash_ref ) {
+        syslog( 2, "Failed to decode JSON to hash_ref: $@" );
+        return;
+    }
+    return $hash_ref;
+}
+
+sub encrypt {
+    my $raw_key  = shift;
+    my $hash_ref = shift;
+
+    my $json      = JSON->new->utf8;
+    my $plaintext = undef;
+    eval { $plaintext = $json->encode($hash_ref); };
+    if ( $@ || !$plaintext ) {
+        syslog( 2, "Failed to encode hashref to JSON: $@" );
+        return;
+    }
+
+    if ( !$raw_key || length($raw_key) < 12 ) {
+        syslog( 2, "Misconfigured Server. Invalid Key Length." );
+        return;
+    }
+
+    my $key = &gen_key($raw_key);
+    my $iv  = &gen_iv($raw_key);
+
+    # the Crypt::CBC parameters are important,
+    # this set of parameters makes the ciphertext
+    # compatible with PHP's mcrypt_cbc method.
+    my $cipher = Crypt::CBC->new(
+        -key         => $key,
+        -cipher      => 'Blowfish',
+        -iv          => $iv,
+        -header      => 'none',
+        -padding     => 'null',
+        -literal_key => 1,
+        -keysize     => length($key),
+    );
+
+    my $ciphertext = undef;
+    eval { $ciphertext = $cipher->encrypt($plaintext); };
+    if ( $@ || !$ciphertext ) {
+        syslog( 2, "Failed to encrypt the plaintext: $@" );
+        return;
+    }
+    else {
+        return &VBoxAdm::Utils::urlencode( encode_base64($ciphertext) );
+    }
+}
+
+sub gen_key {
+    my $key = shift;
+    return substr( Digest::SHA::sha512($key), 0, 56 );
+}
+
+sub gen_iv {
+    my $key = shift;
+    return substr( Digest::SHA::sha512($key), 56 );
+}
+
+1;
+__END__
+
+
+=head1 NAME
+
+VBoxAdm::API - Common API methods
+
+=head1 VERSION
+
+This documentation refers to VBoxAdm::API version @VERSION@
+built on @BUILDDATE@.
+
+=head1 SYNOPSIS
+
+    # TODO
+
+=head1 DESCRIPTION
+
+This module implements a simple HTTP-API to remote controll VBoxAdm.
+
+=head1 SUBROUTINES/METHODS
+
+TODO
+
+=head1 DIAGNOSTICS
+
+TODO
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+TODO
+
+=head1 DEPENDENCIES
+
+A list of all the other modules that this module relies upon, including any
+restrictions on versions, and an indication of whether these required modules are
+part of the standard Perl distribution, part of the module's distribution,
+or must be installed separately.
+
+=head1 INCOMPATIBILITIES
+
+TODO
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut

@@ -7,7 +7,7 @@ use warnings;
 
 use CGI::Carp qw(fatalsToBrowser);
 
-# Neede for database connection
+# Needed for database connection
 use CGI::Application::Plugin::DBH (qw/dbh_config dbh/);
 
 use CGI::Application::Plugin::Redirect;
@@ -27,7 +27,6 @@ use CGI::Application::Plugin::Authentication;
 use Config::Std;
 use DBI;
 use Sys::Syslog;
-use Data::Page;
 use Readonly;
 
 use VBoxAdm::Utils '@VERSION@';

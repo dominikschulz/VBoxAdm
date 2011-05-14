@@ -5,13 +5,18 @@ use base 'CGI::Application';
 use strict;
 use warnings;
 
+use CGI::Carp qw(fatalsToBrowser);
+
+# Needed for database connection
+use CGI::Application::Plugin::DBH (qw/dbh_config dbh/);
+
 use Carp;
 use Config::Std;
-use JSON;
-use Crypt::CBC;
-use Digest::SHA;
-use MIME::Base64;
+use Data::Dumper;
+use Sys::Syslog;
 
+use VBoxAdm::API '@VERSION@';
+use VBoxAdm::L10N '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
 use VBoxAdm::Model::Alias '@VERSION@';
@@ -41,11 +46,12 @@ sub setup {
     my $self = shift;
 
     # define the default run mode
-    $self->start_mode('show_api');
+    $self->start_mode('api');
 
     # define the mappings between the rm parameter and the actual sub
     $self->run_modes(
         'api' => 'show_api',
+        'test' => 'show_test',
     );
 
     #
@@ -78,6 +84,7 @@ sub setup {
     if ( !$conffile_used ) {
         syslog( 2, "setup - Warning: No readable config file found in search path! (".join(':',@conffile_locations).")" );
     }
+    $config{'quiet'} = 1;
     $self->{config} = \%config;
 
     #
@@ -178,6 +185,28 @@ sub show_api {
     }
 }
 
+sub show_test {
+	my $self = shift;
+	
+	my $hash_ref = {};
+	$hash_ref->{'user'}{'username'} = 'admin@domain123.com';
+	$hash_ref->{'user'}{'password'} = '123';
+	$hash_ref->{'mailbox'}->{'list'} = 1;
+	$hash_ref->{'mailbox'}->{'read'}->{'fred@domain.com'} = 1;
+	$hash_ref->{'mailbox'}->{'update'}->{'fred@domain.com'}->{'IsOnVacation'} = 1;
+	my $ciphertext = &encrypt($self, $hash_ref);
+	
+	my $output = "Test Page<br />\n";
+	$output .= "Hash_ref: <pre>".Dumper($hash_ref)."</pre><br />\n";
+	$output .= "Ciphertext: $ciphertext<br />\n";
+	$output .= "<a href='/cgi-bin/vboxapi.pl?rm=api&v=1&p=$ciphertext'>Link</a><br />\n";
+	
+	my $hash_again = &decrypt( $self, $ciphertext);
+	$output .= "Hash_again: <pre>".Dumper($hash_again)."</pre><br />\n";
+	
+	return $output;
+}
+
 sub handle_v1 {
     my $cgiapp = shift;
 
@@ -187,43 +216,33 @@ sub handle_v1 {
     my $payload = $q->param('p');
 
     if ( !$payload ) {
-    	$cgiapp->header_add( -status => 400 );
+    	$cgiapp->header_add( -status => 491 );
         return "Missing parameters.\n";
     }
 
-    my $plaintext = &decrypt( $cgiapp, $payload );
+    my $hash_ref = &VBoxAdm::API::decrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $payload );
+    my $answer_ref = {};
 
-    if ( !$plaintext ) {
-    	$cgiapp->header_add( -status => 400 );
+    if ( !$hash_ref ) {
+    	$cgiapp->header_add( -status => 492 );
         return "Unable to decode. Check you API key.\n";
     }
 
-    # plaintext should now contain a JSON string
-    my $json     = JSON->new->utf8;
-    my $hash_ref = $json->decode($plaintext);
-
     if ( ref($hash_ref) ne 'HASH' ) {
-    	$cgiapp->header_add( -status => 400 );
+    	$cgiapp->header_add( -status => 493 );
         return "Illegal request.\n";
     }
-
-    # $hash_ref->{user}->{username}
-    # $hash_ref->{user}->{password}
-    # $hash_ref->{mailbox}->{create}->{username}->{...}
-    # $hash_ref->{mailbox}->{update}->{username}->{...}
-    # $hash_ref->{mailbox}->{delete}->{username}
-    # $hash_ref->{mailbox}->{read}->{username}
 
     my $Messages = VBoxAdm::Model::MessageQueue->new(
         {
             'LH'      => $cgiapp->{'lh'},
             'LH_EN'   => $cgiapp->{'lh_en'},
-            'Session' => $cgiapp->session,
         }
     );
     $cgiapp->{'Messages'} = $Messages;
     my $User;
     if ( $hash_ref->{'user'}->{'username'} && $hash_ref->{'user'}->{'password'} ) {
+    	eval {
         $User = VBoxAdm::Model::User->new(
             {
                 'dbh'          => $cgiapp->dbh,
@@ -234,10 +253,17 @@ sub handle_v1 {
                 'Password'     => $hash_ref->{'user'}->{'password'},
             }
         );
+    	};
+    	if($@) {
+    		$cgiapp->header_add( -status => 494 );
+    		$answer_ref->{'auth'} = 'error';
+    		return &VBoxAdm::API::encrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $answer_ref );
+    	}
     }
     if (!$User) {
-    	$cgiapp->header_add( -status => 400 );
-    	return "Invalid login.\n";
+    	$cgiapp->header_add( -status => 495 );
+    	$answer_ref->{'auth'} = 'error';
+    	return &VBoxAdm::API::encrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $answer_ref );
     }
     $cgiapp->{'User'} = $User;
     my $arg_ref = {
@@ -256,7 +282,15 @@ sub handle_v1 {
     $c->{rfcnotify}         = VBoxAdm::Model::RFCNotify->new($arg_ref);
     $c->{vacationblacklist} = VBoxAdm::Model::VacationBlacklist->new($arg_ref);
 
-    my $answer_ref = {};
+    $answer_ref->{'auth'} = 'ok';
+    
+    # $hash_ref->{user}->{username}
+    # $hash_ref->{user}->{password}
+    # $hash_ref->{mailbox}->{create}->{username}->{...}
+    # $hash_ref->{mailbox}->{update}->{username}->{...}
+    # $hash_ref->{mailbox}->{delete}->{username}
+    # $hash_ref->{mailbox}->{read}->{username}
+    # $hash_ref->{mailbox}->{list}
 
     # process requests in hash_ref
     # return response as crypted, json encoded string
@@ -266,116 +300,62 @@ sub handle_v1 {
         next if $module eq 'user';
         next unless $c->{$module};
         foreach my $action ( keys %{ $hash_ref->{$module} } ) {
-            next if ref( $hash_ref->{$module}->{$action} ne 'HASH' );
+            
             $action = lc($action);
-            foreach my $item ( keys %{ $hash_ref->{$module}->{$action} } ) {
-                my $param_ref = $hash_ref->{$module}->{$action}->{$item};
-                if ( $action eq 'read' ) {
-                    $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->read($item);
-										$answer_ref->{$module}{$action}{$item}{'msgs'} = [$Messages->get()];
-                }
-                elsif ( $action eq 'delete' ) {
-                    $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->delete($item);
-										$answer_ref->{$module}{$action}{$item}{'msgs'} = [$Messages->get()];
-                }
-                elsif ( $action eq 'update' ) {
-                    $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->update( $item, $param_ref );
-										$answer_ref->{$module}{$action}{$item}{'msgs'} = [$Messages->get()];
-                }
-                elsif ( $action eq 'create' ) {
-                    $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->create( $item, $param_ref );
-										$answer_ref->{$module}{$action}{$item}{'msgs'} = [$Messages->get()];
-                }
+            if ( $action eq 'list' ) {
+            	my $param_ref;
+            	if(ref($hash_ref->{$module}->{$action}) eq 'HASH') {
+            		$param_ref = $hash_ref->{$module}->{$action};
+            	} else {
+            		$param_ref = {};
+            	}
+                		$answer_ref->{$module}{$action}{'rv'} = [$c->{$module}->list( $param_ref )];
+										$answer_ref->{$module}{$action}{'msgs'} = [$Messages->get()];
+            } else {
+            	next if ref( $hash_ref->{$module}->{$action} ne 'HASH' );
+	            foreach my $item ( keys %{ $hash_ref->{$module}->{$action} } ) {
+	            		my $param_ref = $hash_ref->{$module}->{$action}->{$item};
+	            		# item may either by numeric -> use directly
+	            		# or non-numeric -> look up id and use it instead
+	            		my $id;
+	            		if($item =~ m/^\d+$/) {
+	            			$id = $item;
+	            		} else {
+	            			$id = $c->{$module}->get_id($item);
+	            			if(!$id) {
+	            				$answer_ref->{$module}{$action}{$item}{'rv'} = 0;
+	            				$answer_ref->{$module}{$action}{$item}{'msgs'} = 'User not found!';
+	            				next;
+	            			}
+	            		}
+	                if ( $action eq 'read' ) {
+	                    $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->read($id);
+											$answer_ref->{$module}{$action}{$item}{'msgs'} = [$Messages->get()];
+	                }
+	                elsif ( $action eq 'delete' ) {
+	                    $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->delete($id);
+											$answer_ref->{$module}{$action}{$item}{'msgs'} = [$Messages->get()];
+	                }
+	                elsif ( $action eq 'update' ) {
+	                    $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->update( $id, $param_ref );
+											$answer_ref->{$module}{$action}{$item}{'msgs'} = [$Messages->get()];
+	                }
+	                elsif ( $action eq 'create' ) {
+	                    $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->create( $item, $param_ref );
+											$answer_ref->{$module}{$action}{$item}{'msgs'} = [$Messages->get()];
+	                }
+	            }
             }
         }
     }
-    return &encrypt( $cgiapp, $json->encode($answer_ref) );
-}
-
-sub decrypt {
-    my $cgiapp     = shift;
-    my $ciphertext = shift;
-
-    # get the secret application key from the config
-    my $raw_key = $cgiapp->{config}->{'api'}->{'key'};
-
-    if ( !$raw_key || length($raw_key) < 12 ) {
-    		syslog(2, "Misconfigured Server. Invalid Key Length.");
-        return;
-    }
-
-    my $key = &gen_key($raw_key);
-    my $iv  = &gen_iv($raw_key);
-
-    # the Crypt::CBC parameters are important,
-    # this set of parameters makes the ciphertext
-    # compatible with PHP's mcrypt_cbc method.
-    my $cipher = Crypt::CBC->new(
-        -key         => $key,
-        -cipher      => 'Blowfish',
-        -iv          => $iv,
-        -header      => 'none',
-        -padding     => 'null',
-        -literal_key => 1,
-        -keysize     => length($key),
-    );
-
-    my $plaintext = undef;
-    eval { $plaintext = $cipher->decrypt($ciphertext); };
-    if ( $@ || !$plaintext ) {
-        return;
-    }
-    else {
-        return $plaintext;
-    }
-}
-
-sub encrypt {
-    my $cgiapp    = shift;
-    my $plaintext = shift;
-
-    # get the secret application key from the config
-    my $raw_key = $cgiapp->{config}->{'api'}->{'key'};
-
-    if ( !$raw_key || length($raw_key) < 12 ) {
-				syslog(2, "Misconfigured Server. Invalid Key Length.");
-        return;
-    }
-
-    my $key = &gen_key($raw_key);
-    my $iv  = &gen_iv($raw_key);
-
-    # the Crypt::CBC parameters are important,
-    # this set of parameters makes the ciphertext
-    # compatible with PHP's mcrypt_cbc method.
-    my $cipher = Crypt::CBC->new(
-        -key         => $key,
-        -cipher      => 'Blowfish',
-        -iv          => $iv,
-        -header      => 'none',
-        -padding     => 'null',
-        -literal_key => 1,
-        -keysize     => length($key),
-    );
-
-    my $ciphertext = undef;
-    eval { $ciphertext = $cipher->encrypt($plaintext); };
-    if ( $@ || !$ciphertext ) {
-        return;
-    }
-    else {
-        return $ciphertext;
-    }
-}
-
-sub gen_key {
-    my $key = shift;
-    return substr( Digest::SHA::sha512($key), 0, 56 );
-}
-
-sub gen_iv {
-    my $key = shift;
-    return substr( Digest::SHA::sha512($key), 56 );
+    #my $ciphertext = &encrypt( $cgiapp, $answer_ref );
+    #my $output = '';
+    #$output .= "Request-Hashref: <pre>".Dumper($hash_ref)."</pre><br />\n";
+    #$output .= "Response-Ciphertext: ".$ciphertext."<br />\n";
+    #my $plaintext = &decrypt( $cgiapp, $ciphertext );
+    #$output .= "Response-Hashref: <pre>".Dumper($plaintext)."</pre><br />\n";
+    my $output = &VBoxAdm::API::encrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $answer_ref );
+    return $output;
 }
 
 1;

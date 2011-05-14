@@ -1,0 +1,147 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+use English qw(-no_match_vars);
+
+use Data::Dumper;
+use Getopt::Long;
+use Config::Std;
+use JSON;
+use Crypt::CBC;
+use Digest::SHA;
+use MIME::Base64;
+use Sys::Syslog;
+
+use VBoxAdm::Utils '@VERSION@';
+use VBoxAdm::API '@VERSION@';
+
+openlog( 'vboxadm-remote-cli', 'ndelay,nofatal', 'mail' );
+
+my ( $conffile_used, %config, @modes, $opts );
+$opts = {};
+
+# Valid config file locations to try
+my @conffile_locations = qw(
+  vboxadm.conf
+  conf/vboxadm.conf
+  /etc/vboxadm/vboxadm.conf
+);
+
+GetOptions(
+    'verbose|v+' => \$opts->{Verbose},
+    'dry|d!'     => \$opts->{Dry},
+    'quiet|q!'   => \$opts->{Quiet},
+    'force|f!'   => \$opts->{Force},
+    'u=s'        => \$opts->{User},
+    'p=s'        => \$opts->{Pass},
+    '<>'         => sub { my $m = shift; push( @modes, lc($m) ); },
+
+    # shift removes name of the option (config) and leaves the value for unshift
+    # unshift prepends to the list of valid config files so it is tried first
+    'config=s' => sub { shift; unshift( @conffile_locations, @_ ); },
+    'active|a=i'      => \$opts->{IsActive},
+    'goto|g=s'        => \$opts->{Goto},
+    'password=s'      => sub { shift; my $p = shift; $opts->{Password} = $p; $opts->{PasswordAgain} = $p; },
+    'maxmsgsize|m=i'  => \$opts->{MaxMsgSize},
+    'siteadmin=s'     => \$opts->{IsSiteadmin},
+    'domainadmin=s'   => \$opts->{IsDomainadmin},
+    'sakillscore|k=i' => \$opts->{SAKillScore},
+    'saactive=i'      => \$opts->{SAActive},
+    'vacation=i'      => \$opts->{IsOnVacation},
+    'vacsubj=s'       => \$opts->{VacationSubject},
+    'vacmsg=s'        => \$opts->{VacationMessage},
+    'vacstart=s'      => \$opts->{VacationStart},
+    'vacend=s'        => \$opts->{VacationEnd},
+) or die("Unknown Command");
+
+# Try all config file locations
+foreach my $loc (@conffile_locations) {
+    if ( -r $loc ) {
+        $conffile_used = $loc;
+        read_config $loc => %config;
+        last;
+    }
+}
+
+if ( !$config{'api'}{'key'} ) {
+    print "Missing API-Key. Aborting.\n";
+    exit 1;
+}
+if ( !$config{'api'}{'url'} ) {
+    print "Missing API-URL. Aborting.\n";
+    exit 1;
+}
+
+print "# VBoxAdm Remote-CLI\n" unless $config{'quiet'};
+
+my $request = {};
+$request->{'user'}->{'username'} = $opts->{'User'};
+$request->{'user'}->{'password'} = $opts->{'Pass'};
+
+my ( $module, $action, $item );
+$module = $modes[0] if $modes[0];
+$action = $modes[1] if $modes[1];
+$item   = $modes[2] if $modes[2];
+
+my $valid = 0;
+if ( $module && $action && $action eq 'list' ) {
+    $request->{$module}->{$action} = 1;
+    $valid = 1;
+}
+elsif ( $module && $action && $item ) {
+    $request->{$module}->{$action} = {};
+    foreach my $key ( keys %{$opts} ) {
+        $request->{$module}->{$action}->{$key} = $opts->{$key};
+    }
+    $valid = 1;
+}
+
+if ( !$valid ) {
+    print "Invalid command.\n";
+    exit 1;
+}
+
+print "Request:\n";
+print Dumper($request);
+
+my $ciphertext = &VBoxAdm::API::encrypt( $config{'api'}{'key'}, $request );
+my $response_crypt = &VBoxAdm::API::http_request( $config{'api'}{'url'} . '?rm=api&v=1&p=' . $ciphertext );
+
+if ( !$response_crypt ) {
+    print "Error. Request failed.\n";
+    exit 1;
+}
+
+my $response = &VBoxAdm::API::decrypt( $config{'api'}{'key'}, $response_crypt );
+print "OK. Response:\n";
+print Dumper($response);
+
+foreach my $module ( sort keys %{$response} ) {
+    next if $module eq 'auth';
+    foreach my $action ( sort keys %{ $response->{$module} } ) {
+        if ( $action eq 'list' ) {
+            if ( ref( $response->{$module}->{$action}->{'rv'} ) eq 'ARRAY' ) {
+
+                # TODO print results
+                foreach my $result_ref ( @{ $response->{$module}->{$action}->{'rv'} } ) {
+                    foreach my $key ( sort keys %{$result_ref} ) {
+                        print "$key => $result_ref->{$key}, ";
+                    }
+                    print "\n";
+                }
+            }
+            else {
+
+                # TODO print error msg.
+            }
+        }
+        else {
+
+            # TODO handle non-list actions
+        }
+    }
+}
+
+closelog();
+

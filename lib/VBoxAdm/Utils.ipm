@@ -352,6 +352,38 @@ sub is_local_mailbox {
     return $count;
 }
 
+############################################
+# Usage      : ????
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub urlencode {
+    my $str = shift;
+    if ($str) {
+        $str =~ s/([^A-Za-z0-9])/sprintf("%%%02X", ord($1))/seg;
+    }
+    return $str;
+}
+
+############################################
+# Usage      : ????
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub urldecode {
+    my $str = shift;
+    if ($str) {
+        $str =~ s/\%([A-Fa-f0-9]{2})/pack('C', hex($1))/seg;
+    }
+    return $str;
+}
+
 1;
 
 __END__

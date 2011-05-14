@@ -34,7 +34,7 @@ use VBoxAdm::L10N '@VERSION@';
 
 binmode( STDIN, ':utf8' );
 
-openlog( 'vboxadm-vacation', 'ndelay,nofatal', 'mail' );
+openlog( 'vboxadm-cli', 'ndelay,nofatal', 'mail' );
 
 my ( $conffile_used, %config, @modes, $opts );
 $opts = {};
