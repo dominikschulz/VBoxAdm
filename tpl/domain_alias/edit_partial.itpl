@@ -32,7 +32,7 @@
 			[% "Enabled:" | l10n %]
 			<span class="small"></span>
 		</label>
-		<input type="checkbox" name="is_active"[% IF is_active %] checked[% END %] />
+		<input type="checkbox" name="is_active" [% IF is_active %]checked[% END %] />
 		
 		<div class="spacer"></div>
 		
