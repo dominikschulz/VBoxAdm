@@ -27,7 +27,7 @@ HTMLC = /usr/bin/java -jar build/htmlcompressor-0.9.9.jar --type html --charset 
 
 # some variables
 NAME = vboxadm
-VERSION = 0.1.2
+VERSION = 0.1.3
 BUILDDATE = $(shell date +%Y-%m-%d)
 
 # Directories
