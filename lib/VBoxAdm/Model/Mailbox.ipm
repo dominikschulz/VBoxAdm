@@ -119,7 +119,7 @@ use Class::Std;
         # No Passwords given, generate one
         if ( !$params->{'Password'} && !$params->{'PasswordAgain'} ) {
             $args{'password'} = &VBoxAdm::Password::pwgen(16);
-            $self->msg->push( 'information', 'Generated Password: [_1].', $args{'password'} );
+            $self->msg->push( 'information', 'Generated Password: [_1]', $args{'password'} );
         }
 
         # Passwords given and matching
