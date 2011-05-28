@@ -57,7 +57,7 @@ use Class::Std;
             'is_active'      => undef,
             'name'           => '',
             'sa_active'      => 1,
-            'sa_kill_score'  => 6.31,
+            'sa_kill_score'  => $self->config->{'cgi'}{'sa_default_block_score'} || 6.31,
             'is_domainadmin' => 0,
             'is_superadmin'  => 0,
             'max_msg_size'   => 15 * 1024,
@@ -107,7 +107,12 @@ use Class::Std;
         # SpamAssassin
         #
         if ( defined( $params->{'SAActive'} ) ) {
-            $args{'sa_active'} = $params->{'SAActive'};
+            if ( $params->{'SAActive'} ) {
+                $args{'sa_active'} = 1;
+            }
+            else {
+                $args{'sa_active'} = 0;
+            }
         }
         if ( $params->{'SAKillScore'} ) {
             $args{'sa_kill_score'} = $params->{'SAKillScore'};

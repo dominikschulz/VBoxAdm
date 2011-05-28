@@ -438,6 +438,7 @@ sub tt_pre_process {
     my ( $self, $file, $vars ) = @_;
     $vars->{username}       = $self->authen->username;
     $vars->{system_domain}  = $self->{config}{'default'}{'domain'} || 'localhost';
+    $vars->{long_forms}			= $self->{config}{'cgi'}{'long_forms'} || 0;
     $vars->{version}        = $VERSION;
     $vars->{messages}       = $self->get_messages();
     $vars->{is_superadmin}  = $self->user->is_siteadmin() if $self->user();
@@ -1385,7 +1386,7 @@ sub show_add_mailbox {
 	    'SendWelcomeMail'   => $q->param('send_welcome_mail'),
 	    'MaxMsgSize'   			=> $q->param('max_msg_size_mb'),
 	    'SAActive'      		=> $q->param('sa_active'),
-	    'SAKillScore'  			=> $q->param('sa_kill_score') || 6.31,
+	    'SAKillScore'  			=> $q->param('sa_kill_score') || $self->{'config'}{'cgi'}{'sa_default_block_score'} || 6.31,
 	    'IsSiteadmin' 			=> 0,
 	    'IsDomainadmin' 		=> 0,
     );
@@ -1480,7 +1481,7 @@ sub show_update_mailbox {
 	    'IsActive'          => ($q->param('is_active') ? 1 : 0),
 	    'MaxMsgSize'   			=> $q->param('max_msg_size_mb'),
 	    'SAActive'      		=> ($q->param('sa_active') ? 1 : 0),
-	    'SAKillScore'  			=> $q->param('sa_kill_score') || 6.31,
+	    'SAKillScore'  			=> $q->param('sa_kill_score') || $self->{'config'}{'cgi'}{'sa_default_block_score'} || 6.31,
 	    'IsSiteadmin' 			=> ($q->param('is_superadmin') ? 1 : 0),
 	    'IsDomainadmin' 		=> ($q->param('is_domainadmin') ? 1 : 0),
 	    'IsOnVacation'			=> ($q->param('is_on_vacation') ? 1: 0),

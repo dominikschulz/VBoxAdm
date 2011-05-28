@@ -111,6 +111,7 @@ sub child_init_hook {
     my $self = shift;
 
     # setup my env
+    # getpwuid reads /etc/passwd, field 7 is the home dir
     $ENV{'HOME'} = ( getpwuid($>) )[7];
 
     $self->db_connect();
@@ -557,6 +558,9 @@ sub is_spam {
             # save the prev. setting of the alarm timer and start our own
             my $prev_alarm = alarm( $self->{vbox}->{sa_timeout} );
 
+            # SA seems to ignore these settings if set after parse/check ...
+            $sa->{conf}->{required_score} = $self->sa_block_score($recipients) || 6.31;
+
             # Audit the message
             my $mail = $sa->parse( \@msglines );
             undef(@msglines);
@@ -566,7 +570,6 @@ sub is_spam {
 
             # check if the reported score is higher than the lowest score
             # of all recipients. return true (=> this message is spam) if so.
-            $status->{conf}->{required_score} = $self->sa_block_score($recipients) || 6.31;
             $status->{conf}->{report_safe} = 0;
             my $was_it_spam = 'unknown';
             if ( $status->is_spam() ) {

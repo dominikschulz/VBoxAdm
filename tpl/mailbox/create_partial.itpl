@@ -52,6 +52,32 @@
 		
 		<div class="spacer"></div>
 		
+[% IF long_forms %]
+		<label for="max_msg_size_mb">
+			[% "Max. Message Size:" | l10n %]
+			<span class="small"></span>
+		</label>
+		<input class="flat" type="text" name="max_msg_size_mb" value="[% max_msg_size_mb %]" /> MB
+		
+		<div class="spacer"></div>
+		
+		<label for="sa_active">
+			[% "SpamAssassin:" | l10n %]
+			<span class="small"></span>
+		</label>
+		<input class="flat" type="checkbox" name="sa_active" [% IF sa_active %]checked[% END %] />
+		
+		<div class="spacer"></div>
+		
+		<label for="sa_kill_score">
+			[% "SpamAssassin block score:" | l10n %]
+			<span class="small"></span>
+		</label>
+		<input class="flat" type="text" name="sa_kill_score" value="[% sa_kill_score %]" />
+		
+		<div class="spacer"></div>
+[% END %]
+		
 		<label for="send_welcome_mail">
 			[% "Send Welcome Mail:" | l10n %]
 			<span class="small">Send an mail to the new mailbox to make sure it is created.</span>
