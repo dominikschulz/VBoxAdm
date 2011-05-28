@@ -51,7 +51,7 @@ use Class::Std;
                 return 1;
             }
             else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, $domain, $sth->errstr );
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, $domain, $self->dbh->errstr );
                 $self->msg->push( 'error', "Failed to add Domain '[_1]'. Database error.", $domain );
                 return;
             }
@@ -120,6 +120,7 @@ use Class::Std;
                 return 1;
             }
             else {
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $sql, join( ',', @args ), $self->dbh->errstr );
                 $self->msg->push( 'error', 'Failed to update Domain [_1]. Database error.', $domain_name );
                 return;
             }

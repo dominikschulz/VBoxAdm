@@ -160,7 +160,7 @@ my $server = bless {
 
 # Test DB connection before starting server
 if ( $server->db_connect() ) {
-    $server->{vbox}->{dbh}->disconnect();
+    $server->{vbox}->{dbh}->disconnect() if $server->{vbox}->{dbh};
 }
 else {
     die("Could not connect to database!");
