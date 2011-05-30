@@ -176,7 +176,7 @@ sub purge_mailboxes {
                         print STDERR "$0 - Could not execute '$cmd': $!\n";
                     }
                     else {
-                        syslog( 2, 'Purged Mailbox $mailbox\@$domain' );
+                        syslog( 2, "Purged Mailbox $mailbox\@$domain" );
                     }
                 }
                 closedir($MH);

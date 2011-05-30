@@ -196,12 +196,13 @@ if ( !$header{'return-path'} ) {
 }
 
 # recipient address must be contained in either: to, cc, bcc, resent-to, resent-cc or resent-bcc
-if ( !&check_recipient( $config{'recipient'}, \%header ) ) {
-    syslog( 2, 'Envelope-To Recipient not found in one of To, CC, BCC, Resent-To, Resent-CC or Reset-BCC - From: %s - To: %s - Exiting',
-        $config{'sender'}, $config{'recipient'} );
-    closelog();
-    exit 0;
-}
+# This doesn't work with aliases. Disabled until a final descission was made how to handle this case.
+#if ( !&check_recipient( $config{'recipient'}, \%header ) ) {
+#    syslog( 2, 'Envelope-To Recipient not found in one of To, CC, BCC, Resent-To, Resent-CC or Reset-BCC - From: %s - To: %s - Exiting',
+#        $config{'sender'}, $config{'recipient'} );
+#    closelog();
+#    exit 0;
+#}
 
 my %reply_header = ();
 

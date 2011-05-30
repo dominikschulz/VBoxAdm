@@ -193,6 +193,7 @@ use Class::Std;
             $self->msg->push( 'error', 'Sorry. No access for regular users.' );
             return;
         }
+        # TODO HIGH limit domain admins to their own domains!
 
         return $self->_list( 'domain_aliases', $fields_of{$ident}, $params );
     }
