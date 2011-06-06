@@ -506,11 +506,13 @@ use Class::Std;
         if ( $param->{'IsAdmin'} ) {
             $sql .= " AND (is_domainadmin OR is_superadmin)";
         }
+
         # domain admins may only see their own domain
         if ( !$self->user->is_siteadmin() ) {
             $sql .= " AND domain_id = ?";
             push( @args, $self->user->get_domain_id() );
         }
+
         # regular users are kicked out above
 
         my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );

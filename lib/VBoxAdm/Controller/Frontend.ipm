@@ -1464,6 +1464,14 @@ sub show_edit_mailbox {
 		foreach my $key (keys %{$mailbox_ref}) {
 			$params{$key} = $mailbox_ref->{$key};
 		}
+		
+		if ( $params{'vacation_start'} && $params{'vacation_start'} =~ m/^\s*(\d\d\d\d)-(\d\d)-(\d\d)\s*$/ ) {
+			$params{'vacation_start'} = "$3.$2.$1";
+		}
+		if ( $params{'vacation_end'} && $params{'vacation_end'} =~ m/^\s*(\d\d\d\d)-(\d\d)-(\d\d)\s*$/ ) {
+			$params{'vacation_end'} = "$3.$2.$1";
+		}
+		
     return $self->tt_process( 'mailbox/edit.tpl', \%params );
 }
 

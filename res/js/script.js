@@ -72,9 +72,18 @@ $('a.close, #fade').live('click', function() { //When clicking on the close or f
 // setup datepicker
 /* http://jqueryui.com/demos/datepicker/#date-formats */
 $(function() {
+	/* vacation_start datepicker */
 	$('#vacation_start').datepicker();
+	var date_value = $('#vacation_start').val();
 	$('#vacation_start').datepicker( "option", "dateFormat", "dd.mm.yy");
+	$('#vacation_start').datepicker( "setDate", date_value);
+	
+	/* vacation_end datepicker */
 	$('#vacation_end').datepicker();
+	var date_value = $('#vacation_end').val();
 	$('#vacation_end').datepicker( "option", "dateFormat", "dd.mm.yy");
+	$('#vacation_end').datepicker( "setDate", date_value);
+	
+	/* according effect on various pages */
 	$('#accordion').accordion();
 });
