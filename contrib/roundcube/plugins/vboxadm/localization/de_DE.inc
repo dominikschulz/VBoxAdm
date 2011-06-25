@@ -16,20 +16,31 @@ $labels['spam']  = 'Spam Filter';
 $labels['spamenabled']  = 'Spam Filter aktivieren';
 $labels['spamenabledexplanation']  = 'Alle eingehenden Nachrichten auf Spam überprüfen';
 $labels['spamscorerefuse']  = 'Spam block Wert';
+$labels['spamscorerefuseformat']  = 'Kill-Score muss eine Zahl kleiner als 1000 mit höchstens zwei Nachkommastellen sein.';
 $labels['spamscorerefuseexplanation']  = 'Der Wert ab dem möglicher Spam nicht akzeptiert wird. Der Absender erhält eine Fehlermeldung.';
 $labels['domaindefault']  = 'Domain Vorgabe';
 
 $labels['autoresponder']  = 'Abwesenheitsnachricht';
 $labels['autoresponderenabled']  = 'Abwesenheitsnachricht aktivieren';
+$labels['autoresponderstartdate']  = 'Abwesend ab';
+$labels['autoresponderenddate']  = 'Abwesend bis';
+$labels['autoresponderdateformat']  = 'Datumsformat: dd.mm.yyyy oder leeres Feld für keine Begrenzung.';
 $labels['autorespondersubject'] = 'Betreff der Abwesenheitsnachricht';
 $labels['autorespondermessage']  = 'Text der Abwesenheitsnachricht';
 $labels['autorespondersubjectexplanation'] = 'Die Betreff Zeile Ihrer Nachricht';
 $labels['autorespondermessageexplanation']  = 'Achtung: Ihre Signatur wird nicht automatisch angehängt.';
 
 $labels['parameters']  = 'Parameter';
-$labels['messagesize']  = 'Maximale Nachrichten Größe (MB)';
+$labels['messagesize']  = 'Maximale Nachrichten-Größe (MB)';
+$labels['messagesizeformat']  = 'Maximale Nachrichten-Größe muss eine ganze Zahl sein.';
 $labels['messagesizeexplanation']  = 'Nachrichten größer als dieser Wert (in Megabyte) werden abgewiesen.';
 $labels['unlimited']  = 'unbegrenzt';
+
+$labels['aliases']  = 'Weiterleitungen';
+$labels['aliasesexplanation']  = 'Nachrichten, die an ihr Mailkonto adressiert sind, werden zusätzlich an die folgenden Adressen       weitergeleitet.';
+$labels['aliasesenabled']  = 'Weiterleitungen aktiv';
+$labels['aliasaddresses']  = 'Weiterleitung an folgende Adressen';
+$labels['emailformat']  = 'Emailadressen als kommagetrennte Liste angeben.';
 
 $messages['autoresponderlong']  = 'Your autoresponder subject exceeds the maximum length. Please make the message shorter and then click the save button again.';
 $messages['autoresponderlongnum']  = 'Number of characters in your message: ';
