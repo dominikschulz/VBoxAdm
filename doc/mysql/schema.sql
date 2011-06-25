@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS `aliases` (
   `id` int(16) NOT NULL AUTO_INCREMENT,
   `domain_id` int(16) NOT NULL,
   `local_part` varchar(64) CHARACTER SET latin1 NOT NULL,
-  `goto` varchar(255) CHARACTER SET latin1 NOT NULL,
+  `goto` varchar(4096) CHARACTER SET latin1 NOT NULL,
   `is_active` tinyint(1) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `domain_id` (`domain_id`,`local_part`),
