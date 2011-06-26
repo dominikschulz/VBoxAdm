@@ -71,6 +71,7 @@ sub setup {
         # Public
         #
         'public_login' => 'show_login',
+        'public_utf8' => 'utf8_test',
 
         #
         # Private
@@ -256,6 +257,7 @@ sub setup {
     # Connect to DBI database, same args as DBI->connect();
     # uses connect_cached for persistent connections
     # this should have no effect for CGI and speed up FastCGI
+    # http://www.cosmocode.de/en/blog/gohr/2009-12/10-surviving-the-perl-utf-8-madness
     $self->dbh_config(
         sub {
             DBI->connect_cached(
@@ -263,6 +265,7 @@ sub setup {
                 {
                     PrintError => 0,
                     RaiseError => 0,
+                    mysql_enable_utf8 => 1,
                 }
             );
         }
@@ -276,8 +279,9 @@ sub setup {
     # Scripts, Database, Sourcecode, Userdata ... everything should be in UTF-8
     # the only point were we could deal with non-UTF-8 is when we output data to
     # non-utf-8 capable browsers (are there any?)
-    $self->dbh->do("SET NAMES utf8")
-      or syslog( 2, "setup - Failed to set DB connection to UTF-8!" );
+    # TODO enable
+    #$self->dbh->do("SET NAMES utf8")
+    #  or syslog( 2, "setup - Failed to set DB connection to UTF-8!" );
 
     #
     # L10N
@@ -377,6 +381,36 @@ sub setup {
 
     # to make perlcritic happy
     return 1;
+}
+
+sub utf8_test {
+	my $self = shift;
+	# Get our database connection
+    my $dbh = $self->dbh();
+
+    my $query = "SELECT name FROM mailboxes WHERE id = 15";
+    my $sth   = $dbh->prepare($query);
+    $sth->execute();
+    my $name = $sth->fetchrow_array();
+    $sth->finish();
+    
+    my $output = "<html><body>";
+    $output .= "Name: $name<br />\n";
+    $output .= "IsUTF8: ".&VBoxAdm::Utils::is_utf8($name)."<br />\n";
+    $output .= "Hex: ".&VBoxAdm::Utils::string_to_hex($name)."<br />\n";
+    
+    use Encode;
+    $output .= "utf8::is_utf8: ".utf8::is_utf8($name)."<br />\n";
+    $output .= "utf8::valid: ".utf8::valid($name)."<br />\n";
+    $output .= "Encode::is_utf8: ".Encode::is_utf8($name,1)."<br />\n";
+    Encode::_utf8_on($name);
+    $output .= "Name: $name<br />\n";
+    $name = Encode::decode_utf8($name);
+    $output .= "Name: $name<br />\n";
+    
+    $output .= "</body></html>\n";
+
+    return $output;
 }
 
 sub teardown {
