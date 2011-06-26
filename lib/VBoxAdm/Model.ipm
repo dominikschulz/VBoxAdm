@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use Carp;
+use Encode;
 use Data::Dumper;
 
 our $VERSION = '@VERSION@';
@@ -117,6 +118,11 @@ use Class::Std;
         my %result;
         @result{ @{$fields} } = $sth->fetchrow_array();
         $sth->finish();
+
+        foreach my $key ( keys %result ) {
+            $result{$key} = Encode::decode( 'UTF-8', $result{$key} );
+        }
+
         return \%result;
     }
 
@@ -169,6 +175,9 @@ use Class::Std;
         while ( my @row = $sth->fetchrow_array() ) {
             my %h;
             @h{ @{$fields} } = @row;
+            foreach my $field ( keys %h ) {
+                $h{$field} = Encode::decode( 'UTF-8', $h{$field} );
+            }
             push( @entries, \%h );
         }
         $sth->finish();

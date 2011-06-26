@@ -7,7 +7,7 @@ use VBoxAdm::Utils;
 my $file = shift
   or die("Usage: $0 <filename>\n");
 
-my $verbose = 0;
+my $verbose = 1;
 
 if ( -d $file ) {
     &handle_dir($file);

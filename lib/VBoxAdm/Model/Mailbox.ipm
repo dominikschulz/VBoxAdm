@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use Carp;
+use Encode;
 use Sys::Syslog;
 
 use VBoxAdm::SaltedHash '@VERSION@';
@@ -474,6 +475,10 @@ use Class::Std;
             $result{'max_msg_size_mb'} = 0;
         }
 
+        foreach my $key ( keys %result ) {
+            $result{$key} = Encode::decode( 'UTF-8', $result{$key} );
+        }
+
         return \%result;
     }
 
@@ -530,6 +535,9 @@ use Class::Std;
         while ( my @row = $sth->fetchrow_array() ) {
             my %h;
             @h{@fields} = @row;
+            foreach my $field ( keys %h ) {
+                $h{$field} = Encode::decode( 'UTF-8', $h{$field} );
+            }
             delete( $h{'password'} ) unless $param->{'IncludePassword'};
             push( @entries, \%h );
         }

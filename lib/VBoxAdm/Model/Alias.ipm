@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use Carp;
+use Encode;
 
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
@@ -21,6 +22,7 @@ use Class::Std;
         if ( !$self->user || !$self->user->is_user() ) {
             return;    # Need user object
         }
+
     }
 
     sub get_id {
@@ -269,6 +271,9 @@ use Class::Std;
         @result{qw(id local_part domain goto is_active)} = $sth->fetchrow_array();
         $sth->finish();
 
+        foreach my $key ( keys %result ) {
+            $result{$key} = Encode::decode( 'UTF-8', $result{$key} );
+        }
         return \%result;
     }
 
@@ -304,17 +309,13 @@ use Class::Std;
             return;
         }
         my @results = ();
-        while ( my ( $id, $local_part, $domain_name, $goto, $is_active ) = $sth->fetchrow_array() ) {
-            push(
-                @results,
-                {
-                    'id'         => $id,
-                    'local_part' => $local_part,
-                    'domain'     => $domain_name,
-                    'goto'       => $goto,
-                    'is_active'  => $is_active,
-                }
-            );
+        while ( my @row = $sth->fetchrow_array() ) {
+            my %h;
+            @h{qw(id local_part domain goto is_active)} = @row;
+            foreach my $field ( keys %h ) {
+                $h{$field} = Encode::decode( 'UTF-8', $h{$field} );
+            }
+            push( @results, \%h );
         }
 
         return @results;

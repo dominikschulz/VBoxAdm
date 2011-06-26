@@ -7,6 +7,8 @@ use warnings;
 
 use CGI::Carp qw(fatalsToBrowser);
 
+use Encode;
+
 # Needed for database connection
 use CGI::Application::Plugin::DBH (qw/dbh_config dbh/);
 
@@ -71,7 +73,6 @@ sub setup {
         # Public
         #
         'public_login' => 'show_login',
-        'public_utf8' => 'utf8_test',
 
         #
         # Private
@@ -258,6 +259,10 @@ sub setup {
     # uses connect_cached for persistent connections
     # this should have no effect for CGI and speed up FastCGI
     # http://www.cosmocode.de/en/blog/gohr/2009-12/10-surviving-the-perl-utf-8-madness
+    # mysql_enable_utf8 should prepare the connection for UTF-8. It will also SET NAMES utf8.
+    # Scripts, Database, Sourcecode, Userdata ... everything should be in UTF-8
+    # the only point were we could deal with non-UTF-8 is when we output data to
+    # non-utf-8 capable browsers (are there any?)
     $self->dbh_config(
         sub {
             DBI->connect_cached(
@@ -274,15 +279,7 @@ sub setup {
     	syslog( 2, "setup - Failed to establish DB connection with DSN $dsn and error message: ".DBI->errstr );
     	die("Could not connect to DB.");
     }
-
-    # Prepare connection for UTF-8
-    # Scripts, Database, Sourcecode, Userdata ... everything should be in UTF-8
-    # the only point were we could deal with non-UTF-8 is when we output data to
-    # non-utf-8 capable browsers (are there any?)
-    # TODO enable
-    #$self->dbh->do("SET NAMES utf8")
-    #  or syslog( 2, "setup - Failed to set DB connection to UTF-8!" );
-
+    
     #
     # L10N
     #
@@ -306,6 +303,7 @@ sub setup {
     }
     $self->tt_config(
         TEMPLATE_OPTIONS => {
+        		ENCODING => 'utf8', 
             INCLUDE_PATH => \@include_path,
             POST_CHOMP   => 1,
             FILTERS      => {
@@ -383,36 +381,6 @@ sub setup {
     return 1;
 }
 
-sub utf8_test {
-	my $self = shift;
-	# Get our database connection
-    my $dbh = $self->dbh();
-
-    my $query = "SELECT name FROM mailboxes WHERE id = 15";
-    my $sth   = $dbh->prepare($query);
-    $sth->execute();
-    my $name = $sth->fetchrow_array();
-    $sth->finish();
-    
-    my $output = "<html><body>";
-    $output .= "Name: $name<br />\n";
-    $output .= "IsUTF8: ".&VBoxAdm::Utils::is_utf8($name)."<br />\n";
-    $output .= "Hex: ".&VBoxAdm::Utils::string_to_hex($name)."<br />\n";
-    
-    use Encode;
-    $output .= "utf8::is_utf8: ".utf8::is_utf8($name)."<br />\n";
-    $output .= "utf8::valid: ".utf8::valid($name)."<br />\n";
-    $output .= "Encode::is_utf8: ".Encode::is_utf8($name,1)."<br />\n";
-    Encode::_utf8_on($name);
-    $output .= "Name: $name<br />\n";
-    $name = Encode::decode_utf8($name);
-    $output .= "Name: $name<br />\n";
-    
-    $output .= "</body></html>\n";
-
-    return $output;
-}
-
 sub teardown {
     my $self = shift;
 
@@ -470,6 +438,7 @@ sub tt_post_process {
 # pre processing set commonly used variables for the templates
 sub tt_pre_process {
     my ( $self, $file, $vars ) = @_;
+    
     $vars->{username}       = $self->authen->username;
     $vars->{system_domain}  = $self->{config}{'default'}{'domain'} || 'localhost';
     $vars->{long_forms}			= $self->{config}{'cgi'}{'long_forms'} || 0;
@@ -477,6 +446,7 @@ sub tt_pre_process {
     $vars->{messages}       = $self->get_messages();
     $vars->{is_superadmin}  = $self->user->is_siteadmin() if $self->user();
     $vars->{is_domainadmin} = $self->user->is_domainadmin() if $self->user();
+    
     return;
 }
 

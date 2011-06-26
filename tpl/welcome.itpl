@@ -30,5 +30,7 @@
     	</div>
     	<br />
     	<a target="_top" href="[% base_url %]?rm=logout&authen_logout=1">[% "Logout" | l10n %] - [% "Quit your session" | l10n %]
+    	<hr />
+    	[% extra %]
     </div>
 [% INCLUDE includes/footer.tpl %]
