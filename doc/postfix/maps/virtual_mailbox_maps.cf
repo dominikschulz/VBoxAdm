@@ -2,4 +2,5 @@ user = postfix
 password = PASSWORD
 hosts = localhost
 dbname = vboxadm
-query = /* virtual_mailbox_maps.cf */ SELECT CONCAT(d.name, '/', m.local_part) AS maildir FROM domains AS d LEFT JOIN mailboxes AS m ON m.domain_id = d.id WHERE d.name = '%d' AND m.local_part = '%u' AND d.is_active AND m.is_active
+# if you don't plan to use dovecot deliver replace '1' by 'CONCAT(d.name, '/', m.local_part)' 
+query = /* virtual_mailbox_maps.cf */ SELECT 1 AS maildir FROM domains AS d LEFT JOIN mailboxes AS m ON m.domain_id = d.id WHERE d.name = '%d' AND m.local_part = '%u' AND d.is_active AND m.is_active

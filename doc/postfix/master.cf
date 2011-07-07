@@ -121,6 +121,16 @@ smtp-proxy unix -       -       n       -       15  	smtp
 #  ${nexthop} ${user}
 #
 # ====================================================================
+# A note about the recipent Information passed to pipe targets:
+#
+# It is necessary to use the ${user}@${domain} syntax here if you want
+# to be able to use a recipient delimiter. ${recipient} will contain
+# the whole recipient after aliasing but with the part after and
+# including the delimiter. You can savely change the ${user}@${domain}
+# part to ${recipient} if you don't plan using a recipient delimiter
+# but I doubt that the syntax used here would do any harm.
+# See man 8 pipe for more details.
+# ====================================================================
 #
 # Dovecot Deliver
 dovecot   unix  -       n       n       -       -       pipe
@@ -130,10 +140,10 @@ dovecot   unix  -       n       n       -       -       pipe
 #
 # Vacation Autoresponder
 vacation  unix	-		n		n		-		-		pipe
-  flags=Rq user=vboxadm:vboxadm argv=/usr/lib/vboxadm/bin/vacation -s ${sender} -r ${recipient}
+  flags=Rq user=vboxadm:vboxadm argv=/usr/lib/vboxadm/bin/vacation -s ${sender} -r ${user}@${domain}
 #
 # ====================================================================
 #
 # Mailarchive
 mailarchive unix -      n       n       -       -       pipe
-  flags=FR user=vmail:vmail argv=/usr/lib/vboxadm/bin/mailarchive -s ${sender} -r ${recipient}
+  flags=FR user=vmail:vmail argv=/usr/lib/vboxadm/bin/mailarchive -s ${sender} -r ${user}@${domain}
