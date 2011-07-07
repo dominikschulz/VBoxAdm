@@ -158,7 +158,7 @@ class vboxadm extends rcube_plugin
 					$alias_active = 0;
 
 					$alias_goto = get_input_value('alias_goto', RCUBE_INPUT_POST);
-					if (!$this->_is_valid_addresses_rfc822($alias_goto)) {
+					if ( ( (!empty($alias_goto)) || ($alias_active) ) && (!$this->_is_valid_addresses_rfc822($alias_goto)) ) {
 						$error[] = $this->gettext('emailformat');
 					}
 				}
