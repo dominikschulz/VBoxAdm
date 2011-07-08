@@ -122,7 +122,7 @@ use Class::Std;
         $sth->finish();
 
         foreach my $key ( keys %result ) {
-            $result{$key} = Encode::decode( 'UTF-8', $result{$key} );
+            $result{$key} = Encode::decode( 'UTF-8', $result{$key} ) unless Encode::is_utf8( $result{$key} );
         }
 
         return \%result;
@@ -178,7 +178,7 @@ use Class::Std;
             my %h;
             @h{ @{$fields} } = @row;
             foreach my $field ( keys %h ) {
-                $h{$field} = Encode::decode( 'UTF-8', $h{$field} );
+                $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8( $h{$field} );
             }
             push( @entries, \%h );
         }

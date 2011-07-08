@@ -9,8 +9,6 @@ use Encode;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
-# TODO use Encode::decode and create, read, update and list!
-
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
@@ -64,8 +62,6 @@ use Class::Std;
     sub create {
         my ( $self, $local_part, $domain_id, $goto ) = @_;
         my $ident = ident $self;
-        
-        # TODO if recipient_delimiter is set, don't allow creation of such mailboxes
 
         # Authorization - No access for regular users
         if ( !$self->user->is_admin() ) {
@@ -75,6 +71,7 @@ use Class::Std;
 
         $local_part = &VBoxAdm::Utils::trim( lc($local_part) );
         $goto       = &VBoxAdm::Utils::trim( lc($goto) );
+        my $delim 	= $self->config()->{'smtpproxy'}->{'recipient_delimiter'};
 
         my $Domain = VBoxAdm::Model::Domain->new( { 'Model' => $self, } );
         my $domain_name = $Domain->get_name($domain_id);
@@ -92,6 +89,10 @@ use Class::Std;
         elsif ( $goto && !&VBoxAdm::Utils::is_valid_addresses_rfc822($goto) ) {
             $self->msg->push( 'error', "Invalid address in destination!" );
             return;
+        }
+        elsif ( $local_part && $delim && $local_part =~ m/$delim/ ) {
+        	$self->msg->push( 'error', 'Localpart may not contain the recipent_delimiter ('.$delim.')');
+        	return;
         }
         elsif ( $local_part && $domain_id && $goto ) {
 
@@ -276,7 +277,7 @@ use Class::Std;
         $sth->finish();
 
         foreach my $key ( keys %result ) {
-            $result{$key} = Encode::decode( 'UTF-8', $result{$key} );
+            $result{$key} = Encode::decode( 'UTF-8', $result{$key} ) unless Encode::is_utf8( $result{$key} );
         }
         return \%result;
     }
@@ -318,7 +319,7 @@ use Class::Std;
             my %h;
             @h{qw(id local_part domain goto is_active)} = @row;
             foreach my $field ( keys %h ) {
-                $h{$field} = Encode::decode( 'UTF-8', $h{$field} );
+                $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8( $h{$field} );
             }
             push( @results, \%h );
         }

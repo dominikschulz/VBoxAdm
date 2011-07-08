@@ -50,6 +50,7 @@ use Class::Std;
 
         my $system_domain = $self->config->{'default'}{'domain'}   || 'localhost';
         my $pwscheme      = $self->config->{'default'}{'pwscheme'} || 'ssha256';
+        my $delim 	= $self->config()->{'smtpproxy'}->{'recipient_delimiter'};
 
         my %args = (
             'local_part'     => $local_part,
@@ -63,7 +64,14 @@ use Class::Std;
             'is_superadmin'  => 0,
             'max_msg_size'   => 15 * 1024,
         );
-        # TODO if recipient_delimiter is set, don't allow creation of such mailboxes
+        
+        #
+        # LocalPart
+        #
+        if ( $local_part && $delim && $local_part =~ m/$delim/) {
+        	$self->msg->push('error','Localpart may not contain the recipent_delimiter ('.$delim.')');
+        	return;
+        }
 
         #
         # IsActive
@@ -215,8 +223,6 @@ use Class::Std;
     }
 
     sub update {
-
-        # TODO use Encode!
         my ( $self, $mailbox_id, $params ) = @_;
         my $ident = ident $self;
 
@@ -240,6 +246,10 @@ use Class::Std;
 
         # only execute query if scalar(@params) > 0, i.e. at least on valid option
         my @args = ();
+        
+        foreach my $key ( keys %{$params} ) {
+        	$params->{$key} = Encode::decode( 'UTF-8', $params->{$key} ) unless Encode::is_utf8( $params->{$key} );
+        }
 
         #
         # Password

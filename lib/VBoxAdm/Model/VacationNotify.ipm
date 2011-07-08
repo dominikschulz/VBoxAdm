@@ -9,8 +9,6 @@ use Sys::Syslog;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
-# TODO use Encode::decode and create, read, update and list!
-
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
@@ -72,7 +70,7 @@ use Class::Std;
         my $ident = ident $self;
 
         # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
+        if ( !$self->user->is_siteadmin() ) {
             $self->msg->push( 'error', 'Sorry. No access for regular users.' );
             return;
         }

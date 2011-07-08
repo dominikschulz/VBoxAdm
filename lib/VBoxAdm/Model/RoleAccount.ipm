@@ -9,9 +9,6 @@ use Sys::Syslog;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
-# TODO role accounts are for all domains, so only siteadmins should have access
-# TODO use Encode::decode and create, read, update and list!
-
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
@@ -34,14 +31,22 @@ use Class::Std;
         my $ident = ident $self;
 
         # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
+        if ( !$self->user->is_siteadmin() ) {
             $self->msg->push( 'error', 'Sorry. No access for regular users.' );
             return;
         }
 
-        if ( !&VBoxAdm::Utils::is_valid_address_rfc822($goto) ) {
+		my $delim 	= $self->config()->{'smtpproxy'}->{'recipient_delimiter'};
+		
+		if ( !&VBoxAdm::Utils::is_valid_localpart_rfc822($role) ) {
+			$self->msg->push( 'error', 'Invalid localpart as role name given.');
+			return;
+		} elsif ( !&VBoxAdm::Utils::is_valid_address_rfc822($goto) ) {
             $self->msg->push( 'error', 'Invalid email address given.' );
             return;
+        } elsif($role && $delim && $role =~ m/$delim/ ) {
+        	$self->msg->push( 'error', 'Localpart may not contain the recipent_delimiter ('.$delim.')');
+        	return;
         }
         my ( $local_part, $domain ) = split /@/, $goto;
 
@@ -63,7 +68,7 @@ use Class::Std;
         my $ident = ident $self;
 
         # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
+        if ( !$self->user->is_siteadmin() ) {
             $self->msg->push( 'error', 'Sorry. No access for regular users.' );
             return;
         }
@@ -87,7 +92,7 @@ use Class::Std;
         my $ident = ident $self;
 
         # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
+        if ( !$self->user->is_siteadmin() ) {
             $self->msg->push( 'error', 'Sorry. No access for regular users.' );
             return;
         }
@@ -125,7 +130,7 @@ use Class::Std;
         my $ident = ident $self;
 
         # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
+        if ( !$self->user->is_siteadmin() ) {
             $self->msg->push( 'error', 'Sorry. No access for regular users.' );
             return;
         }
@@ -151,7 +156,7 @@ use Class::Std;
         my $ident = ident $self;
 
         # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
+        if ( !$self->user->is_siteadmin() ) {
             $self->msg->push( 'error', 'Sorry. No access for regular users.' );
             return;
         }
@@ -164,7 +169,7 @@ use Class::Std;
         my $ident = ident $self;
 
         # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
+        if ( !$self->user->is_siteadmin() ) {
             $self->msg->push( 'error', 'Sorry. No access for regular users.' );
             return;
         }

@@ -8,6 +8,7 @@ use warnings;
 use CGI::Carp qw(fatalsToBrowser);
 
 use Encode;
+# TODO add punnycode translator
 
 # Needed for database connection
 use CGI::Application::Plugin::DBH (qw/dbh_config dbh/);

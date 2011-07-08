@@ -6,8 +6,6 @@ use warnings;
 use Carp;
 use Encode;
 
-# TODO use Encode::decode and create, read, update and list!
-
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {
@@ -159,8 +157,13 @@ use Class::Std;
             $sth->finish();
 
             $query = "UPDATE domain_aliases SET domain_id = ? WHERE id = ?";
+            # TODO verify that Goto domain exists!
 
-            if ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $params->{'Goto'}, $domain_alias_id ) ) {
+			if ( !$target_domain_name ) {
+				$self->msg->push( 'error', 'Can not point a domainalis to non-existing domain!');
+				return;
+			}
+            elsif ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $params->{'Goto'}, $domain_alias_id ) ) {
                 $self->msg->push( 'information', "Domain-Alias [_1] (#[_2]) redirected to Domain [_3] (#[_4]).",
                     $domain_name, $domain_alias_id, $target_domain_name, $params->{'Goto'} );
             }
