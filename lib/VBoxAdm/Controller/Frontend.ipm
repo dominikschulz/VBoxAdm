@@ -34,6 +34,7 @@ use Readonly;
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
 use VBoxAdm::SaltedHash '@VERSION@';
+use VBoxAdm::Logger '@VERSION@';
 
 use VBoxAdm::Model::Alias '@VERSION@';
 use VBoxAdm::Model::AWL '@VERSION@';
@@ -259,6 +260,8 @@ sub setup {
     # uses connect_cached for persistent connections
     # this should have no effect for CGI and speed up FastCGI
     # http://www.cosmocode.de/en/blog/gohr/2009-12/10-surviving-the-perl-utf-8-madness
+    # http://www.gyford.com/phil/writing/2008/04/25/utf8_mysql_perl.php
+    # http://stackoverflow.com/questions/6162484/why-does-modern-perl-avoid-utf-8-by-default
     # mysql_enable_utf8 should prepare the connection for UTF-8. It will also SET NAMES utf8.
     # Scripts, Database, Sourcecode, Userdata ... everything should be in UTF-8
     # the only point were we could deal with non-UTF-8 is when we output data to
@@ -350,21 +353,25 @@ sub setup {
 	    	'LH_EN' => $self->{'lh_en'},
 	    	'Session' => $self->session,
 	    });
+	    my $Logger = VBoxAdm::Logger->new({
+	    	'facility'	=> 'vboxadm',
+	    	'filename'	=> '/tmp/vboxadm.log',
+	    });
 	    $self->{'Messages'} = $Messages;
 			my $User = VBoxAdm::Model::User->new({
 	    	'dbh' => $self->dbh,
 	    	'Username' => $self->authen->username,
 	    	'ForceLogin' => 1,
 	    	'MessageQueue' => $Messages,
-	    	'Logger' => \&syslog,
+	    	'Logger' => $Logger,
 	    	'Config' => $self->{'config'},
 	    });
 	    $self->{'User'} = $User;
 	    my $arg_ref = {
 			    'dbh'          => $self->dbh,
-			    'User' 				 => $User,
+			    'User' 		   => $User,
 			    'MessageQueue' => $Messages,
-			    'Logger'       => \&syslog,
+			    'Logger'       => $Logger,
 			    'Config'       => $self->{'config'},
 			};
 			$self->{'Alias'}             = VBoxAdm::Model::Alias->new($arg_ref);
@@ -372,8 +379,8 @@ sub setup {
 			$self->{'Domain'}            = VBoxAdm::Model::Domain->new($arg_ref);
 			$self->{'DomainAlias'}       = VBoxAdm::Model::DomainAlias->new($arg_ref);
 			$self->{'Mailbox'}           = VBoxAdm::Model::Mailbox->new($arg_ref);
-			$self->{'RFCNotify'}			   = VBoxAdm::Model::RFCNotify->new($arg_ref);
-			$self->{'RoleAccount'}			 = VBoxAdm::Model::RoleAccount->new($arg_ref);
+			$self->{'RFCNotify'}		 = VBoxAdm::Model::RFCNotify->new($arg_ref);
+			$self->{'RoleAccount'}		 = VBoxAdm::Model::RoleAccount->new($arg_ref);
 			$self->{'VacationBlacklist'} = VBoxAdm::Model::VacationBlacklist->new($arg_ref);
     }
 
@@ -413,9 +420,14 @@ sub cgiapp_init {
         $ignore_ssl_check = 1;
     }
 
+    #$self->config_requiressl(
+    #    'keep_in_ssl'  => 1,
+    #    'ignore_check' => $ignore_ssl_check,
+    #);
+    # TODO re-enable SSL
     $self->config_requiressl(
-        'keep_in_ssl'  => 1,
-        'ignore_check' => $ignore_ssl_check,
+        'keep_in_ssl'  => 0,
+        'ignore_check' => 1,
     );
 
     # to make perlcritic happy
@@ -1438,7 +1450,7 @@ sub show_edit_mailbox {
 
     my $mailbox_id = $q->param('mailbox_id');    
     my $mailbox_ref = $self->{'Mailbox'}->read($mailbox_id);
-		my $domain_id = $mailbox_ref->{'domain_id'};
+	my $domain_id = $mailbox_ref->{'domain_id'};
 
     # show aliases pointing to this mbox, don't forget domain aliases!
     # show cc (aliases w/ the same name as this mailbox)
@@ -1455,7 +1467,7 @@ sub show_edit_mailbox {
     my ( $cc_id, $cc_goto ) = $sth->fetchrow_array();
     $sth->finish();
 
-		my %params = (
+	my %params = (
 			'title'              => $self->{lh}->maketext('Edit Mailbox'),
       'mailbox_id'         => $mailbox_id,
       'user_is_superadmin' => $self->user->is_siteadmin(),
@@ -1464,17 +1476,17 @@ sub show_edit_mailbox {
       'cc_id'              => $cc_id,
       'mb_is_domainadmin'  => $mailbox_ref->{'is_domainadmin'},
       'mb_is_superadmin'   => $mailbox_ref->{'is_superadmin'},
-		);
-		foreach my $key (keys %{$mailbox_ref}) {
-			$params{$key} = $mailbox_ref->{$key};
-		}
+	);
+	foreach my $key (keys %{$mailbox_ref}) {
+		$params{$key} = $mailbox_ref->{$key};
+	}
 		
-		if ( $params{'vacation_start'} && $params{'vacation_start'} =~ m/^\s*(\d\d\d\d)-(\d\d)-(\d\d)\s*$/ ) {
-			$params{'vacation_start'} = "$3.$2.$1";
-		}
-		if ( $params{'vacation_end'} && $params{'vacation_end'} =~ m/^\s*(\d\d\d\d)-(\d\d)-(\d\d)\s*$/ ) {
-			$params{'vacation_end'} = "$3.$2.$1";
-		}
+	if ( $params{'vacation_start'} && $params{'vacation_start'} =~ m/^\s*(\d\d\d\d)-(\d\d)-(\d\d)\s*$/ ) {
+		$params{'vacation_start'} = "$3.$2.$1";
+	}
+	if ( $params{'vacation_end'} && $params{'vacation_end'} =~ m/^\s*(\d\d\d\d)-(\d\d)-(\d\d)\s*$/ ) {
+		$params{'vacation_end'} = "$3.$2.$1";
+	}
 		
     return $self->tt_process( 'mailbox/edit.tpl', \%params );
 }

@@ -10,6 +10,7 @@ use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
 # TODO role accounts are for all domains, so only siteadmins should have access
+# TODO use Encode::decode and create, read, update and list!
 
 use base qw(VBoxAdm::Model);
 use Class::Std;

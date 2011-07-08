@@ -150,6 +150,7 @@ use Class::Std;
 
             foreach my $key ( keys %args ) {
                 $args{$key} = 0 unless defined( $args{$key} );
+                $args{$key} = Encode::decode('UTF-8',$args{$key});
             }
             if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, values %args ) ) {
                 $sth->finish();
@@ -213,6 +214,7 @@ use Class::Std;
     }
 
     sub update {
+    	# TODO use Encode!
         my ( $self, $mailbox_id, $params ) = @_;
         my $ident = ident $self;
 
@@ -474,9 +476,9 @@ use Class::Std;
         else {
             $result{'max_msg_size_mb'} = 0;
         }
-
-        foreach my $key ( keys %result ) {
-            $result{$key} = Encode::decode( 'UTF-8', $result{$key} );
+        
+        foreach my $key (keys %result) {
+        	$result{$key} = Encode::decode( 'UTF-8', $result{$key} ) unless Encode::is_utf8($result{$key});
         }
 
         return \%result;
@@ -524,7 +526,7 @@ use Class::Std;
 
         if ( !$sth ) {
             $self->msg->push( 'error', 'Database error.' );
-            $self->log( 'Database Error during query ' . $sql . ': ' . $sth->errstr );
+            $self->log( 'Database Error during query ' . $sql . ': ' . $self->dbh->errstr );
             return;
         }
 
@@ -536,7 +538,7 @@ use Class::Std;
             my %h;
             @h{@fields} = @row;
             foreach my $field ( keys %h ) {
-                $h{$field} = Encode::decode( 'UTF-8', $h{$field} );
+                $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8($h{$field});
             }
             delete( $h{'password'} ) unless $param->{'IncludePassword'};
             push( @entries, \%h );

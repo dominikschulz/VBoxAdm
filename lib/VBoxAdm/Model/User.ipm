@@ -8,6 +8,8 @@ use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::SaltedHash '@VERSION@';
 
+# TODO use Encode::decode and create, read, update and list!
+
 use base qw(VBoxAdm::Model);
 use Class::Std;
 {

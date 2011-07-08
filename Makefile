@@ -97,6 +97,7 @@ LIBFILES = \
 	lib/VBoxAdm/DB.pm \
 	lib/VBoxAdm/DNS.pm \
 	lib/VBoxAdm/L10N.pm \
+	lib/VBoxAdm/Logger.pm \
 	lib/VBoxAdm/Migration.pm \
 	lib/VBoxAdm/Model.pm \
 	lib/VBoxAdm/Password.pm \
