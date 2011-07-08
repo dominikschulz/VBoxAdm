@@ -99,16 +99,16 @@ sub _init_dispatcher {
 }
 
 sub log {
-    my $self   = shift;
+    my $self = shift;
     my %params;
-    
+
     # TODO check this code
     #if(scalar(@_) % 2 == 0) {
     #	%params = @_;
     #} else {
     #	$params{'message'} = join(' ',@_);
     #}
-    $params{'message'} = join('',@_);
+    $params{'message'} = join( '', @_ );
 
     $params{'caller'} = ( caller(1) )[3];
     $params{'ts'}     = time();
@@ -132,6 +132,7 @@ sub log {
         $params{'message'} = sprintf( "%04i%02i%02i-%02i%02i%02i", $year, $mon, $mday, $hour, $min, $sec ) . ' ' . $params{'message'};
     }
     $params{'message'} .= "\n";
+
     #print $params{'message'};    # TODO DEBUG
     $params{'level'} = 'emerg';
     $self->dispatcher()->log(%params);
