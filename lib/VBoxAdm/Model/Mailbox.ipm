@@ -200,7 +200,7 @@ use Class::Std;
         push( @args, $mailbox_id );
         if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
             $query .= "AND domain_id = ?";
-            push( @args, $self->get_users_domainid() );
+            push( @args, $self->user->get_domain_id() );
         }
         if ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
             $self->msg->push( 'information', "Mailbox [_1] (#[_2]) removed.", $mailbox_name, $mailbox_id );
@@ -452,7 +452,7 @@ use Class::Std;
             push( @args, $self->user->get_id() );
         }
 
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $mailbox_id );
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
 
         if ( !$sth ) {
             $self->msg->push( 'error', 'Database error.' );

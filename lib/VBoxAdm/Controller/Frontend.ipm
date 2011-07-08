@@ -1150,11 +1150,11 @@ sub show_update_domain_alias {
 
     my $domain_alias_id = $q->param('domain_alias_id');
     my %params = (
-	    'IsActive'       => $q->param('is_active'),
+	    'IsActive'      => ($q->param('is_active') ? 1 : 0),
 	    'Goto'          => $q->param('target'),
     );
     
-    $self->{'DomainAlias'}->update($domain_alias_id);
+    $self->{'DomainAlias'}->update($domain_alias_id, \%params);
     
     $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
     return;

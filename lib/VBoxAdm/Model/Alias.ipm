@@ -233,12 +233,12 @@ use Class::Std;
                 $query .= " AND domain_id = ?";
                 push( @args, $self->user->get_domain_id() );
             }
-            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $target, $alias_id ) ) {
+            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
                 $self->msg->push( 'information', "Alias [_1] (#[_2]) redirected to [_3].", $alias_name, $alias_id, $target );
                 $sth->finish();
             }
             else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $target, $alias_id ) ), $sth->errstr );
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
                 $self->msg->push( 'error', "Failed to redirect Alias [_1] (#[_2]) to [_3].", $alias_name, $alias_id, $target );
             }
         }
@@ -264,7 +264,7 @@ use Class::Std;
             $sql .= " AND a.domain_id = ?";
             push( @args, $self->user->get_domain_id() );
         }
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $id );
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
         if ( !$sth ) {
             $self->msg->push( 'error', 'Database error.' );
             return;
@@ -296,6 +296,7 @@ use Class::Std;
             my $term = $params->{'Search'};
             $term =~ s/[*%]+//g;
             $term = '%' . $term . '%';
+            push( @args, $term );
             push( @args, $term );
             push( @args, $term );
         }
