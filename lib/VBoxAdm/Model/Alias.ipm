@@ -64,6 +64,8 @@ use Class::Std;
     sub create {
         my ( $self, $local_part, $domain_id, $goto ) = @_;
         my $ident = ident $self;
+        
+        # TODO if recipient_delimiter is set, don't allow creation of such mailboxes
 
         # Authorization - No access for regular users
         if ( !$self->user->is_admin() ) {

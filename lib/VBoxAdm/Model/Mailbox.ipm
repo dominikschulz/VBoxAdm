@@ -63,6 +63,7 @@ use Class::Std;
             'is_superadmin'  => 0,
             'max_msg_size'   => 15 * 1024,
         );
+        # TODO if recipient_delimiter is set, don't allow creation of such mailboxes
 
         #
         # IsActive
