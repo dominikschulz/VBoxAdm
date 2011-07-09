@@ -29,7 +29,6 @@ use CGI::Application::Plugin::Authentication;
 
 use Config::Std;
 use DBI;
-use Sys::Syslog;
 use Readonly;
 
 use VBoxAdm::Utils '@VERSION@';
@@ -64,6 +63,11 @@ Readonly my $ENTRIES_PER_PAGE => 20;
 # setup is run right after cgiapp_init
 sub setup {
     my $self = shift;
+    
+    my $Logger = VBoxAdm::Logger->new({
+	    	'Facility'	=> 'Frontend',
+	    });
+	  $self->{'logger'} = $Logger;
 
     # define the default run mode
     $self->start_mode('public_login');
@@ -241,7 +245,7 @@ sub setup {
         }
     }
     if ( !$conffile_used ) {
-        syslog( 2, "setup - Warning: No readable config file found in search path! (".join(':',@conffile_locations).")" );
+        $self->{'logger'}->log( "setup - Warning: No readable config file found in search path! (".join(':',@conffile_locations).")" );
     }
     $self->{config} = \%config;
 
@@ -280,7 +284,7 @@ sub setup {
         }
     );
     if(!$self->dbh) {
-    	syslog( 2, "setup - Failed to establish DB connection with DSN $dsn and error message: ".DBI->errstr );
+    	$self->{'logger'}->log( "setup - Failed to establish DB connection with DSN $dsn and error message: ".DBI->errstr );
     	die("Could not connect to DB.");
     }
     
@@ -354,10 +358,6 @@ sub setup {
 	    	'LH_EN' => $self->{'lh_en'},
 	    	'Session' => $self->session,
 	    });
-	    my $Logger = VBoxAdm::Logger->new({
-	    	'facility'	=> 'vboxadm',
-	    	'filename'	=> '/tmp/vboxadm.log',
-	    });
 	    $self->{'Messages'} = $Messages;
 			my $User = VBoxAdm::Model::User->new({
 	    	'dbh' => $self->dbh,
@@ -395,9 +395,6 @@ sub teardown {
     # Disconnect when done
     $self->dbh->disconnect();
 
-    # Close log
-    closelog();
-
     # to make perlcritic happy
     return 1;
 }
@@ -411,9 +408,6 @@ sub cgiapp_init {
 
     # Everything should be in UTF-8!
     $self->query->charset('UTF-8');
-
-    # Set up syslog
-    openlog( 'VBoxAdm/Frontend', 'ndelay,nofatal', 'mail' );
 
     # Configure RequireSSL
     my $ignore_ssl_check = 0;
@@ -483,16 +477,16 @@ sub log {
     my $dbh = $self->dbh();
 
     if ($msg) {
-        syslog( 2, $msg );
+        $self->{'logger'}->log( $msg );
         my $query = "INSERT INTO log (ts,msg) VALUES(NOW(),?)";
         my $sth   = $dbh->prepare($query)
-          or syslog( 2, 'log - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+          or $self->{'logger'}->log( 'log - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
         if ( $sth->execute($msg) ) {
             $sth->finish();
             return 1;
         }
         else {
-            syslog( 2, 'log - Could not execute Query: %s, Args: %s, Error: %s', $query, $msg, $sth->errstr );
+            $self->{'logger'}->log( 'log - Could not execute Query: %s, Args: %s, Error: %s', $query, $msg, $sth->errstr );
             $sth->finish();
             return;
         }
@@ -1031,9 +1025,9 @@ sub show_create_domain_alias {
     }
     $query .= "ORDER BY name";
     my $sth = $dbh->prepare($query)
-      or syslog( 2, 'show_create_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+      or $self->{'logger'}->log( 'show_create_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
     $sth->execute(@args)
-      or syslog( 2, 'show_create_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+      or $self->{'logger'}->log( 'show_create_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
 
     my @domains = ();
     while ( my @row = $sth->fetchrow_array() ) {
@@ -1107,9 +1101,9 @@ sub show_edit_domain_alias {
     }
     $query .= " ORDER BY name";
     my $sth = $dbh->prepare($query)
-      or syslog( 2, 'show_edit_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+      or $self->{'logger'}->log( 'show_edit_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
     $sth->execute(@args)
-      or syslog( 2, 'show_edit_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+      or $self->{'logger'}->log( 'show_edit_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
 
     my @domains = ();
     while ( my @row = $sth->fetchrow_array() ) {
@@ -1214,9 +1208,9 @@ sub show_create_alias {
     }
     $query .= "ORDER BY name";
     my $sth = $dbh->prepare($query)
-      or syslog( 2, 'show_create_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+      or $self->{'logger'}->log( 'show_create_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
     $sth->execute(@args)
-      or syslog( 2, 'show_create_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+      or $self->{'logger'}->log( 'show_create_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
 
     my @domains = ();
     while ( my @row = $sth->fetchrow_array() ) {
@@ -1369,9 +1363,9 @@ sub show_create_mailbox {
     }
     $query .= "ORDER BY name";
     my $sth = $dbh->prepare($query)
-      or syslog( 2, 'show_create_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+      or $self->{'logger'}->log( 'show_create_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
     $sth->execute(@args)
-      or syslog( 2, 'show_create_mailbox - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+      or $self->{'logger'}->log( 'show_create_mailbox - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
 
     my @domains = ();
     while ( my @row = $sth->fetchrow_array() ) {
@@ -1558,9 +1552,9 @@ sub show_log {
 
     # Get the actual data
     my $sth = $dbh->prepare( 'SELECT ts,msg ' . $query . ' LIMIT ?, ?' )
-      or syslog( 2, 'show_log - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+      or $self->{'logger'}->log( 'show_log - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
     $sth->execute(@args)
-      or syslog( 2, 'show_log - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+      or $self->{'logger'}->log( 'show_log - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
 
     my @log = ();
     while ( my @row = $sth->fetchrow_array() ) {

@@ -9,8 +9,6 @@ use Data::Dumper;
 
 our $VERSION = '@VERSION@';
 
-# TODO use Encode::decode and create, read, update and list!
-
 use Class::Std;
 {
 

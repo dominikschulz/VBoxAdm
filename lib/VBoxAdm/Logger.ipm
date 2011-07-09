@@ -1,141 +1,39 @@
 package VBoxAdm::Logger;
 
-use Moose;
+use Sys::Syslog;
 
-use Log::Dispatch;
+use Class::Std;
+{
+		# Attributes
+    # none
 
-has 'dispatcher' => (
-    'is'       => 'ro',
-    'isa'      => 'Log::Dispatch',
-    'required' => 0,
-    'lazy'     => 1,
-    'builder'  => '_init_dispatcher',
-);
+    sub BUILD {
+        my ( $self, $ident, $arg_ref ) = @_;
+        
+        my $facility = 'VBoxAdm/Logger';
+        if($arg_ref->{'Facility'}) {
+        	$facility = 'VBoxAdm/'.$arg_ref->{'Facility'};
+        }
 
-has 'filename' => (
-    'is'       => 'ro',
-    'isa'      => 'Str',
-    'required' => 1,
-);
+    openlog( $facility, 'ndelay,nofatal', 'mail' );
 
-has 'facility' => (
-    'is'       => 'ro',
-    'isa'      => 'Str',
-    'required' => 1,
-);
-
-has 'recipients' => (
-    'is'  => 'rw',
-    'isa' => 'ArrayRef[Str]',
-);
-
-has _buffer => (
-    'is'      => 'rw',
-    'isa'     => 'ArrayRef',
-    'default' => sub { [] },
-);
-
-has 'prefix_caller' => (
-    'is'      => 'rw',
-    'isa'     => 'Bool',
-    'default' => 1,
-);
-
-has 'prefix_ts' => (
-    'is'      => 'rw',
-    'isa'     => 'Bool',
-    'default' => 1,
-);
-
-has 'prefix' => (
-    'is'      => 'rw',
-    'isa'     => 'Str',
-    'default' => '',
-);
-
-sub get_buffer {
-    my $self  = shift;
-    my @lines = @{ $self->_buffer() };
-    return @lines;
-}
-
-sub clear_buffer {
-    my $self = shift;
-    $self->_buffer( [] );
-}
-
-sub _add_to_buffer {
-    my $self = shift;
-    my $obj  = shift;
-
-    # make sure the buffer doesn't get too big
-    if ( @{ $self->_buffer() } > 1_000_000 ) {
-        shift @{ $self->_buffer() };
     }
-    push( @{ $self->_buffer() }, $obj );
+	
+	sub log {
+	    my $self = shift;
+	    my $ident = ident $self;
+	
+	my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime();
+	        $year += 1900;
+	        $mon++;
+	        my $tpl = shift;
+			my $message = sprintf( "%04i%02i%02i-%02i%02i%02i", $year, $mon, $mday, $hour, $min, $sec ) . ' ' .( caller(1) )[3].' '.sprintf($tpl,@_);
+	    syslog(2,$message);
+	}
+	
+	sub DEMOLISH {
+		# Close log
+    closelog();
+	}
 }
-
-sub _init_dispatcher {
-    my $self = shift;
-
-    my $log = Log::Dispatch->new(
-        outputs => [
-            [ 'File',   min_level => 'debug', filename => $self->filename() ],
-            [ 'Screen', min_level => 'emerg', ],
-            [ 'Syslog', min_level => 'info',  ident    => $self->facility() ],
-        ],
-    );
-    if ( $self->recipients() ) {
-        require Log::Dispatch::Email::MailSender;
-        $log->add(
-            Log::Dispatch::Email::MailSender->new(
-                min_level => 'emerg',
-                to        => join( ',', @{ $self->recipients() } ),
-                subject   => $self->facility() . ' - EMERGENCY',
-            )
-        );
-    }
-    return $log;
-}
-
-sub log {
-    my $self = shift;
-    my %params;
-
-    # TODO check this code
-    #if(scalar(@_) % 2 == 0) {
-    #	%params = @_;
-    #} else {
-    #	$params{'message'} = join(' ',@_);
-    #}
-    $params{'message'} = join( '', @_ );
-
-    $params{'caller'} = ( caller(1) )[3];
-    $params{'ts'}     = time();
-    $self->_add_to_buffer( \%params );
-
-    # prepend log message w/ the caller
-    if ( $self->prefix_caller() ) {
-        $params{'message'} = $params{'caller'} . ' ' . $params{'message'};
-    }
-
-    # prepend a user-supplied prefix, e.g. [CHILD 24324/234342]
-    if ( $self->prefix() ) {
-        $params{'message'} = $self->prefix() . ' ' . $params{'message'};
-    }
-
-    # prepend log message w/ a timestamp
-    if ( $self->prefix_ts() ) {
-        my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime( $params{'ts'} );
-        $year += 1900;
-        $mon++;
-        $params{'message'} = sprintf( "%04i%02i%02i-%02i%02i%02i", $year, $mon, $mday, $hour, $min, $sec ) . ' ' . $params{'message'};
-    }
-    $params{'message'} .= "\n";
-
-    #print $params{'message'};    # TODO DEBUG
-    $params{'level'} = 'emerg';
-    $self->dispatcher()->log(%params);
-}
-
 1;

@@ -248,7 +248,7 @@ use Class::Std;
         my @args = ();
         
         foreach my $key ( keys %{$params} ) {
-        	$params->{$key} = Encode::decode( 'UTF-8', $params->{$key} ) unless Encode::is_utf8( $params->{$key} );
+        	$params->{$key} = Encode::decode( 'UTF-8', $params->{$key} );
         }
 
         #
