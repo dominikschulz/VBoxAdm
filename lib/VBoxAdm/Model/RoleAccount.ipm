@@ -36,17 +36,19 @@ use Class::Std;
             return;
         }
 
-		my $delim 	= $self->config()->{'smtpproxy'}->{'recipient_delimiter'};
-		
-		if ( !&VBoxAdm::Utils::is_valid_localpart_rfc822($role) ) {
-			$self->msg->push( 'error', 'Invalid localpart as role name given.');
-			return;
-		} elsif ( !&VBoxAdm::Utils::is_valid_address_rfc822($goto) ) {
+        my $delim = $self->config()->{'smtpproxy'}->{'recipient_delimiter'};
+
+        if ( !&VBoxAdm::Utils::is_valid_localpart_rfc822($role) ) {
+            $self->msg->push( 'error', 'Invalid localpart as role name given.' );
+            return;
+        }
+        elsif ( !&VBoxAdm::Utils::is_valid_address_rfc822($goto) ) {
             $self->msg->push( 'error', 'Invalid email address given.' );
             return;
-        } elsif($role && $delim && $role =~ m/$delim/ ) {
-        	$self->msg->push( 'error', 'Localpart may not contain the recipent_delimiter ('.$delim.')');
-        	return;
+        }
+        elsif ( $role && $delim && $role =~ m/$delim/ ) {
+            $self->msg->push( 'error', 'Localpart may not contain the recipent_delimiter (' . $delim . ')' );
+            return;
         }
         my ( $local_part, $domain ) = split /@/, $goto;
 

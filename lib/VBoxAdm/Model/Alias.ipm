@@ -71,7 +71,7 @@ use Class::Std;
 
         $local_part = &VBoxAdm::Utils::trim( lc($local_part) );
         $goto       = &VBoxAdm::Utils::trim( lc($goto) );
-        my $delim 	= $self->config()->{'smtpproxy'}->{'recipient_delimiter'};
+        my $delim = $self->config()->{'smtpproxy'}->{'recipient_delimiter'};
 
         my $Domain = VBoxAdm::Model::Domain->new( { 'Model' => $self, } );
         my $domain_name = $Domain->get_name($domain_id);
@@ -91,8 +91,8 @@ use Class::Std;
             return;
         }
         elsif ( $local_part && $delim && $local_part =~ m/$delim/ ) {
-        	$self->msg->push( 'error', 'Localpart may not contain the recipent_delimiter ('.$delim.')');
-        	return;
+            $self->msg->push( 'error', 'Localpart may not contain the recipent_delimiter (' . $delim . ')' );
+            return;
         }
         elsif ( $local_part && $domain_id && $goto ) {
 

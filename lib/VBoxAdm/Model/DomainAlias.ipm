@@ -157,12 +157,13 @@ use Class::Std;
             $sth->finish();
 
             $query = "UPDATE domain_aliases SET domain_id = ? WHERE id = ?";
+
             # TODO verify that Goto domain exists!
 
-			if ( !$target_domain_name ) {
-				$self->msg->push( 'error', 'Can not point a domainalis to non-existing domain!');
-				return;
-			}
+            if ( !$target_domain_name ) {
+                $self->msg->push( 'error', 'Can not point a domainalis to non-existing domain!' );
+                return;
+            }
             elsif ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $params->{'Goto'}, $domain_alias_id ) ) {
                 $self->msg->push( 'information', "Domain-Alias [_1] (#[_2]) redirected to Domain [_3] (#[_4]).",
                     $domain_name, $domain_alias_id, $target_domain_name, $params->{'Goto'} );
@@ -200,37 +201,37 @@ use Class::Std;
             return;
         }
 
-		my $sql  = "SELECT da.id, da.name, da.is_active, d.name FROM domain_aliases AS da LEFT JOIN domains AS d ON da.domain_id = d.id WHERE 1";
-		my @args = ();
-		if ( $params->{Search} ) {
-			$sql .= " AND (da.name LIKE ? OR d.name LIKE ?)";
-			my $term = $params->{'Search'};
-			$term =~ s/[*%]+//g;
-			$term = '%' . $term . '%';
-			push( @args, $term );
-			push( @args, $term );
-		}
-		
-		# Authorization
-		if ( !$self->user->is_siteadmin() ) {
-			$sql .= " AND da.domain_id = ?";
-			push( @args, $self->user->get_domain_id() );
-		}
-		my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
-		if ( !$sth ) {
-			$self->msg->push( 'error', 'Database error.' );
-			return;
-		}
-		my @results = ();
-		while ( my @row = $sth->fetchrow_array() ) {
-			my %h;
-			@h{qw(id name is_active target)} = @row;
-			foreach my $field ( keys %h ) {
-				$h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8($h{$field});
-			}
-			push( @results, \%h );
-		}
-		return @results;
+        my $sql  = "SELECT da.id, da.name, da.is_active, d.name FROM domain_aliases AS da LEFT JOIN domains AS d ON da.domain_id = d.id WHERE 1";
+        my @args = ();
+        if ( $params->{Search} ) {
+            $sql .= " AND (da.name LIKE ? OR d.name LIKE ?)";
+            my $term = $params->{'Search'};
+            $term =~ s/[*%]+//g;
+            $term = '%' . $term . '%';
+            push( @args, $term );
+            push( @args, $term );
+        }
+
+        # Authorization
+        if ( !$self->user->is_siteadmin() ) {
+            $sql .= " AND da.domain_id = ?";
+            push( @args, $self->user->get_domain_id() );
+        }
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+        if ( !$sth ) {
+            $self->msg->push( 'error', 'Database error.' );
+            return;
+        }
+        my @results = ();
+        while ( my @row = $sth->fetchrow_array() ) {
+            my %h;
+            @h{qw(id name is_active target)} = @row;
+            foreach my $field ( keys %h ) {
+                $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8( $h{$field} );
+            }
+            push( @results, \%h );
+        }
+        return @results;
     }
 
     sub get_name {

@@ -4,36 +4,38 @@ use Sys::Syslog;
 
 use Class::Std;
 {
-		# Attributes
+
+    # Attributes
     # none
 
     sub BUILD {
         my ( $self, $ident, $arg_ref ) = @_;
-        
+
         my $facility = 'VBoxAdm/Logger';
-        if($arg_ref->{'Facility'}) {
-        	$facility = 'VBoxAdm/'.$arg_ref->{'Facility'};
+        if ( $arg_ref->{'Facility'} ) {
+            $facility = 'VBoxAdm/' . $arg_ref->{'Facility'};
         }
 
-    openlog( $facility, 'ndelay,nofatal', 'mail' );
+        openlog( $facility, 'ndelay,nofatal', 'mail' );
 
     }
-	
-	sub log {
-	    my $self = shift;
-	    my $ident = ident $self;
-	
-	my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime();
-	        $year += 1900;
-	        $mon++;
-	        my $tpl = shift;
-			my $message = sprintf( "%04i%02i%02i-%02i%02i%02i", $year, $mon, $mday, $hour, $min, $sec ) . ' ' .( caller(1) )[3].' '.sprintf($tpl,@_);
-	    syslog(2,$message);
-	}
-	
-	sub DEMOLISH {
-		# Close log
-    closelog();
-	}
+
+    sub log {
+        my $self  = shift;
+        my $ident = ident $self;
+
+        my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime();
+        $year += 1900;
+        $mon++;
+        my $tpl = shift;
+        my $message = sprintf( "%04i%02i%02i-%02i%02i%02i", $year, $mon, $mday, $hour, $min, $sec ) . ' ' . ( caller(1) )[3] . ' ' . sprintf( $tpl, @_ );
+        syslog( 2, $message );
+    }
+
+    sub DEMOLISH {
+
+        # Close log
+        closelog();
+    }
 }
 1;
