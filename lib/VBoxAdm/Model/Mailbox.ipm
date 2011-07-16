@@ -68,7 +68,7 @@ use Class::Std;
         #
         # LocalPart
         #
-        if ( $local_part && $delim && $local_part =~ m/$delim/ ) {
+        if ( $local_part && $delim && $local_part =~ m/\Q$delim\E/ ) {
             $self->msg->push( 'error', 'Localpart may not contain the recipent_delimiter (' . $delim . ')' );
             return;
         }
