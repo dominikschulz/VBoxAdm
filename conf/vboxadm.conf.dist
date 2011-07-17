@@ -6,6 +6,8 @@ dbhost=localhost
 domain=domain.tld
 mail_location=/var/vmail
 
+pwscheme=ssha256
+
 [autodiscover]
 imap_hostname=mail.domain.tld
 pop3_hostname=mail.domain.tld
@@ -13,7 +15,6 @@ pw_encrypt = 0
 
 # config for webfrontend
 [cgi]
-pwscheme=ssha256
 no_ssl=1
 base_url=/cgi-bin/vboxadm.pl
 media_prefix=
