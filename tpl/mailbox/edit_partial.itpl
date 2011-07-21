@@ -15,9 +15,9 @@
 		
 		<label for="password">
 			[% "Password:" | l10n %]
-			<span class="small"></span>
+			<span class="small">[% IF pw_lock %][% "Password is locked." | l10n %][% END %]</span>
 		</label>
-		<input class="flat" type="password" name="password" autocomplete="off" />
+		<input class="flat" type="password" name="password" autocomplete="off"[% IF pw_lock %] disabled[% END %] />
 		
 		<div class="spacer"></div>
 		
@@ -25,7 +25,7 @@
 			[% "Password (again):" | l10n %]
 			<span class="small"></span>
 		</label>
-		<input class="flat" type="password" name="password_2" autocomplete="off" />
+		<input class="flat" type="password" name="password_2" autocomplete="off"[% IF pw_lock %] disabled[% END %] />
 		
 		<div class="spacer"></div>
 		

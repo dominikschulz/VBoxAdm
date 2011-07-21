@@ -21,6 +21,7 @@ clean_html=1
 #template_path=/my/custom/templates
 long_forms=1
 sa_default_block_score=6.31
+obey_pw_lock=1
 
 # config for vacation autoresonder
 [vacation]

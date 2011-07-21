@@ -44,7 +44,7 @@ use Class::Std;
                 return 1;
             }
             else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $local_part, $domain ) ), $sth->errstr );
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $local_part, $domain ) ), $self->dbh->errstr );
                 $self->msg->push( 'error', "Failed to add Vacation Blacklist Entry [_1]. Database Error.", $email );
                 return;
             }
@@ -110,7 +110,7 @@ use Class::Std;
                 return 1;
             }
             else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, $entry_id, $sth->errstr );
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, $entry_id, $self->dbh->errstr );
                 $self->msg->push( 'error', "Failed to remove Vacation Blacklist Entry [_1]. Database Error.", $email );
                 return;
             }

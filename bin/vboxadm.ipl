@@ -2,6 +2,8 @@
 use strict;
 use warnings;
 
+# TODO allow changing the pw_lock flag on mailboxes
+
 use English qw(-no_match_vars);
 
 use CPAN;
@@ -74,6 +76,7 @@ GetOptions(
     'vacmsg=s'        => \$opts->{VacationMessage},
     'vacstart=s'      => \$opts->{VacationStart},
     'vacend=s'        => \$opts->{VacationEnd},
+    'forcepass!'	  => \$opts->{ForcePassword},
 ) or die("Unknown Command");
 
 # Try all config file locations
@@ -183,7 +186,8 @@ Options:
 --vacsubj - Subject of Vacation reply
 --vacmsg - Message of Vacation reply
 --vacstart - Start of Vacation
---vacend - End of Vacation",
+--vacend - End of Vacation
+--forcepass - Allow changing of locked passwords",
     'alias' => "Alias - Manage Aliases
 Available subcommands:
 \tadd <email> <goto>
@@ -428,6 +432,7 @@ my %actions = (
                 Name IsActive MaxMsgSize IsSiteadmin IsDomainadmin
                 SAKillScore SAActive
                 IsOnVacation VacationSubject VacationMessage VacationStart VacationEnd
+                ForcePassword
                 )
               )
             {

@@ -58,7 +58,7 @@ use Class::Std;
                 return 1;
             }
             else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $domain_alias, $domain_id ) ), $sth->errstr );
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $domain_alias, $domain_id ) ), $self->dbh->errstr );
                 $self->msg->push( 'error', "Failed to add domain alias '[_1]' to domain [_2] (#[_3]). Database Error.",
                     $domain_alias, $domain_name, $domain_id );
                 return;
@@ -103,7 +103,7 @@ use Class::Std;
             return 1;
         }
         else {
-            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
             $self->msg->push( 'error', "Failed to remove Domain-Alias [_1] (#[_2]). Database error.", $domain_name, $domain_alias_id );
             return;
         }
@@ -140,7 +140,7 @@ use Class::Std;
                 $self->msg->push( 'information', "Domain-Alias [_1] (#[_2]) $status_str.", $domain_name, $domain_alias_id );
             }
             else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
                 $self->msg->push( 'error', "Failed to set Domain-Alias [_1] (#[_2]) [_3]. Database Error.", $domain_name, $domain_alias_id, $status_str );
             }
         }
@@ -169,7 +169,11 @@ use Class::Std;
                     $domain_name, $domain_alias_id, $target_domain_name, $params->{'Goto'} );
             }
             else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $params->{'Goto'}, $domain_alias_id ) ), $sth->errstr );
+                $self->log(
+                    'Could not execute Query: %s, Args: %s, Error: %s',
+                    $query, join( "-", ( $params->{'Goto'}, $domain_alias_id ) ),
+                    $self->dbh->errstr
+                );
                 $self->msg->push( 'error', "Failed to redirect Domain-Alias [_1] (#[_2]) to Domain [_3] (#[_4]).",
                     $domain_name, $domain_alias_id, $target_domain_name, $params->{'Goto'} );
             }

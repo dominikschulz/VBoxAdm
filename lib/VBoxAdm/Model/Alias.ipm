@@ -103,7 +103,7 @@ use Class::Std;
                 return 1;
             }
             else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $domain_id, $local_part, $goto ) ), $sth->errstr );
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $domain_id, $local_part, $goto ) ), $self->dbh->errstr );
                 $self->msg->push( 'error', "Failed to add alias [_1] => [_2]. Database Error.", "$local_part\@$domain_name", $goto );
                 return;
             }
@@ -152,7 +152,7 @@ use Class::Std;
                 return 1;
             }
             else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
                 $self->msg->push( 'error', "Failed to remove Alias [_1] => [_2] (#[_3]). Database Error.", $alias, $goto, $alias_id );
                 return;
             }
@@ -214,7 +214,7 @@ use Class::Std;
                 $sth->finish();
             }
             else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
                 $self->msg->push( 'error', "Failed to set Alias [_1] (#[_2]) [_3].", $alias_name, $alias_id, $status_str );
             }
         }
@@ -241,7 +241,7 @@ use Class::Std;
                 $sth->finish();
             }
             else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
                 $self->msg->push( 'error', "Failed to redirect Alias [_1] (#[_2]) to [_3].", $alias_name, $alias_id, $target );
             }
         }

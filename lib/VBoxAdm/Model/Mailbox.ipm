@@ -26,7 +26,7 @@ use Class::Std;
 
         $fields_of{$ident} = [
             qw(
-              id domain_id local_part password name is_active max_msg_size
+              id domain_id local_part password pw_ts pw_lock name is_active max_msg_size
               is_on_vacation vacation_subj vacation_msg vacation_start vacation_end
               quota is_domainadmin is_superadmin sa_active sa_kill_score
               )
@@ -178,7 +178,7 @@ use Class::Std;
                 }
             }
             else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", (%args) ), $sth->errstr );
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", (%args) ), $self->dbh->errstr );
                 $self->msg->push( 'error', "Failed to add Mailbox [_1] for [_2]. Database Error.", "$local_part\@$domain_name", $args{'name'} );
             }
         }
@@ -215,7 +215,7 @@ use Class::Std;
             $self->msg->push( 'information', "Mailbox [_1] (#[_2]) removed.", $mailbox_name, $mailbox_id );
         }
         else {
-            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
             $self->msg->push( 'error', "Failed to remove Mailbox [_1] (#[_2]). Database Error.", $mailbox_name, $mailbox_id );
         }
 
@@ -269,8 +269,14 @@ use Class::Std;
                 if ( $strength < 2 ) {
                     $self->msg->push( 'warning', 'Weak password - Strength: [_1].', $strength );
                 }
-                $query .= "password = ?, ";
-                push( @args, VBoxAdm::SaltedHash::make_pass( $params->{'Password'}, $pwscheme ) );
+                
+                # Check password lock
+				if( $self->config()->{'cgi'}->{'obey_pw_lock'} && $self->read($mailbox_id)->{'pw_lock'} ) {
+                	$self->msg->push( 'warning', 'Password locked. Can not be changed.');
+				} else {
+                	$query .= "password = ?, ";
+                	push( @args, VBoxAdm::SaltedHash::make_pass( $params->{'Password'}, $pwscheme ) );
+				}
             }
         }
 
@@ -436,7 +442,7 @@ use Class::Std;
                 $self->msg->push( 'information', "Updated Mailbox [_1] (#[_2]).", $mailbox_name, $mailbox_id );
             }
             else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
                 $self->msg->push( 'error', "Failed to update Mailbox [_1] (#[_2]). Database Error.", $mailbox_name, $mailbox_id );
             }
         }

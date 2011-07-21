@@ -283,14 +283,6 @@ sub handle_v1 {
     $c->{vacationblacklist} = VBoxAdm::Model::VacationBlacklist->new($arg_ref);
 
     $answer_ref->{'auth'} = 'ok';
-    
-    # $hash_ref->{user}->{username}
-    # $hash_ref->{user}->{password}
-    # $hash_ref->{mailbox}->{create}->{username}->{...}
-    # $hash_ref->{mailbox}->{update}->{username}->{...}
-    # $hash_ref->{mailbox}->{delete}->{username}
-    # $hash_ref->{mailbox}->{read}->{username}
-    # $hash_ref->{mailbox}->{list}
 
     # process requests in hash_ref
     # return response as crypted, json encoded string
@@ -309,8 +301,8 @@ sub handle_v1 {
             	} else {
             		$param_ref = {};
             	}
-                		$answer_ref->{$module}{$action}{'rv'} = [$c->{$module}->list( $param_ref )];
-										$answer_ref->{$module}{$action}{'msgs'} = [$Messages->get()];
+                $answer_ref->{$module}{$action}{'rv'} = [$c->{$module}->list( $param_ref )];
+				$answer_ref->{$module}{$action}{'msgs'} = [$Messages->get()];
             } else {
             	next if ref( $hash_ref->{$module}->{$action} ne 'HASH' );
 	            foreach my $item ( keys %{ $hash_ref->{$module}->{$action} } ) {
@@ -330,19 +322,19 @@ sub handle_v1 {
 	            		}
 	                if ( $action eq 'read' ) {
 	                    $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->read($id);
-											$answer_ref->{$module}{$action}{$item}{'msgs'} = [$Messages->get()];
+						$answer_ref->{$module}{$action}{$item}{'msgs'} = [$Messages->get()];
 	                }
 	                elsif ( $action eq 'delete' ) {
 	                    $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->delete($id);
-											$answer_ref->{$module}{$action}{$item}{'msgs'} = [$Messages->get()];
+						$answer_ref->{$module}{$action}{$item}{'msgs'} = [$Messages->get()];
 	                }
 	                elsif ( $action eq 'update' ) {
 	                    $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->update( $id, $param_ref );
-											$answer_ref->{$module}{$action}{$item}{'msgs'} = [$Messages->get()];
+						$answer_ref->{$module}{$action}{$item}{'msgs'} = [$Messages->get()];
 	                }
 	                elsif ( $action eq 'create' ) {
 	                    $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->create( $item, $param_ref );
-											$answer_ref->{$module}{$action}{$item}{'msgs'} = [$Messages->get()];
+						$answer_ref->{$module}{$action}{$item}{'msgs'} = [$Messages->get()];
 	                }
 	            }
             }

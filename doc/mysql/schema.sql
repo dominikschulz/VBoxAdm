@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS `mailboxes` (
   `local_part` varchar(64) NOT NULL,
   `password` varchar(255) NOT NULL,
   `pw_ts` TIMESTAMP NOT NULL DEFAULT 0,
+  `pw_lock` tinyint(1) NOT NULL DEFAULT '0',
   `name` varchar(255) NOT NULL,
   `is_active` tinyint(1) NOT NULL,
   `max_msg_size` int(16) NOT NULL,

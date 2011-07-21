@@ -1463,14 +1463,15 @@ sub show_edit_mailbox {
     $sth->finish();
 
 	my %params = (
-			'title'              => $self->{lh}->maketext('Edit Mailbox'),
+	  'title'              => $self->{lh}->maketext('Edit Mailbox'),
       'mailbox_id'         => $mailbox_id,
       'user_is_superadmin' => $self->user->is_siteadmin(),
-      'current' 					 => 'mailboxes',
+      'current' 		   => 'mailboxes',
       'cc_goto'            => $cc_goto,
       'cc_id'              => $cc_id,
       'mb_is_domainadmin'  => $mailbox_ref->{'is_domainadmin'},
       'mb_is_superadmin'   => $mailbox_ref->{'is_superadmin'},
+      'pw_lock'			   => $mailbox_ref->{'pw_lock'},
 	);
 	foreach my $key (keys %{$mailbox_ref}) {
 		$params{$key} = $mailbox_ref->{$key};
