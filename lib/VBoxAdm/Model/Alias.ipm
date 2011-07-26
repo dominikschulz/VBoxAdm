@@ -90,7 +90,7 @@ use Class::Std;
             $self->msg->push( 'error', "Invalid address in destination!" );
             return;
         }
-        elsif ( $local_part && $delim && $local_part =~ m/$delim/ ) {
+        elsif ( $local_part && $delim && $local_part =~ m/\Q$delim\E/ ) {
             $self->msg->push( 'error', 'Localpart may not contain the recipent_delimiter (' . $delim . ')' );
             return;
         }

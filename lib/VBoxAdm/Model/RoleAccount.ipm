@@ -46,7 +46,7 @@ use Class::Std;
             $self->msg->push( 'error', 'Invalid email address given.' );
             return;
         }
-        elsif ( $role && $delim && $role =~ m/$delim/ ) {
+        elsif ( $role && $delim && $role =~ m/\Q$delim\E/ ) {
             $self->msg->push( 'error', 'Localpart may not contain the recipent_delimiter (' . $delim . ')' );
             return;
         }
