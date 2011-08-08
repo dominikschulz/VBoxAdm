@@ -55,7 +55,7 @@ $db_user = $config{'default'}{'dbuser'} || $db_user;
 $db_pass = $config{'default'}{'dbpass'} || $db_pass;
 $db_port = $config{'default'}{'dbport'} || $db_port;
 $db_db   = $config{'default'}{'dbdb'}   || $db_db;
-$config{'cgi'}{'pwscheme'} ||= 'ssha256';
+$config{'default'}{'pwscheme'} ||= 'ssha256';
 
 die("This script is completely untested. You should not use it.\n");
 

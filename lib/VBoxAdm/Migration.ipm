@@ -114,7 +114,7 @@ sub migrate {
                     if (
                         !$config->{'dry'}
                         && $sth_new_mailbox->execute(
-                            $new_domain_id, $local_part, VBoxAdm::SaltedHash::make_pass( $pwclear, $config->{'cgi'}{'pwscheme'} ),
+                            $new_domain_id, $local_part, VBoxAdm::SaltedHash::make_pass( $pwclear, $config->{'default'}{'pwscheme'} ),
                             $name, $is_active, 15360, $is_on_vacation, 'On Vacation', $away_text, 0, 0, $sa_active, 6.31
                         )
                       )
@@ -238,7 +238,7 @@ sub migrate {
                 if ($is_local) {
                     my $pw = '';
                     if ($pwclear) {
-                        $pw = &VBoxAdm::SaltedHash::make_pass( $pwclear, $config->{'cgi'}{'pwscheme'} );
+                        $pw = &VBoxAdm::SaltedHash::make_pass( $pwclear, $config->{'default'}{'pwscheme'} );
                     }
                     elsif ( $pwcrypt && $pwcrypt =~ m/^\$1\$/ ) {
                         $pw = '{MD5-CRYPT}' . $pwcrypt;
@@ -310,7 +310,7 @@ sub migrate {
                         $vacation_msg   = $msg;
                     }
                 }
-                $sth_new_mailbox->execute( $new_domain_id, $local_part, VBoxAdm::SaltedHash::make_pass( $password, $config->{'cgi'}{'pwscheme'} ),
+                $sth_new_mailbox->execute( $new_domain_id, $local_part, VBoxAdm::SaltedHash::make_pass( $password, $config->{'default'}{'pwscheme'} ),
                     $name, $is_active, $maxmsgsize, $is_on_vacation, $vacation_subj, $vacation_msg, $is_domainadmin, $is_siteadmin, $sa_active, $sa_kill_score,
                 ) or die( "Could not execute query $sql_new_mailbox: " . $sth_new_mailbox->errstr );
                 print

@@ -93,7 +93,7 @@ $config{'default'}{'dbuser'} ||= 'vboxadm';
 $config{'default'}{'dbpass'} ||= '';
 $config{'default'}{'dbport'} ||= 3306;
 $config{'default'}{'dbdb'}   ||= 'vboxadm';
-$config{'cgi'}{'pwscheme'}   ||= 'sha256';
+$config{'default'}{'pwscheme'}   ||= 'sha256';
 
 print "# VBoxAdm CLI\n" unless $config{'quiet'};
 
@@ -769,7 +769,7 @@ sub setup {
     # Select pwscheme
     # --pwscheme
     print "### Password Scheme for User-Passwords ###\n";
-    $config{'cgi'}{'pwscheme'} = &ask_select( 'Select the desired password scheme', qw(plain_md5 ldap_md5 smd5 sha ssha sha256 ssha256) );
+    $config{'default'}{'pwscheme'} = &ask_select( 'Select the desired password scheme', qw(plain_md5 ldap_md5 smd5 sha ssha sha256 ssha256) );
 
     # Create Site-Admin
     # --create-site-admin
@@ -1506,7 +1506,7 @@ sub create_siteadmin {
 
     $sql = "INSERT INTO mailboxes (domain_id,local_part,password,is_active,is_superadmin) VALUES(?,?,?,1,1) ON DUPLICATE KEY UPDATE password = ?";
     $sth = $dbh->prepare($sql);
-    my $pwhash = &VBoxAdm::SaltedHash::make_pass( $password, $config->{'cgi'}{'pwscheme'}, $salt );
+    my $pwhash = &VBoxAdm::SaltedHash::make_pass( $password, $config->{'default'}{'pwscheme'}, $salt );
     $sth->execute( $domain_id, $local_part, $pwhash, $pwhash );
     $sth->finish();
 
