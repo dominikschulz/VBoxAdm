@@ -1,0 +1,85 @@
+#!/bin/bash
+#
+# vboxadm-sa	This shell script takes care of starting and stopping
+#		vboxadm-sa (vboxadm smtp-proxy daemon).
+#
+# chkconfig: - 58 74
+# description: vboxadm-sa is the smtp-proxy daemon. \
+# Intercept smtp transport between postfix and dovecot.
+# 
+# Contributed by Dietrich Streifert
+#
+
+### BEGIN INIT INFO
+# Provides: vboxadm-sa
+# Required-Start: $network $local_fs $remote_fs
+# Required-Stop: $network $local_fs $remote_fs
+# Should-Start: $syslog 
+# Should-Stop: $syslog 
+# Short-Description: start and stop vboxadm-sa
+# Description: vboxadm-sa is the vboxadm stmp-proxy daemon. 
+#              Intercept smtp transport between postfix and dovecot.
+### END INIT INFO
+
+# Source function library.
+. /etc/init.d/functions
+
+DAEMON=/usr/sbin/vboxadm-sa
+prog=vboxadm-sa
+DESC="VBoxAdm SMTP-Proxy"
+CONFIG_DIR=/etc/vboxadm
+PIDFILE=/var/run/vboxadm/sa.pid
+
+conf_check() {
+    [ -x $DAEMON ] || exit 5
+    [ -d $CONFIG_DIR ] || exit 6
+}
+
+start ()
+{
+  conf_check
+  echo -n $"Starting $prog"
+  daemon --pidfile=$PIDFILE $DAEMON
+  RETVAL=$?
+  echo
+  return $RETVAL
+}
+
+stop ()
+{
+  conf_check
+  echo -n $"Stopping $prog: "
+  killproc -p ${PIDFILE} -d 10 $prog
+  RETVAL=$?
+  echo
+  [ $RETVAL = 0 ] && rm -f ${PIDFILE}
+}
+
+# See how we were called.
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  status)
+	status $prog
+	;;
+  restart|force-reload)
+	stop
+	start
+	;;
+  try-restart|condrestart)
+	if status $prog > /dev/null; then
+	    stop
+	    start
+	fi
+	;;
+  reload)
+	exit 3
+	;;
+  *)
+	echo $"Usage: $0 {start|stop|status|restart|try-restart|force-reload}"
+	exit 2
+esac
