@@ -62,6 +62,7 @@ sub setup {
       vboxadm.conf
       conf/vboxadm.conf
       /etc/vboxadm/vboxadm.conf
+      @CFGDIR@/vboxadm/vboxadm.conf
     );
 
     # if the application if run as a FastCGI app, the server might

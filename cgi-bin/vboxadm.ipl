@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+use lib '@LIBDIR@';
 use lib qw(../lib);
 
 use VBoxAdm::Controller::Frontend '@VERSION@';

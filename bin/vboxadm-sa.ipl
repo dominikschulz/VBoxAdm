@@ -7,6 +7,8 @@ use warnings;
 # We use "Defined-or operators" operators introduced with 5.9.0
 use 5.9.0;
 
+use lib '@LIBDIR@';
+
 use Getopt::Long;
 use Config::Std;
 
@@ -21,6 +23,7 @@ my @conffile_locations = qw(
   vboxadm.conf
   conf/vboxadm.conf
   /etc/vboxadm/vboxadm.conf
+  @CFGDIR@/vboxadm/vboxadm.conf
 );
 GetOptions(
     'verbose|v+' => \$config{'verbose'},

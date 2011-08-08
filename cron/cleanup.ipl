@@ -2,6 +2,8 @@
 use strict;
 use warnings;
 
+use lib '@LIBDIR@';
+
 use DBI;
 use Config::Std;
 use Getopt::Long;
@@ -17,6 +19,7 @@ my @conffile_locations = qw(
   conf/vboxadm.conf
   /etc/vboxadm.conf
   /etc/vboxadm/vboxadm.conf
+  @CFGDIR@/vboxadm/vboxadm.conf
 );
 
 GetOptions(

@@ -2,6 +2,8 @@
 use strict;
 use warnings;
 
+use lib '@LIBDIR@';
+
 use English qw(-no_match_vars);
 
 use Data::Dumper;
@@ -26,6 +28,7 @@ my @conffile_locations = qw(
   vboxadm.conf
   conf/vboxadm.conf
   /etc/vboxadm/vboxadm.conf
+  @CFGDIR@/vboxadm/vboxadm.conf
 );
 
 GetOptions(

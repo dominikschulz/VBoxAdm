@@ -232,7 +232,9 @@ TPLFILES = \
 
 %.pl: %.ipl $(LIBFILES)
 	$(SED) -e s/@BUILDDATE@/$(BUILDDATE)/ \
-		   -e s/@VERSION@/$(VERSION)/ < $< > $@
+		   -e s/@VERSION@/$(VERSION)/ \
+		   -e "s|@LIBDIR@|$(LIBDIR)|" \
+		   -e "s|@CFGDIR@|$(CFGDIR)|" < $< > $@
 	$(CHMOD) 755 $@
 	$(PERLTIDY) $@
 	$(CHMOD) +x $@
@@ -240,7 +242,9 @@ TPLFILES = \
 
 %.fcgi: %.ifcgi $(LIBFILES)
 	$(SED) -e s/@BUILDDATE@/$(BUILDDATE)/ \
-		   -e s/@VERSION@/$(VERSION)/ < $< > $@
+		   -e s/@VERSION@/$(VERSION)/ \
+		   -e "s|@LIBDIR@|$(LIBDIR)|" \
+		   -e "s|@CFGDIR@|$(CFGDIR)|" < $< > $@
 	$(CHMOD) 755 $@
 	$(PERLTIDY) $@
 	$(CHMOD) +x $@
@@ -248,7 +252,9 @@ TPLFILES = \
 
 %.pm: %.ipm
 	$(SED) -e s/@BUILDDATE@/$(BUILDDATE)/ \
-		   -e s/@VERSION@/$(VERSION)/ < $< > $@
+		   -e s/@VERSION@/$(VERSION)/ \
+		   -e "s|@LIBDIR@|$(LIBDIR)|" \
+		   -e "s|@CFGDIR@|$(CFGDIR)|" < $< > $@
 	$(PERLTIDY) $@
 
 %.t: %.it
