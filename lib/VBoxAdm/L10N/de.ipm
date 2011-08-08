@@ -82,9 +82,9 @@ our %Lexicon = (
     'Message'                                                      => 'Nachricht',
     'Send Broadcast Message to [_1] Users'                         => 'Rundmail an [_1] Benutzer schicken',
     'Date'                                                         => 'Datum',
-    'Create a Vacation Blacklist Entry'                            => 'Eintrag in der Benarchrichtigungsblackliste schicken',
+    'Create a Vacation Blacklist Entry'                            => 'Eintrag in der Benachrichtigungsblackliste erstellen',
     'Add Entry'                                                    => 'Eintrag hinzufügen',
-    'Vacation Blacklist'                                           => 'Benarchrichtigungsblackliste',
+    'Vacation Blacklist'                                           => 'Benarchrichtigungs&shy;blackliste',
     'Last Seen'                                                    => 'Letztes Update',
     'Disabled'                                                     => 'Deaktiviert',
 );
