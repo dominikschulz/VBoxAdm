@@ -68,6 +68,7 @@ class vboxadm extends rcube_plugin
 
 			$config_array = array_merge($vboxadm_config_dist, $vboxadm_config);
 			$this->config = $config_array;
+			$this->dovecotpw->setConfig($this->config)
 			ob_end_clean();
 		} else {
 			raise_error(array(
@@ -722,20 +723,25 @@ class vboxadm extends rcube_plugin
 				// Current password was not correct.
 				$password_change_error = 1;
 				$addtomessage .= '. ' . $this->gettext('saveerror-verify-mismatch');
-				/* write_log('vboxadm',"_save - Password mismatch - verify_pass_by_uid($curpwd, $user_id) returned false."); */
+				// write_log('vboxadm',"_save - Password mismatch - verify_pass_by_uid($curpwd, $user_id) returned false.");
 			} elseif($rcmail->decrypt($_SESSION['password']) != $curpwd) {
 				$password_change_error = 4;
 				$addtomessage .= '. ' . $this->gettext('saveerror-pass-mismatch');
-				/* write_log('vboxadm',"_save - Password mismatch - ".$_SESSION['password']." != $curpwd"); */
+				// write_log('vboxadm',"_save - Password mismatch - ".$_SESSION['password']." != $curpwd");
 			} elseif(!$this->dovecotpw->check_password($newpwd, FALSE)) {
 				$password_change_error = 5;
 				$addtomessage .= '. ' . $this->gettext('saveerror-pass-too-weak');
-				/* write_log('vboxadm',"_save - Password $newpwd too weak"); */
+				// write_log('vboxadm',"_save - Password $newpwd too weak");
 			} else {
-				$crypted_password = $this->dovecotpw->make_pass($newpwd, 'SSHA256');
-				/* write_log('vboxadm','_save - Password MATCHES! New crypted Pass: '.$crypted_password); */
+				$pwscheme = $this->config['vboxadm_cryptscheme'];
+				if(!isset($pwscheme)) {
+					$pwscheme = 'SSHA256';
+				}
+				$crypted_password = $this->dovecotpw->make_pass($newpwd, $pwscheme);
+				
+				// write_log('vboxadm','_save - Password MATCHES! New crypted Pass: '.$crypted_password);
 				$sql_pass = "UPDATE mailboxes SET password=" . $this->db->quote($crypted_password) . " WHERE id = " . $this->db->quote($user_id,'text') . " AND is_active LIMIT 1";
-				/* write_log('vboxadm',"_save - Password update query: $sql_pass"); */
+				// write_log('vboxadm',"_save - Password update query: $sql_pass");
 				$res_pass = $this->db->query($sql_pass);
 				if ($err = $this->db->is_error()) {
 					$password_change_error = 2;
@@ -812,15 +818,33 @@ class vboxadm extends rcube_plugin
 }
 
 class DovecotPW {
+	
+	private $config;
+	
 	private $hashlen = array(
 		'smd5'    => 16,
 	    'ssha'    => 20,
 	    'ssha256' => 32,
 	    'ssha512' => 64,
 	);
+	
+	public function setConfig($config) {
+		$this->config = $config;
+	}
 
 	public function check_password($pwd, $numeric = FALSE)
 	{
+		if($this->config['vboxadm_allow_weak_password']) {
+			$min_pw_length = 4;
+			if(isset($this->config['vboxadm_min_weak_password_length'])) {
+				$min_pw_length = $this->config['vboxadm_min_weak_password_length'];
+			}
+			if(strlen($pwd) < $min_pw_length) {
+				return FALSE;
+			}
+			return TRUE;
+		}
+
 		$score = 0;
 		/* no too short passwords at all */
 		if (strlen($pwd) < 8)
@@ -877,7 +901,6 @@ class DovecotPW {
 
 	public function verify_pass($pass, $pwentry) {
 		$pwinfo = $this->split_pass($pwentry);
-
 		$passh = $this->make_pass( $pass, $pwinfo[0], $pwinfo[2] );
 
 		if ( $pwentry == $passh ) {
@@ -902,6 +925,55 @@ class DovecotPW {
 	public function sha($pw) {
 		return "{SHA}" . base64_encode( hash('sha1',$pw, TRUE) );
 	}
+	
+	public function cram_md5($pw) {
+		$dovecotpw = '/usr/sbin/dovecotpw';
+		if(isset($this->config['vboxadm_dovecotpw'])) {
+			$dovecotpw = $this->config['vboxadm_dovecotpw'];
+		}
+		
+		$pwscheme = 'CRAM-MD5';
+		
+		// write_log('vboxadm', "dovecotpw: $dovecotpw");
+		
+		$spec = array(
+			0 => array("pipe", "r"), // childs stdin
+			1 => array("pipe", "w")  // childs stdout
+		);
+		
+		$proc = proc_open("$dovecotpw '-s' $pwscheme", $spec, $pipes);
+		
+		if (!$proc) {
+			die("unable to open $dovecotpw");
+		} else {
+			// send the password twice to dovecotpw
+			//
+			fwrite($pipes[0], $pw . "\n", 1+strlen($pw)); usleep(500);
+			fwrite($pipes[0], $pw . "\n", 1+strlen($pw));
+			fclose($pipes[0]);
+			
+			// read the encrypted password
+			//
+			$encpw = fread($pipes[1], 512);
+			fclose($pipes[1]);
+			proc_close($proc);
+			
+			// strip leading or trailing whitespace.
+			// dovecotpw creates a nl at the end
+			$encpw = trim($encpw);
+			
+			// write_log('vboxadm',"cram_md5 - dovecotpw: $dovecotpw, encrypted password: $encpw");
+			
+			// Test if the supplied scheme matches the generated one
+			//
+			if ( !preg_match('/^\{'.$pwscheme.'\}/', $encpw)) { 
+				die("unable to create encrypted password with $dovecotpw"); 
+			}
+			
+			return $encpw;
+		}
+	}
+	
 
 	public function ssha($pw, $salt) {
 		if(strlen($salt) < 1) {
@@ -968,6 +1040,10 @@ class DovecotPW {
 			case "ssha512":
 				return $this->ssha512($pw,$salt);
 				break;
+			case "cram_md5":
+			case "cram-md5":
+				return $this->cram_md5($pw);
+				break;
 			default:
 				return "{CLEARTEXT}".$pw;
 		}
@@ -992,7 +1068,7 @@ class DovecotPW {
 		if ( !$pwscheme || $pwscheme == 'cleartext' || $pwscheme == 'plain' ) {
 			return array('cleartext', $pw, '' );
 		}
-		elseif ( preg_match("/^(plain-md5|ldap-md5|md5|sha|sha256|sha512)$/i", $pwscheme) ) {
+		elseif ( preg_match("/^(plain-md5|ldap-md5|md5|sha|sha256|sha512|cram-md5|cram_md5)$/i", $pwscheme) ) {
 			$pw = base64_decode($pw);
 			return array( $pwscheme, $pw, '' );
 		}

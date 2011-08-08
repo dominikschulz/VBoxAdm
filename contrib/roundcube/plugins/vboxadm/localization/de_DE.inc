@@ -58,11 +58,10 @@ $messages['savesuccess-config-saveerror-pass-mismatch'] = 'Successfully saved co
 $messages['saveerror-internalerror'] = 'Error saving configuration';
 $messages['saveerror-config-database'] = 'Configuration was not saved due to database error';
 
-$messages['savesuccess-pass'] = 'New password was set successfully';
-$messages['saveerror-pass-mismatch'] = 'New password was not set (old passord mismatch)';
-$messages['saveerror-pass-database'] = 'New password was not set (database error)';
-$messages['saveerror-pass-norows'] = 'New password was not set (no database rows affected)';
-$messages['saveerror-pass-too-weak'] = 'New password was not set (new password is too weak)';
-
+$messages['savesuccess-pass'] = 'Das neue Passwort wurde erfolgreiche gespeichert';
+$messages['saveerror-pass-mismatch'] = 'Das neue Passwort wurde nicht gespeichert, da das aktuelle Passwort nicht stimmt';
+$messages['saveerror-pass-database'] = 'Das neue Passwort konnte nicht gespeichert werden (Datenbankfehler)';
+$messages['saveerror-pass-norows'] = 'Das neue Passwort konnte nicht gespeichert werden (Datenbankfehler: keine Eintraege           gefunden)';
+$messages['saveerror-pass-too-weak'] = 'Das neue Passwort konnte nicht gespeichert werden (Das neue Passwort ist zu einfach)';
 
 ?>
