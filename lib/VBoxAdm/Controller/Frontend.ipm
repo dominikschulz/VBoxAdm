@@ -1553,7 +1553,7 @@ sub show_log {
     $query .= "ORDER BY ts DESC";
 
     # Get the actual data
-    my $sth = $dbh->prepare( 'SELECT ts,msg ' . $query . ' LIMIT ?, ?' )
+    my $sth = $dbh->prepare( 'SELECT ts,msg ' . $query )
       or $self->{'logger'}->log( 'show_log - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
     $sth->execute(@args)
       or $self->{'logger'}->log( 'show_log - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
