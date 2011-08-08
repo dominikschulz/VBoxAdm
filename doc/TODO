@@ -61,3 +61,5 @@ Make sure class-C ip subnet auto-whitelists are supported
 - Evaluate Perl Dancer
 - Evaluate http://mojolicio.us/
 - Evaluate Moose
+
+- Support recipient_delimiter different from #
