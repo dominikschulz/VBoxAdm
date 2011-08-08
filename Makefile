@@ -2,6 +2,13 @@
 # Makefile for vboxadm
 #
 
+# some variables
+NAME = vboxadm
+VERSION = 0.1.5
+BUILDDATE = $(shell date +%Y-%m-%d)
+WWWUSER ?= www-data
+WWWGROUP ?= www-data
+
 # Required programs
 INSTALL = /usr/bin/install
 POD2MAN = /usr/bin/pod2man
@@ -11,7 +18,7 @@ CP = /bin/cp
 INSTALL_DATA = $(INSTALL) -c -m 644
 INSTALL_PROGRAM = $(INSTALL) -c -m 755
 INSTALL_CONF = $(INSTALL) -c -m 600
-INSTALL_WWW = $(INSTALL) -c -m 750 -g www-data
+INSTALL_WWW = $(INSTALL) -c -m 750 -g $(WWWGROUP)
 MV = /bin/mv
 RM = /bin/rm
 SED = /bin/sed
@@ -25,10 +32,6 @@ PROVE = /usr/bin/prove -l
 YUIC = /usr/bin/java -jar build/yuicompressor-2.4.2.jar --charset UTF-8 --line-break 4000
 HTMLC = /usr/bin/java -jar build/htmlcompressor-0.9.9.jar --type html --charset UTF-8 --remove-intertag-spaces --remove-quotes --compress-js --compress-css --line-break 4000
 
-# some variables
-NAME = vboxadm
-VERSION = 0.1.5
-BUILDDATE = $(shell date +%Y-%m-%d)
 
 # Directories
 BINDIR=$(DESTDIR)/usr/bin
@@ -281,9 +284,9 @@ real-install: all test rcvboxadm
 	$(INSTALL) -d $(VBOXLIBDIR)/tpl/alias $(VBOXLIBDIR)/tpl/autoconfig $(VBOXLIBDIR)/tpl/awl $(VBOXLIBDIR)/tpl/domain
 	$(INSTALL) -d $(VBOXLIBDIR)/tpl/domain_alias $(VBOXLIBDIR)/tpl/includes $(VBOXLIBDIR)/tpl/mailbox $(VBOXLIBDIR)/tpl/notify
 	$(INSTALL) -d $(VBOXLIBDIR)/tpl/rfc_notify $(VBOXLIBDIR)/tpl/vacation_blacklist $(VBOXLIBDIR)/tpl/vacation_notify
-	$(INSTALL) -g www-data -d $(VHDIR)/cgi-bin $(VHDIR)/htdocs/images/knob $(VHDIR)/htdocs/images/datatables
-	$(INSTALL) -g www-data -d $(VHDIR)/htdocs/css/datatable $(VHDIR)/htdocs/css/themes/ui-darkness/images
-	$(INSTALL) -g www-data -d $(VHDIR)/htdocs/js/libs $(VHDIR)/htdocs/js/mylibs $(VHDIR)/htdocs/js/profiling
+	$(INSTALL) -g $(WWWGROUP) -d $(VHDIR)/cgi-bin $(VHDIR)/htdocs/images/knob $(VHDIR)/htdocs/images/datatables
+	$(INSTALL) -g $(WWWGROUP) -d $(VHDIR)/htdocs/css/datatable $(VHDIR)/htdocs/css/themes/ui-darkness/images
+	$(INSTALL) -g $(WWWGROUP) -d $(VHDIR)/htdocs/js/libs $(VHDIR)/htdocs/js/mylibs $(VHDIR)/htdocs/js/profiling
 	$(INSTALL_PROGRAM) bin/vboxadm-ma.pl $(SBINDIR)/vboxadm-ma
 	$(INSTALL_PROGRAM) bin/vacation.pl $(VBOXLIBDIR)/bin/vacation
 	$(INSTALL_PROGRAM) bin/vboxadm-sa.pl $(SBINDIR)/vboxadm-sa
@@ -292,9 +295,9 @@ real-install: all test rcvboxadm
 	$(INSTALL_DATA) bin/*.8 $(MANDIR)/man8/
 	$(INSTALL_DATA) cgi-bin/*.1 $(MANDIR)/man1/
 	$(INSTALL_DATA) cron/*.8 $(MANDIR)/man8/
-	$(INSTALL_PROGRAM) cgi-bin/autodiscover.pl $(VHDIR)/cgi-bin/autodiscover.pl
-	$(INSTALL_PROGRAM) cgi-bin/vboxadm.pl $(VHDIR)/cgi-bin/vboxadm.pl
-	$(INSTALL_PROGRAM) cgi-bin/vboxadm.fcgi $(VHDIR)/cgi-bin/vboxadm.fcgi
+	$(INSTALL_WWW) cgi-bin/autodiscover.pl $(VHDIR)/cgi-bin/autodiscover.pl
+	$(INSTALL_WWW) cgi-bin/vboxadm.pl $(VHDIR)/cgi-bin/vboxadm.pl
+	$(INSTALL_WWW) cgi-bin/vboxadm.fcgi $(VHDIR)/cgi-bin/vboxadm.fcgi
 	$(INSTALL_PROGRAM) cron/cleanup.pl $(VBOXLIBDIR)/bin/cleanup
 	$(INSTALL_PROGRAM) cron/awl.pl $(VBOXLIBDIR)/bin/awl
 	$(INSTALL_PROGRAM) cron/notify.pl $(VBOXLIBDIR)/bin/notify
