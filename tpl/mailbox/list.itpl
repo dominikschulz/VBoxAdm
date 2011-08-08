@@ -11,6 +11,7 @@
 				<th>[% "Max. Msgsize" | l10n %]</th>
 				<th>[% "Vacation" | l10n %]</th>
 				<th>[% "Quota" | l10n %]</th>
+				<th>[% "SA Active" | l10n %]</th>
 				<th></th>
 				<th></th>
 			</tr>
@@ -43,6 +44,13 @@
 				</td>
 				<td>
 					[% line.quota %]
+				</td>
+				<td>
+					[% IF line.sa_active == 1 %]
+					[% "Yes" | l10n %]
+					[% ELSE %]
+					[% "No" | l10n %]
+					[% END %]
 				</td>
 				<td>
 					<a href="[% base_url %]?rm=edit_mailbox&mailbox_id=[% line.id %]">[% "edit" | l10n %]</a>
