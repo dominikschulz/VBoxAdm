@@ -1,0 +1,27 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+use Crypt::OpenSSL::Random;
+use Crypt::OpenSSL::RSA;
+use VBoxAdm::Utils;
+
+my $selector = shift
+	or die("Usage: $0 <selector> [<key-length>]\n");
+my $key_length = shift || 1024;
+
+my $rsa = Crypt::OpenSSL::RSA->generate_key($key_length);
+
+print "Private-Key is:\n", $rsa->get_private_key_string(), "\n";
+&VBoxAdm::Utils::blarf($selector.'.private.key',$rsa->get_private_key_string());
+print "Public-Key is:\n", $rsa->get_public_key_string(), "\n";
+&VBoxAdm::Utils::blarf($selector.'.public.key',$rsa->get_public_key_string());
+my @lines = split /\n/, $rsa->get_public_key_string();
+my $zonekey = '';
+foreach my $line (@lines) {
+	next if $line =~ m/^----/;
+	$zonekey .= $line;
+}
+my $zoneentry = $selector.'._domainkey.<YOURDOMAIN.TLD>. IN TXT "v=DKIM1; g=*; k=rsa; p='.$zonekey.';';
+print 'Zone-file entry is: '.$zoneentry."\n";
+&VBoxAdm::Utils::blarf($selector.'.zone.key',$zoneentry);
