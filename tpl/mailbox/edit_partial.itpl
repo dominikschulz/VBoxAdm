@@ -135,6 +135,14 @@
 		
 		<div class="spacer"></div>
 		
+		<label for="quota">
+			[% "Quota:" | l10n %]
+			<span class="small"></span>
+		</label>
+		<input class="flat" type="text" name="quota" value="[% quota_mb %]" /> MB
+		
+		<div class="spacer"></div>
+		
 		<button class="button" type="submit" name="submit">
 			<img src="[% media_prefix %]/icons/fffsilk/accept.png" border="0" />
 			[% "Modify Mailbox" | l10n %]

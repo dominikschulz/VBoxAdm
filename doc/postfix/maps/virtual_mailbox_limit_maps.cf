@@ -1,0 +1,5 @@
+user = postfix
+password = PASSWORD
+hosts = localhost
+dbname = vboxadm
+query = /* virtual_mailbox_limit_maps.cf */ SELECT m.quota FROM domains AS d LEFT JOIN mailboxes AS m ON m.domain_id = d.id WHERE d.name = '%d' AND m.local_part = '%u' AND d.is_active AND m.is_active

@@ -1510,6 +1510,7 @@ sub show_update_mailbox {
 	    'VacationSubject'		=> $q->param('vacation_subj'),
 	    'VacationStart'			=> $q->param('vacation_start'),
 	    'VacationEnd'				=> $q->param('vacation_end'),
+	    'Quota'							=> $q->param('quota'),
     );
     
     $self->{'Mailbox'}->update($mailbox_id,\%params);
