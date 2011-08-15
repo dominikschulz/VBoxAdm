@@ -55,7 +55,7 @@ sub unroll_recipient {
     my $rolled = shift;
     $rolled or return;
 
-		# TODO support different recipient delimiter
+    # TODO support different recipient delimiter
     # recipient must be "unrolled", it's smth. like "user#domain.tld@vacation.domain.tld" -> "user@domain.tld"
     if ( $rolled =~ m/^([^@]+)#([^@#]+)\@/ ) {
         my $local_part = $1;

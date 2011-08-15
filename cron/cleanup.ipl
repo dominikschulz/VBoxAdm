@@ -94,7 +94,8 @@ exit 0;
 sub purge_mails {
     my $dir = shift;
     my $is_maildir = shift || 0;
-    if ( opendir( my $DH, $dir ) ) {
+
+    if ( $dir && -d $dir && opendir( my $DH, $dir ) ) {
         my @dirs = ();
         while ( my $dir_entry = readdir($DH) ) {
             next if $dir_entry =~ m/^\./;
@@ -117,6 +118,7 @@ sub purge_mails {
         return 1;
     }
     else {
+        syslog( 2, "purge_mails - default/mail_location not set or no directory. Aborting." );
         return;
     }
 }
@@ -139,13 +141,15 @@ sub purge_mailboxes {
     if ( !$config->{'default'}{'mail_location'} ) {
         my $msg = 'purge_mailboxes - mail_location is not set. Aborting!';
         syslog( 2, $msg );
-        print STDERR $msg . "\n";
+
+        #print STDERR $msg . "\n";
         return;
     }
     elsif ( !-d $config->{'default'}{'mail_location'} ) {
         my $msg = 'purge_mailboxes - mail_location (' . $config->{'default'}{'mail_location'} . ') is no directory. Aborting!';
         syslog( 2, $msg );
-        print STDERR $msg . "\n";
+
+        #print STDERR $msg . "\n";
         return;
     }
 
@@ -176,7 +180,8 @@ sub purge_mailboxes {
                     $rv = system($cmd) >> 8 unless $config->{'cleanup'}{'dry'};
 
                     if ( $rv != 0 ) {
-                        print STDERR "$0 - Could not execute '$cmd': $!\n";
+
+                        #print STDERR "$0 - Could not execute '$cmd': $!\n";
                     }
                     else {
                         syslog( 2, "Purged Mailbox $mailbox\@$domain" );

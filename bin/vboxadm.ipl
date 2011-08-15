@@ -79,7 +79,7 @@ GetOptions(
     'vacmsg=s'        => \$opts->{VacationMessage},
     'vacstart=s'      => \$opts->{VacationStart},
     'vacend=s'        => \$opts->{VacationEnd},
-    'forcepass!'	  => \$opts->{ForcePassword},
+    'forcepass!'      => \$opts->{ForcePassword},
 ) or die("Unknown Command");
 
 # Try all config file locations
@@ -91,12 +91,12 @@ foreach my $loc (@conffile_locations) {
     }
 }
 
-$config{'default'}{'dbhost'} ||= 'localhost';
-$config{'default'}{'dbuser'} ||= 'vboxadm';
-$config{'default'}{'dbpass'} ||= '';
-$config{'default'}{'dbport'} ||= 3306;
-$config{'default'}{'dbdb'}   ||= 'vboxadm';
-$config{'default'}{'pwscheme'}   ||= 'sha256';
+$config{'default'}{'dbhost'}   ||= 'localhost';
+$config{'default'}{'dbuser'}   ||= 'vboxadm';
+$config{'default'}{'dbpass'}   ||= '';
+$config{'default'}{'dbport'}   ||= 3306;
+$config{'default'}{'dbdb'}     ||= 'vboxadm';
+$config{'default'}{'pwscheme'} ||= 'sha256';
 
 print "# VBoxAdm CLI\n" unless $config{'quiet'};
 

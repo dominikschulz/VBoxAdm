@@ -10,7 +10,7 @@ my $domain   = shift || "";
 my $selector = shift || "";
 
 if ( !$domain || !$selector ) {
-	die("Please specify a domain and a selector: $0 <domain> <selector>");
+    die("Please specify a domain and a selector: $0 <domain> <selector>");
 }
 
 my $dir = tempdir( CLEANUP => 0 );
@@ -22,8 +22,7 @@ system($cmd);
 
 # Extract the public key
 # $> openssl rsa -in mailout200903.private -out mailout200903.public -pubout -outform PEM
-$cmd =
-"openssl rsa -in $dir/$selector.private -out $dir/$selector.public -pubout -outform PEM";
+$cmd = "openssl rsa -in $dir/$selector.private -out $dir/$selector.public -pubout -outform PEM";
 system($cmd);
 
 # Convert for DNS
@@ -44,7 +43,6 @@ my $privkey = `cat $dir/$selector.private`;
 # Set in DNS
 # mail200903._domainkey.mailout.tld IN TXT "v=DKIM1\; k=rsa\; t=y\;p=<KEY>"
 print "BIND Zone entry:\n\n";
-print
-"$selector._domainkey.$domain IN TXT \"v=DKIM1\; k=rsa\; t=y\; p=$pubkey_dns\"\n\n";
+print "$selector._domainkey.$domain IN TXT \"v=DKIM1\; k=rsa\; t=y\; p=$pubkey_dns\"\n\n";
 print "DKIM Private Key:\n\n";
 print $privkey, "\n";

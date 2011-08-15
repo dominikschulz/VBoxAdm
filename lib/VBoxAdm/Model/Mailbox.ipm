@@ -63,7 +63,7 @@ use Class::Std;
             'is_domainadmin' => 0,
             'is_superadmin'  => 0,
             'max_msg_size'   => 15 * 1024,
-            'quota'					 => 100 * 1024,
+            'quota'          => 100 * 1024,
         );
 
         #
@@ -270,14 +270,15 @@ use Class::Std;
                 if ( $strength < 2 ) {
                     $self->msg->push( 'warning', 'Weak password - Strength: [_1].', $strength );
                 }
-                
+
                 # Check password lock
-								if( $self->config()->{'cgi'}->{'obey_pw_lock'} && $self->read($mailbox_id)->{'pw_lock'} ) {
-				                	$self->msg->push( 'warning', 'Password locked. Can not be changed.');
-								} else {
-				                	$query .= "password = ?, ";
-				                	push( @args, VBoxAdm::SaltedHash::make_pass( $params->{'Password'}, $pwscheme ) );
-								}
+                if ( $self->config()->{'cgi'}->{'obey_pw_lock'} && $self->read($mailbox_id)->{'pw_lock'} ) {
+                    $self->msg->push( 'warning', 'Password locked. Can not be changed.' );
+                }
+                else {
+                    $query .= "password = ?, ";
+                    push( @args, VBoxAdm::SaltedHash::make_pass( $params->{'Password'}, $pwscheme ) );
+                }
             }
         }
 
@@ -330,11 +331,11 @@ use Class::Std;
                 push( @args, 0 );
             }
         }
-        
+
         # Quota
-        if ( defined( $params->{'Quota'}) && $params->{'Quota'} =~ m/^\d+$/ ) {
-        	$query .= "quota = ?, ";
-        	push(@args,$params->{'Quota'} * 1024);
+        if ( defined( $params->{'Quota'} ) && $params->{'Quota'} =~ m/^\d+$/ ) {
+            $query .= "quota = ?, ";
+            push( @args, $params->{'Quota'} * 1024 );
         }
 
         #
@@ -496,13 +497,13 @@ use Class::Std;
 
         # convert {max_msg_size,quota} to MB
         foreach my $key (qw(max_msg_size quota)) {
-	        if ( $result{$key} > 0 ) {
-	            $result{$key.'_mb'} = $result{$key} / 1024;
-	        }
-	        else {
-	            $result{$key.'_mb'} = 0;
-	        }
-        }        
+            if ( $result{$key} > 0 ) {
+                $result{ $key . '_mb' } = $result{$key} / 1024;
+            }
+            else {
+                $result{ $key . '_mb' } = 0;
+            }
+        }
 
         foreach my $key ( keys %result ) {
             $result{$key} = Encode::decode( 'UTF-8', $result{$key} ) unless Encode::is_utf8( $result{$key} );
