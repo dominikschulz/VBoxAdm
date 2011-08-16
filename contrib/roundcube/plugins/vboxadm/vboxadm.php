@@ -68,7 +68,7 @@ class vboxadm extends rcube_plugin
 
 			$config_array = array_merge($vboxadm_config_dist, $vboxadm_config);
 			$this->config = $config_array;
-			$this->dovecotpw->setConfig($this->config)
+			$this->dovecotpw->setConfig($this->config);
 			ob_end_clean();
 		} else {
 			raise_error(array(
