@@ -237,7 +237,7 @@ class vboxadm extends rcube_plugin
 
 			$out .= '<p class="introtext">' . $this->gettext('introtext') . '</p>' . "\n";
 
-			if ($this->config['show_admin_link'] == true && ( $settings['is_domainadmin'] == true || $settings['is_superadmin'])) {
+			if ($this->config['show_admin_link'] == true && ( $settings['is_domainadmin'] == true || $settings['is_siteadmin'])) {
 				$out .= '<p class="adminlink">';
 				$out .= sprintf($this->gettext('adminlinktext'), '<a href="' . $this->config['vboxadm_url'] . '" target="_blank">', '</a>');
 				$out .= "</p>\n";
@@ -613,7 +613,7 @@ class vboxadm extends rcube_plugin
 
 		$sql = 'SELECT m.id AS user_id, d.id AS domain_id, m.local_part AS local_part,d.name AS ';
 		$sql .= 'domain,m.name AS username,m.max_msg_size,m.is_on_vacation,m.vacation_subj,';
-		$sql .= 'm.vacation_msg,m.vacation_start,m.vacation_end,m.is_domainadmin,m.is_superadmin,';
+		$sql .= 'm.vacation_msg,m.vacation_start,m.vacation_end,m.is_domainadmin,m.is_siteadmin,';
 		$sql .= 'm.sa_active,m.sa_kill_score,a.goto AS alias_goto,a.is_active AS alias_active ';
 		$sql .= 'FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id LEFT JOIN ';
 		$sql .= 'aliases AS a ON a.domain_id = d.id AND a.local_part = m.local_part WHERE ';

@@ -313,7 +313,7 @@ use Class::Std;
         }
 
         #
-        # Is Superadmin / Is Domainadmin
+        # Is Siteadmin / Is Domainadmin
         #
         if ( $self->user->is_siteadmin() ) {
             $query .= "is_siteadmin = ?, ";

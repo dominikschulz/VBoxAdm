@@ -13,7 +13,7 @@ our $VERSION = '@VERSION@';
 our %Lexicon = (
     'Sign In' => 'Войдите в систему',
     'Please enter your username and password in the fields below.' =>
-      'Пожалуйста, введите имя пользователя и пароль в соответствующие поля ниже.',
+    'Пожалуйста, введите имя пользователя и пароль в соответствующие поля ниже.',
     'User Name'                                      => 'Имя пользователя',
     'Username:'                                      => 'Имя пользователя:',
     'Target:'                                        => 'Цель:',
@@ -71,7 +71,7 @@ our %Lexicon = (
     'Alias'                      => 'Псевдоним',
     'Log'                        => 'Вход',
     'Domainadmin'                => 'Администратор домена',
-    'Superadmin'                 => 'Супер администратор',
+    'Siteadmin'                  => 'Супер администратор',
     'Quota'                      => 'Квота',
     'Date'                       => 'Дата',
     'Message'                    => 'Сообщение',
@@ -137,7 +137,7 @@ Domain
 Alias
 Log
 Domainadmin
-Superadmin
+Siteadmin
 Quota
 Date
 Message

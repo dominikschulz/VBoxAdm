@@ -69,7 +69,7 @@ our %Lexicon = (
     'Alias'                                                        => '',
     'Log'                                                          => '',
     'Domainadmin'                                                  => '',
-    'Superadmin'                                                   => '',
+    'Siteadmin'                                                    => '',
     'Quota'                                                        => '',
     'Date'                                                         => '',
     'Message'                                                      => '',
@@ -135,7 +135,7 @@ Domain
 Alias
 Log
 Domainadmin
-Superadmin
+Siteadmin
 Quota
 Date
 Message

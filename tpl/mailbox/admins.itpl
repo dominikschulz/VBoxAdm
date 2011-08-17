@@ -9,7 +9,7 @@
 				<th>[% "User" | l10n %]</th>
 				<th>[% "Active" | l10n %]</th>
 				<th>[% "Domainadmin" | l10n %]</th>
-				<th>[% "Superadmin" | l10n %]</th>
+				<th>[% "Siteadmin" | l10n %]</th>
 				<th></th>
 				<th></th>
 			</tr>

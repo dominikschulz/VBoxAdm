@@ -468,7 +468,7 @@ my %actions = (
             my $format = "%i\t%s\@%s\t%s\t%f\t%i\t%i\t%i\n";
             print "ID\tEmail\tName\tSA-Kill-Score\tMax-Msg-Size\tIs Active\tIs Siteadmin\tIs Domainadmin\n";
             foreach my $mailbox ( $Mailbox->list() ) {
-                printf( $format, @{$mailbox}{qw(id local_part domain sa_kill_score max_msg_size is_active is_superadmin is_domainadmin)} );
+                printf( $format, @{$mailbox}{qw(id local_part domain sa_kill_score max_msg_size is_active is_siteadmin is_domainadmin)} );
             }
             display_messages( $Mailbox->msg() );
         },
@@ -1507,7 +1507,7 @@ sub create_siteadmin {
     my $password = &VBoxAdm::Password::pwgen(16);
     my $salt     = &VBoxAdm::Password::pwgen(6);
 
-    $sql = "INSERT INTO mailboxes (domain_id,local_part,password,is_active,is_superadmin) VALUES(?,?,?,1,1) ON DUPLICATE KEY UPDATE password = ?";
+    $sql = "INSERT INTO mailboxes (domain_id,local_part,password,is_active,is_siteadmin) VALUES(?,?,?,1,1) ON DUPLICATE KEY UPDATE password = ?";
     $sth = $dbh->prepare($sql);
     my $pwhash = &VBoxAdm::SaltedHash::make_pass( $password, $config->{'default'}{'pwscheme'}, $salt );
     $sth->execute( $domain_id, $local_part, $pwhash, $pwhash );

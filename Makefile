@@ -21,6 +21,7 @@ INSTALL_CONF = $(INSTALL) -c -m 600
 INSTALL_WWW = $(INSTALL) -c -m 750 -g $(WWWGROUP)
 MV = /bin/mv
 RM = /bin/rm
+FIND = /usr/bin/find
 SED = /bin/sed
 SHELL = /bin/sh
 TAR = /bin/tar
@@ -362,51 +363,12 @@ tidy:
 	$(PERLTIDY) cron/*.ipl
 	$(PERLTIDY) contrib/*.ipl
 
+
 clean:
-	$(RM) -f bin/tmon.out
-	$(RM) -f bin/*.bak
-	$(RM) -f bin/*.pl
-	$(RM) -f bin/*.ERR
-	$(RM) -f bin/*.8
-	$(RM) -f cgi-bin/*.bak
-	$(RM) -f cgi-bin/*.pl
-	$(RM) -f cgi-bin/*.fcgi
-	$(RM) -f cgi-bin/*.1
-	$(RM) -f contrib/*.bak
-	$(RM) -f contrib/*.pl
-	$(RM) -f cron/*.bak
-	$(RM) -f cron/*.pl
-	$(RM) -f cron/*.8
-	$(RM) -f doc/man/*
-	$(RM) -f lib/VBoxAdm/*.bak
-	$(RM) -f lib/VBoxAdm/*.pm.LOG
-	$(RM) -f lib/VBoxAdm/*.pm
-	$(RM) -f lib/VBoxAdm/*.3
-	$(RM) -f lib/VBoxAdm/Controller/*.bak
-	$(RM) -f lib/VBoxAdm/Controller/*.pm.LOG
-	$(RM) -f lib/VBoxAdm/Controller/*.pm
-	$(RM) -f lib/VBoxAdm/Controller/*.3
-	$(RM) -f lib/VBoxAdm/Model/*.bak
-	$(RM) -f lib/VBoxAdm/Model/*.pm.LOG
-	$(RM) -f lib/VBoxAdm/Model/*.pm
-	$(RM) -f lib/VBoxAdm/Model/*.3
-	$(RM) -f lib/VBoxAdm/L10N/*.bak
-	$(RM) -f lib/VBoxAdm/L10N/*.pm.LOG
-	$(RM) -f lib/VBoxAdm/L10N/*.pm
-	$(RM) -f lib/VBoxAdm/L10N/*.3
-	$(RM) -f lib/VBoxAdm/SMTP/*.bak
-	$(RM) -f lib/VBoxAdm/SMTP/*.pm.LOG
-	$(RM) -f lib/VBoxAdm/SMTP/*.pm
-	$(RM) -f lib/VBoxAdm/SMTP/*.3
-	$(RM) -f contrib/roundcube-plugin-vboxadm.tar.gz
-	$(RM) -f t/VBoxAdm/*.t
-	$(RM) -f t/VBoxAdm/*.bak
-	$(RM) -f t/VBoxAdm/L10N/*.t
-	$(RM) -f t/VBoxAdm/L10N/*.bak
-	$(RM) -f res/js/*.min.js
-	$(RM) -f res/js/libs/*.min.js
-	$(RM) -f res/css/*.min.css
-	$(RM) -f res/css/datatable/*.min.css
+	$(FIND) bin/ -name "*.pl" -exec $(RM) {} \;
+	$(FIND) cgi-bin/ -name "*.pl" -exec $(RM) {} \;
+	$(FIND) cron/ -name "*.pl" -exec $(RM) {} \;
+	$(FIND) t/ -name "*.t" -exec $(RM) {} \;
 	$(RM) -f tpl/alias/*.tpl
 	$(RM) -f tpl/awl/*.tpl
 	$(RM) -f tpl/domain/*.tpl
@@ -418,6 +380,16 @@ clean:
 	$(RM) -f tpl/vacation_blacklist/*.tpl
 	$(RM) -f tpl/vacation_notify/*.tpl
 	$(RM) -f tpl/*.tpl
+	$(FIND) . -name "*.bak" -exec $(RM) {} \;
+	$(FIND) . -name "*.ERR" -exec $(RM) {} \;
+	$(FIND) . -name "*.LOG" -exec $(RM) {} \;
+	$(FIND) . -name "*.1" -exec $(RM) {} \;
+	$(FIND) . -name "*.3" -exec $(RM) {} \;
+	$(FIND) . -name "*.8" -exec $(RM) {} \;
+	$(FIND) . -name "*.pm" -exec $(RM) {} \;
+	$(RM) -f bin/tmon.out
+	$(RM) -f doc/man/*
+	$(RM) -f contrib/roundcube-plugin-vboxadm.tar.gz
 
 rcvboxadm:
 	cd contrib/roundcube/plugins/ && tar -cvzf ../../roundcube-plugin-vboxadm.tar.gz vboxadm/ && cd ../../../
