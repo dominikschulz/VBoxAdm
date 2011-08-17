@@ -61,8 +61,13 @@ virtual_alias_maps =
 	proxy:mysql:/etc/postfix/maps/virtual_alias_domain_maps.cf,
 	proxy:mysql:/etc/postfix/maps/virtual_alias_domain_mailbox_maps.cf,
 	proxy:mysql:/etc/postfix/maps/virtual_vacation_alias_maps.cf
+
+# Local Mail Delivery (LDA)
+# Use either the dovecot lda deliver, configured in the master.cf ...
 virtual_transport = dovecot
 dovecot_destination_recipient_limit = 1
+# or ltmp.
+virtual_transport = lmtp:unix:private/dovecot-lmtp
 
 # Quota Support
 virtual_mailbox_limit = proxy:mysql:/etc/postfix/maps/virtual_mailbox_limit_maps.cf
