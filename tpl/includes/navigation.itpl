@@ -2,7 +2,7 @@
 	<!-- <h1>Navigation</h1> -->
 	<ul>
 		<li><a[% IF current == 'welcome' %] class="current"[% END %] href="[% base_url %]?rm=welcome">VBoxAdm</a></li>
-		[% IF is_superadmin %]
+		[% IF is_siteadmin %]
 		<li><a[% IF current == 'admins' %] class="current"[% END %] href="[% base_url %]?rm=admins">[% "Admin List" | l10n %]</a></li>
 		<li><a[% IF current == 'domains' %] class="current"[% END %] href="[% base_url %]?rm=domains">[% "Domain List" | l10n %]</a>
 			<ul>
@@ -29,7 +29,7 @@
 				<li><a href="[% base_url %]?rm=create_mailbox">Create</a></li>
 			</ul>
 		</li>
-		[% IF is_superadmin %]
+		[% IF is_siteadmin %]
 		<li><a href="[% base_url %]?rm=welcome">Admin Tools</a>
 			<ul>
 				<li><a[% IF current == 'broadcast' %] class="current"[% END %] href="[% base_url %]?rm=broadcast">[% "Send Broadcast" | l10n %]</a></li>

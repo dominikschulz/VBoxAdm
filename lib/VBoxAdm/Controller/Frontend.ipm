@@ -164,7 +164,7 @@ sub setup {
     # Since we want to be able to support salted passwords, this is a bit messy.
     #
     # Contraints:
-    # Only users who are either superadmin or domainadmin should be able to login
+    # Only users who are either siteadmin or domainadmin should be able to login
     # and their account (= mailbox) must be active. Furthermore the username is
     # local_part@domain but those are stored in two different tables. So
     # we need to join those tables by specifying two tables and CONCAT the
@@ -190,7 +190,7 @@ sub setup {
                 # WARNING: This contraint relies on an implementation detail of Plugin::Authentication!
                 # This is bad style, but there is no other way right now.
                 # The correct way would probably to create a custom Authen plugin.
-                '(mailboxes.is_superadmin OR mailboxes.is_domainadmin) AND 1' => '1',
+                '(mailboxes.is_siteadmin OR mailboxes.is_domainadmin) AND 1' => '1',
             },
             COLUMNS => { 'dovecotpw:mailboxes.password' => '__CREDENTIAL_2__', },
             FILTERS => {
@@ -452,7 +452,7 @@ sub tt_pre_process {
     $vars->{long_forms}			= $self->{config}{'cgi'}{'long_forms'} || 0;
     $vars->{version}        = $VERSION;
     $vars->{messages}       = $self->get_messages();
-    $vars->{is_superadmin}  = $self->user->is_siteadmin() if $self->user();
+    $vars->{is_siteadmin}   = $self->user->is_siteadmin() if $self->user();
     $vars->{is_domainadmin} = $self->user->is_domainadmin() if $self->user();
     
     return;
@@ -1466,12 +1466,12 @@ sub show_edit_mailbox {
 	my %params = (
 	  'title'              => $self->{lh}->maketext('Edit Mailbox'),
       'mailbox_id'         => $mailbox_id,
-      'user_is_superadmin' => $self->user->is_siteadmin(),
+      'user_is_siteadmin' => $self->user->is_siteadmin(),
       'current' 		   => 'mailboxes',
       'cc_goto'            => $cc_goto,
       'cc_id'              => $cc_id,
       'mb_is_domainadmin'  => $mailbox_ref->{'is_domainadmin'},
-      'mb_is_superadmin'   => $mailbox_ref->{'is_superadmin'},
+      'mb_is_siteadmin'   => $mailbox_ref->{'is_siteadmin'},
       'pw_lock'			   => $mailbox_ref->{'pw_lock'},
 	);
 	foreach my $key (keys %{$mailbox_ref}) {
@@ -1500,17 +1500,17 @@ sub show_update_mailbox {
 	    'PasswordAgain'     => $q->param('password_2'),
 	    'Name'              => $q->param('name'),
 	    'IsActive'          => ($q->param('is_active') ? 1 : 0),
-	    'MaxMsgSize'   			=> $q->param('max_msg_size_mb'),
-	    'SAActive'      		=> ($q->param('sa_active') ? 1 : 0),
-	    'SAKillScore'  			=> $q->param('sa_kill_score') || $self->{'config'}{'cgi'}{'sa_default_block_score'} || 6.31,
-	    'IsSiteadmin' 			=> ($q->param('is_superadmin') ? 1 : 0),
-	    'IsDomainadmin' 		=> ($q->param('is_domainadmin') ? 1 : 0),
-	    'IsOnVacation'			=> ($q->param('is_on_vacation') ? 1: 0),
-	    'VacationMessage'		=> $q->param('vacation_msg'),
-	    'VacationSubject'		=> $q->param('vacation_subj'),
-	    'VacationStart'			=> $q->param('vacation_start'),
-	    'VacationEnd'				=> $q->param('vacation_end'),
-	    'Quota'							=> $q->param('quota'),
+	    'MaxMsgSize'   		=> $q->param('max_msg_size_mb'),
+	    'SAActive'      	=> ($q->param('sa_active') ? 1 : 0),
+	    'SAKillScore'  		=> $q->param('sa_kill_score') || $self->{'config'}{'cgi'}{'sa_default_block_score'} || 6.31,
+	    'IsSiteadmin' 		=> ($q->param('is_siteadmin') ? 1 : 0),
+	    'IsDomainadmin' 	=> ($q->param('is_domainadmin') ? 1 : 0),
+	    'IsOnVacation'		=> ($q->param('is_on_vacation') ? 1: 0),
+	    'VacationMessage'	=> $q->param('vacation_msg'),
+	    'VacationSubject'	=> $q->param('vacation_subj'),
+	    'VacationStart'		=> $q->param('vacation_start'),
+	    'VacationEnd'		=> $q->param('vacation_end'),
+	    'Quota'				=> $q->param('quota'),
     );
     
     $self->{'Mailbox'}->update($mailbox_id,\%params);

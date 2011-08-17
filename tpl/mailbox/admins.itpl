@@ -35,7 +35,7 @@
 					[% END %]
 				</td>
 				<td>
-					[% IF line.is_superadmin == 1 %]
+					[% IF line.is_siteadmin == 1 %]
 					[% "Yes" | l10n %]
 					[% ELSE %]
 					[% "No" | l10n %]

@@ -26,7 +26,7 @@ sub migrate {
 
     my $sql_new_mailbox = "INSERT INTO \`$target_db\`.mailboxes ";
     $sql_new_mailbox .= "(domain_id,local_part,password,name,is_active,max_msg_size,is_on_vacation,vacation_subj,vacation_msg,";
-    $sql_new_mailbox .= "is_domainadmin,is_superadmin,sa_active,sa_kill_score) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)";
+    $sql_new_mailbox .= "is_domainadmin,is_siteadmin,sa_active,sa_kill_score) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)";
     my $sth_new_mailbox = $dbh->prepare($sql_new_mailbox);
 
     my $sql_new_domain_alias = "INSERT INTO \`$target_db\`.domain_aliases (name,domain_id,is_active) VALUES(?,?,1)";
@@ -35,7 +35,7 @@ sub migrate {
     my $sql_vacation_status = "INSERT INTO \`$target_db\`.vacation_notify (on_vacation,notified,notified_at) VALUES(?,?,?)";
     my $sth_vacation_status = $dbh->prepare($sql_vacation_status);
 
-    my $sql_set_admin = "UPDATE \`$target_db\`.mailboxes SET is_domainadmin = ?, is_superadmin = ? ";
+    my $sql_set_admin = "UPDATE \`$target_db\`.mailboxes SET is_domainadmin = ?, is_siteadmin = ? ";
     $sql_set_admin .= "WHERE local_part = ? AND domain_id = (SELECT id FROM domains WHERE name = ?)";
     my $sth_set_admin = $dbh->prepare($sql_set_admin);
 

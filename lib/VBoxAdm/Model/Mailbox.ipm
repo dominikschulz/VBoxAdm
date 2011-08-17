@@ -28,7 +28,7 @@ use Class::Std;
             qw(
               id domain_id local_part password pw_ts pw_lock name is_active max_msg_size
               is_on_vacation vacation_subj vacation_msg vacation_start vacation_end
-              quota is_domainadmin is_superadmin sa_active sa_kill_score
+              quota is_domainadmin is_siteadmin sa_active sa_kill_score
               )
         ];
     }
@@ -61,7 +61,7 @@ use Class::Std;
             'sa_active'      => 1,
             'sa_kill_score'  => $self->config->{'cgi'}{'sa_default_block_score'} || 6.31,
             'is_domainadmin' => 0,
-            'is_superadmin'  => 0,
+            'is_siteadmin'  => 0,
             'max_msg_size'   => 15 * 1024,
             'quota'          => 100 * 1024,
         );
@@ -90,7 +90,7 @@ use Class::Std;
         # Admin Status
         #
         if ( $self->user->is_siteadmin() ) {
-            $args{'is_superadmin'}  = $params->{'IsSiteadmin'};
+            $args{'is_siteadmin'}  = $params->{'IsSiteadmin'};
             $args{'is_domainadmin'} = $params->{'IsDomainadmin'};
         }
         elsif ( $self->user->is_domainadmin() && $domain_id == $self->user->get_domain_id() ) {
@@ -316,7 +316,7 @@ use Class::Std;
         # Is Superadmin / Is Domainadmin
         #
         if ( $self->user->is_siteadmin() ) {
-            $query .= "is_superadmin = ?, ";
+            $query .= "is_siteadmin = ?, ";
             if ( $params->{'IsSiteadmin'} ) {
                 push( @args, 1 );
             }
@@ -539,7 +539,7 @@ use Class::Std;
             push( @args, $param->{'domain_id'} );
         }
         if ( $param->{'IsAdmin'} ) {
-            $sql .= " AND (is_domainadmin OR is_superadmin)";
+            $sql .= " AND (is_domainadmin OR is_siteadmin)";
         }
 
         # domain admins may only see their own domain

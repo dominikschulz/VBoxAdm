@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS `mailboxes` (
   `vacation_end` date NOT NULL,
   `quota` int(16) NOT NULL,
   `is_domainadmin` tinyint(1) NOT NULL,
-  `is_superadmin` tinyint(1) NOT NULL,
+  `is_siteadmin` tinyint(1) NOT NULL,
   `sa_active` tinyint(1) NOT NULL,
   `sa_kill_score` decimal(5,2) NOT NULL,
   PRIMARY KEY (`id`),

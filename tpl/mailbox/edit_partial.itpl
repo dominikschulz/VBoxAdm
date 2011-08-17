@@ -101,7 +101,7 @@
 		
 		<div class="spacer"></div>
 		
-		[% IF user_is_superadmin %]
+		[% IF is_siteadmin %]
 		<label for="is_domainadmin">
 			[% "Domainadmin:" | l10n %]
 			<span class="small"></span>
@@ -110,11 +110,11 @@
 		
 		<div class="spacer"></div>
 		
-		<label for="is_superadmin">
-			[% "Superadmin:" | l10n %]
+		<label for="is_siteadmin">
+			[% "Siteadmin:" | l10n %]
 			<span class="small"></span>
 		</label>
-		<input class="flat" type="checkbox" name="is_superadmin" [% IF mb_is_superadmin %]checked[% END %] />
+		<input class="flat" type="checkbox" name="is_siteadmin" [% IF mb_is_siteadmin %]checked[% END %] />
 		[% END %]
 		
 		<div class="spacer"></div>
