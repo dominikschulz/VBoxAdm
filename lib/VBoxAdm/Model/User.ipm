@@ -35,7 +35,7 @@ use Class::Std;
 
         # ForceLogin is used when we know that a login is ok, but we don't have the (plaintext) password
         elsif ( !$self->check_login( $arg_ref->{'Username'}, $arg_ref->{'Password'}, $arg_ref->{'ForceLogin'} ) ) {
-            die("Need valid username and password.");
+            confess("Need valid username and password.");
         }
     }
 

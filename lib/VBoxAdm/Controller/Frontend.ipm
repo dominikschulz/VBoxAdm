@@ -359,31 +359,41 @@ sub setup {
 	    	'LH_EN' => $self->{'lh_en'},
 	    	'Session' => $self->session,
 	    });
-	    $self->{'Messages'} = $Messages;
-			my $User = VBoxAdm::Model::User->new({
-	    	'dbh' => $self->dbh,
-	    	'Username' => $self->authen->username,
-	    	'ForceLogin' => 1,
-	    	'MessageQueue' => $Messages,
-	    	'Logger' => $Logger,
-	    	'Config' => $self->{'config'},
-	    });
-	    $self->{'User'} = $User;
-	    my $arg_ref = {
-			    'dbh'          => $self->dbh,
-			    'User' 		   => $User,
-			    'MessageQueue' => $Messages,
-			    'Logger'       => $Logger,
-			    'Config'       => $self->{'config'},
+	    
+	    # if we can not create a new user object we MUST NOT die but redirect to login page instead
+			my $User;
+			eval {
+				$User = VBoxAdm::Model::User->new({
+		    	'dbh' 			=> $self->dbh,
+		    	'Username' 	=> $self->authen->username,
+		    	'ForceLogin' => 1,
+		    	'MessageQueue' => $Messages,
+		    	'Logger' 		=> $Logger,
+		    	'Config' 		=> $self->{'config'},
+		    });
 			};
-			$self->{'Alias'}             = VBoxAdm::Model::Alias->new($arg_ref);
-			$self->{'AWL'}               = VBoxAdm::Model::AWL->new($arg_ref);
-			$self->{'Domain'}            = VBoxAdm::Model::Domain->new($arg_ref);
-			$self->{'DomainAlias'}       = VBoxAdm::Model::DomainAlias->new($arg_ref);
-			$self->{'Mailbox'}           = VBoxAdm::Model::Mailbox->new($arg_ref);
-			$self->{'RFCNotify'}		 = VBoxAdm::Model::RFCNotify->new($arg_ref);
-			$self->{'RoleAccount'}		 = VBoxAdm::Model::RoleAccount->new($arg_ref);
-			$self->{'VacationBlacklist'} = VBoxAdm::Model::VacationBlacklist->new($arg_ref);
+			if($@ || !$User) {
+				$self->log( "Could not create User Object: $@");
+			}
+			else {
+		    $self->{'Messages'} = $Messages;
+		    $self->{'User'} = $User;
+		    my $arg_ref = {
+				    'dbh'          => $self->dbh,
+				    'User' 		   	 => $User,
+				    'MessageQueue' => $Messages,
+				    'Logger'       => $Logger,
+				    'Config'       => $self->{'config'},
+				};
+				$self->{'Alias'}             = VBoxAdm::Model::Alias->new($arg_ref);
+				$self->{'AWL'}               = VBoxAdm::Model::AWL->new($arg_ref);
+				$self->{'Domain'}            = VBoxAdm::Model::Domain->new($arg_ref);
+				$self->{'DomainAlias'}       = VBoxAdm::Model::DomainAlias->new($arg_ref);
+				$self->{'Mailbox'}           = VBoxAdm::Model::Mailbox->new($arg_ref);
+				$self->{'RFCNotify'}		 		 = VBoxAdm::Model::RFCNotify->new($arg_ref);
+				$self->{'RoleAccount'}		 	 = VBoxAdm::Model::RoleAccount->new($arg_ref);
+				$self->{'VacationBlacklist'} = VBoxAdm::Model::VacationBlacklist->new($arg_ref);
+			}
     }
 
     # to make perlcritic happy
@@ -416,14 +426,9 @@ sub cgiapp_init {
         $ignore_ssl_check = 1;
     }
 
-    #$self->config_requiressl(
-    #    'keep_in_ssl'  => 1,
-    #    'ignore_check' => $ignore_ssl_check,
-    #);
-    # TODO re-enable SSL
     $self->config_requiressl(
-        'keep_in_ssl'  => 0,
-        'ignore_check' => 1,
+        'keep_in_ssl'  => 1,
+        'ignore_check' => $ignore_ssl_check,
     );
 
     # to make perlcritic happy
@@ -1495,26 +1500,33 @@ sub show_update_mailbox {
     my $q = $self->query();
 
     my $mailbox_id      = $q->param('mailbox_id');
-    my %params = (
-	    'Password'          => $q->param('password'),
-	    'PasswordAgain'     => $q->param('password_2'),
-	    'Name'              => $q->param('name'),
-	    'IsActive'          => ($q->param('is_active') ? 1 : 0),
-	    'MaxMsgSize'   		=> $q->param('max_msg_size_mb'),
-	    'SAActive'      	=> ($q->param('sa_active') ? 1 : 0),
-	    'SAKillScore'  		=> $q->param('sa_kill_score') || $self->{'config'}{'cgi'}{'sa_default_block_score'} || 6.31,
-	    'IsSiteadmin' 		=> ($q->param('is_siteadmin') ? 1 : 0),
-	    'IsDomainadmin' 	=> ($q->param('is_domainadmin') ? 1 : 0),
-	    'IsOnVacation'		=> ($q->param('is_on_vacation') ? 1: 0),
-	    'VacationMessage'	=> $q->param('vacation_msg'),
-	    'VacationSubject'	=> $q->param('vacation_subj'),
-	    'VacationStart'		=> $q->param('vacation_start'),
-	    'VacationEnd'		=> $q->param('vacation_end'),
-	    'Quota'				=> $q->param('quota'),
+    my $params = {};
+    # TODO name keys in tempaltes acordingly and remove key translatation ... everywhere
+    my %keys = (
+    	'password'	=> 'Password',
+    	'password_2' => 'PasswordAgain',
+    	'name'	=> 'Name',
+    	'is_active' => 'IsActive',
+    	'max_msg_size_mb' => 'MaxMsgSize',
+    	'sa_active' => 'SAActive',
+    	'sa_kill_score' => 'SAKillScore',
+    	'is_siteadmin' => 'IsSiteadmin',
+    	'is_domainadmin' => 'IsDomainadmin',
+    	'is_on_vacation' => 'IsOnVacation',
+    	'vacation_msg' => 'VacationMessage',
+    	'vacation_subj' => 'VacationSubject',
+    	'vacation_start' => 'VacationStart',
+    	'vacation_end' => 'VacationEnd',
+    	'quota'	=> 'Quota',
     );
+    foreach my $key (keys %keys) {
+    	my $tkey = $keys{$key};
+    	if(defined($q->param($key))) {
+    		$params->{$tkey} = $q->param($key);
+    	}
+    }
     
-    $self->{'Mailbox'}->update($mailbox_id,\%params);
-    
+    $self->{'Mailbox'}->update($mailbox_id,$params);
     $self->redirect( $self->{base_url} . '?rm=mailboxes' );
     return;
 }

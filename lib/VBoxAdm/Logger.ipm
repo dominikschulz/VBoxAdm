@@ -23,11 +23,11 @@ use Class::Std;
     sub log {
         my $self  = shift;
         my $ident = ident $self;
+        my $tpl   = shift;
 
         my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime();
         $year += 1900;
         $mon++;
-        my $tpl = shift;
         my $message = sprintf( "%04i%02i%02i-%02i%02i%02i", $year, $mon, $mday, $hour, $min, $sec ) . ' ' . ( caller(1) )[3] . ' ' . sprintf( $tpl, @_ );
         syslog( 2, $message );
     }

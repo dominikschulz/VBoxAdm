@@ -73,7 +73,7 @@ use Class::Std;
         my ( $self, $msg ) = @_;
         my $ident = ident $self;
         if ( $logger_of{$ident} ) {
-            $logger_of{$ident}->log( 2, $msg );
+            $logger_of{$ident}->log($msg);
             return 1;
         }
         return;

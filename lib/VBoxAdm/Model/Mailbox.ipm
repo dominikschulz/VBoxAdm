@@ -61,7 +61,7 @@ use Class::Std;
             'sa_active'      => 1,
             'sa_kill_score'  => $self->config->{'cgi'}{'sa_default_block_score'} || 6.31,
             'is_domainadmin' => 0,
-            'is_siteadmin'  => 0,
+            'is_siteadmin'   => 0,
             'max_msg_size'   => 15 * 1024,
             'quota'          => 100 * 1024 * 1024,
         );
@@ -90,7 +90,7 @@ use Class::Std;
         # Admin Status
         #
         if ( $self->user->is_siteadmin() ) {
-            $args{'is_siteadmin'}  = $params->{'IsSiteadmin'};
+            $args{'is_siteadmin'}   = $params->{'IsSiteadmin'};
             $args{'is_domainadmin'} = $params->{'IsDomainadmin'};
         }
         elsif ( $self->user->is_domainadmin() && $domain_id == $self->user->get_domain_id() ) {
@@ -227,6 +227,9 @@ use Class::Std;
         my ( $self, $mailbox_id, $params ) = @_;
         my $ident = ident $self;
 
+        use Data::Dumper;
+        $self->log( "Mailbox::update - Params: " . Dumper($params) );
+
         # Authorization - Regular Users may access this method!
 
         if ( !$mailbox_id || $mailbox_id !~ m/^\d+$/ ) {
@@ -294,15 +297,17 @@ use Class::Std;
         # Is_Active
         #
         my $status_str = 'disabled';
-        if ( $params->{'IsActive'} ) {
-            $status_str = 'enabled';
-            $params->{'IsActive'} = 1;
+        if ( defined( $params->{'IsActive'} ) ) {
+            if ( $params->{'IsActive'} ) {
+                $status_str = 'enabled';
+                $params->{'IsActive'} = 1;
+            }
+            else {
+                $params->{'IsActive'} = 0;
+            }
+            $query .= "is_active = ?, ";
+            push( @args, $params->{'IsActive'} );
         }
-        else {
-            $params->{'IsActive'} = 0;
-        }
-        $query .= "is_active = ?, ";
-        push( @args, $params->{'IsActive'} );
 
         #
         # Max Msg Size
@@ -446,6 +451,8 @@ use Class::Std;
                 $query .= "AND id = ?";
                 push( @args, $self->user->get_id() );
             }
+
+            #$self->log( "Mailox::update - SQL: ".$query. " - Args: ".join(',',@args));
             if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
                 $self->msg->push( 'information', "Updated Mailbox [_1] (#[_2]).", $mailbox_name, $mailbox_id );
             }
@@ -498,7 +505,7 @@ use Class::Std;
         # convert {max_msg_size,quota} to MB
         foreach my $key (qw(max_msg_size quota)) {
             if ( $result{$key} > 0 ) {
-                $result{ $key . '_mb' } = $result{$key} / (1024*1024);
+                $result{ $key . '_mb' } = $result{$key} / ( 1024 * 1024 );
             }
             else {
                 $result{ $key . '_mb' } = 0;

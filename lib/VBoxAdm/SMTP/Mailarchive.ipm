@@ -224,7 +224,7 @@ sub process_request {
     if ($@) {
         chomp($@);
         my $msg = "WARNING: Error in process_request eval: $@";
-        $self->log( 2, $msg );
+        $self->log($msg);
         die( $msg . "\n" );
     }
     $self->{vbox}->{instance}++;
@@ -303,11 +303,11 @@ sub process_message {
     my $checksum = $digest->hexdigest();
 
     if ( $self->{vbox}->{sth}->{insert}->execute( $checksum, $body ) ) {
-        $self->log( 2, "Wrote message from " . $sender . " to " . $recipient . " to DB." );
+        $self->log( "Wrote message from " . $sender . " to " . $recipient . " to DB." );
         return 1;
     }
     else {
-        $self->log( 2, "Failed to log message from " . $sender . " to " . $recipient . " to DB. Query failed: " . $self->{vbox}->{sth}->{insert}->errstr );
+        $self->log( "Failed to log message from " . $sender . " to " . $recipient . " to DB. Query failed: " . $self->{vbox}->{sth}->{insert}->errstr );
         return;
     }
 

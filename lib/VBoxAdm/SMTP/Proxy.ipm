@@ -217,7 +217,7 @@ sub process_request {
                     if ( $msg_size > $self->max_msg_size($recipient) ) {
                         my $msg = "Message too big ($msg_size/" . $self->max_msg_size($recipient) . ") for $recipient";
                         if ( $self->{vbox}->{dry} ) {
-                            $self->log( 2, "DRY: $msg. Would reject this mail." );
+                            $self->log("DRY: $msg. Would reject this mail.");
                         }
                         else {
                             if ( $self->{vbox}->{soft_bounce} ) {
@@ -235,7 +235,7 @@ sub process_request {
                 if ( $self->is_spam($smtp_server) ) {
                     my $msg = "Your message appears to be SPAM";
                     if ( $self->{vbox}->{dry} ) {
-                        $self->log( 2, "DRY: $msg. Would reject this mail." );
+                        $self->log("DRY: $msg. Would reject this mail.");
                     }
                     else {
                         if ( $self->{vbox}->{soft_bounce} ) {
@@ -276,8 +276,7 @@ sub process_request {
             my $helo    = $smtp_server->{xforward}{helo} || $default;
             my $proto   = $smtp_server->{xforward}{proto} || $default;
             my $source  = $smtp_server->{xforward}{source} || $default;
-            $self->log( 2,
-                    "message-accepted - queued as $queue_id; from="
+            $self->log( "message-accepted - queued as $queue_id; from="
                   . $smtp_server->{from} . "; to="
                   . join( ",", @{ $smtp_server->{recipients} } )
                   . "; client=$client; helo=$helo; proto=$proto; source=$source;" );
@@ -293,7 +292,7 @@ sub process_request {
     if ($@) {
         chomp($@);
         my $msg = "WARNING: Error in process_request eval: $@";
-        $self->log( 2, $msg );
+        $self->log($msg);
         die( $msg . "\n" );
     }
     $self->{vbox}->{instance}++;
@@ -326,7 +325,7 @@ sub max_msg_size {
         $self->{cache}->{max_msg_size}->{$email} = $max_msg_size if $self->{vbox}->{caching};
     }
     else {
-        $self->log( 2, "max_msg_size - Excuting userinfo query (" . $self->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr );
+        $self->log( "max_msg_size - Excuting userinfo query (" . $self->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr );
     }
 
     return $max_msg_size;
@@ -373,7 +372,7 @@ sub sa_block_score {
             }
         }
         else {
-            $self->log( 2, "sa_block_score - Excuting userinfo query (" . $self->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr );
+            $self->log( "sa_block_score - Excuting userinfo query (" . $self->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr );
         }
     }
 
@@ -412,7 +411,7 @@ sub want_sa {
             $self->{cache}->{want_sa}->{$email} = $userinfo[3] if $self->{vbox}->{caching};
         }
         else {
-            $self->log( 2, "want_sa - Excuting userinfo query (" . $self->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr );
+            $self->log( "want_sa - Excuting userinfo query (" . $self->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr );
         }
 
     }
@@ -448,7 +447,7 @@ sub is_spam {
 
         # we wont check messages which are to big, so we can't assume
         # that they are spam
-        $self->log( 2, "Skipped too large msg ($msg_size > $self->{vbox}->{sa_max_msg_size})" );
+        $self->log("Skipped too large msg ($msg_size > $self->{vbox}->{sa_max_msg_size})");
         return;
     }
 
@@ -547,7 +546,7 @@ sub is_spam {
             $is_spam     = 0;
             $was_it_spam = 'clean message';
         }
-        $self->log( 2, "$was_it_spam - using cached result for $msgid ($msg_score/$block_score) from $sender for $recipients, $msg_size bytes." );
+        $self->log("$was_it_spam - using cached result for $msgid ($msg_score/$block_score) from $sender for $recipients, $msg_size bytes.");
     }
     else {
 
@@ -623,8 +622,7 @@ sub is_spam {
             my $block_score = sprintf( "%.2f", $status->get_required_score() );
             my $proc_time   = sprintf( "%.2f", time - $t0 );
 
-            $self->log( 2,
-                "$was_it_spam $msgid ($msg_score/$block_score) from $sender for $recipients in $proc_time s, $msg_size bytes. rules hit: "
+            $self->log( "$was_it_spam $msgid ($msg_score/$block_score) from $sender for $recipients in $proc_time s, $msg_size bytes. rules hit: "
                   . $status->get_names_of_tests_hit() );
 
             # Cleanup the SA analysis object
@@ -636,7 +634,7 @@ sub is_spam {
         };
 
         if ($@) {
-            $self->log( 2, "eval error: $@" );
+            $self->log("eval error: $@");
             return;
         }
     }
