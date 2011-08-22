@@ -3,7 +3,6 @@ package VBoxAdm::Model::AWL;
 use Moose;
 use namespace::autoclean;
 
-
 use Carp;
 
 use Sys::Syslog;
@@ -13,136 +12,136 @@ use VBoxAdm::Utils '@VERSION@';
 extends 'VBoxAdm::Model';
 
 has 'fields' => (
-	'is'	=> 'ro',
-	'isa'	=> 'ArrayRef[Str]',
-	'default' => [qw(id email last_seen disabled)],
+    'is'      => 'ro',
+    'isa'     => 'ArrayRef[Str]',
+    'default' => [qw(id email last_seen disabled)],
 );
 
 has 'user' => (
-	'is'	=> 'ro',
-	'isa' => 'VBoxAdm::Model::User',
-	'required' => 1,
+    'is'       => 'ro',
+    'isa'      => 'VBoxAdm::Model::User',
+    'required' => 1,
 );
 
-    sub create {
-        my ( $self, $email ) = @_;
-        my $ident = ident $self;
+sub create {
+    my ( $self, $email ) = @_;
+    my $ident = ident $self;
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-
-        my $sql = "INSERT IGNORE INTO awl (email,last_seen,disabled) VALUES(?,NOW(),0)";
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $email );
-
-        if ( !$sth ) {
-            $self->msg->push( 'error', 'Database error.' );
-            return;
-        }
-
-        $sth->finish();
-
-        return 1;
-    }
-
-    sub get_id {
-        my ( $self, $email ) = @_;
-        my $ident = ident $self;
-
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-
-        if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
-            return;
-        }
-
-        my $sql = "SELECT id FROM awl WHERE email = ?";
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $email );
-        my $id  = $sth->fetchrow_array();
-
-        if ( !$sth ) {
-            $self->msg->push( 'error', 'Database error.' );
-            return;
-        }
-
-        $sth->finish();
-
-        return $id;
-    }
-
-    sub update {
-        my ( $self, $entry_id, $params ) = @_;
-        my $ident = ident $self;
-
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-
-        my $disabled = $params->{'Disabled'};
-
-        if ( $entry_id && defined($disabled) ) {
-            if ( $disabled =~ m/^(?:yes|1|true|on)$/i ) {
-                $disabled = 1;
-            }
-            else {
-                $disabled = 0;
-            }
-            my $query = "UPDATE awl SET disabled = ? WHERE id = ?";
-            if ( my $sth = $self->dbh->prepare($query) ) {
-                if ( $sth->execute( $disabled, $entry_id ) ) {
-                    $sth->finish();
-                    $self->msg->push( 'information', "Updated entry [_1]. Set disabled = [_2].", $entry_id, $disabled );
-                    return 1;
-                }
-            }
-            else {
-                $self->msg->push( 'error', "Unable to update awl. Database Error." );
-                return;
-            }
-        }
-
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
 
-    # There will be no AWL::delete - ever. Why?
-    # Either an entry is disabled which will prevent this address
-    # from being blacklisted forever or it will expire by itself.
-    sub delete {
-        die("There will be no AWL::delete - ever.");
+    my $sql = "INSERT IGNORE INTO awl (email,last_seen,disabled) VALUES(?,NOW(),0)";
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $email );
+
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        return;
     }
 
-    sub read {
-        my ( $self, $id ) = @_;
-        my $ident = ident $self;
+    $sth->finish();
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+    return 1;
+}
+
+sub get_id {
+    my ( $self, $email ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+        return;
+    }
+
+    my $sql = "SELECT id FROM awl WHERE email = ?";
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $email );
+    my $id  = $sth->fetchrow_array();
+
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    $sth->finish();
+
+    return $id;
+}
+
+sub update {
+    my ( $self, $entry_id, $params ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $disabled = $params->{'Disabled'};
+
+    if ( $entry_id && defined($disabled) ) {
+        if ( $disabled =~ m/^(?:yes|1|true|on)$/i ) {
+            $disabled = 1;
+        }
+        else {
+            $disabled = 0;
+        }
+        my $query = "UPDATE awl SET disabled = ? WHERE id = ?";
+        if ( my $sth = $self->dbh->prepare($query) ) {
+            if ( $sth->execute( $disabled, $entry_id ) ) {
+                $sth->finish();
+                $self->msg->push( 'information', "Updated entry [_1]. Set disabled = [_2].", $entry_id, $disabled );
+                return 1;
+            }
+        }
+        else {
+            $self->msg->push( 'error', "Unable to update awl. Database Error." );
             return;
         }
-
-        return $self->_read( 'awl', $id, $fields_of{$ident} );
     }
 
-    sub list {
-        my ( $self, $params ) = @_;
-        my $ident = ident $self;
+    return;
+}
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
+# There will be no AWL::delete - ever. Why?
+# Either an entry is disabled which will prevent this address
+# from being blacklisted forever or it will expire by itself.
+sub delete {
+    die("There will be no AWL::delete - ever.");
+}
 
-        return $self->_list( 'awl', $fields_of{$ident}, $params );
+sub read {
+    my ( $self, $id ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
     }
+
+    return $self->_read( 'awl', $id, $fields_of{$ident} );
+}
+
+sub list {
+    my ( $self, $params ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    return $self->_list( 'awl', $fields_of{$ident}, $params );
+}
 
 no Moose;
 __PACKAGE__->meta->make_immutable;

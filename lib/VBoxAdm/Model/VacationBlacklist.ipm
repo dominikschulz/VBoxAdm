@@ -11,144 +11,144 @@ use VBoxAdm::Utils '@VERSION@';
 extends 'VBoxAdm::Model';
 
 has 'fields' => (
-	'is'	=> 'ro',
-	'isa'	=> 'ArrayRef[Str]',
-	'default' => [qw(id local_part domain)],
+    'is'      => 'ro',
+    'isa'     => 'ArrayRef[Str]',
+    'default' => [qw(id local_part domain)],
 );
 
 has 'user' => (
-	'is'	=> 'ro',
-	'isa' => 'VBoxAdm::Model::User',
-	'required' => 1,
+    'is'       => 'ro',
+    'isa'      => 'VBoxAdm::Model::User',
+    'required' => 1,
 );
 
-    sub create {
-        my ( $self, $email ) = @_;
-        my $ident = ident $self;
+sub create {
+    my ( $self, $email ) = @_;
+    my $ident = ident $self;
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_siteadmin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-
-        if ( $email && &VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
-            my $query = "INSERT INTO vacation_blacklist (local_part,domain) VALUES(?,?)";
-            my ( $local_part, $domain ) = split /@/, $email;
-            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain ) ) {
-                $sth->finish();
-                $self->msg->push( 'information', "Added Vacation Blacklist Entry [_1].", $email );
-                return 1;
-            }
-            else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $local_part, $domain ) ), $self->dbh->errstr );
-                $self->msg->push( 'error', "Failed to add Vacation Blacklist Entry [_1]. Database Error.", $email );
-                return;
-            }
-        }
-        else {
-            $self->msg->push( 'error', 'Invalid email address given. Please provide a valid RFC822 email address.' );
-            return;
-        }
-
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
 
-    sub get_id {
-        my ( $self, $email ) = @_;
-        my $ident = ident $self;
-
-        # Authorization - No access for regular users
-        if ( !$self->user->is_siteadmin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-
-        if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
-            return;
-        }
-
+    if ( $email && &VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+        my $query = "INSERT INTO vacation_blacklist (local_part,domain) VALUES(?,?)";
         my ( $local_part, $domain ) = split /@/, $email;
-
-        my $sql = "SELECT id FROM vacation_blacklist WHERE local_part = ? AND domain = ?";
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $local_part, $domain );
-
-        if ( !$sth ) {
-            $self->msg->push( 'error', 'Database error.' );
-            return;
-        }
-
-        my $id = $sth->fetchrow_array();
-        $sth->finish();
-        return $id;
-    }
-
-    sub delete {
-        my ( $self, $entry_id ) = @_;
-        my $ident = ident $self;
-
-        # Authorization - No access for regular users
-        if ( !$self->user->is_siteadmin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-
-        if ($entry_id) {
-            my $query = "SELECT CONCAT(local_part,'\@',domain) FROM vacation_blacklist WHERE id = ?";
-            my $sth   = $self->dbh->prepare($query);
-            $sth->execute($entry_id);
-            my $email = $sth->fetchrow_array();
+        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain ) ) {
             $sth->finish();
-
-            $query = "DELETE FROM vacation_blacklist WHERE id = ?";
-            if ( &VBoxAdm::DB::prepexec( $self->dbh, $query, $entry_id ) ) {
-                $sth->finish();
-                $self->msg->push( 'information', "Deleted Vacation Blacklist Entry [_1].", $email );
-                return 1;
-            }
-            else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, $entry_id, $self->dbh->errstr );
-                $self->msg->push( 'error', "Failed to remove Vacation Blacklist Entry [_1]. Database Error.", $email );
-                return;
-            }
+            $self->msg->push( 'information', "Added Vacation Blacklist Entry [_1].", $email );
+            return 1;
         }
         else {
-            $self->msg->push( 'error', 'Invalid id given. Please provide a valid id.' );
+            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $local_part, $domain ) ), $self->dbh->errstr );
+            $self->msg->push( 'error', "Failed to add Vacation Blacklist Entry [_1]. Database Error.", $email );
             return;
         }
-
+    }
+    else {
+        $self->msg->push( 'error', 'Invalid email address given. Please provide a valid RFC822 email address.' );
         return;
     }
 
-    sub update {
-        die("No need for VacationBlacklist::update.");
+    return;
+}
+
+sub get_id {
+    my ( $self, $email ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
     }
 
-    sub read {
-        my ( $self, $id ) = @_;
-        my $ident = ident $self;
+    if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+        return;
+    }
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_siteadmin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+    my ( $local_part, $domain ) = split /@/, $email;
+
+    my $sql = "SELECT id FROM vacation_blacklist WHERE local_part = ? AND domain = ?";
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $local_part, $domain );
+
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    my $id = $sth->fetchrow_array();
+    $sth->finish();
+    return $id;
+}
+
+sub delete {
+    my ( $self, $entry_id ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    if ($entry_id) {
+        my $query = "SELECT CONCAT(local_part,'\@',domain) FROM vacation_blacklist WHERE id = ?";
+        my $sth   = $self->dbh->prepare($query);
+        $sth->execute($entry_id);
+        my $email = $sth->fetchrow_array();
+        $sth->finish();
+
+        $query = "DELETE FROM vacation_blacklist WHERE id = ?";
+        if ( &VBoxAdm::DB::prepexec( $self->dbh, $query, $entry_id ) ) {
+            $sth->finish();
+            $self->msg->push( 'information', "Deleted Vacation Blacklist Entry [_1].", $email );
+            return 1;
+        }
+        else {
+            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, $entry_id, $self->dbh->errstr );
+            $self->msg->push( 'error', "Failed to remove Vacation Blacklist Entry [_1]. Database Error.", $email );
             return;
         }
-
-        return $self->_read( 'vacation_blacklist', $id, $fields_of{$ident} );
+    }
+    else {
+        $self->msg->push( 'error', 'Invalid id given. Please provide a valid id.' );
+        return;
     }
 
-    sub list {
-        my ( $self, $params ) = @_;
-        my $ident = ident $self;
+    return;
+}
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_siteadmin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
+sub update {
+    die("No need for VacationBlacklist::update.");
+}
 
-        return $self->_list( 'vacation_blacklist', $fields_of{$ident}, $params );
+sub read {
+    my ( $self, $id ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
     }
+
+    return $self->_read( 'vacation_blacklist', $id, $fields_of{$ident} );
+}
+
+sub list {
+    my ( $self, $params ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    return $self->_list( 'vacation_blacklist', $fields_of{$ident}, $params );
+}
 
 no Moose;
 __PACKAGE__->meta->make_immutable;

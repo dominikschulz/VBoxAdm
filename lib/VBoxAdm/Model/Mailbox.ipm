@@ -13,626 +13,626 @@ use VBoxAdm::Password '@VERSION@';
 extends 'VBoxAdm::Model';
 
 has 'fields' => (
-	'is'	=> 'ro',
-	'isa'	=> 'ArrayRef[Str]',
-	'default' => [
-            qw(
-              id domain_id local_part password pw_ts pw_lock name is_active max_msg_size
-              is_on_vacation vacation_subj vacation_msg vacation_start vacation_end
-              quota is_domainadmin is_siteadmin sa_active sa_kill_score
-              )
-        ],
+    'is'      => 'ro',
+    'isa'     => 'ArrayRef[Str]',
+    'default' => [
+        qw(
+          id domain_id local_part password pw_ts pw_lock name is_active max_msg_size
+          is_on_vacation vacation_subj vacation_msg vacation_start vacation_end
+          quota is_domainadmin is_siteadmin sa_active sa_kill_score
+          )
+    ],
 );
 
 has 'user' => (
-	'is'	=> 'ro',
-	'isa' => 'VBoxAdm::Model::User',
-	'required' => 1,
+    'is'       => 'ro',
+    'isa'      => 'VBoxAdm::Model::User',
+    'required' => 1,
 );
 
-    sub create {
-        my ( $self, $local_part, $domain_id, $params ) = @_;
-        my $ident = ident $self;
+sub create {
+    my ( $self, $local_part, $domain_id, $params ) = @_;
+    my $ident = ident $self;
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-
-        $local_part = &VBoxAdm::Utils::trim( lc($local_part) );
-
-        my $Domain = VBoxAdm::Model::Domain->new( { 'Model' => $self, } );
-        my $domain_name = $Domain->get_name($domain_id);
-
-        my $system_domain = $self->config->{'default'}{'domain'}   || 'localhost';
-        my $pwscheme      = $self->config->{'default'}{'pwscheme'} || 'ssha256';
-        my $delim         = $self->config()->{'smtpproxy'}->{'recipient_delimiter'};
-
-        my %args = (
-            'local_part'     => $local_part,
-            'domain_id'      => $domain_id,
-            'password'       => undef,
-            'is_active'      => undef,
-            'name'           => '',
-            'sa_active'      => 1,
-            'sa_kill_score'  => $self->config->{'cgi'}{'sa_default_block_score'} || 6.31,
-            'is_domainadmin' => 0,
-            'is_siteadmin'   => 0,
-            'max_msg_size'   => 15 * 1024,
-            'quota'          => 100 * 1024 * 1024,
-        );
-
-        #
-        # LocalPart
-        #
-        if ( $local_part && $delim && $local_part =~ m/\Q$delim\E/ ) {
-            $self->msg->push( 'error', 'Localpart may not contain the recipent_delimiter (' . $delim . ')' );
-            return;
-        }
-
-        #
-        # IsActive
-        #
-        if ( defined( $params->{'IsActive'} ) ) {
-            if ( $params->{'IsActive'} ) {
-                $args{'is_active'} = 1;
-            }
-            else {
-                $args{'is_active'} = 0;
-            }
-        }
-
-        #
-        # Admin Status
-        #
-        if ( $self->user->is_siteadmin() ) {
-            $args{'is_siteadmin'}   = $params->{'IsSiteadmin'};
-            $args{'is_domainadmin'} = $params->{'IsDomainadmin'};
-        }
-        elsif ( $self->user->is_domainadmin() && $domain_id == $self->user->get_domain_id() ) {
-            $args{'is_domainadmin'} = $params->{'IsDomainadmin'};
-        }
-
-        #
-        # Name
-        #
-        if ( $params->{'Name'} ) {
-            $args{'name'} = $params->{'Name'};
-        }
-        else {
-            $args{'name'} = $local_part . '@' . $domain_name;
-        }
-
-        #
-        # MaxMessageSize
-        #
-        if ( $params->{'MaxMsgSize'} ) {
-            $args{'max_msg_size'} = $params->{'MaxMsgSize'} * 1024;
-        }
-
-        #
-        # SpamAssassin
-        #
-        if ( defined( $params->{'SAActive'} ) ) {
-            if ( $params->{'SAActive'} ) {
-                $args{'sa_active'} = 1;
-            }
-            else {
-                $args{'sa_active'} = 0;
-            }
-        }
-        if ( $params->{'SAKillScore'} ) {
-            $args{'sa_kill_score'} = $params->{'SAKillScore'};
-        }
-
-        #
-        # Passwords
-        #
-        # No Passwords given, generate one
-        if ( !$params->{'Password'} && !$params->{'PasswordAgain'} ) {
-            $args{'password'} = &VBoxAdm::Password::pwgen(16);
-            $self->msg->push( 'information', 'Generated Password: [_1]', $args{'password'} );
-        }
-
-        # Passwords given and matching
-        if ( $params->{'Password'} && $params->{'PasswordAgain'} && $params->{'Password'} eq $params->{'PasswordAgain'} ) {
-            $args{'password'} = $params->{'Password'};
-        }
-
-        # Check authorization, syntax and create mailbox
-        if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get_domain_id() ) {
-
-            # if domainadmin, verify that its his domain
-            $self->msg->push( 'error', "You are not authorized to modify this domain!" );
-        }
-        elsif ( $local_part && !&VBoxAdm::Utils::is_valid_localpart_rfc822($local_part) ) {
-            $self->msg->push( 'error', "Invalid local part. This address is not RFC822 compliant!" );
-        }
-        else {
-            $args{'password'} = &VBoxAdm::SaltedHash::make_pass( $args{'password'}, $pwscheme );
-            my $query = "INSERT INTO mailboxes (" . join( ",", keys %args ) . ") VALUES(";
-            $query .= "?," x ( scalar( keys %args ) - 1 );
-            $query .= "?)";
-
-            foreach my $key ( keys %args ) {
-                $args{$key} = 0 unless defined( $args{$key} );
-                $args{$key} = Encode::decode( 'UTF-8', $args{$key} );
-            }
-            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, values %args ) ) {
-                $sth->finish();
-                $self->msg->push( 'information', "Added Mailbox [_1] for [_2].", "$local_part\@$domain_name", $args{'name'} );
-
-                # send_welcome_mail
-                if ( $params->{'SendWelcomeMail'} ) {
-                    my $emsg = '';
-                    $emsg .= "Subject: " . $self->msg->maketext("Welcome") . "\r\n";
-                    $emsg .= "Auto-Submitted: auto-generated\r\n";
-                    $emsg .= "From: VBoxAdm <vboxadm\@" . $system_domain . ">\r\n";
-                    $emsg .= "To: <$local_part\@$domain_name>\r\n";
-                    $emsg .= "\r\n";
-                    $emsg .= $self->msg->maketext("Welcome to your new mailbox.");
-                    &VBoxAdm::Utils::sendmail( 'vboxadm@' . $system_domain, $emsg );
-                }
-            }
-            else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", (%args) ), $self->dbh->errstr );
-                $self->msg->push( 'error', "Failed to add Mailbox [_1] for [_2]. Database Error.", "$local_part\@$domain_name", $args{'name'} );
-            }
-        }
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
 
-    sub delete {
-        my ( $self, $mailbox_id ) = @_;
-        my $ident = ident $self;
+    $local_part = &VBoxAdm::Utils::trim( lc($local_part) );
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
+    my $Domain = VBoxAdm::Model::Domain->new( { 'Model' => $self, } );
+    my $domain_name = $Domain->get_name($domain_id);
+
+    my $system_domain = $self->config->{'default'}{'domain'}   || 'localhost';
+    my $pwscheme      = $self->config->{'default'}{'pwscheme'} || 'ssha256';
+    my $delim         = $self->config()->{'smtpproxy'}->{'recipient_delimiter'};
+
+    my %args = (
+        'local_part'     => $local_part,
+        'domain_id'      => $domain_id,
+        'password'       => undef,
+        'is_active'      => undef,
+        'name'           => '',
+        'sa_active'      => 1,
+        'sa_kill_score'  => $self->config->{'cgi'}{'sa_default_block_score'} || 6.31,
+        'is_domainadmin' => 0,
+        'is_siteadmin'   => 0,
+        'max_msg_size'   => 15 * 1024,
+        'quota'          => 100 * 1024 * 1024,
+    );
+
+    #
+    # LocalPart
+    #
+    if ( $local_part && $delim && $local_part =~ m/\Q$delim\E/ ) {
+        $self->msg->push( 'error', 'Localpart may not contain the recipent_delimiter (' . $delim . ')' );
+        return;
+    }
+
+    #
+    # IsActive
+    #
+    if ( defined( $params->{'IsActive'} ) ) {
+        if ( $params->{'IsActive'} ) {
+            $args{'is_active'} = 1;
         }
-
-        if ( !$mailbox_id || $mailbox_id !~ m/^\d+$/ ) {
-            $self->msg->push( 'error', "Failed to remove mailbox. Insufficient parameters." );
-            return;
+        else {
+            $args{'is_active'} = 0;
         }
-        my $query        = "SELECT CONCAT(m.local_part,'\@',d.name) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
-        my $sth          = &VBoxAdm::DB::prepexec( $self->dbh, $query, $mailbox_id );
-        my $mailbox_name = $sth->fetchrow_array();
-        $sth->finish();
+    }
 
-        $query = "DELETE FROM mailboxes WHERE id = ?";
-        my @args = ();
+    #
+    # Admin Status
+    #
+    if ( $self->user->is_siteadmin() ) {
+        $args{'is_siteadmin'}   = $params->{'IsSiteadmin'};
+        $args{'is_domainadmin'} = $params->{'IsDomainadmin'};
+    }
+    elsif ( $self->user->is_domainadmin() && $domain_id == $self->user->get_domain_id() ) {
+        $args{'is_domainadmin'} = $params->{'IsDomainadmin'};
+    }
+
+    #
+    # Name
+    #
+    if ( $params->{'Name'} ) {
+        $args{'name'} = $params->{'Name'};
+    }
+    else {
+        $args{'name'} = $local_part . '@' . $domain_name;
+    }
+
+    #
+    # MaxMessageSize
+    #
+    if ( $params->{'MaxMsgSize'} ) {
+        $args{'max_msg_size'} = $params->{'MaxMsgSize'} * 1024;
+    }
+
+    #
+    # SpamAssassin
+    #
+    if ( defined( $params->{'SAActive'} ) ) {
+        if ( $params->{'SAActive'} ) {
+            $args{'sa_active'} = 1;
+        }
+        else {
+            $args{'sa_active'} = 0;
+        }
+    }
+    if ( $params->{'SAKillScore'} ) {
+        $args{'sa_kill_score'} = $params->{'SAKillScore'};
+    }
+
+    #
+    # Passwords
+    #
+    # No Passwords given, generate one
+    if ( !$params->{'Password'} && !$params->{'PasswordAgain'} ) {
+        $args{'password'} = &VBoxAdm::Password::pwgen(16);
+        $self->msg->push( 'information', 'Generated Password: [_1]', $args{'password'} );
+    }
+
+    # Passwords given and matching
+    if ( $params->{'Password'} && $params->{'PasswordAgain'} && $params->{'Password'} eq $params->{'PasswordAgain'} ) {
+        $args{'password'} = $params->{'Password'};
+    }
+
+    # Check authorization, syntax and create mailbox
+    if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get_domain_id() ) {
+
+        # if domainadmin, verify that its his domain
+        $self->msg->push( 'error', "You are not authorized to modify this domain!" );
+    }
+    elsif ( $local_part && !&VBoxAdm::Utils::is_valid_localpart_rfc822($local_part) ) {
+        $self->msg->push( 'error', "Invalid local part. This address is not RFC822 compliant!" );
+    }
+    else {
+        $args{'password'} = &VBoxAdm::SaltedHash::make_pass( $args{'password'}, $pwscheme );
+        my $query = "INSERT INTO mailboxes (" . join( ",", keys %args ) . ") VALUES(";
+        $query .= "?," x ( scalar( keys %args ) - 1 );
+        $query .= "?)";
+
+        foreach my $key ( keys %args ) {
+            $args{$key} = 0 unless defined( $args{$key} );
+            $args{$key} = Encode::decode( 'UTF-8', $args{$key} );
+        }
+        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, values %args ) ) {
+            $sth->finish();
+            $self->msg->push( 'information', "Added Mailbox [_1] for [_2].", "$local_part\@$domain_name", $args{'name'} );
+
+            # send_welcome_mail
+            if ( $params->{'SendWelcomeMail'} ) {
+                my $emsg = '';
+                $emsg .= "Subject: " . $self->msg->maketext("Welcome") . "\r\n";
+                $emsg .= "Auto-Submitted: auto-generated\r\n";
+                $emsg .= "From: VBoxAdm <vboxadm\@" . $system_domain . ">\r\n";
+                $emsg .= "To: <$local_part\@$domain_name>\r\n";
+                $emsg .= "\r\n";
+                $emsg .= $self->msg->maketext("Welcome to your new mailbox.");
+                &VBoxAdm::Utils::sendmail( 'vboxadm@' . $system_domain, $emsg );
+            }
+        }
+        else {
+            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", (%args) ), $self->dbh->errstr );
+            $self->msg->push( 'error', "Failed to add Mailbox [_1] for [_2]. Database Error.", "$local_part\@$domain_name", $args{'name'} );
+        }
+    }
+    return;
+}
+
+sub delete {
+    my ( $self, $mailbox_id ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    if ( !$mailbox_id || $mailbox_id !~ m/^\d+$/ ) {
+        $self->msg->push( 'error', "Failed to remove mailbox. Insufficient parameters." );
+        return;
+    }
+    my $query        = "SELECT CONCAT(m.local_part,'\@',d.name) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
+    my $sth          = &VBoxAdm::DB::prepexec( $self->dbh, $query, $mailbox_id );
+    my $mailbox_name = $sth->fetchrow_array();
+    $sth->finish();
+
+    $query = "DELETE FROM mailboxes WHERE id = ?";
+    my @args = ();
+    push( @args, $mailbox_id );
+    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
+        $query .= "AND domain_id = ?";
+        push( @args, $self->user->get_domain_id() );
+    }
+    if ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+        $self->msg->push( 'information', "Mailbox [_1] (#[_2]) removed.", $mailbox_name, $mailbox_id );
+    }
+    else {
+        $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
+        $self->msg->push( 'error', "Failed to remove Mailbox [_1] (#[_2]). Database Error.", $mailbox_name, $mailbox_id );
+    }
+
+    return 1;
+}
+
+sub update {
+    my ( $self, $mailbox_id, $params ) = @_;
+    my $ident = ident $self;
+
+    use Data::Dumper;
+    $self->log( "Mailbox::update - Params: " . Dumper($params) );
+
+    # Authorization - Regular Users may access this method!
+
+    if ( !$mailbox_id || $mailbox_id !~ m/^\d+$/ ) {
+        $self->msg->push( 'error', 'Failed to update mailbox. Need a numeric mailbox id.' );
+        return;    # need numeric mailbox id
+    }
+
+    my $query        = "SELECT CONCAT(m.local_part,'\@',d.name) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
+    my $sth          = &VBoxAdm::DB::prepexec( $self->dbh, $query, $mailbox_id );
+    my $mailbox_name = $sth->fetchrow_array();
+    $sth->finish();
+
+    my $pwscheme = $self->config->{'default'}{'pwscheme'} || 'ssha256';
+    my $msg_loc  = '';
+    my $msg_en   = '';
+
+    $query = "UPDATE mailboxes SET ";
+
+    # only execute query if scalar(@params) > 0, i.e. at least on valid option
+    my @args = ();
+
+    foreach my $key ( keys %{$params} ) {
+        $params->{$key} = Encode::decode( 'UTF-8', $params->{$key} );
+    }
+
+    #
+    # Password
+    #
+    if ( $params->{'Password'} && $params->{'PasswordAgain'} ) {
+
+        # passwords must be equal and at least 8 chars long
+        if ( $params->{'Password'} eq $params->{'PasswordAgain'} ) {
+
+            # Check password length
+            if ( length( $params->{'Password'} ) < 8 ) {
+                $self->msg->push( 'warning', 'Bad password - Password too short. Need at least 8 characters.' );
+            }
+
+            # Check password strength
+            my $strength = &VBoxAdm::Password::strength( $params->{'Password'} );
+            if ( $strength < 2 ) {
+                $self->msg->push( 'warning', 'Weak password - Strength: [_1].', $strength );
+            }
+
+            # Check password lock
+            if ( $self->config()->{'cgi'}->{'obey_pw_lock'} && $self->read($mailbox_id)->{'pw_lock'} ) {
+                $self->msg->push( 'warning', 'Password locked. Can not be changed.' );
+            }
+            else {
+                $query .= "password = ?, ";
+                push( @args, VBoxAdm::SaltedHash::make_pass( $params->{'Password'}, $pwscheme ) );
+            }
+        }
+    }
+
+    #
+    # Name
+    #
+    if ( $params->{'Name'} ) {
+        $query .= "name = ?, ";
+        push( @args, $params->{'Name'} );
+    }
+
+    #
+    # Is_Active
+    #
+    my $status_str = 'disabled';
+    if ( defined( $params->{'IsActive'} ) ) {
+        if ( $params->{'IsActive'} ) {
+            $status_str = 'enabled';
+            $params->{'IsActive'} = 1;
+        }
+        else {
+            $params->{'IsActive'} = 0;
+        }
+        $query .= "is_active = ?, ";
+        push( @args, $params->{'IsActive'} );
+    }
+
+    #
+    # Max Msg Size
+    #
+    if ( defined( $params->{'MaxMsgSize'} ) && $params->{'MaxMsgSize'} =~ m/^\d+$/ ) {
+        $query .= "max_msg_size = ?, ";
+        push( @args, $params->{'MaxMsgSize'} * 1024 );
+    }
+
+    #
+    # Is Siteadmin / Is Domainadmin
+    #
+    if ( $self->user->is_siteadmin() ) {
+        $query .= "is_siteadmin = ?, ";
+        if ( $params->{'IsSiteadmin'} ) {
+            push( @args, 1 );
+        }
+        else {
+            push( @args, 0 );
+        }
+        $query .= "is_domainadmin = ?, ";
+        if ( $params->{'IsDomainadmin'} ) {
+            push( @args, 1 );
+        }
+        else {
+            push( @args, 0 );
+        }
+    }
+
+    # Quota
+    if ( defined( $params->{'Quota'} ) && $params->{'Quota'} =~ m/^\d+$/ ) {
+        $query .= "quota = ?, ";
+        push( @args, $params->{'Quota'} * 1024 * 1024 );
+    }
+
+    #
+    # SpamAssassin
+    #
+    # Kill Score
+    if ( defined( $params->{'SAKillScore'} ) && $params->{'SAKillScore'} =~ m/^\d+$/ ) {
+        $query .= "sa_kill_score = ?, ";
+        push( @args, $params->{'SAKillScore'} );
+        if ( $params->{'SAKillScore'} > 10 ) {
+            $self->msg->push( 'warning', 'SpamAssassin kill score probably set too high! Should be below 10.' );
+        }
+        elsif ( $params->{'SAKillScore'} < 5 ) {
+            $self->msg->push( 'warning', 'SpamAssassin kill score probably set too low! Should be above 5.' );
+        }
+    }
+
+    # Scanning enabled
+    if ( defined( $params->{'SAActive'} ) ) {
+        if ( $params->{'SAActive'} ) {
+            $params->{'SAActive'} = 1;
+        }
+        else {
+            $params->{'SAActive'} = 0;
+        }
+        push( @args, $params->{'SAActive'} );
+        $query .= "sa_active = ?, ";
+    }
+
+    #
+    # Vacation
+    #
+    # Is_On_Vacation / Vacation Msg
+    if ( defined( $params->{'IsOnVacation'} ) ) {
+        if ( $params->{'IsOnVacation'} ) {
+            if (   $params->{'VacationSubject'}
+                && length( $params->{'VacationSubject'} )
+                && $params->{'VacationMessage'}
+                && length( $params->{'VacationMessage'} ) > 1 )
+            {
+                $params->{'IsOnVacation'} = 1;
+            }
+            else {
+                $self->msg->push( 'warning', 'Attempt to enable Vacation w/o vacation message or subject denied!' );
+            }
+            if ( $params->{'VacationStart'} && $params->{'VacationStart'} =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
+                $params->{'VacationStart'} = "$3-$2-$1";
+            }
+            elsif ( $params->{'VacationStart'} && $params->{'VacationStart'} =~ m/^\s*(\d\d\d\d)-(\d\d)-(\d\d)\s*$/ ) {
+                $params->{'VacationStart'} = "$1-$2-$3";
+            }
+            else {
+                $params->{'VacationStart'} = '0000-00-00';
+                $self->msg->push( 'error', 'Invalid vacation start date!' );
+            }
+            if ( $params->{'VacationEnd'} && $params->{'VacationEnd'} =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
+                $params->{'VacationEnd'} = "$3-$2-$1";
+            }
+            elsif ( $params->{'VacationEnd'} && $params->{'VacationEnd'} =~ m/^\s*(\d\d\d\d)-(\d\d)-(\d\d)\s*$/ ) {
+                $params->{'VacationEnd'} = "$1-$2-$3";
+            }
+            else {
+                $params->{'VacationEnd'} = '0000-00-00';
+                $self->msg->push( 'error', 'Invalid vacation end date!' );
+            }
+            $query .= "is_on_vacation = ?, vacation_msg = ?, vacation_subj = ?, vacation_start = ?, vacation_end = ?, ";
+            push( @args, $params->{'IsOnVacation'} );
+            push( @args, $params->{'VacationMessage'} );
+            push( @args, $params->{'VacationSubject'} );
+            push( @args, $params->{'VacationStart'} );
+            push( @args, $params->{'VacationEnd'} );
+        }
+        else {
+            $params->{'IsOnVacation'}  = 0;
+            $params->{'VacationStart'} = '0000-00-00';
+            $params->{'VacationEnd'}   = '0000-00-00';
+            $query .= "is_on_vacation = ?, vacation_start = ?, vacation_end = ?, ";
+            push( @args, $params->{'IsOnVacation'} );
+            push( @args, $params->{'VacationStart'} );
+            push( @args, $params->{'VacationEnd'} );
+        }
+    }
+
+    # at least on option has changed
+    if ( scalar(@args) > 1 ) {
+
+        # remove (possible) trailing ,
+        $query =~ s/,\s*$//;
+
+        # finialize query
+        $query .= " WHERE id = ?";
         push( @args, $mailbox_id );
-        if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
+
+        # if domainadmin, verify that its his domain
+        if ( $self->user->is_siteadmin() ) {
+
+            # Siteadmin? - OK, go ahead. Do anything you want ...
+        }
+        elsif ( $self->user->is_domainadmin() ) {
+
+            # Domainadmin? - Only your domain please!
             $query .= "AND domain_id = ?";
             push( @args, $self->user->get_domain_id() );
         }
-        if ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
-            $self->msg->push( 'information', "Mailbox [_1] (#[_2]) removed.", $mailbox_name, $mailbox_id );
-        }
-        else {
-            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
-            $self->msg->push( 'error', "Failed to remove Mailbox [_1] (#[_2]). Database Error.", $mailbox_name, $mailbox_id );
-        }
+        elsif ( $self->user->is_user() ) {
 
-        return 1;
-    }
-
-    sub update {
-        my ( $self, $mailbox_id, $params ) = @_;
-        my $ident = ident $self;
-
-        use Data::Dumper;
-        $self->log( "Mailbox::update - Params: " . Dumper($params) );
-
-        # Authorization - Regular Users may access this method!
-
-        if ( !$mailbox_id || $mailbox_id !~ m/^\d+$/ ) {
-            $self->msg->push( 'error', 'Failed to update mailbox. Need a numeric mailbox id.' );
-            return;    # need numeric mailbox id
-        }
-
-        my $query        = "SELECT CONCAT(m.local_part,'\@',d.name) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
-        my $sth          = &VBoxAdm::DB::prepexec( $self->dbh, $query, $mailbox_id );
-        my $mailbox_name = $sth->fetchrow_array();
-        $sth->finish();
-
-        my $pwscheme = $self->config->{'default'}{'pwscheme'} || 'ssha256';
-        my $msg_loc  = '';
-        my $msg_en   = '';
-
-        $query = "UPDATE mailboxes SET ";
-
-        # only execute query if scalar(@params) > 0, i.e. at least on valid option
-        my @args = ();
-
-        foreach my $key ( keys %{$params} ) {
-            $params->{$key} = Encode::decode( 'UTF-8', $params->{$key} );
-        }
-
-        #
-        # Password
-        #
-        if ( $params->{'Password'} && $params->{'PasswordAgain'} ) {
-
-            # passwords must be equal and at least 8 chars long
-            if ( $params->{'Password'} eq $params->{'PasswordAgain'} ) {
-
-                # Check password length
-                if ( length( $params->{'Password'} ) < 8 ) {
-                    $self->msg->push( 'warning', 'Bad password - Password too short. Need at least 8 characters.' );
-                }
-
-                # Check password strength
-                my $strength = &VBoxAdm::Password::strength( $params->{'Password'} );
-                if ( $strength < 2 ) {
-                    $self->msg->push( 'warning', 'Weak password - Strength: [_1].', $strength );
-                }
-
-                # Check password lock
-                if ( $self->config()->{'cgi'}->{'obey_pw_lock'} && $self->read($mailbox_id)->{'pw_lock'} ) {
-                    $self->msg->push( 'warning', 'Password locked. Can not be changed.' );
-                }
-                else {
-                    $query .= "password = ?, ";
-                    push( @args, VBoxAdm::SaltedHash::make_pass( $params->{'Password'}, $pwscheme ) );
-                }
-            }
-        }
-
-        #
-        # Name
-        #
-        if ( $params->{'Name'} ) {
-            $query .= "name = ?, ";
-            push( @args, $params->{'Name'} );
-        }
-
-        #
-        # Is_Active
-        #
-        my $status_str = 'disabled';
-        if ( defined( $params->{'IsActive'} ) ) {
-            if ( $params->{'IsActive'} ) {
-                $status_str = 'enabled';
-                $params->{'IsActive'} = 1;
-            }
-            else {
-                $params->{'IsActive'} = 0;
-            }
-            $query .= "is_active = ?, ";
-            push( @args, $params->{'IsActive'} );
-        }
-
-        #
-        # Max Msg Size
-        #
-        if ( defined( $params->{'MaxMsgSize'} ) && $params->{'MaxMsgSize'} =~ m/^\d+$/ ) {
-            $query .= "max_msg_size = ?, ";
-            push( @args, $params->{'MaxMsgSize'} * 1024 );
-        }
-
-        #
-        # Is Siteadmin / Is Domainadmin
-        #
-        if ( $self->user->is_siteadmin() ) {
-            $query .= "is_siteadmin = ?, ";
-            if ( $params->{'IsSiteadmin'} ) {
-                push( @args, 1 );
-            }
-            else {
-                push( @args, 0 );
-            }
-            $query .= "is_domainadmin = ?, ";
-            if ( $params->{'IsDomainadmin'} ) {
-                push( @args, 1 );
-            }
-            else {
-                push( @args, 0 );
-            }
-        }
-
-        # Quota
-        if ( defined( $params->{'Quota'} ) && $params->{'Quota'} =~ m/^\d+$/ ) {
-            $query .= "quota = ?, ";
-            push( @args, $params->{'Quota'} * 1024 * 1024 );
-        }
-
-        #
-        # SpamAssassin
-        #
-        # Kill Score
-        if ( defined( $params->{'SAKillScore'} ) && $params->{'SAKillScore'} =~ m/^\d+$/ ) {
-            $query .= "sa_kill_score = ?, ";
-            push( @args, $params->{'SAKillScore'} );
-            if ( $params->{'SAKillScore'} > 10 ) {
-                $self->msg->push( 'warning', 'SpamAssassin kill score probably set too high! Should be below 10.' );
-            }
-            elsif ( $params->{'SAKillScore'} < 5 ) {
-                $self->msg->push( 'warning', 'SpamAssassin kill score probably set too low! Should be above 5.' );
-            }
-        }
-
-        # Scanning enabled
-        if ( defined( $params->{'SAActive'} ) ) {
-            if ( $params->{'SAActive'} ) {
-                $params->{'SAActive'} = 1;
-            }
-            else {
-                $params->{'SAActive'} = 0;
-            }
-            push( @args, $params->{'SAActive'} );
-            $query .= "sa_active = ?, ";
-        }
-
-        #
-        # Vacation
-        #
-        # Is_On_Vacation / Vacation Msg
-        if ( defined( $params->{'IsOnVacation'} ) ) {
-            if ( $params->{'IsOnVacation'} ) {
-                if (   $params->{'VacationSubject'}
-                    && length( $params->{'VacationSubject'} )
-                    && $params->{'VacationMessage'}
-                    && length( $params->{'VacationMessage'} ) > 1 )
-                {
-                    $params->{'IsOnVacation'} = 1;
-                }
-                else {
-                    $self->msg->push( 'warning', 'Attempt to enable Vacation w/o vacation message or subject denied!' );
-                }
-                if ( $params->{'VacationStart'} && $params->{'VacationStart'} =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
-                    $params->{'VacationStart'} = "$3-$2-$1";
-                }
-                elsif ( $params->{'VacationStart'} && $params->{'VacationStart'} =~ m/^\s*(\d\d\d\d)-(\d\d)-(\d\d)\s*$/ ) {
-                    $params->{'VacationStart'} = "$1-$2-$3";
-                }
-                else {
-                    $params->{'VacationStart'} = '0000-00-00';
-                    $self->msg->push( 'error', 'Invalid vacation start date!' );
-                }
-                if ( $params->{'VacationEnd'} && $params->{'VacationEnd'} =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
-                    $params->{'VacationEnd'} = "$3-$2-$1";
-                }
-                elsif ( $params->{'VacationEnd'} && $params->{'VacationEnd'} =~ m/^\s*(\d\d\d\d)-(\d\d)-(\d\d)\s*$/ ) {
-                    $params->{'VacationEnd'} = "$1-$2-$3";
-                }
-                else {
-                    $params->{'VacationEnd'} = '0000-00-00';
-                    $self->msg->push( 'error', 'Invalid vacation end date!' );
-                }
-                $query .= "is_on_vacation = ?, vacation_msg = ?, vacation_subj = ?, vacation_start = ?, vacation_end = ?, ";
-                push( @args, $params->{'IsOnVacation'} );
-                push( @args, $params->{'VacationMessage'} );
-                push( @args, $params->{'VacationSubject'} );
-                push( @args, $params->{'VacationStart'} );
-                push( @args, $params->{'VacationEnd'} );
-            }
-            else {
-                $params->{'IsOnVacation'}  = 0;
-                $params->{'VacationStart'} = '0000-00-00';
-                $params->{'VacationEnd'}   = '0000-00-00';
-                $query .= "is_on_vacation = ?, vacation_start = ?, vacation_end = ?, ";
-                push( @args, $params->{'IsOnVacation'} );
-                push( @args, $params->{'VacationStart'} );
-                push( @args, $params->{'VacationEnd'} );
-            }
-        }
-
-        # at least on option has changed
-        if ( scalar(@args) > 1 ) {
-
-            # remove (possible) trailing ,
-            $query =~ s/,\s*$//;
-
-            # finialize query
-            $query .= " WHERE id = ?";
-            push( @args, $mailbox_id );
-
-            # if domainadmin, verify that its his domain
-            if ( $self->user->is_siteadmin() ) {
-
-                # Siteadmin? - OK, go ahead. Do anything you want ...
-            }
-            elsif ( $self->user->is_domainadmin() ) {
-
-                # Domainadmin? - Only your domain please!
-                $query .= "AND domain_id = ?";
-                push( @args, $self->user->get_domain_id() );
-            }
-            elsif ( $self->user->is_user() ) {
-
-                # Regular User? - Only your mailbox please!
-                $query .= "AND id = ?";
-                push( @args, $self->user->get_id() );
-            }
-
-            #$self->log( "Mailox::update - SQL: ".$query. " - Args: ".join(',',@args));
-            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
-                $self->msg->push( 'information', "Updated Mailbox [_1] (#[_2]).", $mailbox_name, $mailbox_id );
-            }
-            else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
-                $self->msg->push( 'error', "Failed to update Mailbox [_1] (#[_2]). Database Error.", $mailbox_name, $mailbox_id );
-            }
-        }
-        else {
-            $self->msg->push( 'warning', 'No Parameter changed.' );
-        }
-
-        return;
-    }
-
-    sub read {
-        my ( $self, $mailbox_id ) = @_;
-        my $ident = ident $self;
-
-        my $sql = "SELECT " . join( ",", @{ $fields_of{$ident} } ) . " FROM mailboxes WHERE id = ?";
-        my @args = ($mailbox_id);
-
-        if ( !$self->user->is_siteadmin() ) {
-            $sql .= " AND domain_id = ?";
-            push( @args, $self->user->get_domain_id() );
-        }
-        elsif ( !$self->user->is_admin() ) {
-            $sql .= " AND id = ?";
+            # Regular User? - Only your mailbox please!
+            $query .= "AND id = ?";
             push( @args, $self->user->get_id() );
         }
 
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
-
-        if ( !$sth ) {
-            $self->msg->push( 'error', 'Database error.' );
-            return;
+        #$self->log( "Mailox::update - SQL: ".$query. " - Args: ".join(',',@args));
+        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+            $self->msg->push( 'information', "Updated Mailbox [_1] (#[_2]).", $mailbox_name, $mailbox_id );
         }
-
-        my %result;
-        @result{ @{ $fields_of{$ident} } } = $sth->fetchrow_array();
-        $sth->finish();
-
-        # get domain_name
-        $sql = "SELECT name FROM domains WHERE id = ?";
-        $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $result{'domain_id'} );
-        if ($sth) {
-            $result{'domain'} = $sth->fetchrow_array();
+        else {
+            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
+            $self->msg->push( 'error', "Failed to update Mailbox [_1] (#[_2]). Database Error.", $mailbox_name, $mailbox_id );
         }
-
-        # convert {max_msg_size,quota} to MB
-        foreach my $key (qw(max_msg_size quota)) {
-            if ( $result{$key} > 0 ) {
-                $result{ $key . '_mb' } = $result{$key} / ( 1024 * 1024 );
-            }
-            else {
-                $result{ $key . '_mb' } = 0;
-            }
-        }
-
-        foreach my $key ( keys %result ) {
-            $result{$key} = Encode::decode( 'UTF-8', $result{$key} ) unless Encode::is_utf8( $result{$key} );
-        }
-
-        return \%result;
+    }
+    else {
+        $self->msg->push( 'warning', 'No Parameter changed.' );
     }
 
-    sub list {
-        my ( $self, $param ) = @_;
-        my $ident = ident $self;
+    return;
+}
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
+sub read {
+    my ( $self, $mailbox_id ) = @_;
+    my $ident = ident $self;
 
-        my @fields = @{ $fields_of{$ident} };
-        my $sql    = "SELECT m." . join( ",m.", @fields ) . ",d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE 1";
-        my @args   = ();
-        if ( $param->{'Search'} ) {
-            $sql .= " AND local_part LIKE ? OR domain LIKE ? OR name LIKE ?";
-            my $term = $param->{'Search'};
-            $term =~ s/[*%]+//g;
-            $term = '%' . $term . '%';
-            push( @args, $term );
-            push( @args, $term );
-            push( @args, $term );
-        }
-        if ( $param->{'domain_id'} ) {
-            $sql .= " AND domain_id = ?";
-            push( @args, $param->{'domain_id'} );
-        }
-        if ( $param->{'IsAdmin'} ) {
-            $sql .= " AND (is_domainadmin OR is_siteadmin)";
-        }
+    my $sql = "SELECT " . join( ",", @{ $fields_of{$ident} } ) . " FROM mailboxes WHERE id = ?";
+    my @args = ($mailbox_id);
 
-        # domain admins may only see their own domain
-        if ( !$self->user->is_siteadmin() ) {
-            $sql .= " AND domain_id = ?";
-            push( @args, $self->user->get_domain_id() );
-        }
-
-        # regular users are kicked out above
-
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
-
-        if ( !$sth ) {
-            $self->msg->push( 'error', 'Database error.' );
-            $self->log( 'Database Error during query ' . $sql . ': ' . $self->dbh->errstr );
-            return;
-        }
-
-        my @entries = ();
-
-        # domain name was not in the field list 'coz it is prefixed with d., not m.
-        push( @fields, 'domain' );
-        while ( my @row = $sth->fetchrow_array() ) {
-            my %h;
-            @h{@fields} = @row;
-            foreach my $field ( keys %h ) {
-                $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8( $h{$field} );
-            }
-            delete( $h{'password'} ) unless $param->{'IncludePassword'};
-            push( @entries, \%h );
-        }
-        $sth->finish();
-
-        return @entries;
+    if ( !$self->user->is_siteadmin() ) {
+        $sql .= " AND domain_id = ?";
+        push( @args, $self->user->get_domain_id() );
+    }
+    elsif ( !$self->user->is_admin() ) {
+        $sql .= " AND id = ?";
+        push( @args, $self->user->get_id() );
     }
 
-    sub get_email {
-        my ( $self, $id ) = @_;
-        my $ident = ident $self;
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-
-        my $query = "SELECT m.local_part,d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $id );
-
-        if ( !$sth ) {
-            $self->msg->push( 'error', 'Database error.' );
-            return;
-        }
-
-        my ( $local_part, $domain ) = $sth->fetchrow_array();
-        $sth->finish();
-
-        return wantarray ? ( $local_part, $domain ) : $local_part . '@' . $domain;
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        return;
     }
 
-    sub get_id {
-        my ( $self, $email ) = @_;
-        my $ident = ident $self;
+    my %result;
+    @result{ @{ $fields_of{$ident} } } = $sth->fetchrow_array();
+    $sth->finish();
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-
-        if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
-            return;
-        }
-
-        my ( $local_part, $domain ) = split /@/, $email;
-
-        my $query = "SELECT m.id FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain );
-
-        if ( !$sth ) {
-            $self->msg->push( 'error', 'Database error.' );
-            return;
-        }
-
-        my $id = $sth->fetchrow_array();
-        $sth->finish();
-
-        return $id;
+    # get domain_name
+    $sql = "SELECT name FROM domains WHERE id = ?";
+    $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $result{'domain_id'} );
+    if ($sth) {
+        $result{'domain'} = $sth->fetchrow_array();
     }
+
+    # convert {max_msg_size,quota} to MB
+    foreach my $key (qw(max_msg_size quota)) {
+        if ( $result{$key} > 0 ) {
+            $result{ $key . '_mb' } = $result{$key} / ( 1024 * 1024 );
+        }
+        else {
+            $result{ $key . '_mb' } = 0;
+        }
+    }
+
+    foreach my $key ( keys %result ) {
+        $result{$key} = Encode::decode( 'UTF-8', $result{$key} ) unless Encode::is_utf8( $result{$key} );
+    }
+
+    return \%result;
+}
+
+sub list {
+    my ( $self, $param ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my @fields = @{ $fields_of{$ident} };
+    my $sql    = "SELECT m." . join( ",m.", @fields ) . ",d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE 1";
+    my @args   = ();
+    if ( $param->{'Search'} ) {
+        $sql .= " AND local_part LIKE ? OR domain LIKE ? OR name LIKE ?";
+        my $term = $param->{'Search'};
+        $term =~ s/[*%]+//g;
+        $term = '%' . $term . '%';
+        push( @args, $term );
+        push( @args, $term );
+        push( @args, $term );
+    }
+    if ( $param->{'domain_id'} ) {
+        $sql .= " AND domain_id = ?";
+        push( @args, $param->{'domain_id'} );
+    }
+    if ( $param->{'IsAdmin'} ) {
+        $sql .= " AND (is_domainadmin OR is_siteadmin)";
+    }
+
+    # domain admins may only see their own domain
+    if ( !$self->user->is_siteadmin() ) {
+        $sql .= " AND domain_id = ?";
+        push( @args, $self->user->get_domain_id() );
+    }
+
+    # regular users are kicked out above
+
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        $self->log( 'Database Error during query ' . $sql . ': ' . $self->dbh->errstr );
+        return;
+    }
+
+    my @entries = ();
+
+    # domain name was not in the field list 'coz it is prefixed with d., not m.
+    push( @fields, 'domain' );
+    while ( my @row = $sth->fetchrow_array() ) {
+        my %h;
+        @h{@fields} = @row;
+        foreach my $field ( keys %h ) {
+            $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8( $h{$field} );
+        }
+        delete( $h{'password'} ) unless $param->{'IncludePassword'};
+        push( @entries, \%h );
+    }
+    $sth->finish();
+
+    return @entries;
+}
+
+sub get_email {
+    my ( $self, $id ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $query = "SELECT m.local_part,d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $id );
+
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    my ( $local_part, $domain ) = $sth->fetchrow_array();
+    $sth->finish();
+
+    return wantarray ? ( $local_part, $domain ) : $local_part . '@' . $domain;
+}
+
+sub get_id {
+    my ( $self, $email ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+        return;
+    }
+
+    my ( $local_part, $domain ) = split /@/, $email;
+
+    my $query = "SELECT m.id FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain );
+
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    my $id = $sth->fetchrow_array();
+    $sth->finish();
+
+    return $id;
+}
 
 no Moose;
 __PACKAGE__->meta->make_immutable;

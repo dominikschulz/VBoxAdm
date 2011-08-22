@@ -8,200 +8,200 @@ use Encode;
 use Data::Dumper;
 
 has 'dbh' => (
-	'is'	=> 'ro',
-	'isa'	=> 'Object',
-	'required' => 1,
+    'is'       => 'ro',
+    'isa'      => 'Object',
+    'required' => 1,
 );
 
 has 'logger' => (
-	'is'	=> 'ro',
-	'isa'	=> 'Object',
-	'required' => 1,
+    'is'       => 'ro',
+    'isa'      => 'Object',
+    'required' => 1,
 );
 
 has 'config' => (
-	'is'	=> 'ro',
-	'isa'	=> 'Object',
-	'required' => 1,
+    'is'       => 'ro',
+    'isa'      => 'Object',
+    'required' => 1,
 );
 
 has 'user' => (
-	'is'	=> 'ro',
-	'isa'	=> 'VBoxAdm::Model::User',
-	'required' => 0,
+    'is'       => 'ro',
+    'isa'      => 'VBoxAdm::Model::User',
+    'required' => 0,
 );
 
 has 'msgq' => (
-	'is'	=> 'ro',
-	'isa'	=> 'VBoxAdm::Model::MessageQueue',
-	'required' => 1,
+    'is'       => 'ro',
+    'isa'      => 'VBoxAdm::Model::MessageQueue',
+    'required' => 1,
 );
 
-    sub BUILD {
-        my ( $self, $ident, $arg_ref ) = @_;
+sub BUILD {
+    my ( $self, $ident, $arg_ref ) = @_;
 
-        $dbh_of{$ident} = undef;
+    $dbh_of{$ident} = undef;
 
-        if ( $arg_ref->{'Model'} && $arg_ref->{'Model'}->isa('VBoxAdm::Model') ) {
+    if ( $arg_ref->{'Model'} && $arg_ref->{'Model'}->isa('VBoxAdm::Model') ) {
 
-            # 'Inherit' from another VBoxAdm::Model class
-            my $ModelClass = $arg_ref->{'Model'};
-            $logger_of{$ident} = $ModelClass->logger();
-            $config_of{$ident} = $ModelClass->config();
-            $user_of{$ident}   = $ModelClass->user();
-            $msgq_of{$ident}   = $ModelClass->msg();
-            $dbh_of{$ident}    = $ModelClass->dbh();
+        # 'Inherit' from another VBoxAdm::Model class
+        my $ModelClass = $arg_ref->{'Model'};
+        $logger_of{$ident} = $ModelClass->logger();
+        $config_of{$ident} = $ModelClass->config();
+        $user_of{$ident}   = $ModelClass->user();
+        $msgq_of{$ident}   = $ModelClass->msg();
+        $dbh_of{$ident}    = $ModelClass->dbh();
+    }
+    else {
+
+        if ( $arg_ref->{'dbh'} && $arg_ref->{'dbh'}->ping() ) {
+            $dbh_of{$ident} = $arg_ref->{'dbh'};
         }
         else {
-
-            if ( $arg_ref->{'dbh'} && $arg_ref->{'dbh'}->ping() ) {
-                $dbh_of{$ident} = $arg_ref->{'dbh'};
-            }
-            else {
-                die( "Missing DBH handle in VBoxAdm::Model constructor for " . caller(1) . "\n" );
-            }
-
-            # Setup Logger
-            $logger_of{$ident} = $arg_ref->{'Logger'} if $arg_ref->{'Logger'};
-
-            # Set config
-            $config_of{$ident} = $arg_ref->{'Config'} if $arg_ref->{'Config'};
-
-            # Set User object
-            $user_of{$ident} = $arg_ref->{'User'} if $arg_ref->{'User'};
-
-            # Set MessageQueue
-            $msgq_of{$ident} = $arg_ref->{'MessageQueue'} if $arg_ref->{'MessageQueue'};
+            die( "Missing DBH handle in VBoxAdm::Model constructor for " . caller(1) . "\n" );
         }
-    }
 
-    sub dbh : RESTRICTED {
-        my ($self) = @_;
-        my $ident = ident $self;
-        return $dbh_of{$ident};
-    }
+        # Setup Logger
+        $logger_of{$ident} = $arg_ref->{'Logger'} if $arg_ref->{'Logger'};
 
-    sub config : RESTRICTED {
-        my ($self) = @_;
-        my $ident = ident $self;
-        return $config_of{$ident} || {};
-    }
+        # Set config
+        $config_of{$ident} = $arg_ref->{'Config'} if $arg_ref->{'Config'};
 
-    sub log : RESTRICTED {
-        my ( $self, $msg ) = @_;
-        my $ident = ident $self;
-        if ( $logger_of{$ident} ) {
-            $logger_of{$ident}->log($msg);
-            return 1;
-        }
+        # Set User object
+        $user_of{$ident} = $arg_ref->{'User'} if $arg_ref->{'User'};
+
+        # Set MessageQueue
+        $msgq_of{$ident} = $arg_ref->{'MessageQueue'} if $arg_ref->{'MessageQueue'};
+    }
+}
+
+sub dbh : RESTRICTED {
+    my ($self) = @_;
+    my $ident = ident $self;
+    return $dbh_of{$ident};
+}
+
+sub config : RESTRICTED {
+    my ($self) = @_;
+    my $ident = ident $self;
+    return $config_of{$ident} || {};
+}
+
+sub log : RESTRICTED {
+    my ( $self, $msg ) = @_;
+    my $ident = ident $self;
+    if ( $logger_of{$ident} ) {
+        $logger_of{$ident}->log($msg);
+        return 1;
+    }
+    return;
+}
+
+sub logger {
+    my ($self) = @_;
+    my $ident = ident $self;
+    return $logger_of{$ident};
+}
+
+sub msg {
+    my ($self) = @_;
+    my $ident = ident $self;
+    return $msgq_of{$ident};
+}
+
+sub user : RESTRICTED {
+    my ($self) = @_;
+    my $ident = ident $self;
+    return $user_of{$ident};
+}
+
+sub DEMOLISH {
+    my ($self) = @_;
+
+    # NOP
+}
+
+sub _read : RESTRICTED {
+    my ( $self, $table, $id, $fields ) = @_;
+    my $ident = ident $self;
+
+    my $sql = "SELECT " . join( ",", @{$fields} ) . " FROM $table WHERE id = ?";
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $id );
+
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
         return;
     }
 
-    sub logger {
-        my ($self) = @_;
-        my $ident = ident $self;
-        return $logger_of{$ident};
+    my %result;
+    @result{ @{$fields} } = $sth->fetchrow_array();
+    $sth->finish();
+
+    foreach my $key ( keys %result ) {
+        $result{$key} = Encode::decode( 'UTF-8', $result{$key} ) unless Encode::is_utf8( $result{$key} );
     }
 
-    sub msg {
-        my ($self) = @_;
-        my $ident = ident $self;
-        return $msgq_of{$ident};
-    }
+    return \%result;
+}
 
-    sub user : RESTRICTED {
-        my ($self) = @_;
-        my $ident = ident $self;
-        return $user_of{$ident};
-    }
+sub _list : RESTRICTED {
+    my ( $self, $table, $fields, $param ) = @_;
+    my $ident = ident $self;
 
-    sub DEMOLISH {
-        my ($self) = @_;
-
-        # NOP
-    }
-
-    sub _read : RESTRICTED {
-        my ( $self, $table, $id, $fields ) = @_;
-        my $ident = ident $self;
-
-        my $sql = "SELECT " . join( ",", @{$fields} ) . " FROM $table WHERE id = ?";
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $id );
-
-        if ( !$sth ) {
-            $self->msg->push( 'error', 'Database error.' );
-            return;
-        }
-
-        my %result;
-        @result{ @{$fields} } = $sth->fetchrow_array();
-        $sth->finish();
-
-        foreach my $key ( keys %result ) {
-            $result{$key} = Encode::decode( 'UTF-8', $result{$key} ) unless Encode::is_utf8( $result{$key} );
-        }
-
-        return \%result;
-    }
-
-    sub _list : RESTRICTED {
-        my ( $self, $table, $fields, $param ) = @_;
-        my $ident = ident $self;
-
-        my $sql = 'SELECT ' . join( ',', @{$fields} ) . ' FROM `' . $table . '` WHERE 1';
-        my @args = ();
-        if ( $param->{'Search'} ) {
-            $sql .= " AND (";
-            my $term = $param->{'Search'};
-            $term =~ s/[*%]+//g;
-            $term = '%' . $term . '%';
-            my $first = 1;
-            foreach my $field ( @{$fields} ) {
-                $sql .= " OR" unless $first;
-                $first = 0;
-                $sql .= ' ' . $field . ' LIKE ?';
-                push( @args, $term );
-            }
-            $sql .= ")";
-        }
+    my $sql = 'SELECT ' . join( ',', @{$fields} ) . ' FROM `' . $table . '` WHERE 1';
+    my @args = ();
+    if ( $param->{'Search'} ) {
+        $sql .= " AND (";
+        my $term = $param->{'Search'};
+        $term =~ s/[*%]+//g;
+        $term = '%' . $term . '%';
+        my $first = 1;
         foreach my $field ( @{$fields} ) {
-            if ( $param->{$field} ) {
-                $sql .= ' AND `' . $field . '` = ?';
-                push( @args, $param->{$field} );
-            }
+            $sql .= " OR" unless $first;
+            $first = 0;
+            $sql .= ' ' . $field . ' LIKE ?';
+            push( @args, $term );
         }
-
-        # grep { $_ eq $var } @fields is equiv. to in_array(@array,$subject)
-        if ( $param->{'Order'} && grep { $_ eq $param->{'Order'} } @{$fields} ) {
-            $sql .= ' ORDER BY ' . $param->{'Order'};
-        }
-
-        # limit clause can be either a single integer (length) or two comma separated integers (for start and length)
-        if ( $param->{'Limit'} && $param->{'Limit'} =~ m/^\d+(?:,\d+)?$/ ) {
-            $sql .= ' LIMIT ' . $param->{'Limit'};
-        }
-
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
-
-        if ( !$sth ) {
-            $self->msg->push( 'error', 'Database error.' );
-            return;
-        }
-
-        my @entries = ();
-
-        while ( my @row = $sth->fetchrow_array() ) {
-            my %h;
-            @h{ @{$fields} } = @row;
-            foreach my $field ( keys %h ) {
-                $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8( $h{$field} );
-            }
-            push( @entries, \%h );
-        }
-        $sth->finish();
-
-        return @entries;
+        $sql .= ")";
     }
+    foreach my $field ( @{$fields} ) {
+        if ( $param->{$field} ) {
+            $sql .= ' AND `' . $field . '` = ?';
+            push( @args, $param->{$field} );
+        }
+    }
+
+    # grep { $_ eq $var } @fields is equiv. to in_array(@array,$subject)
+    if ( $param->{'Order'} && grep { $_ eq $param->{'Order'} } @{$fields} ) {
+        $sql .= ' ORDER BY ' . $param->{'Order'};
+    }
+
+    # limit clause can be either a single integer (length) or two comma separated integers (for start and length)
+    if ( $param->{'Limit'} && $param->{'Limit'} =~ m/^\d+(?:,\d+)?$/ ) {
+        $sql .= ' LIMIT ' . $param->{'Limit'};
+    }
+
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    my @entries = ();
+
+    while ( my @row = $sth->fetchrow_array() ) {
+        my %h;
+        @h{ @{$fields} } = @row;
+        foreach my $field ( keys %h ) {
+            $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8( $h{$field} );
+        }
+        push( @entries, \%h );
+    }
+    $sth->finish();
+
+    return @entries;
+}
 }
 
 no Moose;

@@ -6,144 +6,144 @@ use namespace::autoclean;
 use Carp;
 
 has 'messages' => (
-	'is'	=> 'ro',
-	'isa'	=> 'ArrayRef',
-	'default' => sub { [] },
+    'is'      => 'ro',
+    'isa'     => 'ArrayRef',
+    'default' => sub { [] },
 );
 
 has 'lh' => (
-	'is'	=> 'ro',
-	'isa'	=> 'VBoxAdm::L10N',
-	'required' => 1,
+    'is'       => 'ro',
+    'isa'      => 'VBoxAdm::L10N',
+    'required' => 1,
 );
 
 has 'lh_en' => (
-	'is'	=> 'ro',
-	'isa'	=> 'VBoxAdm::L10N',
-	'required' => 1,
+    'is'       => 'ro',
+    'isa'      => 'VBoxAdm::L10N',
+    'required' => 1,
 );
 
 has 'session' => (
-	'is'	=> 'ro',
-	'isa'	=> 'Object',
-	'required' => 0,
+    'is'       => 'ro',
+    'isa'      => 'Object',
+    'required' => 0,
 );
 
-    # Alias to push
-    sub add {
-        my ( $self, $severity, $msg, @args ) = @_;
-        return $self->push( $severity, $msg, @args );
+# Alias to push
+sub add {
+    my ( $self, $severity, $msg, @args ) = @_;
+    return $self->push( $severity, $msg, @args );
+}
+############################################
+# Usage      : $self->add_message('warning','message');
+# Purpose    : Add a message to the notification message stack
+# Returns    : always true
+# Parameters : the type and the message
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+# add entry to notify
+sub push {
+    my ( $self, $severity, $msg, @args ) = @_;
+    my $ident = ident $self;
+
+    my $msg_ref = {
+        'severity' => $severity,
+        'raw'      => $msg,
+        'loc'      => $self->maketext( $msg, @args ),
+        'en'       => $self->maketext_en( $msg, @args ),
+        'caller'   => [ caller(0), caller(1) ],
+    };
+
+    # Session
+    if ( $session_of{$ident} ) {
+        my $notify_ref = $session_of{$ident}->param('notify') || [];
+        if ( ref($notify_ref) ne 'ARRAY' ) {
+            $notify_ref = [];
+        }
+        push( @{$notify_ref}, $msg_ref );
+        $session_of{$ident}->param( 'notify', $notify_ref );
     }
-    ############################################
-    # Usage      : $self->add_message('warning','message');
-    # Purpose    : Add a message to the notification message stack
-    # Returns    : always true
-    # Parameters : the type and the message
-    # Throws     : no exceptions
-    # Comments   : none
-    # See Also   : n/a
-    # add entry to notify
-    sub push {
-        my ( $self, $severity, $msg, @args ) = @_;
-        my $ident = ident $self;
+    else {
 
-        my $msg_ref = {
-            'severity' => $severity,
-            'raw'      => $msg,
-            'loc'      => $self->maketext( $msg, @args ),
-            'en'       => $self->maketext_en( $msg, @args ),
-            'caller'   => [ caller(0), caller(1) ],
-        };
-
-        # Session
-        if ( $session_of{$ident} ) {
-            my $notify_ref = $session_of{$ident}->param('notify') || [];
-            if ( ref($notify_ref) ne 'ARRAY' ) {
-                $notify_ref = [];
-            }
-            push( @{$notify_ref}, $msg_ref );
-            $session_of{$ident}->param( 'notify', $notify_ref );
-        }
-        else {
-
-            # No Session (CLI, API, ...)
-            push( @{ $msgs_of{$ident} }, $msg_ref );
-        }
-
-        # Done
-        return 1;
-    }
-    ############################################
-    # Usage      : $self->get_messages();
-    # Purpose    : Return all messages from the message stack and remove them
-    # Returns    : a hashref w/ the messages by priority
-    # Parameters : none
-    # Throws     : no exceptions
-    # Comments   : none
-    # See Also   : n/a
-    # get and reset notify
-    sub pop {
-        my ($self) = @_;
-        my $ident  = ident $self;
-        my @msgs   = ();
-        if ( $session_of{$ident} ) {
-            if ( !$session_of{$ident}->is_empty() && $session_of{$ident}->param('notify') && ref( $session_of{$ident}->param('notify') ) eq 'ARRAY' ) {
-                @msgs = @{ $session_of{$ident}->param('notify') };
-                $session_of{$ident}->param( 'notify', [] );
-            }
-        }
-        else {
-            @msgs = @{ $msgs_of{$ident} } if ref( $msgs_of{$ident} ) eq 'ARRAY';
-            @{ $msgs_of{$ident} } = ();
-        }
-        return @msgs;
+        # No Session (CLI, API, ...)
+        push( @{ $msgs_of{$ident} }, $msg_ref );
     }
 
-    # Alias to peek
-    sub get {
-        my ($self) = @_;
-        return $self->peek();
-    }
-    ############################################
-    # Usage      : $self->peek_message();
-    # Purpose    : Return the message stack w/o removing the messages
-    # Returns    : a hashref w/ the message by priority
-    # Parameters : none
-    # Throws     : no exceptions
-    # Comments   : none
-    # See Also   : n/a
-    sub peek {
-        my ($self) = @_;
-        my $ident  = ident $self;
-        my @msgs   = ();
-        if ( $session_of{$ident} ) {
-            if ( !$session_of{$ident}->is_empty() && $session_of{$ident}->param('notify') && ref( $session_of{$ident}->param('notify') ) eq 'ARRAY' ) {
-                @msgs = @{ $session_of{$ident}->param('notify') };
-            }
+    # Done
+    return 1;
+}
+############################################
+# Usage      : $self->get_messages();
+# Purpose    : Return all messages from the message stack and remove them
+# Returns    : a hashref w/ the messages by priority
+# Parameters : none
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+# get and reset notify
+sub pop {
+    my ($self) = @_;
+    my $ident  = ident $self;
+    my @msgs   = ();
+    if ( $session_of{$ident} ) {
+        if ( !$session_of{$ident}->is_empty() && $session_of{$ident}->param('notify') && ref( $session_of{$ident}->param('notify') ) eq 'ARRAY' ) {
+            @msgs = @{ $session_of{$ident}->param('notify') };
+            $session_of{$ident}->param( 'notify', [] );
         }
-        else {
-            @msgs = @{ $msgs_of{$ident} } if ref( $msgs_of{$ident} ) eq 'ARRAY';
-        }
-        return @msgs;
     }
+    else {
+        @msgs = @{ $msgs_of{$ident} } if ref( $msgs_of{$ident} ) eq 'ARRAY';
+        @{ $msgs_of{$ident} } = ();
+    }
+    return @msgs;
+}
 
-    sub maketext {
-        my ( $self, $msg, @args ) = @_;
-        my $ident = ident $self;
-        if ( $lh_of{$ident} ) {
-            return $lh_of{$ident}->maketext( $msg, @args );
+# Alias to peek
+sub get {
+    my ($self) = @_;
+    return $self->peek();
+}
+############################################
+# Usage      : $self->peek_message();
+# Purpose    : Return the message stack w/o removing the messages
+# Returns    : a hashref w/ the message by priority
+# Parameters : none
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub peek {
+    my ($self) = @_;
+    my $ident  = ident $self;
+    my @msgs   = ();
+    if ( $session_of{$ident} ) {
+        if ( !$session_of{$ident}->is_empty() && $session_of{$ident}->param('notify') && ref( $session_of{$ident}->param('notify') ) eq 'ARRAY' ) {
+            @msgs = @{ $session_of{$ident}->param('notify') };
         }
-        return;
     }
+    else {
+        @msgs = @{ $msgs_of{$ident} } if ref( $msgs_of{$ident} ) eq 'ARRAY';
+    }
+    return @msgs;
+}
 
-    sub maketext_en {
-        my ( $self, $msg, @args ) = @_;
-        my $ident = ident $self;
-        if ( $lh_en_of{$ident} ) {
-            return $lh_en_of{$ident}->maketext( $msg, @args );
-        }
-        return;
+sub maketext {
+    my ( $self, $msg, @args ) = @_;
+    my $ident = ident $self;
+    if ( $lh_of{$ident} ) {
+        return $lh_of{$ident}->maketext( $msg, @args );
     }
+    return;
+}
+
+sub maketext_en {
+    my ( $self, $msg, @args ) = @_;
+    my $ident = ident $self;
+    if ( $lh_en_of{$ident} ) {
+        return $lh_en_of{$ident}->maketext( $msg, @args );
+    }
+    return;
+}
 
 no Moose;
 __PACKAGE__->meta->make_immutable;

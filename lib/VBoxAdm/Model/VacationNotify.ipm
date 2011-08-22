@@ -11,68 +11,68 @@ use VBoxAdm::Utils '@VERSION@';
 extends 'VBoxAdm::Model';
 
 has 'fields' => (
-	'is'	=> 'ro',
-	'isa'	=> 'ArrayRef[Str]',
-	'default' => [qw(on_vacation notified notified_at)],
+    'is'      => 'ro',
+    'isa'     => 'ArrayRef[Str]',
+    'default' => [qw(on_vacation notified notified_at)],
 );
 
 has 'user' => (
-	'is'	=> 'ro',
-	'isa' => 'VBoxAdm::Model::User',
-	'required' => 1,
+    'is'       => 'ro',
+    'isa'      => 'VBoxAdm::Model::User',
+    'required' => 1,
 );
 
-    sub create {
-        my ( $self, $email ) = @_;
-        my $ident = ident $self;
+sub create {
+    my ( $self, $email ) = @_;
+    my $ident = ident $self;
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
 
-    sub update {
-        my ( $self, $entry_id, $params ) = @_;
-        my $ident = ident $self;
+    return;
+}
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
+sub update {
+    my ( $self, $entry_id, $params ) = @_;
+    my $ident = ident $self;
 
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
 
-    sub delete {
-        my ( $self, $entry_id, $params ) = @_;
-        my $ident = ident $self;
+    return;
+}
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
+sub delete {
+    my ( $self, $entry_id, $params ) = @_;
+    my $ident = ident $self;
 
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
 
-    sub list {
-        my ( $self, $params ) = @_;
-        my $ident = ident $self;
+    return;
+}
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_siteadmin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
+sub list {
+    my ( $self, $params ) = @_;
+    my $ident = ident $self;
 
-        return $self->_list( 'vacation_notify', $fields_of{$ident}, $params );
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
     }
+
+    return $self->_list( 'vacation_notify', $fields_of{$ident}, $params );
+}
 
 no Moose;
 __PACKAGE__->meta->make_immutable;

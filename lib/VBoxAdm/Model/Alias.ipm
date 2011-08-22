@@ -12,311 +12,310 @@ use VBoxAdm::Utils '@VERSION@';
 extends 'VBoxAdm::Model';
 
 has 'user' => (
-	'is'	=> 'ro',
-	'isa'	=> 'VBoxAdm::Model::User',
-	'required' => 1,
+    'is'       => 'ro',
+    'isa'      => 'VBoxAdm::Model::User',
+    'required' => 1,
 );
 
-    sub get_id {
-        my ( $self, $email ) = @_;
+sub get_id {
+    my ( $self, $email ) = @_;
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+        return;
+    }
+
+    my ( $local_part, $domain ) = split /@/, $email;
+
+    my $sql = "SELECT a.id FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.local_part = ? AND d.name = ?";
+    my @args = ( $local_part, $domain );
+
+    # non-siteadmins may only retreive information for their domain
+    if ( !$self->user->is_siteadmin() ) {
+        $sql .= " AND a.domain_id = ?";
+        push( @args, $self->user->get_domain_id() );
+    }
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+    my $id = $sth->fetchrow_array();
+    $sth->finish();
+    return $id;
+}
+
+sub create {
+    my ( $self, $local_part, $domain_id, $goto ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    $local_part = &VBoxAdm::Utils::trim( lc($local_part) );
+    $goto       = &VBoxAdm::Utils::trim( lc($goto) );
+    my $delim = $self->config()->{'smtpproxy'}->{'recipient_delimiter'};
+
+    my $Domain = VBoxAdm::Model::Domain->new( { 'Model' => $self, } );
+    my $domain_name = $Domain->get_name($domain_id);
+
+    if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin && $domain_id != $self->user->get_domain_id() ) {
+
+        # if domainadmin, verify that its his domain
+        $self->msg->push( 'error', "You are not authorized to modify this domain!" );
+        return;
+    }
+    elsif ( $local_part && !&VBoxAdm::Utils::is_valid_localpart_rfc822($local_part) ) {
+        $self->msg->push( 'error', "Invalid local part. This address is not RFC822 compliant!" );
+        return;
+    }
+    elsif ( $goto && !&VBoxAdm::Utils::is_valid_addresses_rfc822($goto) ) {
+        $self->msg->push( 'error', "Invalid address in destination!" );
+        return;
+    }
+    elsif ( $local_part && $delim && $local_part =~ m/\Q$delim\E/ ) {
+        $self->msg->push( 'error', 'Localpart may not contain the recipent_delimiter (' . $delim . ')' );
+        return;
+    }
+    elsif ( $local_part && $domain_id && $goto ) {
+
+        my $query = "INSERT INTO aliases (domain_id,local_part,goto,is_active) VALUES(?,?,?,1)";
+        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain_id, $local_part, $goto ) ) {
+            $sth->finish();
+            $self->msg->push( 'information', "Alias [_1] to [_2] added.", "$local_part\@$domain_name", $goto );
+            return 1;
+        }
+        else {
+            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $domain_id, $local_part, $goto ) ), $self->dbh->errstr );
+            $self->msg->push( 'error', "Failed to add alias [_1] => [_2]. Database Error.", "$local_part\@$domain_name", $goto );
             return;
         }
+    }
+    else {
+        $self->msg->push( 'error', "Failed to add alias. Missing local_part, domain_id or target." );
+        return;
+    }
 
-        if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
-            return;
-        }
+    return;
+}
 
-        my ( $local_part, $domain ) = split /@/, $email;
+sub delete {
+    my ( $self, $alias_id ) = @_;
+    my $ident = ident $self;
 
-        my $sql = "SELECT a.id FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.local_part = ? AND d.name = ?";
-        my @args = ( $local_part, $domain );
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
 
-        # non-siteadmins may only retreive information for their domain
-        if ( !$self->user->is_siteadmin() ) {
-            $sql .= " AND a.domain_id = ?";
-            push( @args, $self->user->get_domain_id() );
-        }
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+    if ( $alias_id && $alias_id =~ m/^\d+$/ ) {
+
+        # get alias name for message
+        my $query = 'SELECT CONCAT(a.local_part,\'@\',d.name) AS alias,a.goto FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?';
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $alias_id );
         if ( !$sth ) {
             $self->msg->push( 'error', 'Database error.' );
             return;
         }
-        my $id = $sth->fetchrow_array();
-        $sth->finish();
-        return $id;
-    }
-
-    sub create {
-        my ( $self, $local_part, $domain_id, $goto ) = @_;
-        my $ident = ident $self;
-
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-
-        $local_part = &VBoxAdm::Utils::trim( lc($local_part) );
-        $goto       = &VBoxAdm::Utils::trim( lc($goto) );
-        my $delim = $self->config()->{'smtpproxy'}->{'recipient_delimiter'};
-
-        my $Domain = VBoxAdm::Model::Domain->new( { 'Model' => $self, } );
-        my $domain_name = $Domain->get_name($domain_id);
-
-        if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin && $domain_id != $self->user->get_domain_id() ) {
-
-            # if domainadmin, verify that its his domain
-            $self->msg->push( 'error', "You are not authorized to modify this domain!" );
-            return;
-        }
-        elsif ( $local_part && !&VBoxAdm::Utils::is_valid_localpart_rfc822($local_part) ) {
-            $self->msg->push( 'error', "Invalid local part. This address is not RFC822 compliant!" );
-            return;
-        }
-        elsif ( $goto && !&VBoxAdm::Utils::is_valid_addresses_rfc822($goto) ) {
-            $self->msg->push( 'error', "Invalid address in destination!" );
-            return;
-        }
-        elsif ( $local_part && $delim && $local_part =~ m/\Q$delim\E/ ) {
-            $self->msg->push( 'error', 'Localpart may not contain the recipent_delimiter (' . $delim . ')' );
-            return;
-        }
-        elsif ( $local_part && $domain_id && $goto ) {
-
-            my $query = "INSERT INTO aliases (domain_id,local_part,goto,is_active) VALUES(?,?,?,1)";
-            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain_id, $local_part, $goto ) ) {
-                $sth->finish();
-                $self->msg->push( 'information', "Alias [_1] to [_2] added.", "$local_part\@$domain_name", $goto );
-                return 1;
-            }
-            else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $domain_id, $local_part, $goto ) ), $self->dbh->errstr );
-                $self->msg->push( 'error', "Failed to add alias [_1] => [_2]. Database Error.", "$local_part\@$domain_name", $goto );
-                return;
-            }
-        }
-        else {
-            $self->msg->push( 'error', "Failed to add alias. Missing local_part, domain_id or target." );
-            return;
-        }
-
-        return;
-    }
-
-    sub delete {
-        my ( $self, $alias_id ) = @_;
-        my $ident = ident $self;
-
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-
-        if ( $alias_id && $alias_id =~ m/^\d+$/ ) {
-
-            # get alias name for message
-            my $query =
-              'SELECT CONCAT(a.local_part,\'@\',d.name) AS alias,a.goto FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?';
-            my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $alias_id );
-            if ( !$sth ) {
-                $self->msg->push( 'error', 'Database error.' );
-                return;
-            }
-            my ( $alias, $goto ) = $sth->fetchrow_array();
-            $sth->finish();
-
-            $query = "DELETE FROM aliases WHERE id = ?";
-            my @args = ();
-            push( @args, $alias_id );
-            if ( !$self->user->is_siteadmin() ) {
-                $query .= "AND domain_id = ?";
-                push( @args, $self->user->get_domain_id() );
-            }
-            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
-                $sth->finish();
-                $self->msg->push( 'information', "Alias [_1] => [_2] (#[_3]) removed.", $alias, $goto, $alias_id );
-                return 1;
-            }
-            else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
-                $self->msg->push( 'error', "Failed to remove Alias [_1] => [_2] (#[_3]). Database Error.", $alias, $goto, $alias_id );
-                return;
-            }
-        }
-        else {
-            $self->msg->push( 'error', 'Failed to remove alias. Insufficient parameters.' );
-            return;
-        }
-        return;
-    }
-
-    sub update {
-        my ( $self, $alias_id, $params ) = @_;
-        my $ident = ident $self;
-
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-
-        my $is_active = $params->{IsActive};
-        my $target    = &VBoxAdm::Utils::trim( $params->{Goto} );
-
-        my $alias_name = '';
-        if ($alias_id) {
-            my $query = "SELECT a.local_part,d.name FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
-            my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $alias_id );
-            if ( !$sth ) {
-                $self->msg->push( 'error', 'Database error.' );
-                return;
-            }
-            $alias_name = $sth->fetchrow_array();
-            $sth->finish();
-        }
-        else {
-            $self->msg->push( 'error', 'Unable to find alias with id [_1]', $alias_id );
-            return;
-        }
-
-        # Update 'is_active' status
-        if ( $alias_id && defined($is_active) ) {
-            my $query = "UPDATE aliases SET is_active = ? WHERE id = ?";
-            my @args  = ();
-            push( @args, $is_active );
-            push( @args, $alias_id );
-
-            # Authorization
-            if ( !$self->user->is_siteadmin() ) {
-                $query .= "AND domain_id = ?";
-                push( @args, $self->user->get_domain_id() );
-            }
-            my $status_str = 'disabled';
-            if ($is_active) {
-                $status_str = 'enabled';
-            }
-            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
-                $self->msg->push( 'information', "Alias [_1] (#[_2]) [_3].", $alias_name, $alias_id, $status_str );
-                $sth->finish();
-            }
-            else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
-                $self->msg->push( 'error', "Failed to set Alias [_1] (#[_2]) [_3].", $alias_name, $alias_id, $status_str );
-            }
-        }
-
-        # Update 'goto' target
-        # clean target string
-        if ($target) {
-            $target = join( ",", split( /\s*,\s*/, $target ) );
-        }
-        if ( $target && !&VBoxAdm::Utils::is_valid_addresses_rfc822($target) ) {
-            $self->msg->push( 'error', "Invalid address in destination!" );
-        }
-        elsif ( $alias_id && $target ) {
-            my $query = "UPDATE aliases SET goto = ? WHERE id = ?";
-            my @args = ( $target, $alias_id );
-
-            # Authorization
-            if ( !$self->user->is_siteadmin() ) {
-                $query .= " AND domain_id = ?";
-                push( @args, $self->user->get_domain_id() );
-            }
-            if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
-                $self->msg->push( 'information', "Alias [_1] (#[_2]) redirected to [_3].", $alias_name, $alias_id, $target );
-                $sth->finish();
-            }
-            else {
-                $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
-                $self->msg->push( 'error', "Failed to redirect Alias [_1] (#[_2]) to [_3].", $alias_name, $alias_id, $target );
-            }
-        }
-
-        return;
-    }
-
-    sub read {
-        my ( $self, $id ) = @_;
-        my $ident = ident $self;
-
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-
-        my $sql  = "SELECT a.id,a.local_part,d.name,a.goto,a.is_active FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
-        my @args = ($id);
-
-        # Authorization
-        if ( !$self->user->is_siteadmin() ) {
-            $sql .= " AND a.domain_id = ?";
-            push( @args, $self->user->get_domain_id() );
-        }
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
-        if ( !$sth ) {
-            $self->msg->push( 'error', 'Database error.' );
-            return;
-        }
-        my %result;
-        @result{qw(id local_part domain goto is_active)} = $sth->fetchrow_array();
+        my ( $alias, $goto ) = $sth->fetchrow_array();
         $sth->finish();
 
-        foreach my $key ( keys %result ) {
-            $result{$key} = Encode::decode( 'UTF-8', $result{$key} ) unless Encode::is_utf8( $result{$key} );
-        }
-        return \%result;
-    }
-
-    sub list {
-        my ( $self, $params ) = @_;
-        my $ident = ident $self;
-
-        # Authorization - No access for regular users
-        if ( !$self->user->is_admin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-
-        my $sql  = "SELECT a.id,a.local_part,d.name,a.goto,a.is_active FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE 1";
+        $query = "DELETE FROM aliases WHERE id = ?";
         my @args = ();
-        if ( $params->{Search} ) {
-            $sql .= " AND (a.local_part LIKE ? OR d.name LIKE ? OR a.goto LIKE ?)";
-            my $term = $params->{'Search'};
-            $term =~ s/[*%]+//g;
-            $term = '%' . $term . '%';
-            push( @args, $term );
-            push( @args, $term );
-            push( @args, $term );
-        }
-
-        # Authorization
+        push( @args, $alias_id );
         if ( !$self->user->is_siteadmin() ) {
-            $sql .= " AND a.domain_id = ?";
+            $query .= "AND domain_id = ?";
             push( @args, $self->user->get_domain_id() );
         }
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+            $sth->finish();
+            $self->msg->push( 'information', "Alias [_1] => [_2] (#[_3]) removed.", $alias, $goto, $alias_id );
+            return 1;
+        }
+        else {
+            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
+            $self->msg->push( 'error', "Failed to remove Alias [_1] => [_2] (#[_3]). Database Error.", $alias, $goto, $alias_id );
+            return;
+        }
+    }
+    else {
+        $self->msg->push( 'error', 'Failed to remove alias. Insufficient parameters.' );
+        return;
+    }
+    return;
+}
+
+sub update {
+    my ( $self, $alias_id, $params ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $is_active = $params->{IsActive};
+    my $target    = &VBoxAdm::Utils::trim( $params->{Goto} );
+
+    my $alias_name = '';
+    if ($alias_id) {
+        my $query = "SELECT a.local_part,d.name FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
+        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $alias_id );
         if ( !$sth ) {
             $self->msg->push( 'error', 'Database error.' );
             return;
         }
-        my @results = ();
-        while ( my @row = $sth->fetchrow_array() ) {
-            my %h;
-            @h{qw(id local_part domain goto is_active)} = @row;
-            foreach my $field ( keys %h ) {
-                $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8( $h{$field} );
-            }
-            push( @results, \%h );
-        }
-
-        return @results;
+        $alias_name = $sth->fetchrow_array();
+        $sth->finish();
     }
+    else {
+        $self->msg->push( 'error', 'Unable to find alias with id [_1]', $alias_id );
+        return;
+    }
+
+    # Update 'is_active' status
+    if ( $alias_id && defined($is_active) ) {
+        my $query = "UPDATE aliases SET is_active = ? WHERE id = ?";
+        my @args  = ();
+        push( @args, $is_active );
+        push( @args, $alias_id );
+
+        # Authorization
+        if ( !$self->user->is_siteadmin() ) {
+            $query .= "AND domain_id = ?";
+            push( @args, $self->user->get_domain_id() );
+        }
+        my $status_str = 'disabled';
+        if ($is_active) {
+            $status_str = 'enabled';
+        }
+        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+            $self->msg->push( 'information', "Alias [_1] (#[_2]) [_3].", $alias_name, $alias_id, $status_str );
+            $sth->finish();
+        }
+        else {
+            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
+            $self->msg->push( 'error', "Failed to set Alias [_1] (#[_2]) [_3].", $alias_name, $alias_id, $status_str );
+        }
+    }
+
+    # Update 'goto' target
+    # clean target string
+    if ($target) {
+        $target = join( ",", split( /\s*,\s*/, $target ) );
+    }
+    if ( $target && !&VBoxAdm::Utils::is_valid_addresses_rfc822($target) ) {
+        $self->msg->push( 'error', "Invalid address in destination!" );
+    }
+    elsif ( $alias_id && $target ) {
+        my $query = "UPDATE aliases SET goto = ? WHERE id = ?";
+        my @args = ( $target, $alias_id );
+
+        # Authorization
+        if ( !$self->user->is_siteadmin() ) {
+            $query .= " AND domain_id = ?";
+            push( @args, $self->user->get_domain_id() );
+        }
+        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+            $self->msg->push( 'information', "Alias [_1] (#[_2]) redirected to [_3].", $alias_name, $alias_id, $target );
+            $sth->finish();
+        }
+        else {
+            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
+            $self->msg->push( 'error', "Failed to redirect Alias [_1] (#[_2]) to [_3].", $alias_name, $alias_id, $target );
+        }
+    }
+
+    return;
+}
+
+sub read {
+    my ( $self, $id ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $sql  = "SELECT a.id,a.local_part,d.name,a.goto,a.is_active FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
+    my @args = ($id);
+
+    # Authorization
+    if ( !$self->user->is_siteadmin() ) {
+        $sql .= " AND a.domain_id = ?";
+        push( @args, $self->user->get_domain_id() );
+    }
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+    my %result;
+    @result{qw(id local_part domain goto is_active)} = $sth->fetchrow_array();
+    $sth->finish();
+
+    foreach my $key ( keys %result ) {
+        $result{$key} = Encode::decode( 'UTF-8', $result{$key} ) unless Encode::is_utf8( $result{$key} );
+    }
+    return \%result;
+}
+
+sub list {
+    my ( $self, $params ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $sql  = "SELECT a.id,a.local_part,d.name,a.goto,a.is_active FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE 1";
+    my @args = ();
+    if ( $params->{Search} ) {
+        $sql .= " AND (a.local_part LIKE ? OR d.name LIKE ? OR a.goto LIKE ?)";
+        my $term = $params->{'Search'};
+        $term =~ s/[*%]+//g;
+        $term = '%' . $term . '%';
+        push( @args, $term );
+        push( @args, $term );
+        push( @args, $term );
+    }
+
+    # Authorization
+    if ( !$self->user->is_siteadmin() ) {
+        $sql .= " AND a.domain_id = ?";
+        push( @args, $self->user->get_domain_id() );
+    }
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+    my @results = ();
+    while ( my @row = $sth->fetchrow_array() ) {
+        my %h;
+        @h{qw(id local_part domain goto is_active)} = @row;
+        foreach my $field ( keys %h ) {
+            $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8( $h{$field} );
+        }
+        push( @results, \%h );
+    }
+
+    return @results;
+}
 
 no Moose;
 __PACKAGE__->meta->make_immutable;

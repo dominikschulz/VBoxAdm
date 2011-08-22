@@ -12,169 +12,169 @@ use VBoxAdm::Utils '@VERSION@';
 extends 'VBoxAdm::Model';
 
 has 'fields' => (
-	'is'	=> 'ro',
-	'isa'	=> 'ArrayRef[Str]',
-	'default' => [qw(id name local_part domain ts)],
+    'is'      => 'ro',
+    'isa'     => 'ArrayRef[Str]',
+    'default' => [qw(id name local_part domain ts)],
 );
 
 has 'user' => (
-	'is'	=> 'ro',
-	'isa' => 'VBoxAdm::Model::User',
-	'required' => 1,
+    'is'       => 'ro',
+    'isa'      => 'VBoxAdm::Model::User',
+    'required' => 1,
 );
 
-    sub create {
-        my ( $self, $role, $goto ) = @_;
-        my $ident = ident $self;
+sub create {
+    my ( $self, $role, $goto ) = @_;
+    my $ident = ident $self;
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_siteadmin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-
-        my $delim = $self->config()->{'smtpproxy'}->{'recipient_delimiter'};
-
-        if ( !&VBoxAdm::Utils::is_valid_localpart_rfc822($role) ) {
-            $self->msg->push( 'error', 'Invalid localpart as role name given.' );
-            return;
-        }
-        elsif ( !&VBoxAdm::Utils::is_valid_address_rfc822($goto) ) {
-            $self->msg->push( 'error', 'Invalid email address given.' );
-            return;
-        }
-        elsif ( $role && $delim && $role =~ m/\Q$delim\E/ ) {
-            $self->msg->push( 'error', 'Localpart may not contain the recipent_delimiter (' . $delim . ')' );
-            return;
-        }
-        my ( $local_part, $domain ) = split /@/, $goto;
-
-        my $sql = "INSERT IGNORE INTO role_accounts (name,local_part,domain,ts) VALUES(?,?,?,NOW())";
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $role, $local_part, $domain );
-
-        if ( !$sth ) {
-            $self->msg->push( 'error', 'Database error.' );
-            return;
-        }
-
-        $sth->finish();
-
-        return 1;
-    }
-
-    sub get_id {
-        my ( $self, $role ) = @_;
-        my $ident = ident $self;
-
-        # Authorization - No access for regular users
-        if ( !$self->user->is_siteadmin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-
-        my $sql = "SELECT id FROM role_accounts WHERE name = ?";
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $role );
-        my $id  = $sth->fetchrow_array();
-
-        if ( !$sth ) {
-            $self->msg->push( 'error', 'Database error.' );
-            return;
-        }
-
-        $sth->finish();
-
-        return $id;
-    }
-
-    sub update {
-        my ( $self, $entry_id, $params ) = @_;
-        my $ident = ident $self;
-
-        # Authorization - No access for regular users
-        if ( !$self->user->is_siteadmin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
-        my $goto = $params->{'Goto'};
-        if ( !&VBoxAdm::Utils::is_valid_address_rfc822($goto) ) {
-            $self->msg->push( 'error', 'Invalid email address given.' );
-            return;
-        }
-        my ( $local_part, $domain ) = split /@/, $goto;
-
-        if ( $entry_id && defined($goto) ) {
-            my $query = "UPDATE role_accounts SET local_part = ?, domain = ? WHERE id = ?";
-            if ( my $sth = $self->dbh->prepare($query) ) {
-                if ( $sth->execute( $local_part, $domain, $entry_id ) ) {
-                    $sth->finish();
-                    $self->msg->push( 'information', "Updated entry [_1]. Set target to[_2]@[_3].", $entry_id, $local_part, $domain );
-                    return 1;
-                }
-                else {
-                    $self->msg->push( 'error', "Unable to update RoleAccount. Database Error #0E." );
-                    return;
-                }
-            }
-            else {
-                $self->msg->push( 'error', "Unable to update RoleAccount. Database Error #0P" );
-                return;
-            }
-        }
-
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
 
-    sub delete {
-        my ( $self, $entry_id ) = @_;
-        my $ident = ident $self;
+    my $delim = $self->config()->{'smtpproxy'}->{'recipient_delimiter'};
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_siteadmin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
-        }
+    if ( !&VBoxAdm::Utils::is_valid_localpart_rfc822($role) ) {
+        $self->msg->push( 'error', 'Invalid localpart as role name given.' );
+        return;
+    }
+    elsif ( !&VBoxAdm::Utils::is_valid_address_rfc822($goto) ) {
+        $self->msg->push( 'error', 'Invalid email address given.' );
+        return;
+    }
+    elsif ( $role && $delim && $role =~ m/\Q$delim\E/ ) {
+        $self->msg->push( 'error', 'Localpart may not contain the recipent_delimiter (' . $delim . ')' );
+        return;
+    }
+    my ( $local_part, $domain ) = split /@/, $goto;
 
-        # delete role account
-        if ( $entry_id && $entry_id =~ m/^\d+$/ ) {
-            my $query = "DELETE FROM role_accounts WHERE id = ?";
-            if ( my $sth = $self->dbh->prepare($query) ) {
-                if ( $sth->execute($entry_id) ) {
-                    $sth->finish();
-                    $self->msg->push( 'information', "Deleted entry [_1].", $entry_id );
-                    return 1;
-                }
+    my $sql = "INSERT IGNORE INTO role_accounts (name,local_part,domain,ts) VALUES(?,?,?,NOW())";
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $role, $local_part, $domain );
+
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    $sth->finish();
+
+    return 1;
+}
+
+sub get_id {
+    my ( $self, $role ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $sql = "SELECT id FROM role_accounts WHERE name = ?";
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $role );
+    my $id  = $sth->fetchrow_array();
+
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    $sth->finish();
+
+    return $id;
+}
+
+sub update {
+    my ( $self, $entry_id, $params ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+    my $goto = $params->{'Goto'};
+    if ( !&VBoxAdm::Utils::is_valid_address_rfc822($goto) ) {
+        $self->msg->push( 'error', 'Invalid email address given.' );
+        return;
+    }
+    my ( $local_part, $domain ) = split /@/, $goto;
+
+    if ( $entry_id && defined($goto) ) {
+        my $query = "UPDATE role_accounts SET local_part = ?, domain = ? WHERE id = ?";
+        if ( my $sth = $self->dbh->prepare($query) ) {
+            if ( $sth->execute( $local_part, $domain, $entry_id ) ) {
+                $sth->finish();
+                $self->msg->push( 'information', "Updated entry [_1]. Set target to[_2]@[_3].", $entry_id, $local_part, $domain );
+                return 1;
             }
             else {
-                $self->msg->push( 'error', "Unable to delete RoleAccount $entry_id. Database Error." );
+                $self->msg->push( 'error', "Unable to update RoleAccount. Database Error #0E." );
+                return;
             }
         }
-    }
-
-    sub read {
-        my ( $self, $id ) = @_;
-        my $ident = ident $self;
-
-        # Authorization - No access for regular users
-        if ( !$self->user->is_siteadmin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        else {
+            $self->msg->push( 'error', "Unable to update RoleAccount. Database Error #0P" );
             return;
         }
-
-        return $self->_read( 'role_accounts', $id, $fields_of{$ident} );
     }
 
-    sub list {
-        my ( $self, $params ) = @_;
-        my $ident = ident $self;
+    return;
+}
 
-        # Authorization - No access for regular users
-        if ( !$self->user->is_siteadmin() ) {
-            $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-            return;
+sub delete {
+    my ( $self, $entry_id ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    # delete role account
+    if ( $entry_id && $entry_id =~ m/^\d+$/ ) {
+        my $query = "DELETE FROM role_accounts WHERE id = ?";
+        if ( my $sth = $self->dbh->prepare($query) ) {
+            if ( $sth->execute($entry_id) ) {
+                $sth->finish();
+                $self->msg->push( 'information', "Deleted entry [_1].", $entry_id );
+                return 1;
+            }
         }
-
-        return $self->_list( 'role_accounts', $fields_of{$ident}, $params );
+        else {
+            $self->msg->push( 'error', "Unable to delete RoleAccount $entry_id. Database Error." );
+        }
     }
+}
+
+sub read {
+    my ( $self, $id ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    return $self->_read( 'role_accounts', $id, $fields_of{$ident} );
+}
+
+sub list {
+    my ( $self, $params ) = @_;
+    my $ident = ident $self;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    return $self->_list( 'role_accounts', $fields_of{$ident}, $params );
+}
 
 no Moose;
 __PACKAGE__->meta->make_immutable;
