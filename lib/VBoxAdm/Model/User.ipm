@@ -1,27 +1,62 @@
 package VBoxAdm::Model::User;
 
-use strict;
-use warnings;
+use Moose;
+use namespace::autoclean;
+
 use Carp;
 
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::SaltedHash '@VERSION@';
 
-# TODO use Encode::decode and create, read, update and list!
+extends 'VBoxAdm::Model';
 
-use base qw(VBoxAdm::Model);
-use Class::Std;
-{
+has 'dbh' => (
+	'is'	=> 'ro',
+	'isa'	=> 'Object',
+	'required' => 1,
+);
 
-    # Attributes
-    my %data_of : ATTR;
+has 'domainadmin' => (
+	'is'	=> 'ro',
+	'isa'	=> 'Bool',
+	'default' => 0,
+);
+
+has 'siteadmin' => (
+	'is'	=> 'ro',
+	'isa'	=> 'Bool',
+	'default' => 0,
+);
+
+has 'local_part' => (
+	'is'	=> 'ro',
+	'isa'	=> 'Str',
+);
+
+has 'domain' => (
+	'is'	=> 'ro',
+	'isa'	=> 'Str',
+);
+
+has 'id'	=> (
+	'is'	=> 'ro',
+	'isa'	=> 'Num',
+);
+
+has 'domain_id' => (
+	'is'	=> 'ro',
+	'isa'	=> 'Num',
+);
+
+has 'force' => (
+	'is'	=> 'ro',
+	'isa'	=> 'Bool',
+	'default' => 0,
+);
 
     sub BUILD {
-        my ( $self, $ident, $arg_ref ) = @_;
-        if ( !$self->dbh || !$self->dbh->ping() ) {
-            die("Need DBH connection!");
-        }
+        my $self = shift;
 
         # SystemUser is used (only) for bootstrap where no users does exist, yet.
         if ( $arg_ref->{'SystemUser'} ) {
@@ -34,12 +69,12 @@ use Class::Std;
         }
 
         # ForceLogin is used when we know that a login is ok, but we don't have the (plaintext) password
-        elsif ( !$self->check_login( $arg_ref->{'Username'}, $arg_ref->{'Password'}, $arg_ref->{'ForceLogin'} ) ) {
+        elsif ( !$self->_check_login( $arg_ref->{'Username'}, $arg_ref->{'Password'}, $arg_ref->{'ForceLogin'} ) ) {
             confess("Need valid username and password.");
         }
     }
 
-    sub check_login : PRIVATE {
+    sub _check_login {
         my ( $self, $username, $password, $force ) = @_;
         my $ident = ident $self;
 
@@ -72,7 +107,7 @@ use Class::Std;
         $data_of{$ident}{'domain_id'}   = $domain_id;
     }
 
-    sub get_name : STRINGIFY {
+    sub get_name {
         my ($self) = @_;
         my $ident = ident $self;
         return $data_of{$ident}{'local_part'} . '@' . $data_of{$ident}{'domain'};
@@ -96,7 +131,7 @@ use Class::Std;
         return $data_of{$ident}{'domain_id'};
     }
 
-    sub get_id : NUMERIFY {
+    sub get_id {
         my ($self) = @_;
         my $ident = ident $self;
         return $data_of{$ident}{'id'};
@@ -120,13 +155,16 @@ use Class::Std;
         return $data_of{$ident}{'domainadmin'} + $data_of{$ident}{'siteadmin'};
     }
 
-    sub is_user : BOOLIFY {
+    sub is_user {
         my ($self) = @_;
 
         # a successfully created class means that the user is a valid user
         return 1;
     }
-}
+
+no Moose;
+__PACKAGE__->meta->make_immutable;
+
 1;
 __END__
 

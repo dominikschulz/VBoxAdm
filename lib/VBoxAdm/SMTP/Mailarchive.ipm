@@ -3,6 +3,9 @@ package VBoxAdm::SMTP::Mailarchive;
 use strict;
 use warnings;
 
+# TODO use Moose;
+#use namespace::autoclean;
+
 use Carp;
 
 use Getopt::Long;
@@ -314,6 +317,9 @@ sub process_message {
     # TODO write metadata and log
     # we could (and should) use the extracted meta-data for retrieval of archived mails
 }
+
+#no Moose;
+#__PACKAGE__->meta->make_immutable;
 
 1;
 __END__

@@ -3,6 +3,9 @@ package VBoxAdm::SMTP::Proxy;
 use strict;
 use warnings;
 
+# TODO use Moose;
+# use namespace::autoclean;
+
 use Carp;
 
 use Getopt::Long;
@@ -646,6 +649,9 @@ sub is_spam {
         return;
     }
 }
+
+#no Moose;
+#__PACKAGE__->meta->make_immutable;
 
 1;
 __END__

@@ -1,37 +1,33 @@
 package VBoxAdm::Model::MessageQueue;
 
-use strict;
-use warnings;
+use Moose;
+use namespace::autoclean;
 
 use Carp;
 
-our $VERSION = '@VERSION@';
+has 'messages' => (
+	'is'	=> 'ro',
+	'isa'	=> 'ArrayRef',
+	'default' => sub { [] },
+);
 
-#use Sys::Syslog;
-#use Data::Dumper;
+has 'lh' => (
+	'is'	=> 'ro',
+	'isa'	=> 'VBoxAdm::L10N',
+	'required' => 1,
+);
 
-use Class::Std;
-{
+has 'lh_en' => (
+	'is'	=> 'ro',
+	'isa'	=> 'VBoxAdm::L10N',
+	'required' => 1,
+);
 
-    # Attributes
-    my %msgs_of : ATTR;
-    my %lh_of : ATTR;
-    my %lh_en_of : ATTR;
-    my %session_of : ATTR;
-
-    sub BUILD {
-        my ( $self, $ident, $arg_ref ) = @_;
-
-        # Setup of Locale::Maketext handles
-        $lh_of{$ident}    = $arg_ref->{'LH'}    if $arg_ref->{'LH'};
-        $lh_en_of{$ident} = $arg_ref->{'LH_EN'} if $arg_ref->{'LH_EN'};
-
-        # Session
-        if ( $arg_ref->{'Session'} ) {
-            $session_of{$ident} = $arg_ref->{'Session'};
-        }
-
-    }
+has 'session' => (
+	'is'	=> 'ro',
+	'isa'	=> 'Object',
+	'required' => 0,
+);
 
     # Alias to push
     sub add {
@@ -149,10 +145,7 @@ use Class::Std;
         return;
     }
 
-    sub DEMOLISH {
-        my ($self) = @_;
+no Moose;
+__PACKAGE__->meta->make_immutable;
 
-        # NOP
-    }
-}
 1;

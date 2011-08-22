@@ -1,23 +1,41 @@
 package VBoxAdm::Model;
 
-use strict;
-use warnings;
+use Moose;
+use namespace::autoclean;
 
 use Carp;
 use Encode;
 use Data::Dumper;
 
-our $VERSION = '@VERSION@';
+has 'dbh' => (
+	'is'	=> 'ro',
+	'isa'	=> 'Object',
+	'required' => 1,
+);
 
-use Class::Std;
-{
+has 'logger' => (
+	'is'	=> 'ro',
+	'isa'	=> 'Object',
+	'required' => 1,
+);
 
-    # Attributes
-    my %dbh_of : ATTR;
-    my %logger_of : ATTR;
-    my %config_of : ATTR;
-    my %user_of : ATTR;
-    my %msgq_of : ATTR;
+has 'config' => (
+	'is'	=> 'ro',
+	'isa'	=> 'Object',
+	'required' => 1,
+);
+
+has 'user' => (
+	'is'	=> 'ro',
+	'isa'	=> 'VBoxAdm::Model::User',
+	'required' => 0,
+);
+
+has 'msgq' => (
+	'is'	=> 'ro',
+	'isa'	=> 'VBoxAdm::Model::MessageQueue',
+	'required' => 1,
+);
 
     sub BUILD {
         my ( $self, $ident, $arg_ref ) = @_;
@@ -185,4 +203,8 @@ use Class::Std;
         return @entries;
     }
 }
+
+no Moose;
+__PACKAGE__->meta->make_immutable;
+
 1;

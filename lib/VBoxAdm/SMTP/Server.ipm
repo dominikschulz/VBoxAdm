@@ -3,6 +3,9 @@ package VBoxAdm::SMTP::Server;
 use strict;
 use warnings;
 
+#TODO use Moose;
+#use namespace::autoclean;
+
 use IO::Socket::INET6;
 use File::Temp;
 use Carp qw(carp croak);
@@ -271,6 +274,10 @@ sub fail {
       or croak("$0: Socket write error acknowledging $self->{state}: $!\n");
     return 1;
 }
+
+#no Moose;
+#__PACKAGE__->meta->make_immutable;
+
 1;
 
 __END__

@@ -1,7 +1,7 @@
 package VBoxAdm::Model::Domain;
 
-use strict;
-use warnings;
+use Moose;
+use namespace::autoclean;
 
 use Carp;
 
@@ -9,22 +9,19 @@ use Sys::Syslog;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
-use base qw(VBoxAdm::Model);
-use Class::Std;
-{
+extends 'VBoxAdm::Model';
 
-    # Attributes
-    my %fields_of : ATTR;
+has 'fields' => (
+	'is'	=> 'ro',
+	'isa'	=> 'ArrayRef[Str]',
+	'default' => [qw(id name is_active)],
+);
 
-    sub BUILD {
-        my ( $self, $ident, $arg_ref ) = @_;
-
-        if ( !$self->user || !$self->user->is_user() ) {
-            return;    # Need user object
-        }
-
-        $fields_of{$ident} = [qw(id name is_active)];
-    }
+has 'user' => (
+	'is'	=> 'ro',
+	'isa' => 'VBoxAdm::Model::User',
+	'required' => 1,
+);
 
     sub create {
         my ( $self, $domain ) = @_;
@@ -205,7 +202,10 @@ use Class::Std;
 
         return $domain_id;
     }
-}
+    
+no Moose;
+__PACKAGE__->meta->make_immutable;
+
 1;
 __END__
 
