@@ -25,7 +25,6 @@ has 'user' => (
 
 sub create {
     my ( $self, $domain ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_siteadmin() ) {
@@ -62,7 +61,6 @@ sub create {
 
 sub delete {
     my ( $self, $domain_id ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_siteadmin() ) {
@@ -85,7 +83,6 @@ sub delete {
 
 sub update {
     my ( $self, $domain_id, $params ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_siteadmin() ) {
@@ -126,7 +123,6 @@ sub update {
 
 sub read {
     my ( $self, $id ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_siteadmin() ) {
@@ -139,7 +135,6 @@ sub read {
 
 sub list {
     my ( $self, $params ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {

@@ -14,7 +14,7 @@ extends 'VBoxAdm::Model';
 has 'fields' => (
     'is'      => 'ro',
     'isa'     => 'ArrayRef[Str]',
-    'default' => [qw(id email last_seen disabled)],
+    'default' => sub { [qw(id email last_seen disabled)] },
 );
 
 has 'user' => (
@@ -25,7 +25,6 @@ has 'user' => (
 
 sub create {
     my ( $self, $email ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -48,7 +47,6 @@ sub create {
 
 sub get_id {
     my ( $self, $email ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -76,7 +74,6 @@ sub get_id {
 
 sub update {
     my ( $self, $entry_id, $params ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -127,7 +124,7 @@ sub read {
         return;
     }
 
-    return $self->_read( 'awl', $id, $fields_of{$ident} );
+    return $self->_read( 'awl', $id, $self->fields() );
 }
 
 sub list {
@@ -140,7 +137,7 @@ sub list {
         return;
     }
 
-    return $self->_list( 'awl', $fields_of{$ident}, $params );
+    return $self->_list( 'awl', $self->fields(), $params );
 }
 
 no Moose;

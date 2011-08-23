@@ -37,93 +37,31 @@ has 'msgq' => (
     'required' => 1,
 );
 
-sub BUILD {
-    my ( $self, $ident, $arg_ref ) = @_;
-
-    $dbh_of{$ident} = undef;
-
-    if ( $arg_ref->{'Model'} && $arg_ref->{'Model'}->isa('VBoxAdm::Model') ) {
-
-        # 'Inherit' from another VBoxAdm::Model class
-        my $ModelClass = $arg_ref->{'Model'};
-        $logger_of{$ident} = $ModelClass->logger();
-        $config_of{$ident} = $ModelClass->config();
-        $user_of{$ident}   = $ModelClass->user();
-        $msgq_of{$ident}   = $ModelClass->msg();
-        $dbh_of{$ident}    = $ModelClass->dbh();
+around BUILDARGS => sub {
+	my $orig = shift;
+	my $class = shift;
+	
+	my $arg_ref = $class->$orig(@_);
+	
+	if($arg_ref->{'Model'} && $arg_ref->{'Model'}->isa('VBoxAdm::Model') ) {
+		# 'Inherit' from another VBoxAdm::Model class
+		my $ModelClass = $arg_ref->{'Model'};
+		$arg_ref->{'logger'} = $ModelClass->logger();
+		$arg_ref->{'config'} = $ModelClass->config();
+		$arg_ref->{'user'}   = $ModelClass->user();
+		$arg_ref->{'msgq'}   = $ModelClass->msgq();
+		$arg_ref->{'dbh'}    = $ModelClass->dbh();
+	} else {
+		if ( !$arg_ref->{'dbh'} || !$arg_ref->{'dbh'}->ping() ) {
+            confess( "Missing DBH handle in VBoxAdm::Model constructor for " . caller(1) . "\n" );
     }
-    else {
+	}
+	
+	return $arg_ref;
+};
 
-        if ( $arg_ref->{'dbh'} && $arg_ref->{'dbh'}->ping() ) {
-            $dbh_of{$ident} = $arg_ref->{'dbh'};
-        }
-        else {
-            die( "Missing DBH handle in VBoxAdm::Model constructor for " . caller(1) . "\n" );
-        }
-
-        # Setup Logger
-        $logger_of{$ident} = $arg_ref->{'Logger'} if $arg_ref->{'Logger'};
-
-        # Set config
-        $config_of{$ident} = $arg_ref->{'Config'} if $arg_ref->{'Config'};
-
-        # Set User object
-        $user_of{$ident} = $arg_ref->{'User'} if $arg_ref->{'User'};
-
-        # Set MessageQueue
-        $msgq_of{$ident} = $arg_ref->{'MessageQueue'} if $arg_ref->{'MessageQueue'};
-    }
-}
-
-sub dbh : RESTRICTED {
-    my ($self) = @_;
-    my $ident = ident $self;
-    return $dbh_of{$ident};
-}
-
-sub config : RESTRICTED {
-    my ($self) = @_;
-    my $ident = ident $self;
-    return $config_of{$ident} || {};
-}
-
-sub log : RESTRICTED {
-    my ( $self, $msg ) = @_;
-    my $ident = ident $self;
-    if ( $logger_of{$ident} ) {
-        $logger_of{$ident}->log($msg);
-        return 1;
-    }
-    return;
-}
-
-sub logger {
-    my ($self) = @_;
-    my $ident = ident $self;
-    return $logger_of{$ident};
-}
-
-sub msg {
-    my ($self) = @_;
-    my $ident = ident $self;
-    return $msgq_of{$ident};
-}
-
-sub user : RESTRICTED {
-    my ($self) = @_;
-    my $ident = ident $self;
-    return $user_of{$ident};
-}
-
-sub DEMOLISH {
-    my ($self) = @_;
-
-    # NOP
-}
-
-sub _read : RESTRICTED {
+sub _read {
     my ( $self, $table, $id, $fields ) = @_;
-    my $ident = ident $self;
 
     my $sql = "SELECT " . join( ",", @{$fields} ) . " FROM $table WHERE id = ?";
     my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $id );
@@ -144,7 +82,7 @@ sub _read : RESTRICTED {
     return \%result;
 }
 
-sub _list : RESTRICTED {
+sub _list {
     my ( $self, $table, $fields, $param ) = @_;
     my $ident = ident $self;
 
@@ -202,9 +140,11 @@ sub _list : RESTRICTED {
 
     return @entries;
 }
-}
 
 no Moose;
 __PACKAGE__->meta->make_immutable;
 
 1;
+
+__END__
+
