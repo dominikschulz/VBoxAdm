@@ -10,21 +10,10 @@ use VBoxAdm::Utils '@VERSION@';
 
 extends 'VBoxAdm::Model';
 
-has 'fields' => (
-    'is'      => 'ro',
-    'isa'     => 'ArrayRef[Str]',
-    'default' => [qw(on_vacation notified notified_at)],
-);
-
-has 'user' => (
-    'is'       => 'ro',
-    'isa'      => 'VBoxAdm::Model::User',
-    'required' => 1,
-);
+sub _init_fields { return [qw(on_vacation notified notified_at)]; }
 
 sub create {
     my ( $self, $email ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -37,7 +26,6 @@ sub create {
 
 sub update {
     my ( $self, $entry_id, $params ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -50,7 +38,6 @@ sub update {
 
 sub delete {
     my ( $self, $entry_id, $params ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -63,7 +50,6 @@ sub delete {
 
 sub list {
     my ( $self, $params ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_siteadmin() ) {
@@ -71,7 +57,7 @@ sub list {
         return;
     }
 
-    return $self->_list( 'vacation_notify', $fields_of{$ident}, $params );
+    return $self->_list( 'vacation_notify', $params );
 }
 
 no Moose;

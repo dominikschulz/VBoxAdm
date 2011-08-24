@@ -8,21 +8,12 @@ use Encode;
 
 extends 'VBoxAdm::Model';
 
-has 'fields' => (
-    'is'      => 'ro',
-    'isa'     => 'ArrayRef[Str]',
-    'default' => [qw(id name domain_id is_active)],
-);
-
-has 'user' => (
-    'is'       => 'ro',
-    'isa'      => 'VBoxAdm::Model::User',
-    'required' => 1,
-);
+sub _init_fields {
+	return [qw(id name domain_id is_active)];
+}
 
 sub create {
     my ( $self, $domain, $domain_id ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_siteadmin() ) {
@@ -70,7 +61,6 @@ sub create {
 
 sub delete {
     my ( $self, $domain_alias_id ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_siteadmin() ) {
@@ -109,7 +99,6 @@ sub delete {
 
 sub update {
     my ( $self, $domain_alias_id, $params ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_siteadmin() ) {
@@ -176,7 +165,6 @@ sub update {
 
 sub read {
     my ( $self, $id ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -184,12 +172,11 @@ sub read {
         return;
     }
 
-    return $self->_read( 'domain_aliases', $id, $fields_of{$ident} );
+    return $self->_read( 'domain_aliases', $id, );
 }
 
 sub list {
     my ( $self, $params ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -232,7 +219,6 @@ sub list {
 
 sub get_name {
     my ( $self, $id ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -256,7 +242,6 @@ sub get_name {
 
 sub get_id {
     my ( $self, $name ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {

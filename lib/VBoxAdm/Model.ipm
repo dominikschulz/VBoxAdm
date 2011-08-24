@@ -37,6 +37,17 @@ has 'msgq' => (
     'required' => 1,
 );
 
+has 'fields' => (
+    'is'      => 'ro',
+    'isa'     => 'ArrayRef[Str]',
+    'lazy'		=> 1,
+    'builder' => '_init_fields',
+);
+
+sub _init_fields {
+	return [qw(none)];
+}
+
 around BUILDARGS => sub {
 	my $orig = shift;
 	my $class = shift;
@@ -61,9 +72,9 @@ around BUILDARGS => sub {
 };
 
 sub _read {
-    my ( $self, $table, $id, $fields ) = @_;
+    my ( $self, $table, $id ) = @_;
 
-    my $sql = "SELECT " . join( ",", @{$fields} ) . " FROM $table WHERE id = ?";
+    my $sql = "SELECT " . join( ",", @{$self->fields()} ) . " FROM $table WHERE id = ?";
     my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $id );
 
     if ( !$sth ) {
@@ -72,7 +83,7 @@ sub _read {
     }
 
     my %result;
-    @result{ @{$fields} } = $sth->fetchrow_array();
+    @result{ @{$self->fields()} } = $sth->fetchrow_array();
     $sth->finish();
 
     foreach my $key ( keys %result ) {
@@ -83,10 +94,9 @@ sub _read {
 }
 
 sub _list {
-    my ( $self, $table, $fields, $param ) = @_;
-    my $ident = ident $self;
+    my ( $self, $table, $param ) = @_;
 
-    my $sql = 'SELECT ' . join( ',', @{$fields} ) . ' FROM `' . $table . '` WHERE 1';
+    my $sql = 'SELECT ' . join( ',', @{$self->fields()} ) . ' FROM `' . $table . '` WHERE 1';
     my @args = ();
     if ( $param->{'Search'} ) {
         $sql .= " AND (";
@@ -94,7 +104,7 @@ sub _list {
         $term =~ s/[*%]+//g;
         $term = '%' . $term . '%';
         my $first = 1;
-        foreach my $field ( @{$fields} ) {
+        foreach my $field ( @{$self->fields()} ) {
             $sql .= " OR" unless $first;
             $first = 0;
             $sql .= ' ' . $field . ' LIKE ?';
@@ -102,7 +112,7 @@ sub _list {
         }
         $sql .= ")";
     }
-    foreach my $field ( @{$fields} ) {
+    foreach my $field ( @{$self->fields()} ) {
         if ( $param->{$field} ) {
             $sql .= ' AND `' . $field . '` = ?';
             push( @args, $param->{$field} );
@@ -110,7 +120,7 @@ sub _list {
     }
 
     # grep { $_ eq $var } @fields is equiv. to in_array(@array,$subject)
-    if ( $param->{'Order'} && grep { $_ eq $param->{'Order'} } @{$fields} ) {
+    if ( $param->{'Order'} && grep { $_ eq $param->{'Order'} } @{$self->fields()} ) {
         $sql .= ' ORDER BY ' . $param->{'Order'};
     }
 
@@ -130,7 +140,7 @@ sub _list {
 
     while ( my @row = $sth->fetchrow_array() ) {
         my %h;
-        @h{ @{$fields} } = @row;
+        @h{ @{$self->fields()} } = @row;
         foreach my $field ( keys %h ) {
             $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8( $h{$field} );
         }

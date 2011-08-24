@@ -45,7 +45,6 @@ sub add {
 # add entry to notify
 sub push {
     my ( $self, $severity, $msg, @args ) = @_;
-    my $ident = ident $self;
 
     my $msg_ref = {
         'severity' => $severity,
@@ -56,18 +55,18 @@ sub push {
     };
 
     # Session
-    if ( $session_of{$ident} ) {
-        my $notify_ref = $session_of{$ident}->param('notify') || [];
+    if ( $self->session() ) {
+        my $notify_ref = $self->session()->param('notify') || [];
         if ( ref($notify_ref) ne 'ARRAY' ) {
             $notify_ref = [];
         }
         push( @{$notify_ref}, $msg_ref );
-        $session_of{$ident}->param( 'notify', $notify_ref );
+        $self->session()->param( 'notify', $notify_ref );
     }
     else {
 
         # No Session (CLI, API, ...)
-        push( @{ $msgs_of{$ident} }, $msg_ref );
+        push( @{ $self->messages() }, $msg_ref );
     }
 
     # Done
@@ -84,17 +83,17 @@ sub push {
 # get and reset notify
 sub pop {
     my ($self) = @_;
-    my $ident  = ident $self;
+
     my @msgs   = ();
-    if ( $session_of{$ident} ) {
-        if ( !$session_of{$ident}->is_empty() && $session_of{$ident}->param('notify') && ref( $session_of{$ident}->param('notify') ) eq 'ARRAY' ) {
-            @msgs = @{ $session_of{$ident}->param('notify') };
-            $session_of{$ident}->param( 'notify', [] );
+    if ( $self->session() ) {
+        if ( !$self->session()->is_empty() && $self->session()->param('notify') && ref( $self->session()->param('notify') ) eq 'ARRAY' ) {
+            @msgs = @{ $self->session()->param('notify') };
+            $self->session()->param( 'notify', [] );
         }
     }
     else {
-        @msgs = @{ $msgs_of{$ident} } if ref( $msgs_of{$ident} ) eq 'ARRAY';
-        @{ $msgs_of{$ident} } = ();
+        @msgs = @{ $self->messages() } if ref( $self->messages() ) eq 'ARRAY';
+        @{ $self->messages() } = ();
     }
     return @msgs;
 }
@@ -114,33 +113,33 @@ sub get {
 # See Also   : n/a
 sub peek {
     my ($self) = @_;
-    my $ident  = ident $self;
+
     my @msgs   = ();
-    if ( $session_of{$ident} ) {
-        if ( !$session_of{$ident}->is_empty() && $session_of{$ident}->param('notify') && ref( $session_of{$ident}->param('notify') ) eq 'ARRAY' ) {
-            @msgs = @{ $session_of{$ident}->param('notify') };
+    if ( $self->session() ) {
+        if ( !$self->session()->is_empty() && $self->session()->param('notify') && ref( $self->session()->param('notify') ) eq 'ARRAY' ) {
+            @msgs = @{ $self->session()->param('notify') };
         }
     }
     else {
-        @msgs = @{ $msgs_of{$ident} } if ref( $msgs_of{$ident} ) eq 'ARRAY';
+        @msgs = @{ $self->messages() } if ref( $self->messages() ) eq 'ARRAY';
     }
     return @msgs;
 }
 
 sub maketext {
     my ( $self, $msg, @args ) = @_;
-    my $ident = ident $self;
-    if ( $lh_of{$ident} ) {
-        return $lh_of{$ident}->maketext( $msg, @args );
+
+    if ( $self->lh() ) {
+        return $self->lh()->maketext( $msg, @args );
     }
     return;
 }
 
 sub maketext_en {
     my ( $self, $msg, @args ) = @_;
-    my $ident = ident $self;
-    if ( $lh_en_of{$ident} ) {
-        return $lh_en_of{$ident}->maketext( $msg, @args );
+
+    if ( $self->lh_en() ) {
+        return $self->lh_en()->maketext( $msg, @args );
     }
     return;
 }

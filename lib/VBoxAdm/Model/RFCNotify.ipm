@@ -11,21 +11,13 @@ use VBoxAdm::Utils '@VERSION@';
 
 extends 'VBoxAdm::Model';
 
-has 'fields' => (
-    'is'      => 'ro',
-    'isa'     => 'ArrayRef[Str]',
-    'default' => [qw(id email ts)],
-);
+sub _init_fields {
+	return [qw(id email ts)];
+}
 
-has 'user' => (
-    'is'       => 'ro',
-    'isa'      => 'VBoxAdm::Model::User',
-    'required' => 1,
-);
 
 sub create {
     my ( $self, $email ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -38,7 +30,6 @@ sub create {
 
 sub get_id {
     my ( $self, $email ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -66,7 +57,6 @@ sub get_id {
 
 sub update {
     my ( $self, $entry_id, $params ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -79,7 +69,6 @@ sub update {
 
 sub delete {
     my ( $self, $entry_id, $params ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -92,7 +81,6 @@ sub delete {
 
 sub read {
     my ( $self, $id ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -100,12 +88,11 @@ sub read {
         return;
     }
 
-    return $self->_read( 'rfc_notify', $id, $fields_of{$ident} );
+    return $self->_read( 'rfc_notify', $id, );
 }
 
 sub list {
     my ( $self, $params ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -113,7 +100,7 @@ sub list {
         return;
     }
 
-    return $self->_list( 'rfc_notify', $fields_of{$ident}, $params );
+    return $self->_list( 'rfc_notify', $params );
 }
 
 no Moose;

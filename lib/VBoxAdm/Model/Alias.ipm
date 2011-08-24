@@ -11,12 +11,6 @@ use VBoxAdm::Utils '@VERSION@';
 
 extends 'VBoxAdm::Model';
 
-has 'user' => (
-    'is'       => 'ro',
-    'isa'      => 'VBoxAdm::Model::User',
-    'required' => 1,
-);
-
 sub get_id {
     my ( $self, $email ) = @_;
 
@@ -109,7 +103,6 @@ sub create {
 
 sub delete {
     my ( $self, $alias_id ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -156,7 +149,6 @@ sub delete {
 
 sub update {
     my ( $self, $alias_id, $params ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -241,7 +233,6 @@ sub update {
 
 sub read {
     my ( $self, $id ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -274,7 +265,6 @@ sub read {
 
 sub list {
     my ( $self, $params ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {

@@ -55,38 +55,59 @@ has 'force' => (
     'default' => 0,
 );
 
+has 'system_user' => (
+	'is'	=> 'ro',
+	'isa'	=> 'Bool',
+	'default' => 0,
+);
+
+has 'password' => (
+	'is'	=> 'rw',
+	'isa' => 'Str',
+);
+
+around BUILDARGS => sub {
+	my $orig = shift;
+	my $class = shift;
+	
+	my $arg_ref = $class->$orig(@_);
+	
+	# SystemUser is used (only) for bootstrap where no users does exist, yet.
+    if ( $arg_ref->{'SystemUser'} ) {
+        $arg_ref->{'domainadmin'} = 1;
+        $arg_ref->{'siteadmin'}   = 1;
+        $arg_ref->{'local_part'}  = 'root';
+        $arg_ref->{'domain'}      = 'localhost';
+        $arg_ref->{'id'}          = 0;
+        $arg_ref->{'domain_id'}   = 0;
+        $arg_ref->{'system_user'} = 1;
+    } elsif($arg_ref->{'username'} && &VBoxAdm::Utils::is_valid_address_rfc822($arg_ref->{'username'})) {
+    	my ( $local_part, $domain ) = split /@/, $arg_ref->{'username'};
+    	$arg_ref->{'local_part'} = $local_part;
+    	$arg_ref->{'domain'} = $domain;
+    }
+    
+    return $arg_ref;
+};
+
 sub BUILD {
     my $self = shift;
 
-    # SystemUser is used (only) for bootstrap where no users does exist, yet.
-    if ( $arg_ref->{'SystemUser'} ) {
-        $data_of{$ident}{'domainadmin'} = 1;
-        $data_of{$ident}{'siteadmin'}   = 1;
-        $data_of{$ident}{'local_part'}  = 'root';
-        $data_of{$ident}{'domain'}      = 'localhost';
-        $data_of{$ident}{'id'}          = 0;
-        $data_of{$ident}{'domain_id'}   = 0;
-    }
-
     # ForceLogin is used when we know that a login is ok, but we don't have the (plaintext) password
-    elsif ( !$self->_check_login( $arg_ref->{'Username'}, $arg_ref->{'Password'}, $arg_ref->{'ForceLogin'} ) ) {
-        confess("Need valid username and password.");
+    if ( !$self->_check_login() ) {
+        confess("Need valid username and password!");
     }
+    
+    return 1;
 }
 
 sub _check_login {
-    my ( $self, $username, $password, $force ) = @_;
-    my $ident = ident $self;
+    my $self = shift;
 
     # check if login works
-    if ( !&VBoxAdm::Utils::is_valid_address_rfc822($username) ) {
-        print "Invalid email address given.\n" unless $self->config->{'quiet'};
-        return;
-    }
-    my ( $local_part, $domain ) = split /@/, $username;
     my $sql =
 "SELECT m.id,m.password,m.is_domainadmin,m.is_siteadmin,d.id FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $local_part, $domain );
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $self->local_part(), $self->domain() );
 
     if ( !$sth ) {
         $self->msg->push( 'error', 'Database error.' );
@@ -95,64 +116,64 @@ sub _check_login {
 
     my ( $id, $pw, $is_da, $is_sa, $domain_id ) = $sth->fetchrow_array();
     $sth->finish();
-    if ( !$force && !&VBoxAdm::SaltedHash::verify_pass( $password, $pw ) ) {
+    if ( !$self->force && !&VBoxAdm::SaltedHash::verify_pass( $self->password(), $pw ) ) {
         print "Password invalid!\n" unless $self->config->{'quiet'};
         return;
     }
-    $data_of{$ident}{'domainadmin'} = $is_da;
-    $data_of{$ident}{'siteadmin'}   = $is_sa;
-    $data_of{$ident}{'local_part'}  = $local_part;
-    $data_of{$ident}{'domain'}      = $domain;
-    $data_of{$ident}{'id'}          = $id;
-    $data_of{$ident}{'domain_id'}   = $domain_id;
+    $self->domainadmin($is_da);
+    $self->siteadmin($is_sa);
+    $self->id($id);
+    $self->domain_id($domain_id);
+    
+    return 1;
 }
 
 sub get_name {
     my ($self) = @_;
-    my $ident = ident $self;
-    return $data_of{$ident}{'local_part'} . '@' . $data_of{$ident}{'domain'};
+
+    return $self->local_part() . '@' . $self->domain();
 }
 
 sub get_local_part {
     my ($self) = @_;
-    my $ident = ident $self;
-    return $data_of{$ident}{'local_part'};
+
+    return $self->local_part();
 }
 
 sub get_domain {
     my ($self) = @_;
-    my $ident = ident $self;
-    return $data_of{$ident}{'domain'};
+
+    return $self->domain();
 }
 
 sub get_domain_id {
     my ($self) = @_;
-    my $ident = ident $self;
-    return $data_of{$ident}{'domain_id'};
+
+    return $self->domain_id();
 }
 
 sub get_id {
     my ($self) = @_;
-    my $ident = ident $self;
-    return $data_of{$ident}{'id'};
+
+    return $self->id();
 }
 
 sub is_domainadmin {
     my ($self) = @_;
-    my $ident = ident $self;
-    return $data_of{$ident}{'domainadmin'};
+
+    return $self->domainadmin();
 }
 
 sub is_siteadmin {
     my ($self) = @_;
-    my $ident = ident $self;
-    return $data_of{$ident}{'siteadmin'};
+
+    return $self->siteadmin();
 }
 
 sub is_admin {
     my ($self) = @_;
-    my $ident = ident $self;
-    return $data_of{$ident}{'domainadmin'} + $data_of{$ident}{'siteadmin'};
+
+    return $self->domainadmin() + $self->siteadmin();
 }
 
 sub is_user {

@@ -11,17 +11,9 @@ use VBoxAdm::Utils '@VERSION@';
 
 extends 'VBoxAdm::Model';
 
-has 'fields' => (
-    'is'      => 'ro',
-    'isa'     => 'ArrayRef[Str]',
-    'default' => [qw(id name is_active)],
-);
-
-has 'user' => (
-    'is'       => 'ro',
-    'isa'      => 'VBoxAdm::Model::User',
-    'required' => 1,
-);
+sub _init_fields {
+	return [qw(id name is_active)];
+}
 
 sub create {
     my ( $self, $domain ) = @_;
@@ -130,7 +122,7 @@ sub read {
         return;
     }
 
-    return $self->_read( 'domains', $id, $fields_of{$ident} );
+    return $self->_read( 'domains', $id, );
 }
 
 sub list {
@@ -147,12 +139,11 @@ sub list {
         $params->{'id'} = $self->user->get_domain_id();
     }
 
-    return $self->_list( 'domains', $fields_of{$ident}, $params );
+    return $self->_list( 'domains', $params );
 }
 
 sub get_name {
     my ( $self, $id ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -176,7 +167,6 @@ sub get_name {
 
 sub get_id {
     my ( $self, $name ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {

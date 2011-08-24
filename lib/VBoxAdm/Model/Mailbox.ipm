@@ -12,27 +12,19 @@ use VBoxAdm::Password '@VERSION@';
 
 extends 'VBoxAdm::Model';
 
-has 'fields' => (
-    'is'      => 'ro',
-    'isa'     => 'ArrayRef[Str]',
-    'default' => [
+sub _init_fields { 
+	return [
         qw(
           id domain_id local_part password pw_ts pw_lock name is_active max_msg_size
           is_on_vacation vacation_subj vacation_msg vacation_start vacation_end
           quota is_domainadmin is_siteadmin sa_active sa_kill_score
           )
-    ],
-);
+    ];
+}
 
-has 'user' => (
-    'is'       => 'ro',
-    'isa'      => 'VBoxAdm::Model::User',
-    'required' => 1,
-);
 
 sub create {
     my ( $self, $local_part, $domain_id, $params ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -185,7 +177,6 @@ sub create {
 
 sub delete {
     my ( $self, $mailbox_id ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -222,7 +213,6 @@ sub delete {
 
 sub update {
     my ( $self, $mailbox_id, $params ) = @_;
-    my $ident = ident $self;
 
     use Data::Dumper;
     $self->log( "Mailbox::update - Params: " . Dumper($params) );
@@ -467,9 +457,8 @@ sub update {
 
 sub read {
     my ( $self, $mailbox_id ) = @_;
-    my $ident = ident $self;
 
-    my $sql = "SELECT " . join( ",", @{ $fields_of{$ident} } ) . " FROM mailboxes WHERE id = ?";
+    my $sql = "SELECT " . join( ",", @{ $self->fields() } ) . " FROM mailboxes WHERE id = ?";
     my @args = ($mailbox_id);
 
     if ( !$self->user->is_siteadmin() ) {
@@ -489,7 +478,7 @@ sub read {
     }
 
     my %result;
-    @result{ @{ $fields_of{$ident} } } = $sth->fetchrow_array();
+    @result{ @{ $self->fields() } } = $sth->fetchrow_array();
     $sth->finish();
 
     # get domain_name
@@ -526,7 +515,7 @@ sub list {
         return;
     }
 
-    my @fields = @{ $fields_of{$ident} };
+    my @fields = @{ $self->fields() };
     my $sql    = "SELECT m." . join( ",m.", @fields ) . ",d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE 1";
     my @args   = ();
     if ( $param->{'Search'} ) {
@@ -582,7 +571,6 @@ sub list {
 
 sub get_email {
     my ( $self, $id ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -606,7 +594,6 @@ sub get_email {
 
 sub get_id {
     my ( $self, $email ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {

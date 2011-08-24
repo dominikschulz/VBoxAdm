@@ -355,9 +355,9 @@ sub setup {
     # setup classes if the user is logged in
     if($self->authen->is_authenticated && $self->authen->username) {
 	    my $Messages = VBoxAdm::Model::MessageQueue->new({
-	    	'LH' => $self->{'lh'},
-	    	'LH_EN' => $self->{'lh_en'},
-	    	'Session' => $self->session,
+	    	'lh' => $self->{'lh'},
+	    	'lh_en' => $self->{'lh_en'},
+	    	'session' => $self->session,
 	    });
 	    
 	    # if we can not create a new user object we MUST NOT die but redirect to login page instead
@@ -365,11 +365,11 @@ sub setup {
 			eval {
 				$User = VBoxAdm::Model::User->new({
 		    	'dbh' 			=> $self->dbh,
-		    	'Username' 	=> $self->authen->username,
-		    	'ForceLogin' => 1,
-		    	'MessageQueue' => $Messages,
-		    	'Logger' 		=> $Logger,
-		    	'Config' 		=> $self->{'config'},
+		    	'username' 	=> $self->authen->username,
+		    	'force' => 1,
+		    	'msgq' => $Messages,
+		    	'logger' 		=> $Logger,
+		    	'config' 		=> $self->{'config'},
 		    });
 			};
 			if($@ || !$User) {

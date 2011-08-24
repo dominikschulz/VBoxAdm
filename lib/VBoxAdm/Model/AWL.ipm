@@ -11,17 +11,9 @@ use VBoxAdm::Utils '@VERSION@';
 
 extends 'VBoxAdm::Model';
 
-has 'fields' => (
-    'is'      => 'ro',
-    'isa'     => 'ArrayRef[Str]',
-    'default' => sub { [qw(id email last_seen disabled)] },
-);
-
-has 'user' => (
-    'is'       => 'ro',
-    'isa'      => 'VBoxAdm::Model::User',
-    'required' => 1,
-);
+sub _init_fields {
+	return [qw(id email last_seen disabled)];
+}
 
 sub create {
     my ( $self, $email ) = @_;

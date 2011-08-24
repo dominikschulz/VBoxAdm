@@ -11,21 +11,10 @@ use VBoxAdm::Utils '@VERSION@';
 
 extends 'VBoxAdm::Model';
 
-has 'fields' => (
-    'is'      => 'ro',
-    'isa'     => 'ArrayRef[Str]',
-    'default' => [qw(id name local_part domain ts)],
-);
-
-has 'user' => (
-    'is'       => 'ro',
-    'isa'      => 'VBoxAdm::Model::User',
-    'required' => 1,
-);
+sub _init_fields { return [qw(id name local_part domain ts)]; }
 
 sub create {
     my ( $self, $role, $goto ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_siteadmin() ) {
@@ -64,7 +53,6 @@ sub create {
 
 sub get_id {
     my ( $self, $role ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_siteadmin() ) {
@@ -88,7 +76,6 @@ sub get_id {
 
 sub update {
     my ( $self, $entry_id, $params ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_siteadmin() ) {
@@ -126,7 +113,6 @@ sub update {
 
 sub delete {
     my ( $self, $entry_id ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_siteadmin() ) {
@@ -152,7 +138,6 @@ sub delete {
 
 sub read {
     my ( $self, $id ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_siteadmin() ) {
@@ -160,12 +145,11 @@ sub read {
         return;
     }
 
-    return $self->_read( 'role_accounts', $id, $fields_of{$ident} );
+    return $self->_read( 'role_accounts', $id, );
 }
 
 sub list {
     my ( $self, $params ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_siteadmin() ) {
@@ -173,7 +157,7 @@ sub list {
         return;
     }
 
-    return $self->_list( 'role_accounts', $fields_of{$ident}, $params );
+    return $self->_list( 'role_accounts', $params );
 }
 
 no Moose;
