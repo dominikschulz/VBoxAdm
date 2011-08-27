@@ -120,8 +120,8 @@ else {
 #
 my $Messages = VBoxAdm::Model::MessageQueue->new(
     {
-        'LH'    => VBoxAdm::L10N->get_handle(),
-        'LH_EN' => VBoxAdm::L10N->get_handle('en'),
+        'lh'    => VBoxAdm::L10N->get_handle(),
+        'lh_en' => VBoxAdm::L10N->get_handle('en'),
     }
 );
 
@@ -129,7 +129,7 @@ my $Messages = VBoxAdm::Model::MessageQueue->new(
 # Authentication
 #
 # if user != root -> need to login as domainadmin
-my $User = &check_login( $dbh, \%config, $opts );
+my $User = &check_login( $dbh, \%config, $Messages, $opts );
 if ( !$User ) {
     print "Not authorized. Aborting.\n";
     exit 1;
@@ -584,12 +584,14 @@ sub migrate {
 sub check_login {
     my $dbh    = shift;
     my $config = shift;
+    my $Messages = shift;
     my $opts   = shift || {};
 
     if ( $opts->{'Bootstrap'} && $EUID == 0 ) {
         my $User = VBoxAdm::Model::User->new(
             {
                 'dbh'        => $dbh,
+                'msgq'			=> $Messages,
                 'SystemUser' => 1,
             }
         );

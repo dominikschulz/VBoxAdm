@@ -11,12 +11,6 @@ use VBoxAdm::SaltedHash '@VERSION@';
 
 extends 'VBoxAdm::Model';
 
-has 'dbh' => (
-    'is'       => 'ro',
-    'isa'      => 'Object',
-    'required' => 1,
-);
-
 has 'domainadmin' => (
     'is'      => 'ro',
     'isa'     => 'Bool',
@@ -120,10 +114,10 @@ sub _check_login {
         print "Password invalid!\n" unless $self->config->{'quiet'};
         return;
     }
-    $self->domainadmin($is_da);
-    $self->siteadmin($is_sa);
-    $self->id($id);
-    $self->domain_id($domain_id);
+    $self->{'domainadmin'} = $is_da;
+    $self->{'siteadmin'} = $is_sa;
+    $self->{'id'} = $id;
+    $self->{'domain_id'} = $domain_id;
     
     return 1;
 }

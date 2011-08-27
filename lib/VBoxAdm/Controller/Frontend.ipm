@@ -30,6 +30,7 @@ use CGI::Application::Plugin::Authentication;
 use Config::Std;
 use DBI;
 use Readonly;
+use Try::Tiny;
 
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
@@ -65,7 +66,7 @@ sub setup {
     my $self = shift;
     
     my $Logger = VBoxAdm::Logger->new({
-	    	'Facility'	=> 'Frontend',
+	    	'facility'	=> 'VBoxAdm/Frontend',
 	    });
 	  $self->{'logger'} = $Logger;
 
@@ -380,10 +381,10 @@ sub setup {
 		    $self->{'User'} = $User;
 		    my $arg_ref = {
 				    'dbh'          => $self->dbh,
-				    'User' 		   	 => $User,
-				    'MessageQueue' => $Messages,
-				    'Logger'       => $Logger,
-				    'Config'       => $self->{'config'},
+				    'user' 		   	 => $User,
+				    'msgq' => $Messages,
+				    'logger'       => $Logger,
+				    'config'       => $self->{'config'},
 				};
 				$self->{'Alias'}             = VBoxAdm::Model::Alias->new($arg_ref);
 				$self->{'AWL'}               = VBoxAdm::Model::AWL->new($arg_ref);
@@ -1435,7 +1436,7 @@ sub show_remove_mailbox {
 sub show_edit_mailbox {
     my $self = shift;
 
-    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
+    if ( !$self->user->is_admin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
         $self->add_message( $self->{lh}->maketext($msg) );
@@ -1451,7 +1452,7 @@ sub show_edit_mailbox {
 
     my $mailbox_id = $q->param('mailbox_id');    
     my $mailbox_ref = $self->{'Mailbox'}->read($mailbox_id);
-	my $domain_id = $mailbox_ref->{'domain_id'};
+		my $domain_id = $mailbox_ref->{'domain_id'};
 
     # show aliases pointing to this mbox, don't forget domain aliases!
     # show cc (aliases w/ the same name as this mailbox)
@@ -1459,7 +1460,7 @@ sub show_edit_mailbox {
     my @args  = ();
     push( @args, $mailbox_id );
     push( @args, $domain_id );
-    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         $query .= "AND domain_id = ?";
         push( @args, $self->user->get_domain_id() );
     }
@@ -1469,15 +1470,15 @@ sub show_edit_mailbox {
     $sth->finish();
 
 	my %params = (
-	  'title'              => $self->{lh}->maketext('Edit Mailbox'),
+	  'title'              	=> $self->{lh}->maketext('Edit Mailbox'),
       'mailbox_id'         => $mailbox_id,
       'user_is_siteadmin' => $self->user->is_siteadmin(),
-      'current' 		   => 'mailboxes',
+      'current' 		   		=> 'mailboxes',
       'cc_goto'            => $cc_goto,
       'cc_id'              => $cc_id,
       'mb_is_domainadmin'  => $mailbox_ref->{'is_domainadmin'},
       'mb_is_siteadmin'   => $mailbox_ref->{'is_siteadmin'},
-      'pw_lock'			   => $mailbox_ref->{'pw_lock'},
+      'pw_lock'			   		=> $mailbox_ref->{'pw_lock'},
 	);
 	foreach my $key (keys %{$mailbox_ref}) {
 		$params{$key} = $mailbox_ref->{$key};

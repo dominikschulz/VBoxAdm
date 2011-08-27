@@ -108,7 +108,6 @@ sub delete {
 
 sub read {
     my ( $self, $id ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -116,12 +115,11 @@ sub read {
         return;
     }
 
-    return $self->_read( 'awl', $id, $self->fields() );
+    return $self->_read( 'awl', $id );
 }
 
 sub list {
     my ( $self, $params ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -129,7 +127,7 @@ sub list {
         return;
     }
 
-    return $self->_list( 'awl', $self->fields(), $params );
+    return $self->_list( 'awl', $params );
 }
 
 no Moose;

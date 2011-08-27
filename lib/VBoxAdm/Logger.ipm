@@ -1,28 +1,24 @@
 package VBoxAdm::Logger;
 
+use Moose;
+use namespace::autoclean;
 use Sys::Syslog;
 
-use Class::Std;
-{
-
-    # Attributes
-    # none
+has 'facility' => (
+	'is'	=> 'ro',
+	'isa'	=> 'Str',
+	'default' => 'VBoxAdm',
+);
 
     sub BUILD {
-        my ( $self, $ident, $arg_ref ) = @_;
+        my $self = shift;
 
-        my $facility = 'VBoxAdm/Logger';
-        if ( $arg_ref->{'Facility'} ) {
-            $facility = 'VBoxAdm/' . $arg_ref->{'Facility'};
-        }
-
-        openlog( $facility, 'ndelay,nofatal', 'mail' );
+        openlog( $self->facility, 'ndelay,nofatal', 'mail' );
 
     }
 
     sub log {
         my $self  = shift;
-        my $ident = ident $self;
         my $tpl   = shift;
 
         my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime();
@@ -37,5 +33,11 @@ use Class::Std;
         # Close log
         closelog();
     }
-}
+
+no Moose;
+__PACKAGE__->meta->make_immutable;
+
 1;
+
+__END__
+

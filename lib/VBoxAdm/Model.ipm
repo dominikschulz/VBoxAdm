@@ -98,7 +98,7 @@ sub _list {
 
     my $sql = 'SELECT ' . join( ',', @{$self->fields()} ) . ' FROM `' . $table . '` WHERE 1';
     my @args = ();
-    if ( $param->{'Search'} ) {
+    if ( $param && ref($param) eq 'HASH' && $param->{'Search'} ) {
         $sql .= " AND (";
         my $term = $param->{'Search'};
         $term =~ s/[*%]+//g;
@@ -149,6 +149,16 @@ sub _list {
     $sth->finish();
 
     return @entries;
+}
+
+sub msg {
+	my $self = shift;
+	return $self->msgq();
+}
+
+sub log {
+	my $self = shift;
+	return $self->logger()->log(@_);
 }
 
 no Moose;

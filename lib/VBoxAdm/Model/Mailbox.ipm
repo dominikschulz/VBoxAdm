@@ -214,9 +214,6 @@ sub delete {
 sub update {
     my ( $self, $mailbox_id, $params ) = @_;
 
-    use Data::Dumper;
-    $self->log( "Mailbox::update - Params: " . Dumper($params) );
-
     # Authorization - Regular Users may access this method!
 
     if ( !$mailbox_id || $mailbox_id !~ m/^\d+$/ ) {
@@ -301,7 +298,7 @@ sub update {
     #
     if ( defined( $params->{'MaxMsgSize'} ) && $params->{'MaxMsgSize'} =~ m/^\d+$/ ) {
         $query .= "max_msg_size = ?, ";
-        push( @args, $params->{'MaxMsgSize'} * 1024 );
+        push( @args, $params->{'MaxMsgSize'} * 1024 * 1024 );
     }
 
     #
@@ -325,9 +322,10 @@ sub update {
     }
 
     # Quota
-    if ( defined( $params->{'Quota'} ) && $params->{'Quota'} =~ m/^\d+$/ ) {
+    if ( defined( $params->{'Quota'} ) && $params->{'Quota'} =~ m/^(\d+)/ ) {
+    		my $quota = $1;
         $query .= "quota = ?, ";
-        push( @args, $params->{'Quota'} * 1024 * 1024 );
+        push( @args, $quota * 1024 * 1024 );
     }
 
     #
@@ -507,7 +505,6 @@ sub read {
 
 sub list {
     my ( $self, $param ) = @_;
-    my $ident = ident $self;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
