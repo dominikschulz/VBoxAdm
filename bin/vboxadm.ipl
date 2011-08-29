@@ -166,6 +166,7 @@ Available subcommands:
 \tdomainalias - Manage alias domains
 \tmailbox - Manage users and mailboxes
 \tvacbl - Manage Vacation Blacklist
+\tmigrate - Migrate Debmin1, Debmin2, Vexim or Postfix.Admin to VBoxAdm
 
 Options:
 -v - Verbose
@@ -227,6 +228,13 @@ Available subcommands:
 \tadd
 \tdelete
 \tlist",
+	'migrate' => "Migrate Debmin1, Debmin2, Vexim or Postfix.Admin to VBoxAdm
+Available subcommands:
+\tnone
+Available options:
+\t--source - Specify source type, either debmin1, debmin2, vexim or postfixadmin
+\t--source-db - Specify source db.
+",
 );
 my %actions = (
     'alias' => {

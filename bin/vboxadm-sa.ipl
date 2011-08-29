@@ -45,6 +45,7 @@ foreach my $loc (@conffile_locations) {
 }
 
 # Determine options
+# move option mungling to VBoxAdm::SMTP::Proxy
 my $dbhost = $config{'smtpproxy'}{'dbhost'} || $config{'default'}{'dbhost'} || 'localhost';
 my $dbuser = $config{'smtpproxy'}{'dbuser'} || $config{'default'}{'dbuser'} || 'vboxadm';
 my $dbpass = $config{'smtpproxy'}{'dbpass'} || $config{'default'}{'dbpass'} || 'vboxadm';
@@ -129,6 +130,7 @@ my $sa = Mail::SpamAssassin->new(
 # recommended for fork()ing servers.
 $sa->compile_now();
 
+# TODO this kind of subclassing is ... VERY DIRTY. proper subclassing would be way better ....
 # specify hosts and ports
 my $server = bless {
     server => {

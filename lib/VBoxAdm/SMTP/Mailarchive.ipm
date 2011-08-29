@@ -3,6 +3,10 @@ package VBoxAdm::SMTP::Mailarchive;
 use strict;
 use warnings;
 
+# TODO refactor:
+# common code of SMTP::Proxy + SMTP::Mailarchive to SMTP::Proxy
+# the "real" SMTP::Proxy to SMTP::Proxy::SA and the Mailarchive to SMTP::Proxy::MA
+
 # TODO use Moose;
 #use namespace::autoclean;
 

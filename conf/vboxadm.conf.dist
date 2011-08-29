@@ -12,6 +12,11 @@ pwscheme=ssha256
 imap_hostname=mail.domain.tld
 pop3_hostname=mail.domain.tld
 pw_encrypt = 0
+pop3_ssl = 1
+pop3_tls = 1
+imap_ssl = 1
+imap_tls = 1
+smtp_sma = 1
 
 # config for webfrontend
 [cgi]

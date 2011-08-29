@@ -166,6 +166,9 @@ Open the file /etc/dovecot/dovecot-sql.conf and change the password in the conne
 Adjust the uid and gid in the file /etc/dovecot/dovecot.conf to the ones of the user vmail. Set first_valid_uid and first_valid_gid
 to the uid and gid of the user vmail.
 
+Set global readable flag on /etc/dovecot/dovecot.conf. Deliver needs to be able to read this file:
+chmod +r /etc/dovecot/dovecot.conf
+
 * Install VBoxAdm
 -----------------
 To build and install this application use the supplied Makefile:

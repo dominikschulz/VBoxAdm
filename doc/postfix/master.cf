@@ -87,6 +87,7 @@ smtp-proxy unix -       -       n       -       15  	smtp
     -o local_header_rewrite_clients=
     -o smtpd_milters=
     -o non_smtpd_milters=
+    -o smtpd_use_tls=no
 #
 # ====================================================================
 # Interfaces to non-Postfix software. Be sure to examine the manual
