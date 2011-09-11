@@ -12,8 +12,8 @@ use VBoxAdm::Password '@VERSION@';
 
 extends 'VBoxAdm::Model';
 
-sub _init_fields { 
-	return [
+sub _init_fields {
+    return [
         qw(
           id domain_id local_part password pw_ts pw_lock name is_active max_msg_size
           is_on_vacation vacation_subj vacation_msg vacation_start vacation_end
@@ -21,7 +21,6 @@ sub _init_fields {
           )
     ];
 }
-
 
 sub create {
     my ( $self, $local_part, $domain_id, $params ) = @_;
@@ -323,7 +322,7 @@ sub update {
 
     # Quota
     if ( defined( $params->{'Quota'} ) && $params->{'Quota'} =~ m/^(\d+)/ ) {
-    		my $quota = $1;
+        my $quota = $1;
         $query .= "quota = ?, ";
         push( @args, $quota * 1024 * 1024 );
     }

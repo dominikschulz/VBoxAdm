@@ -50,24 +50,24 @@ has 'force' => (
 );
 
 has 'system_user' => (
-	'is'	=> 'ro',
-	'isa'	=> 'Bool',
-	'default' => 0,
+    'is'      => 'ro',
+    'isa'     => 'Bool',
+    'default' => 0,
 );
 
 has 'user' => (
-	'is'	=> 'ro',
-	'isa'	=> 'Bool',
-	'default' => 0,
+    'is'      => 'ro',
+    'isa'     => 'Bool',
+    'default' => 0,
 );
 
 around BUILDARGS => sub {
-	my $orig = shift;
-	my $class = shift;
-	
-	my $arg_ref = $class->$orig(@_);
-	
-	# SystemUser is used (only) for bootstrap where no users does exist, yet.
+    my $orig  = shift;
+    my $class = shift;
+
+    my $arg_ref = $class->$orig(@_);
+
+    # SystemUser is used (only) for bootstrap where no users does exist, yet.
     if ( $arg_ref->{'SystemUser'} ) {
         $arg_ref->{'domainadmin'} = 1;
         $arg_ref->{'siteadmin'}   = 1;
@@ -76,22 +76,24 @@ around BUILDARGS => sub {
         $arg_ref->{'id'}          = 0;
         $arg_ref->{'domain_id'}   = 0;
         $arg_ref->{'system_user'} = 1;
-        $arg_ref->{'user'} = 1;
-    } elsif($arg_ref->{'username'} && &VBoxAdm::Utils::is_valid_address_rfc822($arg_ref->{'username'})) {
-    	my ( $local_part, $domain ) = split /@/, $arg_ref->{'username'};
-    	$arg_ref->{'local_part'} = $local_part;
-    	$arg_ref->{'domain'} = $domain;
+        $arg_ref->{'user'}        = 1;
     }
-    
+    elsif ( $arg_ref->{'username'} && &VBoxAdm::Utils::is_valid_address_rfc822( $arg_ref->{'username'} ) ) {
+        my ( $local_part, $domain ) = split /@/, $arg_ref->{'username'};
+        $arg_ref->{'local_part'} = $local_part;
+        $arg_ref->{'domain'}     = $domain;
+    }
+
     return $arg_ref;
 };
 
 sub login {
-    my $self = shift;
+    my $self     = shift;
     my $password = shift;
 
     # check if login works
-    my $sql = "SELECT m.id,m.password,m.is_domainadmin,m.is_siteadmin,d.id FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
+    my $sql =
+"SELECT m.id,m.password,m.is_domainadmin,m.is_siteadmin,d.id FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
     my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $self->local_part(), $self->domain() );
 
     if ( !$sth ) {
@@ -106,11 +108,11 @@ sub login {
         return;
     }
     $self->{'domainadmin'} = $is_da;
-    $self->{'siteadmin'} = $is_sa;
-    $self->{'id'} = $id;
-    $self->{'domain_id'} = $domain_id;
-    $self->{'user'} = 1;
-    
+    $self->{'siteadmin'}   = $is_sa;
+    $self->{'id'}          = $id;
+    $self->{'domain_id'}   = $domain_id;
+    $self->{'user'}        = 1;
+
     return 1;
 }
 
@@ -165,7 +167,7 @@ sub is_admin {
 sub is_user {
     my ($self) = @_;
 
-    return $self->user();;
+    return $self->user();
 }
 
 no Moose;

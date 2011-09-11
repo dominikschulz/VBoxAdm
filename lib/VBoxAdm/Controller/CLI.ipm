@@ -59,6 +59,83 @@ has 'msgq' => (
 	'builder' => '_init_msgq',
 );
 
+has 'help' => (
+	'is'	=> 'ro',
+	'isa'	=> 'HashRef',
+	'lazy'	=> 1,
+	'builder' => '_init_help',
+);
+
+has 'actions' => (
+	'is'	=> 'ro',
+	'isa'	=> 'HashRef',
+	'lazy' => 1,
+	'builder' => '_init_actions',
+);
+
+has 'domain' => (
+	'is'	=> 'ro',
+	'isa'	=> 'VBoxAdm::Model::Domain',
+	'lazy' => 1,
+	'builder' => '_init_domain',
+);
+
+has 'alias' => (
+	'is'	=> 'ro',
+	'isa'	=> 'VBoxAdm::Model::Alias',
+	'lazy' => 1,
+	'builder' => '_init_alias',
+);
+
+has 'awl' => (
+	'is'	=> 'ro',
+	'isa'	=> 'VBoxAdm::Model::AWL',
+	'lazy' => 1,
+	'builder' => '_init_awl',
+);
+
+has 'domainalias' => (
+	'is'	=> 'ro',
+	'isa'	=> 'VBoxAdm::Model::DomainAlias',
+	'lazy' => 1,
+	'builder' => '_init_domainalias',
+);
+
+has 'mailbox' => (
+	'is'	=> 'ro',
+	'isa'	=> 'VBoxAdm::Model::Mailbox',
+	'lazy' => 1,
+	'builder' => '_init_mailbox',
+);
+
+has 'rfcnotify' => (
+	'is'	=> 'ro',
+	'isa'	=> 'VBoxAdm::Model::RFCNotify',
+	'lazy' => 1,
+	'builder' => '_init_rfcnotify',
+);
+
+has 'roleaccount' => (
+	'is'	=> 'ro',
+	'isa'	=> 'VBoxAdm::Model::RoleAccount',
+	'lazy' => 1,
+	'builder' => '_init_roleaccount',
+);
+
+has 'vacationblacklist' => (
+	'is'	=> 'ro',
+	'isa'	=> 'VBoxAdm::Model::VacationBlacklist',
+	'lazy' => 1,
+	'builder' => '_init_domain',
+);
+
+has 'vacationnotify' => (
+	'is'	=> 'ro',
+	'isa'	=> 'VBoxAdm::Model::VacationNotify',
+	'lazy' => 1,
+	'builder' => '_init_vacationnotify',
+);
+
 sub _init_logger {
 	my $self = shift;
 	
@@ -68,6 +145,21 @@ sub _init_logger {
 sub _init_dbh {
 	my $self = shift;
 	# TODO connect to db
+	
+	# TODO refactor config class
+# Database connection
+#
+my $dsn =
+"DBI:mysql:host=$config{'default'}{'dbhost'};database=$config{'default'}{'dbdb'};port=$config{'default'}{'dbport'};user=$config{'default'}{'dbuser'};password=$config{'default'}{'dbpass'}";
+my $dbh = &VBoxAdm::DB::connect( $dsn, { RaiseError => 0, PrintError => 0, } );
+
+if ( !$dbh ) {
+    print "Could not connect to DB!\n";
+    exit 1;
+}
+else {
+    print "Connected to DB\n" if $config{'verbose'};
+}
 }
 
 sub _init_msgq {
@@ -83,20 +175,411 @@ sub _init_msgq {
 sub run {
 	my $self = shift;
 	
-	$self->_read_options();
+	$self->_read_options(); # TODO fill modes and opts
 	$self->_read_config();
 	
+	my $module = shift @modes;
+	my $action = shift @modes;
+	
+	if ( $module && $module eq 'help' ) {
+	    if ( $action && $help{$action} ) {
+	        print $help{$action} . "\n";
+	    }
+	    else {
+	        print $help{'help'} . "\n";
+	    }
+	}
+	elsif ( $module && $module eq 'migrate' ) {
+	    &migrate( $dbh, \%config, $opts );
+	}
+	elsif ( $module && $action && ref( $actions{$module}{$action} ) eq 'CODE' && ( $action eq 'list' || scalar(@modes) > 0 ) ) {
+	    &{ $actions{$module}{$action} }(@modes);
+	}
+	else {
+	    print "Invalid/Missing module and/or action.\n";
+	    if ( $module && $action && $actions{$module} ) {
+	        print "Did you mean " . get_similar_action( $action, $module, \%actions ) . "?\n";
+	    }
+	    elsif ( $module && !$actions{$module} ) {
+	        print "Did you mean " . get_similar_module( $module, \%actions ) . "?\n";
+	    }
+	}
+}
+
+sub _init_help {
+	my $self = shift;
+	
+	my %help = (
+    'help' => "Invocation: $0 <Module> <Action> <Parameter(s)> <Options>
+VBoxAdm CLI Client, Version @VERSION@
+Enter 'vboxadm help <module>' to get help for a module.
+Available subcommands:
+\talias - Manage Aliases
+\tawl - Manage Auto-Whitelist
+\tdomain - Manage Domains
+\tdomainalias - Manage alias domains
+\tmailbox - Manage users and mailboxes
+\tvacbl - Manage Vacation Blacklist
+\tmigrate - Migrate Debmin1, Debmin2, Vexim or Postfix.Admin to VBoxAdm
+
+Options:
+-v - Verbose
+-d - Dry
+-q - Quiet
+-f - Force
+-n - Name
+-s - Source-DB
+-d - Destination-DB
+--truncate - Truncate Destination before migration
+--config - Location of config file
+-a - Is active?
+-g - Goto/Target
+-p - Password
+-m - Max. Msg. Size in MB
+--siteadmin - Is Siteadmin?
+--domainadmin - Is Domainadmin?
+-k - SA Kill Score
+--saactive - SA active?
+--vacation - Is on vacation?
+--vacsubj - Subject of Vacation reply
+--vacmsg - Message of Vacation reply
+--vacstart - Start of Vacation
+--vacend - End of Vacation
+--forcepass - Allow changing of locked passwords",
+    'alias' => "Alias - Manage Aliases
+Available subcommands:
+\tadd <email> <goto>
+\tdelete <email>
+\tupdate <email> -a 1|0 -g <email>
+\tlist",
+    'awl' => "AWL - Manage Auto-Whitelist
+Available subcommands:
+\tadd <email>
+\tupdate <email> -a 1|0
+\t list
+",
+    'domain' => "Domain - Manage Domains
+Available subcommands:
+\tadd
+\tdelete
+\tupdate
+\tlist
+",
+    'domainalias' => "DomainAlias - Manage alias domains
+Available subcommands:
+\tadd
+\tdelete
+\tupdate
+\tlist",
+    'mailbox' => "Mailbox - Manage users and mailboxes
+Available subcommands:
+\tadd
+\tdelete
+\tupdate
+\tlist",
+    'vacbl' => "Vacation Blacklist - Manage Vacation Blacklist
+Available subcommands:
+\tadd
+\tdelete
+\tlist",
+	'migrate' => "Migrate Debmin1, Debmin2, Vexim or Postfix.Admin to VBoxAdm
+Available subcommands:
+\tnone
+Available options:
+\t--source - Specify source type, either debmin1, debmin2, vexim or postfixadmin
+\t--source-db - Specify source db.
+",
+);
+
+	return \%help;
+}
+
+sub _init_actions {
+	my $self = shift;
+	
+	my %actions = (
+	    'alias' => {
+	        'add' => sub {
+	            my $email = shift;
+	            my $goto  = shift;
+	            print "Add Alias.\n";
+	            if ( !$email ) {
+	                print "Need alias address\n";
+	                return;
+	            }
+	            if ( !$goto ) {
+	                print "Need goto address\n";
+	                return;
+	            }
+	            my ( $local_part, $domain ) = split /@/, $email;
+	            my $domain_id = $self->domain()->get_id($domain);
+	            if ( !$domain_id ) {
+	                print "Need valid domain\n";
+	                return;
+	            }
+	            $self->alias()->create( $local_part, $domain_id, $goto );
+	            $self->display_messages( $self->alias()->msg() );
+	        },
+	        'update' => sub {
+	            my $email = shift;
+	            my $params;
+	            foreach my $key (qw(IsActive Goto)) {
+	                $params->{$key} = $opts->{$key} if defined( $opts->{$key} );
+	            }
+	            print "Update Alias.\n";
+	            $self->alias()->update( $self->alias()->get_id($email), $params );
+	            display_messages( $self->alias()->msg() );
+	        },
+	        'delete' => sub {
+	            my $email = shift;
+	            print "Delete Alias.\n";
+	            my $alias_id;
+	            if ( $email =~ m/^\d+$/ ) {
+	                $alias_id = $email;
+	            }
+	            else {
+	                $alias_id = $self->alias()->get_id($email);
+	            }
+	            $self->alias()->delete($alias_id);
+	            display_messages( $self->alias()->msg() );
+	        },
+	        'list' => sub {
+	            print "Listing Aliases:\n";
+	            my $format = "%i\t%s\@%s\t%s\t%i\n";
+	            print "ID\tEmail\tGoto\tIs Active\n";
+	            foreach my $alias ( $self->alias()->list() ) {
+	                printf( $format, @{$alias}{qw(id local_part domain goto is_active)} );
+	            }
+	            display_messages( $self->alias()->msg() );
+	          }
+	    },
+	    'awl' => {
+	        'add' => sub {
+	            my $email = shift;
+	            print "Add AWL.\n";
+	            $self->awl()->create($email);
+	            display_messages( $self->awl()->msg() );
+	        },
+	        'update' => sub {
+	            my $email = shift;
+	            my $params;
+	            $params->{Disabled} = !$opts->{IsActive} if defined( $opts->{IsActive} );
+	            print "Update AWL.\n";
+	            $self->awl()->update( $self->awl()->get_id($email), $params );
+	            display_messages( $self->awl()->msg() );
+	        },
+	        'list' => sub {
+	            print "Listing AWL entries:\n";
+	            my $format = "%i\t%s\t%i\t%s\n";
+	            print "ID\tEmail\tDisabled\tLast Seen\n";
+	            foreach my $awl ( $self->awl()->list() ) {
+	                printf( $format, @{$awl}{qw(id email disabled last_seen)} );
+	            }
+	            display_messages( $self->awl()->msg() );
+	        },
+	    },
+	    'domain' => {
+	        'add' => sub {
+	            my $domain = shift;
+	            print "Add Domain.\n";
+	            $self->domain()->create($domain);
+	            display_messages( $self->domain()->msg() );
+	        },
+	        'update' => sub {
+	            my $domain = shift;
+	            my $params;
+	            foreach my $key (qw(IsActive)) {
+	                $params->{$key} = $opts->{$key} if defined( $opts->{$key} );
+	            }
+	            print "Update Domain.\n";
+	            $self->domain()->update( $self->domain()->get_id($domain), $params );
+	            display_messages( $self->domain()->msg() );
+	        },
+	        'delete' => sub {
+	            my $domain = shift;
+	            print "Delete Domain.\n";
+	            $self->domain()->delete( $self->domain()->get_id($domain) );
+	            display_messages( $self->domain()->msg() );
+	        },
+	        'list' => sub {
+	            print "Listing Domains:\n";
+	            my $format = "%i\t%s\t%i\n";
+	            print "ID\tDomain\tIs Active\n";
+	            foreach my $domain ( $self->domain()->list() ) {
+	                printf( $format, @{$domain}{qw(id name is_active)} );
+	            }
+	            display_messages( $self->domain()->msg() );
+	        },
+	    },
+	    'domainalias' => {
+	        'add' => sub {
+	            my $domain    = shift;
+	            my $goto      = shift;
+	            my $domain_id = $self->domain()->get_id($goto);
+	            if ( !$domain_id ) {    # no known domain
+	                print "Error. Unknown Target Domain.\n";
+	                return;
+	            }
+	            print "Add DomainAlias.\n";
+	            $self->domainalias()->create( $domain, $domain_id );
+	            display_messages( $self->domainalias()->msg() );
+	        },
+	        'update' => sub {
+	            my $domain = shift;
+	            my $params;
+	            foreach my $key (qw(IsActive Goto)) {
+	                if ( defined( $opts->{$key} ) ) {
+	                    if ( $key eq 'Goto' ) {
+	                        $params->{$key} = $self->domain()->get_id( $opts->{$key} );
+	                    }
+	                    else {
+	                        $params->{$key} = $opts->{$key};
+	                    }
+	                }
+	            }
+	            print "Update DomainAlias $domain.\n";
+	            $self->domainalias()->update( $self->domainalias()->get_id($domain), $params );
+	            display_messages( $self->domainalias()->msg() );
+	        },
+	        'delete' => sub {
+	            my $domain = shift;
+	            print "Delete DomainAlias.\n";
+	            $self->domainalias()->delete( $self->domainalias()->get_id($domain) );
+	            display_messages( $self->domainalias()->msg() );
+	        },
+	        'list' => sub {
+	            print "Listing DomainAliases:\n";
+	            my $format = "%i\t%s\t%s\t%i\n";
+	            print "ID\tDomain\tGoto\tIs Active\n";
+	            foreach my $domain ( $self->domainalias()->list() ) {
+	                printf( $format, @{$domain}{qw(id name domain_id is_active)} );
+	            }
+	            display_messages( $self->domainalias()->msg() );
+	        },
+	    },
+	    'mailbox' => {
+	        'add' => sub {
+	            my $email = shift;
+	            my ( $local_part, $domain ) = split /@/, $email;
+	            my $domain_id = $self->domain()->get_id($domain);
+	            if ( !$domain_id ) {
+	
+	                # Try to create domain first
+	                $self->domain()->create($domain);
+	                $domain_id = $self->domain()->get_id($domain);
+	            }
+	            if ( !$domain_id ) {
+	                print "Unknown Domain. Please create Domain first.\n";
+	                return;
+	            }
+	            my $params;
+	            foreach my $key (
+	                qw(
+	                Password PasswordAgain
+	                Name IsActive MaxMsgSize IsSiteadmin IsDomainadmin
+	                SAKillScore SAActive
+	                IsOnVacation VacationSubject VacationMessage VacationStart VacationEnd
+	                )
+	              )
+	            {
+	                $params->{$key} = $opts->{$key} if defined( $opts->{$key} );
+	            }
+	            print "Add User: $email\n";
+	            $self->mailbox()->create( $local_part, $domain_id, $params );
+	            display_messages( $self->mailbox()->msg() );
+	        },
+	        'update' => sub {
+	            my $email = shift;
+	            my $mailbox_id;
+	            if ( $email =~ m/^\d+$/ ) {
+	                $mailbox_id = $email;
+	            }
+	            else {
+	                $mailbox_id = $self->mailbox()->get_id($email);
+	            }
+	            my $params;
+	            foreach my $key (
+	                qw(
+	                Password PasswordAgain
+	                Name IsActive MaxMsgSize IsSiteadmin IsDomainadmin
+	                SAKillScore SAActive
+	                IsOnVacation VacationSubject VacationMessage VacationStart VacationEnd
+	                ForcePassword
+	                )
+	              )
+	            {
+	                $params->{$key} = $opts->{$key} if defined( $opts->{$key} );
+	            }
+	
+	            # Longer vacation messages can not be given on the commandline, they may also be a file
+	            if ( $params->{VacationMessage} && -f $params->{VacationMessage} ) {
+	                $params->{VacationMessage} = &VBoxAdm::Utils::slurp( $params->{VacationMessage} );
+	            }
+	            print "Update User: $email\n";
+	            $self->mailbox()->update( $mailbox_id, $params );
+	            display_messages( $self->mailbox()->msg() );
+	        },
+	        'delete' => sub {
+	            my $email = shift;
+	            print "Delete User: $email\n";
+	            my $mailbox_id;
+	            if ( $email =~ m/^\d+$/ ) {
+	                $mailbox_id = $email;
+	            }
+	            else {
+	                $mailbox_id = $self->mailbox()->get_id($email);
+	            }
+	            $self->mailbox()->delete($mailbox_id);
+	            display_messages( $self->mailbox()->msg() );
+	        },
+	        'list' => sub {
+	            print "Listing Mailboxes:\n";
+	            my $format = "%i\t%s\@%s\t%s\t%f\t%i\t%i\t%i\n";
+	            print "ID\tEmail\tName\tSA-Kill-Score\tMax-Msg-Size\tIs Active\tIs Siteadmin\tIs Domainadmin\n";
+	            foreach my $mailbox ( $self->mailbox()->list() ) {
+	                printf( $format, @{$mailbox}{qw(id local_part domain sa_kill_score max_msg_size is_active is_siteadmin is_domainadmin)} );
+	            }
+	            display_messages( $self->mailbox()->msg() );
+	        },
+	    },
+	    'vacbl' => {
+	        'add' => sub {
+	            my $email = shift;
+	            print "Add VacationBlacklist entry: $email\n";
+	            $self->vacationblacklist()->create($email);
+	            display_messages( $self->vacationblacklist()->msg() );
+	        },
+	        'delete' => sub {
+	            my $email = shift;
+	            print "Delete VacationBlacklist entry.\n";
+	            $self->vacationblacklist()->delete( $self->vacationblacklist()->get_id($email) );
+	            display_messages( $self->vacationblacklist()->msg() );
+	        },
+	        'list' => sub {
+	            print "List VacationBlacklist entries:\n";
+	            print "ID\tEmail\n";
+	            my $format = "%i\t%s\@%s\n";
+	            foreach my $e ( $self->vacationblacklist()->list() ) {
+	                printf( $format, @{$e}{qw(id local_part domain)} );
+	            }
+	            display_messages( $self->vacationblacklist()->msg() );
+	        },
+	    },
+	);
+
+	return \%actions;
 }
 
 sub display_messages {
-    my $msgq   = shift;
+	my $self = shift;
     my $format = "[%10s] %s\n";
-    foreach my $msg ( $msgq->pop() ) {
+    foreach my $msg ( $self->msgq()->pop() ) {
         printf( $format, uc( $msg->{'severity'} ), $msg->{'en'} );
     }
 }
 
 sub get_similar_module {
+	my $self = shift;
     my $cmd     = shift;
     my $actions = shift;
     my @a       = sort { distance( $cmd, $a ) <=> distance( $cmd, $b ) } keys %{$actions};
@@ -104,14 +587,16 @@ sub get_similar_module {
 }
 
 sub get_similar_action {
+	my $self = shift;
     my $cmd     = shift;
     my $module  = shift;
     my $actions = shift;
-    my @a       = sort { distance( $cmd, $a ) <=> distance( $cmd, $b ) } keys %{ $actions{$module} };
+    my @a       = sort { distance( $cmd, $a ) <=> distance( $cmd, $b ) } keys %{ $self->actions()->{$module} };
     return $a[0];
 }
 
 sub migrate {
+	my $self = shift;
     my $dbh    = shift;
     my $config = shift;
     my $opts   = shift || {};
@@ -138,6 +623,7 @@ sub migrate {
 }
 
 sub check_login {
+	my $self = shift;
     my $dbh    = shift;
     my $config = shift;
     my $Messages = shift;
@@ -242,7 +728,7 @@ sub setup {
 
     # create system user and groups (if necessary)
     if ( $do{'create-system-accounts'} ) {
-        &create_system_accounts( \%config, $user_ref );
+        $self->create_system_accounts( \%config, $user_ref );
     }
 
     # Create Database

@@ -1,7 +1,7 @@
 package VBoxAdm::SMTP::Proxy;
 
 use Moose;
-namespace::autoclean;
+use namespace::autoclean;
 
 use Carp;
 
@@ -23,6 +23,7 @@ use VBoxAdm::DB '@VERSION@';
 our $VERSION = '@VERSION@';
 
 extends 'Net::Server::PreFork';
+
 # TODO see http://cpan.uwinnipeg.ca/htdocs/RTSP-Proxy/RTSP/Proxy.pm.html
 
 ############################################
@@ -649,7 +650,7 @@ sub is_spam {
 }
 
 no Moose;
-__PACKAGE__->meta->make_immutable(inline_constructor => 0, );
+__PACKAGE__->meta->make_immutable( inline_constructor => 0, );
 
 1;
 __END__

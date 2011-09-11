@@ -12,7 +12,7 @@ use VBoxAdm::Utils '@VERSION@';
 extends 'VBoxAdm::Model';
 
 sub _init_fields {
-	return [qw(id name is_active)];
+    return [qw(id name is_active)];
 }
 
 sub create {

@@ -40,41 +40,43 @@ has 'msgq' => (
 has 'fields' => (
     'is'      => 'ro',
     'isa'     => 'ArrayRef[Str]',
-    'lazy'		=> 1,
+    'lazy'    => 1,
     'builder' => '_init_fields',
 );
 
 sub _init_fields {
-	return [qw(none)];
+    return [qw(none)];
 }
 
 around BUILDARGS => sub {
-	my $orig = shift;
-	my $class = shift;
-	
-	my $arg_ref = $class->$orig(@_);
-	
-	if($arg_ref->{'Model'} && $arg_ref->{'Model'}->isa('VBoxAdm::Model') ) {
-		# 'Inherit' from another VBoxAdm::Model class
-		my $ModelClass = $arg_ref->{'Model'};
-		$arg_ref->{'logger'} = $ModelClass->logger();
-		$arg_ref->{'config'} = $ModelClass->config();
-		$arg_ref->{'user'}   = $ModelClass->user();
-		$arg_ref->{'msgq'}   = $ModelClass->msgq();
-		$arg_ref->{'dbh'}    = $ModelClass->dbh();
-	} else {
-		if ( !$arg_ref->{'dbh'} || !$arg_ref->{'dbh'}->ping() ) {
-            confess( "Missing DBH handle in VBoxAdm::Model constructor for " . caller(1) . "\n" );
+    my $orig  = shift;
+    my $class = shift;
+
+    my $arg_ref = $class->$orig(@_);
+
+    if ( $arg_ref->{'Model'} && $arg_ref->{'Model'}->isa('VBoxAdm::Model') ) {
+
+        # 'Inherit' from another VBoxAdm::Model class
+        my $ModelClass = $arg_ref->{'Model'};
+        $arg_ref->{'logger'} = $ModelClass->logger();
+        $arg_ref->{'config'} = $ModelClass->config();
+        $arg_ref->{'user'}   = $ModelClass->user();
+        $arg_ref->{'msgq'}   = $ModelClass->msgq();
+        $arg_ref->{'dbh'}    = $ModelClass->dbh();
     }
-	}
-	
-	return $arg_ref;
+    else {
+        if ( !$arg_ref->{'dbh'} || !$arg_ref->{'dbh'}->ping() ) {
+            confess( "Missing DBH handle in VBoxAdm::Model constructor for " . caller(1) . "\n" );
+        }
+    }
+
+    return $arg_ref;
 };
 
 sub _read {
     my ( $self, $table, $id ) = @_;
 
-    my $sql = "SELECT " . join( ",", @{$self->fields()} ) . " FROM $table WHERE id = ?";
+    my $sql = "SELECT " . join( ",", @{ $self->fields() } ) . " FROM $table WHERE id = ?";
     my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $id );
 
     if ( !$sth ) {
@@ -83,7 +85,7 @@ sub _read {
     }
 
     my %result;
-    @result{ @{$self->fields()} } = $sth->fetchrow_array();
+    @result{ @{ $self->fields() } } = $sth->fetchrow_array();
     $sth->finish();
 
     foreach my $key ( keys %result ) {
@@ -96,7 +98,7 @@ sub _read {
 sub _list {
     my ( $self, $table, $param ) = @_;
 
-    my $sql = 'SELECT ' . join( ',', @{$self->fields()} ) . ' FROM `' . $table . '` WHERE 1';
+    my $sql = 'SELECT ' . join( ',', @{ $self->fields() } ) . ' FROM `' . $table . '` WHERE 1';
     my @args = ();
     if ( $param && ref($param) eq 'HASH' && $param->{'Search'} ) {
         $sql .= " AND (";
@@ -104,7 +106,7 @@ sub _list {
         $term =~ s/[*%]+//g;
         $term = '%' . $term . '%';
         my $first = 1;
-        foreach my $field ( @{$self->fields()} ) {
+        foreach my $field ( @{ $self->fields() } ) {
             $sql .= " OR" unless $first;
             $first = 0;
             $sql .= ' ' . $field . ' LIKE ?';
@@ -112,7 +114,7 @@ sub _list {
         }
         $sql .= ")";
     }
-    foreach my $field ( @{$self->fields()} ) {
+    foreach my $field ( @{ $self->fields() } ) {
         if ( $param->{$field} ) {
             $sql .= ' AND `' . $field . '` = ?';
             push( @args, $param->{$field} );
@@ -120,7 +122,7 @@ sub _list {
     }
 
     # grep { $_ eq $var } @fields is equiv. to in_array(@array,$subject)
-    if ( $param->{'Order'} && grep { $_ eq $param->{'Order'} } @{$self->fields()} ) {
+    if ( $param->{'Order'} && grep { $_ eq $param->{'Order'} } @{ $self->fields() } ) {
         $sql .= ' ORDER BY ' . $param->{'Order'};
     }
 
@@ -140,7 +142,7 @@ sub _list {
 
     while ( my @row = $sth->fetchrow_array() ) {
         my %h;
-        @h{ @{$self->fields()} } = @row;
+        @h{ @{ $self->fields() } } = @row;
         foreach my $field ( keys %h ) {
             $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8( $h{$field} );
         }
@@ -152,13 +154,13 @@ sub _list {
 }
 
 sub msg {
-	my $self = shift;
-	return $self->msgq();
+    my $self = shift;
+    return $self->msgq();
 }
 
 sub log {
-	my $self = shift;
-	return $self->logger()->log(@_);
+    my $self = shift;
+    return $self->logger()->log(@_);
 }
 
 no Moose;

@@ -1,0 +1,14 @@
+package VBoxAdm::Controller::Vacation;
+
+use Moose;
+use namespace::autoclean;
+
+# TODO refactor vacation auto responder to this class
+
+no Moose;
+__PACKAGE__->meta->make_immutable();
+
+1;
+
+__END__
+

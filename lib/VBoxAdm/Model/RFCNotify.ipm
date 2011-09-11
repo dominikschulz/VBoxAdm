@@ -12,9 +12,8 @@ use VBoxAdm::Utils '@VERSION@';
 extends 'VBoxAdm::Model';
 
 sub _init_fields {
-	return [qw(id email ts)];
+    return [qw(id email ts)];
 }
-
 
 sub create {
     my ( $self, $email ) = @_;

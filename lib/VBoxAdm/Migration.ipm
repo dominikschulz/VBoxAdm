@@ -51,7 +51,7 @@ sub migrate {
               or die( "Could not execut query $q: " . $dbh->errstr );
         }
     }
-    
+
     ###########################################################################
     # DEBMIN1
     ###########################################################################
@@ -130,7 +130,7 @@ sub migrate {
 
                     # an alias
                     if ( !$config->{'dry'} && $sth_new_alias->execute( $new_domain_id, $local_part, $forward, $is_active ) ) {
-                                            print "\tCreated new Alias: $local_part\@$domain_name\n";
+                        print "\tCreated new Alias: $local_part\@$domain_name\n";
                     }
                     else {
                         print "\tFailed to create new Alias $local_part\@$domain_name: " . $sth_new_mailbox->errstr . "\n";

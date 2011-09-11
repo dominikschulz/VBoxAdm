@@ -9,7 +9,7 @@ use Encode;
 extends 'VBoxAdm::Model';
 
 sub _init_fields {
-	return [qw(id name domain_id is_active)];
+    return [qw(id name domain_id is_active)];
 }
 
 sub create {
