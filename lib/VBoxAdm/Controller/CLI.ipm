@@ -38,6 +38,11 @@ use VBoxAdm::Logger '@VERSION@';
 
 binmode( STDIN, ':utf8' );
 
+has 'config' => (
+	'is'	=> 'rw',
+	'isa'	=> 'Object',
+);
+
 has 'logger' => (
 	'is'	=> 'ro',
 	'isa'	=> 'VBoxAdm::Logger',
@@ -87,12 +92,40 @@ has 'alias' => (
 	'builder' => '_init_alias',
 );
 
+sub _init_alias {
+	my $self = shift;
+	
+	my $Alias = VBoxAdm::Model::Alias->new({
+		'dbh'	=> $self->dbh(),
+		'logger' => $self->logger(),
+		'config' => $self->config(),
+		'user' 	=> $self->user(),
+		'msgq'	=> $self->msgq(),
+	});
+	
+	return $Alias;
+}
+
 has 'awl' => (
 	'is'	=> 'ro',
 	'isa'	=> 'VBoxAdm::Model::AWL',
 	'lazy' => 1,
 	'builder' => '_init_awl',
 );
+
+sub _init_awl {
+	my $self = shift;
+	
+	my $AWL = VBoxAdm::Model::AWL->new({
+		'dbh'	=> $self->dbh(),
+		'logger' => $self->logger(),
+		'config' => $self->config(),
+		'user' 	=> $self->user(),
+		'msgq'	=> $self->msgq(),
+	});
+	
+	return $AWL;
+}
 
 has 'domainalias' => (
 	'is'	=> 'ro',
@@ -101,12 +134,40 @@ has 'domainalias' => (
 	'builder' => '_init_domainalias',
 );
 
+sub _init_domainalias {
+	my $self = shift;
+	
+	my $DomainAlias = VBoxAdm::Model::DomainAlias->new({
+		'dbh'	=> $self->dbh(),
+		'logger' => $self->logger(),
+		'config' => $self->config(),
+		'user' 	=> $self->user(),
+		'msgq'	=> $self->msgq(),
+	});
+	
+	return $DomainAlias;
+}
+
 has 'mailbox' => (
 	'is'	=> 'ro',
 	'isa'	=> 'VBoxAdm::Model::Mailbox',
 	'lazy' => 1,
 	'builder' => '_init_mailbox',
 );
+
+sub _init_mailbox {
+	my $self = shift;
+	
+	my $Mailbox = VBoxAdm::Model::Mailbox->new({
+		'dbh'	=> $self->dbh(),
+		'logger' => $self->logger(),
+		'config' => $self->config(),
+		'user' 	=> $self->user(),
+		'msgq'	=> $self->msgq(),
+	});
+	
+	return $Mailbox;
+}
 
 has 'rfcnotify' => (
 	'is'	=> 'ro',
@@ -115,6 +176,20 @@ has 'rfcnotify' => (
 	'builder' => '_init_rfcnotify',
 );
 
+sub _init_rfcnotify {
+	my $self = shift;
+	
+	my $RFCN = VBoxAdm::Model::RFCNotify->new({
+		'dbh'	=> $self->dbh(),
+		'logger' => $self->logger(),
+		'config' => $self->config(),
+		'user' 	=> $self->user(),
+		'msgq'	=> $self->msgq(),
+	});
+	
+	return $RFCN;
+}
+
 has 'roleaccount' => (
 	'is'	=> 'ro',
 	'isa'	=> 'VBoxAdm::Model::RoleAccount',
@@ -122,12 +197,40 @@ has 'roleaccount' => (
 	'builder' => '_init_roleaccount',
 );
 
+sub _init_roleaccount {
+	my $self = shift;
+	
+	my $RA = VBoxAdm::Model::RoleAccount->new({
+		'dbh'	=> $self->dbh(),
+		'logger' => $self->logger(),
+		'config' => $self->config(),
+		'user' 	=> $self->user(),
+		'msgq'	=> $self->msgq(),
+	});
+	
+	return $RA;
+}
+
 has 'vacationblacklist' => (
 	'is'	=> 'ro',
 	'isa'	=> 'VBoxAdm::Model::VacationBlacklist',
 	'lazy' => 1,
-	'builder' => '_init_domain',
+	'builder' => '_init_vacationblacklist',
 );
+
+sub _init_vacationblacklist {
+	my $self = shift;
+	
+	my $VB = VBoxAdm::Model::VacationBlacklist->new({
+		'dbh'	=> $self->dbh(),
+		'logger' => $self->logger(),
+		'config' => $self->config(),
+		'user' 	=> $self->user(),
+		'msgq'	=> $self->msgq(),
+	});
+	
+	return $VB;
+}
 
 has 'vacationnotify' => (
 	'is'	=> 'ro',
@@ -135,6 +238,20 @@ has 'vacationnotify' => (
 	'lazy' => 1,
 	'builder' => '_init_vacationnotify',
 );
+
+sub _init_vacationnotify {
+	my $self = shift;
+	
+	my $VN = VBoxAdm::Model::VacationNotify->new({
+		'dbh'	=> $self->dbh(),
+		'logger' => $self->logger(),
+		'config' => $self->config(),
+		'user' 	=> $self->user(),
+		'msgq'	=> $self->msgq(),
+	});
+	
+	return $VN;
+}
 
 sub _init_logger {
 	my $self = shift;
@@ -144,22 +261,27 @@ sub _init_logger {
 
 sub _init_dbh {
 	my $self = shift;
-	# TODO connect to db
 	
 	# TODO refactor config class
-# Database connection
-#
-my $dsn =
-"DBI:mysql:host=$config{'default'}{'dbhost'};database=$config{'default'}{'dbdb'};port=$config{'default'}{'dbport'};user=$config{'default'}{'dbuser'};password=$config{'default'}{'dbpass'}";
-my $dbh = &VBoxAdm::DB::connect( $dsn, { RaiseError => 0, PrintError => 0, } );
-
-if ( !$dbh ) {
-    print "Could not connect to DB!\n";
-    exit 1;
-}
-else {
-    print "Connected to DB\n" if $config{'verbose'};
-}
+	# Database connection
+	#
+	my $hostname = $self->config()->{'default'}->{'dbhost'} || 'localhost';
+	my $database = $self->config()->{'default'}->{'dbdb'} || 'vboxadm';
+	my $username = $self->config()->{'default'}->{'dbuser'} || 'vboxadm';
+	my $password = $self->config()->{'default'}->{'dbpass'} || 'vboxadm';
+	my $port = $self->config()->{'default'}->{'dbport'} || 3306;
+	
+	my $dsn =
+	"DBI:mysql:host=$hostname;database=$database;port=$port;user=$username;password=$password";
+	my $dbh = &VBoxAdm::DB::connect( $dsn, { RaiseError => 0, PrintError => 0, } );
+	
+	if ( !$dbh ) {
+	    die("Could not connect to DB!\n");
+	}
+	else {
+	    #print "Connected to DB\n";
+	    return $dbh;
+	}
 }
 
 sub _init_msgq {
@@ -172,36 +294,136 @@ sub _init_msgq {
 	);
 }
 
+has 'opts' => (
+	'is'	=> 'ro',
+	'isa'	=> 'HashRef',
+	'default' => sub { {} },
+);
+
+has 'modes' => (
+	'is'	=> 'ro',
+	'isa' => 'ArrayRef',
+	'default' => sub { [] },
+);
+
+has 'config_locations' => (
+	'is'	=> 'ro',
+	'isa' => 'ArrayRef',
+	'lazy' => 1,
+	'builder' => '_init_config_locs',
+);
+
+sub _init_config_locs {
+	my $self = shift;
+	
+	# Valid config file locations to try
+	my @conffile_locations = qw(
+	  vboxadm.conf
+	  conf/vboxadm.conf
+	  /etc/vboxadm/vboxadm.conf
+	  @CFGDIR@/vboxadm/vboxadm.conf
+	);
+
+	return \@conffile_locations;
+}
+
+# TODO allow changing the pw_lock flag on mailboxes
+
+sub _read_options {
+	my $self = shift;
+	
+	GetOptions(
+    'verbose|v+'    => \$self->opts()->{Verbose},
+    'dry|d!'        => \$self->opts()->{Dry},
+    'quiet|q!'      => \$self->opts()->{Quiet},
+    'force|f!'      => \$self->opts()->{Force},
+    'name|n=s'      => \$self->opts()->{Name},
+    'source|s=s'    => \$self->opts()->{Source},
+    'source-db|d=s' => \$self->opts()->{SourceDb},
+    'truncate!'     => \$self->opts()->{Truncate},
+    'bootstrap!'    => \$self->opts()->{Bootstrap},
+    '<>'            => sub { my $m = shift; push( @{$self->modes()}, lc($m) ); },
+
+    # shift removes name of the option (config) and leaves the value for unshift
+    # unshift prepends to the list of valid config files so it is tried first
+    'config=s' => sub { shift; unshift( @{$self->config_locations()}, @_ ); },
+    'active|a=i'      => \$self->opts()->{IsActive},
+    'goto|g=s'        => \$self->opts()->{Goto},
+    'password|p=s'    => sub { shift; my $p = shift; $self->opts()->{Password} = $p; $self->opts()->{PasswordAgain} = $p; },
+    'maxmsgsize|m=i'  => \$self->opts()->{MaxMsgSize},
+    'siteadmin=s'     => \$self->opts()->{IsSiteadmin},
+    'domainadmin=s'   => \$self->opts()->{IsDomainadmin},
+    'sakillscore|k=i' => \$self->opts()->{SAKillScore},
+    'saactive=i'      => \$self->opts()->{SAActive},
+    'vacation=i'      => \$self->opts()->{IsOnVacation},
+    'vacsubj=s'       => \$self->opts()->{VacationSubject},
+    'vacmsg=s'        => \$self->opts()->{VacationMessage},
+    'vacstart=s'      => \$self->opts()->{VacationStart},
+    'vacend=s'        => \$self->opts()->{VacationEnd},
+    'forcepass!'      => \$self->opts()->{ForcePassword},
+	) or die("Unknown Command");
+}
+
+has 'conffile_used' => (
+	'is'	=> 'rw',
+	'isa' => 'Str',
+);
+
+sub _read_config {
+	my $self = shift;
+	
+	my %config;
+	# Try all config file locations
+	foreach my $loc (@{$self->config_locations()}) {
+	    if ( -r $loc ) {
+	        $self->conffile_used($loc);
+	        read_config $loc => %config;
+	        last;
+	    }
+	}
+
+	$config{'default'}{'dbhost'}   ||= 'localhost';
+	$config{'default'}{'dbuser'}   ||= 'vboxadm';
+	$config{'default'}{'dbpass'}   ||= '';
+	$config{'default'}{'dbport'}   ||= 3306;
+	$config{'default'}{'dbdb'}     ||= 'vboxadm';
+	$config{'default'}{'pwscheme'} ||= 'sha256';
+	
+	$self->config(\%config);
+	
+	return 1;
+}
+
 sub run {
 	my $self = shift;
 	
-	$self->_read_options(); # TODO fill modes and opts
+	$self->_read_options();
 	$self->_read_config();
 	
-	my $module = shift @modes;
-	my $action = shift @modes;
+	my $module = shift @{$self->modes()};
+	my $action = shift @{$self->modes()};
 	
 	if ( $module && $module eq 'help' ) {
-	    if ( $action && $help{$action} ) {
-	        print $help{$action} . "\n";
+	    if ( $action && $self->help()->{$action} ) {
+	        print $self->help()->{$action} . "\n";
 	    }
 	    else {
-	        print $help{'help'} . "\n";
+	        print $self->help()->{'help'} . "\n";
 	    }
 	}
 	elsif ( $module && $module eq 'migrate' ) {
-	    &migrate( $dbh, \%config, $opts );
+	    $self->migrate();
 	}
-	elsif ( $module && $action && ref( $actions{$module}{$action} ) eq 'CODE' && ( $action eq 'list' || scalar(@modes) > 0 ) ) {
-	    &{ $actions{$module}{$action} }(@modes);
+	elsif ( $module && $action && ref( $self->actions()->{$module}{$action} ) eq 'CODE' && ( $action eq 'list' || scalar(@{$self->modes()}) > 0 ) ) {
+	    &{ $self->actions()->{$module}{$action} }(@{$self->modes()});
 	}
 	else {
 	    print "Invalid/Missing module and/or action.\n";
-	    if ( $module && $action && $actions{$module} ) {
-	        print "Did you mean " . get_similar_action( $action, $module, \%actions ) . "?\n";
+	    if ( $module && $action && $self->actions()->{$module} ) {
+	        print "Did you mean " . $self->get_similar_action( $action, $module ) . "?\n";
 	    }
-	    elsif ( $module && !$actions{$module} ) {
-	        print "Did you mean " . get_similar_module( $module, \%actions ) . "?\n";
+	    elsif ( $module && !$self->actions()->{$module} ) {
+	        print "Did you mean " . $self->get_similar_module( $module ) . "?\n";
 	    }
 	}
 }
@@ -324,7 +546,7 @@ sub _init_actions {
 	            my $email = shift;
 	            my $params;
 	            foreach my $key (qw(IsActive Goto)) {
-	                $params->{$key} = $opts->{$key} if defined( $opts->{$key} );
+	                $params->{$key} = $self->opts()->{$key} if defined( $self->opts()->{$key} );
 	            }
 	            print "Update Alias.\n";
 	            $self->alias()->update( $self->alias()->get_id($email), $params );
@@ -363,7 +585,7 @@ sub _init_actions {
 	        'update' => sub {
 	            my $email = shift;
 	            my $params;
-	            $params->{Disabled} = !$opts->{IsActive} if defined( $opts->{IsActive} );
+	            $params->{Disabled} = !$self->opts()->{IsActive} if defined( $self->opts()->{IsActive} );
 	            print "Update AWL.\n";
 	            $self->awl()->update( $self->awl()->get_id($email), $params );
 	            display_messages( $self->awl()->msg() );
@@ -389,7 +611,7 @@ sub _init_actions {
 	            my $domain = shift;
 	            my $params;
 	            foreach my $key (qw(IsActive)) {
-	                $params->{$key} = $opts->{$key} if defined( $opts->{$key} );
+	                $params->{$key} = $self->opts()->{$key} if defined( $self->opts()->{$key} );
 	            }
 	            print "Update Domain.\n";
 	            $self->domain()->update( $self->domain()->get_id($domain), $params );
@@ -428,12 +650,12 @@ sub _init_actions {
 	            my $domain = shift;
 	            my $params;
 	            foreach my $key (qw(IsActive Goto)) {
-	                if ( defined( $opts->{$key} ) ) {
+	                if ( defined( $self->opts()->{$key} ) ) {
 	                    if ( $key eq 'Goto' ) {
-	                        $params->{$key} = $self->domain()->get_id( $opts->{$key} );
+	                        $params->{$key} = $self->domain()->get_id( $self->opts()->{$key} );
 	                    }
 	                    else {
-	                        $params->{$key} = $opts->{$key};
+	                        $params->{$key} = $self->opts()->{$key};
 	                    }
 	                }
 	            }
@@ -482,7 +704,7 @@ sub _init_actions {
 	                )
 	              )
 	            {
-	                $params->{$key} = $opts->{$key} if defined( $opts->{$key} );
+	                $params->{$key} = $self->opts()->{$key} if defined( $self->opts()->{$key} );
 	            }
 	            print "Add User: $email\n";
 	            $self->mailbox()->create( $local_part, $domain_id, $params );
@@ -508,7 +730,7 @@ sub _init_actions {
 	                )
 	              )
 	            {
-	                $params->{$key} = $opts->{$key} if defined( $opts->{$key} );
+	                $params->{$key} = $self->opts()->{$key} if defined( $self->opts()->{$key} );
 	            }
 	
 	            # Longer vacation messages can not be given on the commandline, they may also be a file
@@ -597,43 +819,43 @@ sub get_similar_action {
 
 sub migrate {
 	my $self = shift;
-    my $dbh    = shift;
-    my $config = shift;
     my $opts   = shift || {};
 
-    if ( !$opts->{'Source'} ) {
+    if ( !$self->opts()->{'Source'} ) {
         print "Need source-type (--source).\n";
         return;
     }
 
-    if ( !$opts->{'SourceDb'} ) {
-        $opts->{'SourceDb'} = $config{'Source'};
+    if ( !$self->opts()->{'SourceDb'} ) {
+        $self->opts()->{'SourceDb'} = $self->config()->{'Source'};
     }
 
-    $config->{'truncate'} = 1 if $opts->{Truncate};
-
-    if ( &VBoxAdm::Migration::migrate( $dbh, \%config, $opts->{'Source'}, $opts->{'SourceDb'}, 'vboxadm', $opts ) ) {
-        print "Migration OK\n" unless $config->{'Quiet'};
+    if ( &VBoxAdm::Migration::migrate( $self->dbh(), $self->config(), $self->opts()->{'Source'}, $self->opts()->{'SourceDb'}, 'vboxadm', $opts ) ) {
+        #print "Migration OK\n" unless $config->{'Quiet'};
         return 1;
     }
     else {
-        print "Migration FAILED\n" unless $config->{'Quiet'};
+        #print "Migration FAILED\n" unless $config->{'Quiet'};
         return;
     }
 }
 
-sub check_login {
+has 'user' => (
+	'is'	=> 'rw',
+	'isa'	=> 'VBoxAdm::Model::User',
+	'lazy' => 1,
+	'builder' => '_init_user',
+);
+
+sub _init_user {
 	my $self = shift;
-    my $dbh    = shift;
-    my $config = shift;
-    my $Messages = shift;
     my $opts   = shift || {};
 
-    if ( $opts->{'Bootstrap'} && $EUID == 0 ) {
+    if ( $self->opts()->{'Bootstrap'} && $EUID == 0 ) {
         my $User = VBoxAdm::Model::User->new(
             {
-                'dbh'        => $dbh,
-                'msgq'			=> $Messages,
+                'dbh'        => $self->dbh(),
+                'msgq'			=> $self->msgq(),
                 'SystemUser' => 1,
             }
         );
@@ -642,8 +864,8 @@ sub check_login {
 
     my $conf = $ENV{'HOME'} . '/.vboxadm.cnf';
     my %user_config;
-    if ( -f $conf || $config->{'quiet'} ) {
-        print "check_login - Reading config from $conf ...\n" if $opts->{'Verbose'};
+    if ( -f $conf || $self->config()->{'quiet'} ) {
+        print "check_login - Reading config from $conf ...\n" if $self->opts()->{'Verbose'};
         read_config $conf => %user_config;
     }
     else {
@@ -657,12 +879,12 @@ sub check_login {
 
     # check if login works
     if ( !&VBoxAdm::Utils::is_valid_address_rfc822( $user_config{'auth'}{'username'} ) ) {
-        print "Invalid email address given.\n" unless $opts->{'Quiet'};
+        print "Invalid email address given.\n" unless $self->opts()->{'Quiet'};
         return;
     }
     my $User = VBoxAdm::Model::User->new(
         {
-            'dbh'      => $dbh,
+            'dbh'      => $self->dbh(),
             'Username' => $user_config{'auth'}{'username'},
             'Password' => $user_config{'auth'}{'password'},
         }
@@ -675,1072 +897,8 @@ sub check_login {
         print "You are no siteadmin!\n";
         return;
     }
-    print "Authorized as site-admin " . $user_config{'auth'}{'username'} . "\n" if $opts->{'Verbose'};
+    print "Authorized as site-admin " . $user_config{'auth'}{'username'} . "\n" if $self->opts()->{'Verbose'};
     return $User;
-}
-
-sub setup {
-    my $config = shift;
-    my %do     = ();
-
-    # Ask for options
-    if ( !$do{'create-system-accounts'} ) {
-        $do{'create-system-accounts'} = &ask_yesno('Create System Accounts?');
-    }
-    if ( !$do{'create-database'} ) {
-        $do{'create-database'} = &ask_yesno('Create Database?');
-    }
-    if ( !$do{'create-database-grants'} ) {
-        $do{'create-database-grants'} = &ask_yesno('Create Database User?');
-    }
-    if ( !$do{'init-db'} ) {
-        $do{'init-db'} = &ask_yesno('Initialize Database?');
-    }
-    if ( !$do{'create-site-admin'} ) {
-        $do{'create-site-admin'} = &ask_yesno('Create site-admin?');
-    }
-    if ( !$do{'configure-smtpproxy'} ) {
-        $do{'configure-smtpproxy'} = &ask_yesno('Configure the SMTP-Proxy?');
-    }
-    if ( !$do{'enable-smtpproxy'} ) {
-        $do{'enable-smtpproxy'} = &ask_yesno('Start SMTP-Proxy at boot?');
-    }
-    if ( !$do{'create-ssl'} ) {
-        $do{'create-ssl'} = &ask_yesno('Create self-signed SSL cert?');
-    }
-    if ( !$do{'init-postfix-config'} ) {
-        $do{'init-postfix-config'} = &ask_yesno('Initialize Postfix Config files?');
-    }
-    if ( !$do{'configure-postfix'} ) {
-        $do{'configure-postfix'} = &ask_yesno('Configure Postfix?');
-    }
-    if ( !$do{'configure-dovecot'} ) {
-        $do{'configure-dovecot'} = &ask_yesno('Configure Dovecot?');
-    }
-    if ( !$do{'migrate'} ) {
-        $do{'migrate'} = &ask_yesno('Migrate existing users?');
-    }
-
-    ###
-    # BASIC
-    ###
-    my $user_ref;
-
-    # create system user and groups (if necessary)
-    if ( $do{'create-system-accounts'} ) {
-        $self->create_system_accounts( \%config, $user_ref );
-    }
-
-    # Create Database
-    # --db-root-user, --db-root-pass, --db-user, --db-pass, --db-name
-    # - CREATE DATABASE
-    # - GRANT
-    # - initialize
-    my $dbh;
-    my %dbi_root;
-    my $vboxadm_db;
-    my $roundcube_db;
-
-    if ( $do{'create-database'} || $do{'create-database-grants'} ) {
-        print "### MySQL Root Password required ###\n";
-        print "You've asked for database operations that require root privileges.\n";
-        print "Please enter the Username of an administrative database user or press enter to abort:\n";
-        $dbi_root{'user'} = &ask_string("Username");
-        if ( !$dbi_root{'user'} ) {
-            print "User aborted.\n";
-            exit 1;
-        }
-        $dbi_root{'pass'} = &ask_string("Password");
-        $config{'dbhost'} = &ask_string('Host');
-        $config{'dbport'} = &ask_number('Port');
-    }
-    else {
-        print "### MySQL User Credentials required ###\n";
-        print "Since you've opted not to have the required users create you'll have to\n";
-        print "create the users yourself and provide the crentials here.\n";
-        $vboxadm_db   = &ask_string('VBoxAdm-Database');
-        $roundcube_db = &ask_string('Roundcube-Database');
-        foreach my $user (qw(vboxadm vboxadm_user dovecot postfix)) {
-            print ">>> User: $user <<<\n";
-            $user_ref->{'db'}{$user}{'username'} = &ask_string('Username');
-            $user_ref->{'db'}{$user}{'password'} = &ask_string('Password');
-        }
-        $config{'dbhost'} = &ask_string('Host');
-        $config{'dbport'} = &ask_number('Port');
-    }
-
-    # Do we have root access to create DB and grants?
-    if ( $dbi_root{'user'} && ( $do{'create-database'} || $do{'create-database-grants'} ) ) {
-        my ( $dbuser, $dbpass, $dbhost, $dbport, $dbdb );
-        $dbhost = $config{'dbhost'};
-        $dbport = $config{'dbport'};
-        $dbuser = $dbi_root{'user'};
-        $dbpass = $dbi_root{'pass'};
-        $dbdb   = 'mysql';
-        my $dsn = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;password=$dbpass";
-        my $dbh_root = DBI->connect( $dsn, undef, undef, { RaiseError => 0, } );
-
-        if ( !$dbh_root ) {
-            print STDERR "Could not connect to database as root ($dsn). Aborting.\n";
-            return;
-        }
-        if ( $do{'create-database'} ) {
-            $vboxadm_db   = &create_database( \%config, $dbh_root, 'vboxadm' );
-            $roundcube_db = &create_database( \%config, $dbh_root, 'roundcube' );
-        }
-        if ( $do{'create-database-grants'} && $vboxadm_db && $roundcube_db ) {
-            &create_database_grants( \%config, $dbh_root, $vboxadm_db, $roundcube_db, $user_ref );
-        }
-        $dbh_root->disconnect();
-    }
-    else {
-        print "Could not do root stuff on DB!\n";
-    }
-
-    $config{'dbuser'} = $user_ref->{'db'}{'vboxadm'}{'username'};
-    $config{'dbpass'} = $user_ref->{'db'}{'vboxadm'}{'password'};
-    $config{'dbdb'}   = $vboxadm_db;
-
-    # Connect to DB
-    my $dsn = "DBI:mysql:host=$config{'dbhost'};database=$config{'dbdb'};port=$config{'dbport'};user=$config{'dbuser'};password=$config{'dbpass'}";
-    $dbh = DBI->connect( $dsn, undef, undef, { RaiseError => 0, } );
-    if ( !$dbh ) {
-        print STDERR "Could not connect to database as vboxadm user ($dsn). Aborting.\n";
-        return;
-    }
-
-    if ( $do{'init-db'} ) {
-        &initialize_database( \%config );
-    }
-
-    # Select pwscheme
-    # --pwscheme
-    print "### Password Scheme for User-Passwords ###\n";
-    $config{'default'}{'pwscheme'} = &ask_select( 'Select the desired password scheme', qw(plain_md5 ldap_md5 smd5 sha ssha sha256 ssha256) );
-
-    # Create Site-Admin
-    # --create-site-admin
-    if ( $do{'create-site-admin'} ) {
-        print "### Create a Site-Admin ###\n";
-        &create_siteadmin( $dbh, \%config, $user_ref );
-    }
-
-    # Configure SMTP-Proxy
-    # --configure-smtpproxy
-    if ( $do{'configure-smtpproxy'} ) {
-        &configure_smtpproxy( \%config );
-    }
-
-    # Enable SMTP-Proxy
-    # --enable-smtpproxy
-    if ( $do{'enable-smtpproxy'} ) {
-        &enable_smtpproxy( \%config );
-    }
-
-    ###
-    # ADVANCED
-    ###
-    # Create self-signed ssl cert
-    # --create-ssl
-    if ( $do{'create-ssl'} ) {
-        &create_ssl( \%config );
-    }
-
-    # Create Postfix Maps
-    # --create-postfix-maps
-    if ( $do{'init-postfix-config'} ) {
-        &init_postfix_config( \%config, $user_ref );
-    }
-
-    # Configure Postfix
-    # --configure-postfix
-    if ( $do{'configure-postfix'} ) {
-        &configure_postfix( \%config, $user_ref );
-    }
-
-    # Configure Dovecot
-    # --configure-dovecot
-    if ( $do{'configure-dovecot'} ) {
-        &configure_dovecot( \%config, $user_ref );
-    }
-
-    # Mirgrate existing installation
-    # --migrate-vexim
-    # --migrate-debmin
-    # --migrate-postfixadmin
-    if ( $do{'migrate'} ) {
-        my $source_type = &ask_select( 'What kind of database schema do you want to migrate?', qw(debmin2 vexim postfixadmin) );
-        my $source_db = &ask_string('Which Database is the source ');
-        if ( $source_type && $source_db ) {
-            &VBoxAdm::Migration::migrate( $dbh, $source_type, $source_db, $config{'default'}{'dbdb'} );
-        }
-    }
-
-    ###
-    # TESTS
-    ###
-    # Check DNS setting
-    # - hostname + domain -> one of this hosts ips
-    # - reverse of this ip -> hostname + domain
-    # Use siteadmin login
-    # Test SMTP (+Auth)
-    &test_smtp( \%config, $user_ref );
-
-    # Test POP3
-    &test_pop3( \%config, $user_ref );
-
-    # Test IMAP
-    &test_imap( \%config, $user_ref );
-
-    ###
-    # SAVE CONFIG
-    ###
-    # set all credentials to config file
-    # write configuration
-    # write_config %config, $other_file_name;
-    $config{'default'}{'setup_done'} = 1;
-    my $config_filename = $conffile_used || '/etc/vboxadm/vboxadm.conf';
-    write_config %config, $config_filename;
-
-    ###
-    # DONE
-    ###
-    $dbh->disconnect();
-    return 1;
-}
-####
-# SUBS
-####
-sub test_smtp {
-    my $config   = shift;
-    my $user_ref = shift;
-    {
-        my $ip   = '127.0.0.1';
-        my $port = 25;
-        my ( $status, $msg ) = &check_smtp( $ip, $port, $user_ref->{'siteadmin'}{'username'}, $user_ref->{'siteadmin'}{'password'}, 30 );
-        if ($status) {
-            print "TEST-SMTP: Connection to $ip:$port OK\n";
-        }
-        else {
-            print "TEST-SMTP: Connection to $ip:$port FAILED: $msg\n";
-        }
-    }
-    {
-        my $ip   = '127.0.0.1';
-        my $port = 587;
-        my ( $status, $msg ) = &check_smtp( $ip, $port, $user_ref->{'siteadmin'}{'username'}, $user_ref->{'siteadmin'}{'password'}, 30 );
-        if ($status) {
-            print "TEST-SMTP: Connection to $ip:$port OK\n";
-        }
-        else {
-            print "TEST-SMTP: Connection to $ip:$port FAILED: $msg\n";
-        }
-    }
-}
-
-sub test_pop3 {
-    my $config   = shift;
-    my $user_ref = shift;
-
-    {
-        my $ip   = '127.0.0.1';
-        my $port = 110;
-        my ( $status, $msg ) = &check_pop3( $ip, $port, $user_ref->{'siteadmin'}{'username'}, $user_ref->{'siteadmin'}{'password'}, 30 );
-        if ($status) {
-            print "TEST-POP3: Connection to $ip:$port OK\n";
-        }
-        else {
-            print "TEST-POP3: Connection to $ip:$port FAILED: $msg\n";
-        }
-    }
-}
-
-sub test_imap {
-    my $config   = shift;
-    my $user_ref = shift;
-    {
-        my $ip   = '127.0.0.1';
-        my $port = 143;
-        my ( $status, $msg ) = &check_imap( $ip, $port, $user_ref->{'siteadmin'}{'username'}, $user_ref->{'siteadmin'}{'password'}, 30, 0 );
-        if ($status) {
-            print "TEST-IMAP: Connection to $ip:$port OK\n";
-        }
-        else {
-            print "TEST-IMAP: Connection to $ip:$port FAILED: $msg\n";
-        }
-    }
-    {
-        my $ip   = '127.0.0.1';
-        my $port = 993;
-        my ( $status, $msg ) = &check_imap( $ip, $port, $user_ref->{'siteadmin'}{'username'}, $user_ref->{'siteadmin'}{'password'}, 30, 1 );
-        if ($status) {
-            print "TEST-IMAP: Connection to $ip:$port OK\n";
-        }
-        else {
-            print "TEST-IMAP: Connection to $ip:$port FAILED: $msg\n";
-        }
-    }
-}
-
-sub configure_smtpproxy {
-    my $config = shift;
-    my %saopts = ();
-    $saopts{'caching'}{'default'}               = 1;
-    $saopts{'caching'}{'description'}           = 'Enable caching of SpamAssassin results';
-    $saopts{'max_msg_size'}{'default'}          = 25;
-    $saopts{'max_msg_size'}{'description'}      = 'Global maximum message size in MB';
-    $saopts{'childtimeout'}{'default'}          = 60;
-    $saopts{'childtimeout'}{'description'}      = 'Timeout for scanning a message';
-    $saopts{'sa_max_msg_size'}{'default'}       = 10;
-    $saopts{'sa_max_msg_size'}{'description'}   = 'Maximum message size for scanning with SpamAssassin';
-    $saopts{'sa_timeout'}{'default'}            = 30;
-    $saopts{'sa_timeout'}{'description'}        = 'Timeout for scanning a message for Spam';
-    $saopts{'min_servers'}{'default'}           = 20;
-    $saopts{'min_servers'}{'description'}       = 'Minimal number of forks of the SMTP-Proxy running';
-    $saopts{'max_servers'}{'default'}           = 80;
-    $saopts{'max_servers'}{'description'}       = 'Maximum number of forks of the SMTP-Proxy running';
-    $saopts{'min_spare_servers'}{'default'}     = 10;
-    $saopts{'min_spare_servers'}{'description'} = 'Minimal number of idle forks running';
-    $saopts{'max_spare_servers'}{'default'}     = 20;
-    $saopts{'max_spare_servers'}{'description'} = 'Maximum number of idle forks running';
-    $saopts{'max_requests'}{'default'}          = 30;
-    $saopts{'max_requests'}{'description'}      = 'Messages processed per child';
-
-    foreach my $opt ( keys %saopts ) {
-        $config->{$opt} = &ask_number( $saopts{$opt}{'description'} . '[' . $saopts{$opt}{'default'} . ']' ) || $saopts{$opt}{'default'};
-    }
-    return 1;
-}
-
-sub enable_smtpproxy {
-    my $sa_default_file = '/etc/default/vboxadm-sa';
-    if ( -f $sa_default_file ) {
-
-        # edit it
-        my $content = VBoxAdm::Utils::slurp($sa_default_file);
-        $content =~ s/^START_SMTPPROXY=.*$/START_SMTPPROXY="true"/;
-        VBoxAdm::Utils::blarf( $sa_default_file, $content );
-    }
-}
-
-sub create_ssl {
-    my $user_ref = shift;
-    my $hostname = Net::Domain::hostname();
-    my $domain   = Net::Domain::hostdomain();
-    my $year     = ( localtime(time) )[5];
-    $year += 1900;
-    my $csrpath         = '/root/' . $hostname . '.' . $domain . '.csr';
-    my $ssl_key_file    = '/etc/ssl/private/' . $hostname . '.' . $domain . '-' . $year . '.key';
-    my $ssl_cert_file   = '/etc/ssl/certs/' . $hostname . '.' . $domain . '-' . $year . '.crt';
-    my $lighty_pem_file = '/etc/lighttpd/' . $hostname . '.' . $domain . '-' . $year . '.pem';
-
-    # create tempdir for certs and keys
-    my $tempdir = File::Temp::tempdir( CLEANUP => 1 );
-    my ( $cmd, $rv );
-    $cmd = 'openssl genrsa -out ' . $tempdir . '/private.key 2048';
-    $rv  = system($cmd) >> 8;
-    if ( $rv != 0 ) {
-        print "create_ssl - Command ($cmd) failed: $!\n";
-        return;
-    }
-    $cmd = 'openssl req -new -key ' . $tempdir . '/private.key -out ' . $tempdir . '/' . $hostname . '.' . $domain . '.csr';
-    $rv  = system($cmd) >> 8;
-    if ( $rv != 0 ) {
-        print "create_ssl - Command ($cmd) failed: $!\n";
-        return;
-    }
-
-    # Create CSR or self sign?
-    my $selfsign = &ask_yesno('Do you want to create a self-signed certificate?');
-    if ($selfsign) {
-
-        # self-sign:
-        $cmd =
-            'openssl x509 -req -days 365 -in ' 
-          . $tempdir . '/'
-          . $hostname . '.'
-          . $domain
-          . '.csr -signkey '
-          . $tempdir
-          . '/private.key -out '
-          . $tempdir . '/'
-          . $hostname . '.'
-          . $domain . '.crt';
-        $rv = system($cmd) >> 8;
-        if ( $rv != 0 ) {
-            print "create_ssl - Command ($cmd) failed: $!\n";
-            return;
-        }
-    }
-    else {
-
-        # csr: noop
-        print "Find your CSR at $csrpath\n";
-
-        # hostname.domain.tld.csr to /root/
-        $cmd = "mv $tempdir/$hostname.$domain.csr $csrpath";
-        $rv  = system($cmd) >> 8;
-        if ( $rv != 0 ) {
-            print "create_ssl - Command ($cmd) failed: $!\n";
-            return;
-        }
-    }
-
-    # move files:
-
-    # private.key to /etc/ssl/private/hostname.domain.tld-YYYY.key
-    $cmd = "mv $tempdir/private.key " . $ssl_key_file;
-    $rv  = system($cmd) >> 8;
-    if ( $rv != 0 ) {
-        print "create_ssl - Command ($cmd) failed: $!\n";
-        return;
-    }
-
-    # hostname.domain.tld.crt to /etc/ssl/certs/hostname.domain.tld-YYYY.crt
-    $cmd = "mv $tempdir/$hostname.$domain.crt " . $ssl_cert_file;
-    $rv  = system($cmd) >> 8;
-    if ( $rv != 0 ) {
-        print "create_ssl - Command ($cmd) failed: $!\n";
-        return;
-    }
-
-    # hostname.domain.tld.crt + hostname.domain.tld.key > /etc/lighttpd/hostname.domain.tld-YYYY.pem
-    $cmd = "cp $ssl_key_file $lighty_pem_file";
-    $rv  = system($cmd) >> 8;
-    if ( $rv != 0 ) {
-        print "create_ssl - Command ($cmd) failed: $!\n";
-        return;
-    }
-    $cmd = "cat $ssl_cert_file >> $lighty_pem_file";
-    $rv  = system($cmd) >> 8;
-    if ( $rv != 0 ) {
-        print "create_ssl - Command ($cmd) failed: $!\n";
-        return;
-    }
-
-    $user_ref->{'ssl'}{'key'}  = $ssl_key_file;
-    $user_ref->{'ssl'}{'cert'} = $ssl_cert_file;
-    $user_ref->{'ssl'}{'pem'}  = $lighty_pem_file;
-    return 1;
-}
-
-sub find_conf_source {
-    my $user_ref = shift;
-
-    if ( !$user_ref->{'conf_source'} ) {
-
-        # find maps - try doc/postfix/maps, /usr/share/doc/vboxadm-common/examples/postfix/maps/
-        my @conf_sources = qw(doc/postfix /usr/share/doc/vboxadm-common/examples/postfix);
-        foreach my $dir (@conf_sources) {
-            if ( -d $dir && -f $dir . '/main.cf' && -d $dir . '/maps/' ) {
-                $dir =~ s#/postfix/?$##;
-                $user_ref->{'conf_source'} = $dir;
-            }
-        }
-    }
-}
-
-sub init_postfix_config {
-    my $config   = shift;
-    my $user_ref = shift;
-
-    my ( $cmd, $rv );
-    my $mapdir = '/etc/postfix/maps';
-
-    &find_conf_source($user_ref);
-    my $conf_source = $user_ref->{'conf_source'} . '/postfix';
-    if ( !$conf_source || !-d $conf_source ) {
-        print "init_postfix_maps - Failed to find configuration file source!\n";
-        return;
-    }
-
-    $cmd = "mv -f /etc/postfix/main.cf /etc/postfix/main.cf.dist";
-    print "CMD: $cmd\n";
-    $rv = system($cmd) >> 8;
-    if ( $rv == 0 ) {
-        print "OK\n";
-    }
-    else {
-        print "ERROR: $!\n";
-    }
-
-    $cmd = "mv -f /etc/postfix/master.cf /etc/postfix/master.cf.dist";
-    print "CMD: $cmd - ";
-    $rv = system($cmd) >> 8;
-    if ( $rv == 0 ) {
-        print "OK\n";
-    }
-    else {
-        print "ERROR: $!\n";
-    }
-
-    if ( -d '/etc/postfix/maps' ) {
-        $cmd = "mv /etc/postfix/maps /etc/postfix/maps.dist";
-        print "CMD: $cmd\n";
-        $rv = system($cmd) >> 8;
-        if ( $rv == 0 ) {
-            print "OK\n";
-        }
-        else {
-            print "ERROR: $!\n";
-        }
-    }
-
-    # makedir /etc/postfix/maps
-    $cmd = "mkdir -p $mapdir";
-    print "CMD: $cmd\n";
-    $rv = system($cmd) >> 8;
-    if ( $rv != 0 ) {
-        print "init_postfix_maps - Failed to create $mapdir: $!\n";
-        return;
-    }
-
-    # copy maps to /etc/postfix/maps
-    $cmd = "cp $conf_source/maps/* /etc/postfix/maps/";
-    print "CMD: $cmd - ";
-    $rv = system($cmd) >> 8;
-    if ( $rv == 0 ) {
-        print "OK\n";
-    }
-    else {
-        print "ERROR: $!\n";
-    }
-
-    $cmd = "cp $conf_source/main.cf /etc/postfix/main.cf";
-    print "CMD: $cmd - ";
-    $rv = system($cmd) >> 8;
-    if ( $rv == 0 ) {
-        print "OK\n";
-    }
-    else {
-        print "ERROR: $!\n";
-    }
-
-    $cmd = "cp $conf_source/master.cf /etc/postfix/master.cf";
-    print "CMD: $cmd - ";
-    $rv = system($cmd) >> 8;
-    if ( $rv == 0 ) {
-        print "OK\n";
-    }
-    else {
-        print "ERROR: $!\n";
-    }
-
-    # replace username, password and db
-    if ( opendir( my $DH, $mapdir ) ) {
-        while ( my $dir_entry = readdir($DH) ) {
-            next if $dir_entry =~ m/^\./;
-            next unless $dir_entry =~ m/^virtual_/;
-            my $file = $mapdir . '/' . $dir_entry;
-
-            # edit file
-            if ( open( my $OLD, "<", $file ) ) {
-                if ( open( my $NEW, ">", $file . '.new' ) ) {
-                    while ( my $line = <$OLD> ) {
-                        $line =~ s/^user = postfix\b/user = $user_ref->{'postfix'}{'username'}/;
-                        $line =~ s/^password = PASSWORD\b/password = $user_ref->{'postfix'}{'password'}/;
-                        $line =~ s/^dbname = vboxadm\b/dbname = $config{'dbdb'}/;
-                        print $NEW $line;
-                    }
-                    close($NEW);
-                    close($OLD);
-                    unlink($file);
-                    rename( $file . '.new', $file );
-                }
-            }
-        }
-        closedir($DH);
-    }
-}
-
-sub configure_postfix {
-    my $config   = shift;
-    my $user_ref = shift;
-
-    my $hostname = Net::Domain::hostname();
-    my $domain   = Net::Domain::hostdomain();
-
-    my ( $cmd, $rv );
-
-    # get mynetworks
-    my @mynets = ();
-    my @ips    = `/bin/ip addr`;
-    foreach my $line (@ips) {
-
-        # inet 192.168.23.11/24
-        if ( $line =~ m/\s*inet\s+(\d+\.\d+\.\d+\.\d+)\/(\d+)/ ) {
-            push( @mynets, "$1/$2" );
-        }
-    }
-
-    my %postopts = (
-        'myhostname'          => "$hostname.$domain",
-        'mynetworks'          => "[::1]/128 " . join( " ", @mynets ),
-        'virtual_minimum_uid' => $user_ref->{'system'}{'min_uid'},
-        'virtual_uid_maps'    => "static:" . $user_ref->{'system'}{'vmail'}{'uid'},
-        'virtual_gid_maps'    => "static:" . $user_ref->{'system'}{'vmail'}{'gid'},
-        'mydestination'       => "$hostname.$domain, localhost",
-        'relayhosts'          => '',
-        'inet_protocols'      => 'all',
-        'smtpd_tls_cert_file' => $user_ref->{'ssl'}{'cert'},
-        'smtpd_tls_key_file'  => $user_ref->{'ssl'}{'key'},
-    );
-
-    foreach my $key ( keys %postopts ) {
-        $cmd = "postconf -e $key=\"" . $postopts{$key} . "\"";
-        print "CMD: $cmd - ";
-        $rv = system($cmd) >> 8;
-        if ( $rv == 0 ) {
-            print "OK\n";
-        }
-        else {
-            print "ERROR\n";
-        }
-    }
-
-    return 1;
-}
-
-sub configure_dovecot {
-    my $config   = shift;
-    my $user_ref = shift;
-
-    &find_conf_source($user_ref);
-    my $conf_source = $user_ref->{'conf_source'} . '/dovecot1';
-    if ( !$conf_source || !-d $conf_source ) {
-        print "configure_dovecot - Failed to find configuration file source!\n";
-        return;
-    }
-
-    my %dovopts = ();
-    $dovopts{'ssl_cert_file'}   = $user_ref->{'ssl'}{'cert'};
-    $dovopts{'ssl_key_file'}    = $user_ref->{'ssl'}{'key'};
-    $dovopts{'first_valid_uid'} = $user_ref->{'system'}{'min_uid'};
-    $dovopts{'first_valid_gid'} = $user_ref->{'system'}{'min_gid'};
-    $dovopts{'domain'}          = '';
-    $dovopts{'vmail_uid'}       = $user_ref->{'system'}{'vmail'}{'uid'};
-    $dovopts{'vmail_gid'}       = $user_ref->{'system'}{'vmail'}{'gid'};
-    $dovopts{'vboxadm_uid'}     = $user_ref->{'system'}{'vboxadm'}{'uid'};
-    $dovopts{'vboxadm_gid'}     = $user_ref->{'system'}{'vboxadm'}{'gid'};
-    $dovopts{'dbhost'}          = $config->{'dbhost'};
-    $dovopts{'dbname'}          = $config->{'dbdb'};
-    $dovopts{'dbuser'}          = $user_ref->{'db'}{'dovecot'}{'username'};
-    $dovopts{'dbpass'}          = $user_ref->{'db'}{'dovecot'}{'password'};
-
-    my $dovecot_conf_file     = $conf_source . '/dovecot.conf';
-    my $dovecot_sql_conf_file = $conf_source . '/dovecot-sql.conf';
-    my $dovecot_conf          = VBoxAdm::Utils::slurp($dovecot_conf_file);
-    my $dovecot_sql_conf      = VBoxAdm::Utils::slurp($dovecot_sql_conf_file);
-    foreach my $key ( keys %dovopts ) {
-        $dovecot_conf     =~ s/{{$key}}/$dovopts{$key}/g;
-        $dovecot_sql_conf =~ s/{{$key}}/$dovopts{$key}/g;
-    }
-    VBoxAdm::Utils::blarf( '/etc/dovecot/dovecot.conf',     $dovecot_conf );
-    VBoxAdm::Utils::blarf( '/etc/dovecot/dovecot-sql.conf', $dovecot_sql_conf );
-}
-
-sub initialize_database {
-    my $config = shift;
-
-    # find path to schema.sql!
-    my @schema_locations = qw(
-      schema.sql
-      doc/mysql/schema.sql
-      /usr/share/doc/vboxadm-common/examples/mysql/schema.sql
-    );
-    my $schemafile = undef;
-    foreach my $loc (@schema_locations) {
-        if ( -r $loc ) {
-            $schemafile = $loc;
-        }
-    }
-
-    if ( !$schemafile ) {
-        print STDERR "MySQL Schema file not found!\n";
-        return;
-    }
-
-    my $cmd = "/usr/bin/mysql -f -u$config->{'dbuser'} -p$config->{'dbpass'} -h$config->{'dbhost'} --port=$config->{'dbport'} $config->{'dbdb'} < $schemafile";
-
-    my $rv = system($cmd) >> 8;
-
-    if ( $rv == 0 ) {
-        return 1;
-    }
-    return;
-}
-
-sub create_system_accounts {
-    my $config   = shift;
-    my $user_ref = shift;
-
-    $user_ref->{'system'}{'min_uid'} = 65534;
-    $user_ref->{'system'}{'min_gid'} = 65534;
-
-    my ( $cmd, $rv, $uid, $gid );
-
-    # create vboxadm user for sa and vacation
-    # make sure that the user exists. the simplest portable way to check that
-    # is to chown something.
-    $cmd = "makedir /tmp/vboxadm root:root 700";
-    $rv  = system($cmd) >> 8;
-    $cmd = "chgrp vboxadm /tmp/vboxadm 2>/dev/null";
-    $rv  = system($cmd) >> 8;
-    if ( $rv != 0 ) {
-        $cmd = "addgroup --system vboxadm";
-        $rv  = system($cmd) >> 8;
-    }
-    $cmd = "chown vboxadm /tmp/vboxadm 2>/dev/null";
-    $rv  = system($cmd) >> 8;
-    if ( $rv != 0 ) {
-        $cmd = "adduser --system --home /var/lib/vboxadm --no-create-home --ingroup vboxadm --disabled-password vboxadm";
-        $rv  = system($cmd) >> 8;
-    }
-    $user_ref->{'system'}{'vboxadm'}{'uid'} = getpwnam('vboxadm');
-    $user_ref->{'system'}{'min_uid'} =
-        $user_ref->{'system'}{'vboxadm'}{'uid'} > $user_ref->{'system'}{'min_uid'}
-      ? $user_ref->{'system'}{'min_uid'}
-      : $user_ref->{'system'}{'vboxadm'}{'uid'};
-    $user_ref->{'system'}{'vboxadm'}{'gid'} = getgrnam('vboxadm');
-    $user_ref->{'system'}{'min_gid'} =
-        $user_ref->{'system'}{'vboxadm'}{'gid'} > $user_ref->{'system'}{'min_gid'}
-      ? $user_ref->{'system'}{'min_gid'}
-      : $user_ref->{'system'}{'vboxadm'}{'gid'};
-
-    # create vmail user for mails
-    $cmd = "makedir /tmp/vmail root:root 700";
-    $rv  = system($cmd) >> 8;
-    $cmd = "chgrp vmail /tmp/vmail 2>/dev/null";
-    $rv  = system($cmd) >> 8;
-    if ( $rv != 0 ) {
-        $cmd = "addgroup --system vmail";
-        $rv  = system($cmd) >> 8;
-    }
-    $cmd = "chown vmail /tmp/vmail 2>/dev/null";
-    $rv  = system($cmd) >> 8;
-    if ( $rv != 0 ) {
-        $cmd = "adduser --system --home /var/vmail --no-create-home --ingroup vmail --disabled-password vmail";
-        $rv  = system($cmd) >> 8;
-    }
-    $user_ref->{'system'}{'vmail'}{'uid'} = getpwnam('vmail');
-    $user_ref->{'system'}{'min_uid'} =
-      $user_ref->{'system'}{'vmail'}{'uid'} > $user_ref->{'system'}{'min_uid'} ? $user_ref->{'system'}{'min_uid'} : $user_ref->{'system'}{'vmail'}{'uid'};
-    $user_ref->{'system'}{'vmail'}{'gid'} = getgrnam('vmail');
-    $user_ref->{'system'}{'min_gid'} =
-      $user_ref->{'system'}{'vmail'}{'gid'} > $user_ref->{'system'}{'min_gid'} ? $user_ref->{'system'}{'min_gid'} : $user_ref->{'system'}{'vmail'}{'gid'};
-
-    # set $user_ref->{'system'}{'min_uid'} and min_gid
-    return 1;
-}
-
-sub create_database {
-    my $config   = shift;
-    my $dbh      = shift;
-    my $database = shift;
-
-    my $sql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ?";
-    print "create_database - Query: $sql\n" if $config->{'verbose'};
-    my $sth = $dbh->prepare($sql);
-    $sth->execute($database);
-    my $num = $sth->fetchrow_array();
-    my $i   = 0;
-
-    # find a free db name
-    while ( $num > 0 ) {
-        $i++;
-        $sth->execute( $database . $i );
-        $num = $sth->fetchrow_array();
-    }
-    $database .= $i if $i;
-
-    $sql = "CREATE DATABASE \`$database\`";
-    $dbh->do($sql);
-
-    return $database;
-}
-
-sub create_database_grants {
-    my $config      = shift;
-    my $dbh         = shift;
-    my $database    = shift;
-    my $rc_database = shift;
-    my $user_ref    = shift || {};
-
-    # User: vboxadm@localhost
-    my $password = &VBoxAdm::Password::pwgen(16);
-    my $sql      = "GRANT ALL ON \`$database\`.* TO 'vboxadm'\@'localhost' IDENTIFIED BY '$password'";
-    print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
-    $dbh->do($sql);
-    $user_ref->{'db'}{'vboxadm'}{'username'} = 'vboxadm';
-    $user_ref->{'db'}{'vboxadm'}{'password'} = $password;
-
-    # User: postfix@localhost
-    $password = &VBoxAdm::Password::pwgen(16);
-    $sql      = "GRANT SELECT ON \`$database\`.* TO 'postfix'\@'localhost' IDENTIFIED BY '$password'";
-    print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
-    $dbh->do($sql);
-    $user_ref->{'db'}{'postfix'}{'username'} = 'postfix';
-    $user_ref->{'db'}{'postfix'}{'password'} = $password;
-
-    # User: dovecot@localhost
-    $password = &VBoxAdm::Password::pwgen(16);
-    $sql      = "GRANT ALL ON \`$database\`.mailboxes TO 'dovecot'\@'localhost' IDENTIFIED BY '$password'";
-    print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
-    $dbh->do($sql);
-    $sql = "GRANT ALL ON \`$database\`.domains TO 'dovecot'\@'localhost' IDENTIFIED BY '$password'";
-    print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
-    $dbh->do($sql);
-    $user_ref->{'db'}{'dovecot'}{'username'} = 'dovecot';
-    $user_ref->{'db'}{'dovecot'}{'password'} = $password;
-
-    # User: roundcube@localhost
-    $password = &VBoxAdm::Password::pwgen(16);
-    $sql      = "GRANT ALL ON \`$rc_database\`.* TO 'roundcube'\@'localhost' IDENTIFIED BY '$password'";
-    print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
-    $dbh->do($sql);
-    $user_ref->{'db'}{'roundcube'}{'username'} = 'roundcube';
-    $user_ref->{'db'}{'roundcube'}{'password'} = $password;
-
-    # User: vboxadm_user@localhost
-    $password = &VBoxAdm::Password::pwgen(16);
-    $sql      = "GRANT SELECT,UPDATE ON \`$database\`.mailboxes TO 'vboxadm_user'\@'localhost' IDENTIFIED BY '$password'";
-    print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
-    $dbh->do($sql);
-    $sql = "GRANT SELECT ON \`$database\`.domains TO 'vboxadm_user'\@'localhost' IDENTIFIED BY '$password'";
-    print "create_database_grants - Query: $sql\n" if $config->{'verbose'};
-    $dbh->do($sql);
-    $user_ref->{'db'}{'vboxadm_user'}{'username'} = 'vboxadm_user';
-    $user_ref->{'db'}{'vboxadm_user'}{'password'} = $password;
-
-    # Flush privileges
-    $sql = "FLUSH PRIVILEGES";
-    $dbh->do($sql);
-
-    return $user_ref;
-}
-
-sub create_siteadmin {
-    my $dbh      = shift;
-    my $config   = shift;
-    my $user_ref = shift;
-    my $email    = shift;
-
-    if ( !$email ) {
-        print "Please enter the username (as user\@domain.tld) for the designated site-admin:\n";
-        $email = <STDIN>;
-        chomp($email);
-        $email = &VBoxAdm::Utils::trim($email);
-    }
-    if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
-        die("Invalid Email-Address given: $email\n");
-    }
-    my ( $local_part, $domain ) = split( /@/, $email );
-
-    # Create Domain
-    my $sql = "INSERT IGNORE INTO domains (name,is_active) VALUES(?,1)";
-    my $sth = $dbh->prepare($sql);
-    $sth->execute($domain);
-    $sth->finish();
-
-    $sql = "SELECT id FROM domains WHERE name = ?";
-    $sth = $dbh->prepare($sql);
-    $sth->execute($domain);
-    my $domain_id = $sth->fetchrow_array();
-    $sth->finish();
-
-    my $password = &VBoxAdm::Password::pwgen(16);
-    my $salt     = &VBoxAdm::Password::pwgen(6);
-
-    $sql = "INSERT INTO mailboxes (domain_id,local_part,password,is_active,is_siteadmin) VALUES(?,?,?,1,1) ON DUPLICATE KEY UPDATE password = ?";
-    $sth = $dbh->prepare($sql);
-    my $pwhash = &VBoxAdm::SaltedHash::make_pass( $password, $config->{'default'}{'pwscheme'}, $salt );
-    $sth->execute( $domain_id, $local_part, $pwhash, $pwhash );
-    $sth->finish();
-
-    print "User $email created. Your password is '$password'.\n";
-
-    $user_ref->{'siteadmin'}{'username'} = $email;
-    $user_ref->{'siteadmin'}{'password'} = $password;
-
-    if ( &VBoxAdm::SaltedHash::verify_pass( $password, $pwhash ) ) {
-        print "Password verified.\n";
-    }
-    else {
-        print "Password verification failed.\n";
-    }
-}
-
-sub ask_select {
-    my $msg     = shift;
-    my @options = @_;
-
-    # let user select on of the options provided
-    while (1) {
-        print $msg. "\n";
-        my $i = 0;
-        foreach my $opt (@options) {
-            print "[$i] $opt\n";
-            $i++;
-        }
-        my $num = &ask_number( 'Print enter any number between 0 and ' . $i . '. Press enter to abort' );
-        if ( defined($num) && $options[$num] ) {
-            return wantarray ? ( $num, $options[$num] ) : $options[$num];
-        }
-        else {
-            return;
-        }
-    }
-}
-
-sub ask_yesno {
-    my $msg = shift;
-    print $msg. " [y/N]: ";
-    my $resp = <STDIN>;
-    chomp($resp);
-    if ( $resp =~ m/(1|Yes|Ja|Y)/i ) {
-        return 1;
-    }
-    return;
-}
-
-sub ask_number {
-    my $msg = shift;
-    print $msg. ": ";
-    my $resp = <STDIN>;
-    chomp($resp);
-    if ( $resp =~ m/^\s*(\d+)\s*$/ ) {
-        return $1;
-    }
-    return;
-}
-
-sub ask_string {
-    my $msg = shift;
-    print $msg. ": ";
-    my $resp = <STDIN>;
-    chomp($resp);
-    return $resp;
-}
-
-sub check_pop3 {
-    my $ip      = shift;
-    my $port    = shift || 110;
-    my $user    = shift;
-    my $pass    = shift;
-    my $timeout = shift;
-
-    my $status = 0;
-    my $msg    = '';
-    my $pop    = undef;
-    if ( $pop = Net::POP3->new( $ip, Timeout => $timeout, Port => $port, ) ) {
-        if ( $user && $pass ) {
-            if ( $pop->login( $user, $pass ) ) {
-                my $msg = $pop->list;
-                $msg .= "Connected to $ip. Got " . scalar( keys %$msg ) . " messages.";
-                $status = 1;
-                $pop->quit();
-            }
-            else {
-                $status = 0;
-                $msg .= "Connected to $ip but could not login.";
-            }
-        }
-        else {
-            $status = 1;
-            $msg .= "Connected to $ip but no credentials given.";
-        }
-    }
-    else {
-        $status = 0;
-        $msg .= "Can not connect to $ip.";
-    }
-    return ( $status, $msg );
-}
-
-sub check_imap {
-    my $ip      = shift;
-    my $port    = shift || 143;
-    my $user    = shift;
-    my $pass    = shift;
-    my $timeout = shift || 30;
-    my $ssl     = shift || 0;
-
-    my $status = 0;
-    my $msg    = '';
-    my $imap   = undef;
-    if (
-        $imap = Net::IMAP::Client->new(
-            server => $ip,
-            user   => $user,
-            pass   => $pass,
-            ssl    => $ssl,
-            port   => $port,
-        )
-      )
-    {
-
-        if ( $imap->login ) {
-            my @folders = $imap->folders;
-            my $istatus = $imap->status(@folders);
-            $msg .= "Login ok. Number of messages: " . $$istatus{MESSAGES} . "\n";
-            $status = 1;
-            eval { $imap->logout; };
-        }
-        else {
-            $status = 0;
-            $msg .= "Connected to $ip but can not login as $user";
-        }
-    }
-    else {
-        $status = 0;
-        $msg .= "Can not connect to $ip: " . $imap->last_error;
-    }
-    return ( $status, $msg );
-}
-
-sub check_smtp {
-    my $ip      = shift;
-    my $port    = shift || 25;
-    my $user    = shift;
-    my $pass    = shift;
-    my $timeout = shift;
-
-    my $status = 0;
-    my $msg    = '';
-    my $fail   = 0;
-    my $smtp   = Net::SMTP->new( $ip, Timeout => $timeout, Port => $port, )
-      || ( $fail = 1 );
-    if ($fail) {
-        $status = 0;
-        $msg    = "Can not connect to SMTP Server $ip";
-    }
-    else {
-        if ( $smtp->domain() ) {
-            if ( $user && $pass ) {
-                $smtp->auth( $user, $pass );
-                my $code = $smtp->code();
-
-                #print "SMTP-Code: " . $smtp->code() . "\n" if $verbose;
-                if ( $code < 400 ) {
-                    $status = 1;
-                    $msg .= "SMTP Server $ip is ok. Login successfull.";
-                }
-                else {
-                    $status = 0;
-                    $msg .= "SMTP Server $ip is up but login failed.";
-                }
-            }
-            else {
-                $status = 1;
-                $msg .= "SMTP Server $ip is ok: " . $smtp->domain();
-            }
-        }
-        else {
-            $status = 0;
-            $msg .= "SMTP Server $ip is not ok.";
-        }
-    }
-    return ( $status, $msg );
 }
 
 no Moose;
