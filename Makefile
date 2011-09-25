@@ -96,6 +96,8 @@ LIBFILES = \
 	lib/VBoxAdm/Model/User.pm \
 	lib/VBoxAdm/Model/VacationBlacklist.pm \
 	lib/VBoxAdm/Model/VacationNotify.pm \
+	lib/VBoxAdm/SMTP/Proxy/MA.pm \
+	lib/VBoxAdm/SMTP/Proxy/SA.pm \
 	lib/VBoxAdm/SMTP/Client.pm \
 	lib/VBoxAdm/SMTP/Mailarchive.pm \
 	lib/VBoxAdm/SMTP/Proxy.pm \

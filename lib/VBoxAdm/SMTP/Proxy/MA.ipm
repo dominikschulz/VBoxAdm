@@ -1,14 +1,7 @@
-package VBoxAdm::SMTP::Mailarchive;
+package VBoxAdm::SMTP::Proxy::MA;
 
-use strict;
-use warnings;
-
-# TODO refactor:
-# common code of SMTP::Proxy + SMTP::Mailarchive to SMTP::Proxy
-# the "real" SMTP::Proxy to SMTP::Proxy::SA and the Mailarchive to SMTP::Proxy::MA
-
-# TODO use Moose;
-#use namespace::autoclean;
+use Moose;
+use namespace::autoclean;
 
 use Carp;
 
@@ -24,35 +17,7 @@ use VBoxAdm::DB '@VERSION@';
 
 our $VERSION = '@VERSION@';
 
-use base qw(Net::Server::PreFork);
-
-############################################
-# Usage      : ????
-# Purpose    : ????
-# Returns    : ????
-# Parameters : ????
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
-sub db_connect {
-    my $self = shift;
-    my $user = $self->{vbox}->{dbuser} || 'vboxadm';
-    my $pass = $self->{vbox}->{dbpass} || 'vboxadm';
-    my $host = $self->{vbox}->{dbhost} || 'localhost';
-    my $port = $self->{vbox}->{dbport} || 3306;
-    my $db   = $self->{vbox}->{dbdb} || 'vboxadm';
-
-    # if more than one dbhost is given shuffle the list
-    # and try each one until a connection succeeds, use short timeout
-    # use guarding alarm timer
-    my $dsn = "DBI:mysql:database=$db;user=$user;password=$pass;port=$port;host=$host";
-    $self->{vbox}->{dbh} = VBoxAdm::DB::connect( $dsn, { ConnectTimeout => 10, } );
-    if ( !$self->{vbox}->{dbh} ) {
-        croak "Could not connect to DB with DSN $dsn: " . DBI->errstr;
-    }
-
-    return 1;
-}
+extends 'VBoxAdm::SMTP::Proxy';
 
 sub prepare_queries {
     my $self = shift;
@@ -75,48 +40,7 @@ sub prepare_queries {
     return 1;
 }
 
-############################################
-# Usage      : invoked by Net::Server
-# Purpose    : called when a new child is created, setup db connections
-# Returns    : always true
-# Parameters : none
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
-sub child_init_hook {
-    my $self = shift;
-
-    # setup my env
-    $ENV{'HOME'} = ( getpwuid($>) )[7];
-
-    $self->db_connect();
-    $self->prepare_queries();
-
-    return 1;
-}
-
-############################################
-# Usage      : invoked by Net::Server
-# Purpose    : called when a child has reached the end of its lifetime, tear down db connections
-# Returns    : always true
-# Parameters : none
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
-sub child_finish_hook {
-    my $self = shift;
-
-    foreach my $key ( keys %{ $self->{vbox}->{sth} } ) {
-        $self->{vbox}->{sth}->{$key}->finish();
-    }
-
-    # Disconnect from DB
-    if ( $self->{vbox}->{dbh} ) {
-        $self->{vbox}->{dbh}->disconnect();
-    }
-
-    return 1;
-}
+# TODO continue here ...
 
 ############################################
 # Usage      : invoked by Net::Server
