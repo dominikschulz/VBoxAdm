@@ -8,7 +8,7 @@ use namespace::autoclean;
 # TODO allow changing the pw_lock flag on mailboxes
 
 use English qw(-no_match_vars);
-
+use Carp;
 use CPAN;
 use Data::Dumper;
 use Getopt::Long;
@@ -59,7 +59,7 @@ has 'dbh' => (
 
 has 'msgq' => (
 	'is'	=> 'ro',
-	'isa' => 'VBoxAdm::MessageQueue',
+	'isa' => 'VBoxAdm::Model::MessageQueue',
 	'lazy' => 1,
 	'builder' => '_init_msgq',
 );
@@ -84,6 +84,20 @@ has 'domain' => (
 	'lazy' => 1,
 	'builder' => '_init_domain',
 );
+
+sub _init_domain {
+	my $self = shift;
+	
+	my $Domain = VBoxAdm::Model::Domain->new({
+		'dbh'	=> $self->dbh(),
+		'logger' => $self->logger(),
+		'config' => $self->config(),
+		'user' 	=> $self->user(),
+		'msgq'	=> $self->msgq(),
+	});
+	
+	return $Domain;
+}
 
 has 'alias' => (
 	'is'	=> 'ro',
@@ -286,12 +300,13 @@ sub _init_dbh {
 
 sub _init_msgq {
 	my $self = shift;
-	return VBoxAdm::Model::MessageQueue->new(
+	my $MQ = VBoxAdm::Model::MessageQueue->new(
 	    {
 	        'lh'    => VBoxAdm::L10N->get_handle(),
 	        'lh_en' => VBoxAdm::L10N->get_handle('en'),
 	    }
 	);
+	return $MQ;
 }
 
 has 'opts' => (
@@ -540,7 +555,7 @@ sub _init_actions {
 	                return;
 	            }
 	            $self->alias()->create( $local_part, $domain_id, $goto );
-	            $self->display_messages( $self->alias()->msg() );
+	            $self->display_messages();
 	        },
 	        'update' => sub {
 	            my $email = shift;
@@ -550,7 +565,7 @@ sub _init_actions {
 	            }
 	            print "Update Alias.\n";
 	            $self->alias()->update( $self->alias()->get_id($email), $params );
-	            display_messages( $self->alias()->msg() );
+	            $self->display_messages();
 	        },
 	        'delete' => sub {
 	            my $email = shift;
@@ -563,7 +578,7 @@ sub _init_actions {
 	                $alias_id = $self->alias()->get_id($email);
 	            }
 	            $self->alias()->delete($alias_id);
-	            display_messages( $self->alias()->msg() );
+	            $self->display_messages();
 	        },
 	        'list' => sub {
 	            print "Listing Aliases:\n";
@@ -572,7 +587,7 @@ sub _init_actions {
 	            foreach my $alias ( $self->alias()->list() ) {
 	                printf( $format, @{$alias}{qw(id local_part domain goto is_active)} );
 	            }
-	            display_messages( $self->alias()->msg() );
+	            $self->display_messages();
 	          }
 	    },
 	    'awl' => {
@@ -580,7 +595,7 @@ sub _init_actions {
 	            my $email = shift;
 	            print "Add AWL.\n";
 	            $self->awl()->create($email);
-	            display_messages( $self->awl()->msg() );
+	            $self->display_messages();
 	        },
 	        'update' => sub {
 	            my $email = shift;
@@ -588,7 +603,7 @@ sub _init_actions {
 	            $params->{Disabled} = !$self->opts()->{IsActive} if defined( $self->opts()->{IsActive} );
 	            print "Update AWL.\n";
 	            $self->awl()->update( $self->awl()->get_id($email), $params );
-	            display_messages( $self->awl()->msg() );
+	            $self->display_messages();
 	        },
 	        'list' => sub {
 	            print "Listing AWL entries:\n";
@@ -597,7 +612,7 @@ sub _init_actions {
 	            foreach my $awl ( $self->awl()->list() ) {
 	                printf( $format, @{$awl}{qw(id email disabled last_seen)} );
 	            }
-	            display_messages( $self->awl()->msg() );
+	            $self->display_messages();
 	        },
 	    },
 	    'domain' => {
@@ -605,7 +620,7 @@ sub _init_actions {
 	            my $domain = shift;
 	            print "Add Domain.\n";
 	            $self->domain()->create($domain);
-	            display_messages( $self->domain()->msg() );
+	            $self->display_messages();
 	        },
 	        'update' => sub {
 	            my $domain = shift;
@@ -615,13 +630,13 @@ sub _init_actions {
 	            }
 	            print "Update Domain.\n";
 	            $self->domain()->update( $self->domain()->get_id($domain), $params );
-	            display_messages( $self->domain()->msg() );
+	            $self->display_messages();
 	        },
 	        'delete' => sub {
 	            my $domain = shift;
 	            print "Delete Domain.\n";
 	            $self->domain()->delete( $self->domain()->get_id($domain) );
-	            display_messages( $self->domain()->msg() );
+	            $self->display_messages();
 	        },
 	        'list' => sub {
 	            print "Listing Domains:\n";
@@ -630,7 +645,7 @@ sub _init_actions {
 	            foreach my $domain ( $self->domain()->list() ) {
 	                printf( $format, @{$domain}{qw(id name is_active)} );
 	            }
-	            display_messages( $self->domain()->msg() );
+	            $self->display_messages();
 	        },
 	    },
 	    'domainalias' => {
@@ -644,7 +659,7 @@ sub _init_actions {
 	            }
 	            print "Add DomainAlias.\n";
 	            $self->domainalias()->create( $domain, $domain_id );
-	            display_messages( $self->domainalias()->msg() );
+	            $self->display_messages();
 	        },
 	        'update' => sub {
 	            my $domain = shift;
@@ -661,13 +676,13 @@ sub _init_actions {
 	            }
 	            print "Update DomainAlias $domain.\n";
 	            $self->domainalias()->update( $self->domainalias()->get_id($domain), $params );
-	            display_messages( $self->domainalias()->msg() );
+	            $self->display_messages();
 	        },
 	        'delete' => sub {
 	            my $domain = shift;
 	            print "Delete DomainAlias.\n";
 	            $self->domainalias()->delete( $self->domainalias()->get_id($domain) );
-	            display_messages( $self->domainalias()->msg() );
+	            $self->display_messages();
 	        },
 	        'list' => sub {
 	            print "Listing DomainAliases:\n";
@@ -676,7 +691,7 @@ sub _init_actions {
 	            foreach my $domain ( $self->domainalias()->list() ) {
 	                printf( $format, @{$domain}{qw(id name domain_id is_active)} );
 	            }
-	            display_messages( $self->domainalias()->msg() );
+	            $self->display_messages();
 	        },
 	    },
 	    'mailbox' => {
@@ -708,7 +723,7 @@ sub _init_actions {
 	            }
 	            print "Add User: $email\n";
 	            $self->mailbox()->create( $local_part, $domain_id, $params );
-	            display_messages( $self->mailbox()->msg() );
+	            $self->display_messages();
 	        },
 	        'update' => sub {
 	            my $email = shift;
@@ -739,7 +754,7 @@ sub _init_actions {
 	            }
 	            print "Update User: $email\n";
 	            $self->mailbox()->update( $mailbox_id, $params );
-	            display_messages( $self->mailbox()->msg() );
+	            $self->display_messages();
 	        },
 	        'delete' => sub {
 	            my $email = shift;
@@ -752,7 +767,7 @@ sub _init_actions {
 	                $mailbox_id = $self->mailbox()->get_id($email);
 	            }
 	            $self->mailbox()->delete($mailbox_id);
-	            display_messages( $self->mailbox()->msg() );
+	            $self->display_messages();
 	        },
 	        'list' => sub {
 	            print "Listing Mailboxes:\n";
@@ -761,7 +776,7 @@ sub _init_actions {
 	            foreach my $mailbox ( $self->mailbox()->list() ) {
 	                printf( $format, @{$mailbox}{qw(id local_part domain sa_kill_score max_msg_size is_active is_siteadmin is_domainadmin)} );
 	            }
-	            display_messages( $self->mailbox()->msg() );
+	            $self->display_messages();
 	        },
 	    },
 	    'vacbl' => {
@@ -769,13 +784,13 @@ sub _init_actions {
 	            my $email = shift;
 	            print "Add VacationBlacklist entry: $email\n";
 	            $self->vacationblacklist()->create($email);
-	            display_messages( $self->vacationblacklist()->msg() );
+	            $self->display_messages();
 	        },
 	        'delete' => sub {
 	            my $email = shift;
 	            print "Delete VacationBlacklist entry.\n";
 	            $self->vacationblacklist()->delete( $self->vacationblacklist()->get_id($email) );
-	            display_messages( $self->vacationblacklist()->msg() );
+	            $self->display_messages();
 	        },
 	        'list' => sub {
 	            print "List VacationBlacklist entries:\n";
@@ -784,7 +799,7 @@ sub _init_actions {
 	            foreach my $e ( $self->vacationblacklist()->list() ) {
 	                printf( $format, @{$e}{qw(id local_part domain)} );
 	            }
-	            display_messages( $self->vacationblacklist()->msg() );
+	            $self->display_messages();
 	        },
 	    },
 	);
@@ -855,6 +870,8 @@ sub _init_user {
         my $User = VBoxAdm::Model::User->new(
             {
                 'dbh'        => $self->dbh(),
+                'logger'		=> $self->logger(),
+                'config'		=> $self->config(),
                 'msgq'			=> $self->msgq(),
                 'SystemUser' => 1,
             }
@@ -885,17 +902,20 @@ sub _init_user {
     my $User = VBoxAdm::Model::User->new(
         {
             'dbh'      => $self->dbh(),
-            'Username' => $user_config{'auth'}{'username'},
-            'Password' => $user_config{'auth'}{'password'},
+            'logger'		=> $self->logger(),
+            'config'		=> $self->config(),
+            'username' => $user_config{'auth'}{'username'},
+            'msgq'		=> $self->msgq(),
         }
     );
     if ( !$User ) {
-        print "Login invalid!\n";
-        return;
+        confess("Could not create User object!\n");
+    }
+    if ( !$User->login($user_config{'auth'}{'password'})) {
+    		confess( "Password invalid!\n");
     }
     if ( !$User->is_siteadmin() ) {
-        print "You are no siteadmin!\n";
-        return;
+        confess("You are no siteadmin!\n");
     }
     print "Authorized as site-admin " . $user_config{'auth'}{'username'} . "\n" if $self->opts()->{'Verbose'};
     return $User;

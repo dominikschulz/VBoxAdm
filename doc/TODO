@@ -1,12 +1,6 @@
 TODO:
 
-- Improve design
--- format forms - use jQuery UI modal forms for forms
--- seke http://jqueryui.com/demos/dialog/#modal-form
-
 - "Back to ..." Link in should log the user out
-
-- Quotas
 
 - Relay Domains
 transport_maps = btree:/etc/postfix/maps/transport, proxy:mysql:/etc/postfix/maps/virtual_transport_maps.cf
@@ -60,11 +54,10 @@ Make sure class-C ip subnet auto-whitelists are supported
 
 - Evaluate Perl Dancer
 - Evaluate http://mojolicio.us/
-- Evaluate Moose
 
 - Support recipient_delimiter different from #
 
 - Bugs/Errors:
 * no-fork option for vboxadm-(sa|ma) doesn't work atm.
 * replace Net::Fork's syslogging by VBoxAdm::Logger
-* Debian-Packaging: add postgrey, add policyd-weight, add postfix-mysql, add postfix-pcre, add mooose, add libnamespace-autoclean-perl
+* Debian-Packaging: add postgrey, add postfix-mysql, add postfix-pcre, add mooose, add libnamespace-autoclean-perl
