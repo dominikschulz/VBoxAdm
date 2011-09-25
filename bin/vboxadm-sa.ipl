@@ -1,6 +1,4 @@
 #!/usr/bin/perl
-package VBoxAdm::SMTP::Proxy;
-
 use strict;
 use warnings;
 
@@ -12,7 +10,7 @@ use lib '@LIBDIR@';
 use Getopt::Long;
 use Config::Std;
 
-use VBoxAdm::SMTP::Proxy '@VERSION@';
+use VBoxAdm::SMTP::Proxy::SA '@VERSION@';
 
 my $syntax = "syntax: $0 [--verbose] [--config=<FILE>]\n";
 
@@ -130,61 +128,61 @@ my $sa = Mail::SpamAssassin->new(
 # recommended for fork()ing servers.
 $sa->compile_now();
 
-# TODO this kind of subclassing is ... VERY DIRTY. proper subclassing would be way better ....
 # specify hosts and ports
-my $server = bless {
-    server => {
+my $server_args = {
 
-        # Binding
-        host  => $srcaddr,
-        port  => $srcport,
-        proto => 'tcp',
+    # Binding
+    host  => $srcaddr,
+    port  => $srcport,
+    proto => 'tcp',
 
-        # Logging
-        log_file        => 'Sys::Syslog',
-        log_level       => $nsloglevel,
-        syslog_logsock  => $logsock,
-        syslog_ident    => 'vboxadm-sa',
-        syslog_facility => 'mail',
+    # Logging
+    log_file        => 'Sys::Syslog',
+    log_level       => $nsloglevel,
+    syslog_logsock  => $logsock,
+    syslog_ident    => 'vboxadm-sa',
+    syslog_facility => 'mail',
 
-        # Misc
-        background => $background,
-        pid_file   => $pidfile,
-        user       => $user,
-        group      => $group,
+    # Misc
+    background => $background,
+    pid_file   => $pidfile,
+    user       => $user,
+    group      => $group,
 
-        # PreFork
-        min_servers       => $min_servers,
-        min_spare_servers => $min_spare_servers,
-        max_servers       => $max_servers,
-        max_spare_servers => $max_spare_servers,
-        max_requests      => $max_requests,
-    },
-    vbox => {
-        relayhosts             => \@connect,
-        dbh                    => undef,
-        childtimeout           => $childtimeout,
-        sa                     => $sa,
-        sa_max_msg_size        => $sa_max_msg_size,
-        sa_timeout             => $sa_timeout,
-        max_msg_size           => $max_msg_size,
-        dry                    => $config{'dry'},
-        caching                => $caching,
-        tempdir                => $tempdir,
-        nodb                   => $nodb,
-        soft_bounce            => $soft_bounce,
-        sa_default_block_score => $sa_default_block_score,
-        sa_default_status      => $sa_default_status,
-        recipient_delimiter    => $recipient_delimiter,
+    # PreFork
+    min_servers       => $min_servers,
+    min_spare_servers => $min_spare_servers,
+    max_servers       => $max_servers,
+    max_spare_servers => $max_spare_servers,
+    max_requests      => $max_requests,
+};
+my $vboxadm_args = {
+    relayhosts   => \@connect,
+    dbh          => undef,
+    childtimeout => $childtimeout,
 
-        dbhosts => \@dbhosts,
-        dbport  => $dbport,
-        dbuser  => $dbuser,
-        dbpass  => $dbpass,
-        dbdb    => $dbdb,
-    },
-  },
-  'VBoxAdm::SMTP::Proxy';
+    #sa                     => $sa,
+    sa_max_msg_size        => $sa_max_msg_size,
+    sa_timeout             => $sa_timeout,
+    max_msg_size           => $max_msg_size,
+    dry                    => $config{'dry'},
+    caching                => $caching,
+    tempdir                => $tempdir,
+    nodb                   => $nodb,
+    soft_bounce            => $soft_bounce,
+    sa_default_block_score => $sa_default_block_score,
+    sa_default_status      => $sa_default_status,
+    recipient_delimiter    => $recipient_delimiter,
+
+    dbhosts => \@dbhosts,
+    dbport  => $dbport,
+    dbuser  => $dbuser,
+    dbpass  => $dbpass,
+    dbdb    => $dbdb,
+};
+
+my $server = VBoxAdm::SMTP::Proxy::SA->new($server_args);
+$server->{'vbox'} = $vboxadm_args;
 
 # Test DB connection before starting server
 if ( $server->db_connect() ) {
