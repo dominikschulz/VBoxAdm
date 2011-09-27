@@ -1,5 +1,4 @@
 #!/usr/bin/perl
-package VBoxAdm::SMTP::Proxy;
 
 use strict;
 use warnings;
@@ -43,6 +42,8 @@ foreach my $loc (@conffile_locations) {
         last;
     }
 }
+
+package VBoxAdm::SMTP::Proxy;
 
 # Determine options
 # move option mungling to VBoxAdm::SMTP::Proxy
