@@ -147,19 +147,19 @@ sub _init_dbh {
 	# TODO connect to db
 	
 	# TODO refactor config class
-# Database connection
-#
-my $dsn =
-"DBI:mysql:host=$config{'default'}{'dbhost'};database=$config{'default'}{'dbdb'};port=$config{'default'}{'dbport'};user=$config{'default'}{'dbuser'};password=$config{'default'}{'dbpass'}";
-my $dbh = &VBoxAdm::DB::connect( $dsn, { RaiseError => 0, PrintError => 0, } );
-
-if ( !$dbh ) {
-    print "Could not connect to DB!\n";
-    exit 1;
-}
-else {
-    print "Connected to DB\n" if $config{'verbose'};
-}
+	# Database connection
+	#
+	my $dsn =
+	"DBI:mysql:host=$config{'default'}{'dbhost'};database=$config{'default'}{'dbdb'};port=$config{'default'}{'dbport'};user=$config{'default'}{'dbuser'};password=$config{'default'}{'dbpass'}";
+	my $dbh = &VBoxAdm::DB::connect( $dsn, { RaiseError => 0, PrintError => 0, } );
+	
+	if ( !$dbh ) {
+	    print "Could not connect to DB!\n";
+	    exit 1;
+	}
+	else {
+	    print "Connected to DB\n" if $config{'verbose'};
+	}
 }
 
 sub _init_msgq {

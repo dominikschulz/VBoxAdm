@@ -67,13 +67,13 @@ virtual_alias_maps =
 virtual_transport = dovecot
 dovecot_destination_recipient_limit = 1
 # or ltmp.
-virtual_transport = lmtp:unix:private/dovecot-lmtp
+#virtual_transport = lmtp:unix:private/dovecot-lmtp
 
 # Quota Support
-virtual_mailbox_limit = proxy:mysql:/etc/postfix/maps/virtual_mailbox_limit_maps.cf
-virtual_mailbox_limit_override = yes
-virtual_maildir_limit_message = "Sorry, the user's maildir has overdrawn his diskspace quota, please try again later."
-virtual_overquota_bounce = yes
+#virtual_mailbox_limit = proxy:mysql:/etc/postfix/maps/virtual_mailbox_limit_maps.cf
+#virtual_mailbox_limit_override = yes
+#virtual_maildir_limit_message = "Sorry, the user's maildir has overdrawn his diskspace quota, please try again later."
+#virtual_overquota_bounce = yes
 
 # SASL
 smtpd_sasl_type = dovecot
@@ -84,7 +84,7 @@ smtpd_sasl_auth_enable = yes
 smtpd_recipient_restrictions =
 # Allow Postmaster, Abuse and other imporant role accounts
 #        check_recipient_access btree:/etc/postfix/maps/access_recipient-rfc,
-		check_recipient_access proxy:mysql:/etc/postfix/maps/access_recipient_roles.cf,
+	    check_recipient_access proxy:mysql:/etc/postfix/maps/access_recipient_roles.cf,
 # White- and Blacklisting
         check_client_access btree:/etc/postfix/maps/access_client,
         check_helo_access btree:/etc/postfix/maps/access_helo,
@@ -121,7 +121,7 @@ smtpd_recipient_restrictions =
 # No other relaying
         reject_unauth_destination,
 # Policyd-Weight
-        check_policy_service inet:127.0.0.1:12525,
+#        check_policy_service inet:127.0.0.1:12525,
 # allow the rest
         permit
 
@@ -146,7 +146,7 @@ unverified_recipient_reject_code=577
 
 # Mailarchive
 mailarchive_destination_recipient_limit = 1
-recipient_bcc_maps = pcre:/etc/postfix/maps/recipient_bcc
+#recipient_bcc_maps = pcre:/etc/postfix/maps/recipient_bcc
 
 # Dyn. Recipient Verification
 address_verify_maps=btree:/var/spool/postfix/data/verify
