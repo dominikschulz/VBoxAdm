@@ -234,10 +234,10 @@ if(!$opt_local) {
     chomp($changes_file);
     for my $dist (@dists) {
       #$cmd = "dupload --force --to ".$dist." ".$changes_file;
-        $cmd = "reprepro -Vb /srv/media/public.packages/ include ".$dist." ".$changes_file;
+        $cmd = "reprepro -Vb /srv/data/public.packages/ include ".$dist." ".$changes_file;
         run_cmd($cmd);
     }
-    $cmd = "/srv/media/public.packages/rsync.sh";
+    $cmd = "/srv/data/public.packages/rsync.sh";
     run_cmd($cmd);
     # TODO add to homepage
 }

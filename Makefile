@@ -4,7 +4,7 @@
 
 # some variables
 NAME = vboxadm
-VERSION = 0.1.9
+VERSION = 0.1.10
 BUILDDATE = $(shell date +%Y-%m-%d)
 WWWUSER ?= www-data
 WWWGROUP ?= www-data
@@ -26,6 +26,7 @@ SED = /bin/sed
 SHELL = /bin/sh
 TAR = /bin/tar
 GIT = /usr/bin/git
+FILEPP = build/filepp.pl -u
 PERLTIDY = /usr/bin/perltidy -syn -l=160 -nce -nbl -b
 PERLCRITIC = /usr/bin/perlcritic
 PERL = /usr/bin/perl
@@ -236,35 +237,25 @@ TPLFILES = \
 	$(HTMLC) -o $@ $@
 
 %.pl: %.ipl $(LIBFILES)
-	$(SED) -e s/@BUILDDATE@/$(BUILDDATE)/ \
-		   -e s/@VERSION@/$(VERSION)/ \
-		   -e "s|@LIBDIR@|$(LIBDIR)|" \
-		   -e "s|@CFGDIR@|$(CFGDIR)|" < $< > $@
-	$(CHMOD) 755 $@
-	$(PERLTIDY) $@
-	$(CHMOD) +x $@
+	$(FILEPP) -D@BUILDDATE@=$(BUILDDATE) -D@VERSION@=$(VERSION) -D@LIBDIR@="$(LIBDIR)" -D@CFGDIR@="$(CFGDIR)" $< -o $@ && \
+	$(CHMOD) 755 $@ && \
+	$(PERLTIDY) $@ && \
+	$(CHMOD) +x $@ && \
 	$(PERL) -I lib/ -c $@
 
 %.fcgi: %.ifcgi $(LIBFILES)
-	$(SED) -e s/@BUILDDATE@/$(BUILDDATE)/ \
-		   -e s/@VERSION@/$(VERSION)/ \
-		   -e "s|@LIBDIR@|$(LIBDIR)|" \
-		   -e "s|@CFGDIR@|$(CFGDIR)|" < $< > $@
-	$(CHMOD) 755 $@
-	$(PERLTIDY) $@
-	$(CHMOD) +x $@
+	$(FILEPP) -D@BUILDDATE@=$(BUILDDATE) -D@VERSION@=$(VERSION) -D@LIBDIR@="$(LIBDIR)" -D@CFGDIR@="$(CFGDIR)" $< -o $@ && \
+	$(CHMOD) 755 $@ && \
+	$(PERLTIDY) $@ && \
+	$(CHMOD) +x $@ && \
 	$(PERL) -I lib/ -c $@
 
 %.pm: %.ipm
-	$(SED) -e s/@BUILDDATE@/$(BUILDDATE)/ \
-		   -e s/@VERSION@/$(VERSION)/ \
-		   -e "s|@LIBDIR@|$(LIBDIR)|" \
-		   -e "s|@CFGDIR@|$(CFGDIR)|" < $< > $@
+	$(FILEPP) -D@BUILDDATE@=$(BUILDDATE) -D@VERSION@=$(VERSION) -D@LIBDIR@="$(LIBDIR)" -D@CFGDIR@="$(CFGDIR)" $< -o $@ && \
 	$(PERLTIDY) $@
 
 %.t: %.it
-	$(SED) -e s/@BUILDDATE@/$(BUILDDATE)/ \
-		   -e s/@VERSION@/$(VERSION)/ < $< > $@
+	$(FILEPP) -D@BUILDDATE@=$(BUILDDATE) -D@VERSION@=$(VERSION) $< -o $@ && \
 	$(PERLTIDY) $@
 	
 %.1: %.pl
