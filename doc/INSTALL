@@ -143,6 +143,10 @@ You need to gunzip the files master.cf.gz and main.cf.gz.
 Go to /etc/postfix/maps/. Edit each virtual_*.cf file and enter the password
 you've choosen for the MySQL user postfix.
 
+You can use this sed command to update all cf files at once:
+ $> MYSQLPW="<PASSWORD>"
+ $> sed -i "s/PASSWORD/$MYSQLPW/g" /etc/postfix/maps/virtual_* /etc/postfix/maps/access_recipient_roles.cf
+
 Change to /etc/postfix and create the database maps:
  $> make maps
 

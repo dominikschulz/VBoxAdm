@@ -4,7 +4,7 @@ dbpass=vboxadm
 dbdb=vboxadm
 dbhost=localhost
 domain=domain.tld
-mail_location=/var/vmail
+mail_location=/srv/vmail
 
 pwscheme=ssha256
 
