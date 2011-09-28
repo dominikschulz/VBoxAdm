@@ -365,34 +365,35 @@ sub setup {
 			my $User;
 			eval {
 				$User = VBoxAdm::Model::User->new({
-		    	'dbh' 			=> $self->dbh,
-		    	'username' 	=> $self->authen->username,
-		    	'force' => 1,
-		    	'msgq' => $Messages,
-		    	'logger' 		=> $Logger,
-		    	'config' 		=> $self->{'config'},
-		    });
+			    	'dbh' 			=> $self->dbh,
+			    	'username' 		=> $self->authen->username,
+			    	'force' 		=> 1,
+			    	'msgq' 			=> $Messages,
+			    	'logger' 		=> $Logger,
+			    	'config' 		=> $self->{'config'},
+			    });
+			    $User->login('forced-login');
 			};
 			if($@ || !$User) {
 				$self->log( "Could not create User Object: $@");
 			}
 			else {
-		    $self->{'Messages'} = $Messages;
-		    $self->{'User'} = $User;
-		    my $arg_ref = {
-				    'dbh'          => $self->dbh,
-				    'user' 		   	 => $User,
-				    'msgq' => $Messages,
-				    'logger'       => $Logger,
-				    'config'       => $self->{'config'},
+			    $self->{'Messages'} = $Messages;
+			    $self->{'User'} = $User;
+			    my $arg_ref = {
+				    'dbh'          	=> $self->dbh,
+				    'user' 		   	=> $User,
+				    'msgq' 			=> $Messages,
+				    'logger'       	=> $Logger,
+				    'config'       	=> $self->{'config'},
 				};
 				$self->{'Alias'}             = VBoxAdm::Model::Alias->new($arg_ref);
 				$self->{'AWL'}               = VBoxAdm::Model::AWL->new($arg_ref);
 				$self->{'Domain'}            = VBoxAdm::Model::Domain->new($arg_ref);
 				$self->{'DomainAlias'}       = VBoxAdm::Model::DomainAlias->new($arg_ref);
 				$self->{'Mailbox'}           = VBoxAdm::Model::Mailbox->new($arg_ref);
-				$self->{'RFCNotify'}		 		 = VBoxAdm::Model::RFCNotify->new($arg_ref);
-				$self->{'RoleAccount'}		 	 = VBoxAdm::Model::RoleAccount->new($arg_ref);
+				$self->{'RFCNotify'}		 = VBoxAdm::Model::RFCNotify->new($arg_ref);
+				$self->{'RoleAccount'}		 = VBoxAdm::Model::RoleAccount->new($arg_ref);
 				$self->{'VacationBlacklist'} = VBoxAdm::Model::VacationBlacklist->new($arg_ref);
 			}
     }

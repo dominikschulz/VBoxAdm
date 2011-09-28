@@ -104,7 +104,7 @@ sub login {
     my ( $id, $pw, $is_da, $is_sa, $domain_id ) = $sth->fetchrow_array();
     $sth->finish();
     if ( !$self->force && !&VBoxAdm::SaltedHash::verify_pass( $password, $pw ) ) {
-        print "Password invalid!\n" unless $self->config->{'quiet'};
+        $self->logger()->log("Password invalid!");
         return;
     }
     $self->{'domainadmin'} = $is_da;
