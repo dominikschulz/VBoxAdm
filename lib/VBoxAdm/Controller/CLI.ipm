@@ -834,7 +834,6 @@ sub get_similar_action {
 
 sub migrate {
 	my $self = shift;
-    my $opts   = shift || {};
 
     if ( !$self->opts()->{'Source'} ) {
         print "Need source-type (--source).\n";
@@ -845,7 +844,7 @@ sub migrate {
         $self->opts()->{'SourceDb'} = $self->config()->{'Source'};
     }
 
-    if ( &VBoxAdm::Migration::migrate( $self->dbh(), $self->config(), $self->opts()->{'Source'}, $self->opts()->{'SourceDb'}, 'vboxadm', $opts ) ) {
+    if ( &VBoxAdm::Migration::migrate( $self->dbh(), $self->config(), $self->opts()->{'Source'}, $self->opts()->{'SourceDb'}, 'vboxadm', $self->opts() ) ) {
         #print "Migration OK\n" unless $config->{'Quiet'};
         return 1;
     }

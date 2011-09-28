@@ -115,7 +115,7 @@ sub migrate {
                     if (
                         !$config->{'dry'}
                         && $sth_new_mailbox->execute(
-                            $new_domain_id, $local_part, VBoxAdm::SaltedHash::make_pass( $pwclear, $config->{'default'}{'pwscheme'} ),
+                            $new_domain_id, $local_part, &VBoxAdm::SaltedHash::make_pass( $pwclear, $config->{'default'}{'pwscheme'} ),
                             $name, $is_active, 15360, $is_on_vacation, 'On Vacation', $away_text, 0, 0, $sa_active, 6.31
                         )
                       )
