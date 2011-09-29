@@ -26,6 +26,12 @@ extends 'Net::Server::PreFork';
 
 # see http://cpan.uwinnipeg.ca/htdocs/RTSP-Proxy/RTSP/Proxy.pm.html
 
+has 'logger' => (
+    'is'       => 'rw',
+    'isa'      => 'VBoxAdm::Logger',
+    'required' => 1,
+);
+
 ############################################
 # Usage      : ????
 # Purpose    : ????
@@ -37,17 +43,15 @@ extends 'Net::Server::PreFork';
 sub db_connect {
     my $self = shift;
 
-    use Data::Dumper;
-    print "DB_CONNECT\n";
-    print Dumper($self);
+    #$self->{'server'}->{'logger'}->log( message => "Message", level => 'error', );
 
-    my $user = $self->{vbox}->{dbuser} || 'vboxadm';
-    my $pass = $self->{vbox}->{dbpass} || 'vboxadm';
-    my $host = $self->{vbox}->{dbhost} || 'localhost';
-    my $port = $self->{vbox}->{dbport} || 3306;
-    my $db   = $self->{vbox}->{dbdb}   || 'vboxadm';
+    my $user = $self->{server}->{vbox}->{dbuser} || 'vboxadm';
+    my $pass = $self->{server}->{vbox}->{dbpass} || 'vboxadm';
+    my $host = $self->{server}->{vbox}->{dbhost} || 'localhost';
+    my $port = $self->{server}->{vbox}->{dbport} || 3306;
+    my $db   = $self->{server}->{vbox}->{dbdb}   || 'vboxadm';
 
-    if ( $self->{vbox}->{nodb} ) {
+    if ( $self->{server}->{vbox}->{nodb} ) {
 
         # no db connection is created in nodb mode
         return 1;
@@ -57,11 +61,11 @@ sub db_connect {
     # and try each one until a connection succeeds, use short timeout
     # use guarding alarm timer
     my $dsn = "DBI:mysql:database=$db;user=$user;password=$pass;port=$port;host=";
-    foreach my $host ( shuffle @{ $self->{vbox}->{dbhosts} } ) {
-        $self->{vbox}->{dbh} = VBoxAdm::DB::connect( $dsn . $host, { ConnectTimeout => 10, } ) and last;
+    foreach my $host ( shuffle @{ $self->{server}->{vbox}->{dbhosts} } ) {
+        $self->{server}->{vbox}->{dbh} = VBoxAdm::DB::connect( $dsn . $host, { ConnectTimeout => 10, } ) and last;
     }
-    if ( !$self->{vbox}->{dbh} ) {
-        croak "Could not connect to DB with DSN $dsn: " . DBI->errstr;
+    if ( !$self->{server}->{vbox}->{dbh} ) {
+        croak "Could not connect to DB with DSN $dsn - Hosts: " . join( ',', @{ $self->{server}->{vbox}->{dbhosts} } ) . " - DBI Error: " . DBI->errstr;
     }
 
     return 1;
@@ -113,14 +117,14 @@ sub child_init_hook {
 sub child_finish_hook {
     my $self = shift;
 
-    if ( !$self->{vbox}->{nodb} ) {
-        foreach my $key ( keys %{ $self->{vbox}->{sth} } ) {
-            $self->{vbox}->{sth}->{$key}->finish();
+    if ( !$self->{server}->{vbox}->{nodb} ) {
+        foreach my $key ( keys %{ $self->{server}->{vbox}->{sth} } ) {
+            $self->{server}->{vbox}->{sth}->{$key}->finish();
         }
 
         # Disconnect from DB
-        if ( $self->{vbox}->{dbh} ) {
-            $self->{vbox}->{dbh}->disconnect();
+        if ( $self->{server}->{vbox}->{dbh} ) {
+            $self->{server}->{vbox}->{dbh}->disconnect();
         }
     }
 
@@ -138,7 +142,7 @@ sub child_finish_hook {
 sub process_request {
     my $self = shift;
 
-    $self->log("No implemented");
+    $self->{'server'}->{'logger'}->log( message => "Not implemented", level => 'error' );
 
     return;
 }

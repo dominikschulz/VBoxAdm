@@ -35,7 +35,7 @@ extends 'VBoxAdm::SMTP::Proxy';
 sub prepare_queries {
     my $self = shift;
 
-    if ( $self->{vbox}->{nodb} ) {
+    if ( $self->{server}->{vbox}->{nodb} ) {
 
         # no db connection is created in nodb mode
         return 1;
@@ -59,7 +59,7 @@ WHERE CONCAT(m.local_part,'@',d.name) IN
 (SELECT CONCAT(m2.local_part,'@',d2.name) FROM mailboxes AS m2 LEFT JOIN domains AS d2 ON m2.domain_id = d2.id LEFT JOIN domain_aliases AS da2 ON da2.domain_id = d2.id WHERE CONCAT(m2.local_part,'@',da2.name) = ?),
 (SELECT a3.goto FROM aliases AS a3 LEFT JOIN domains AS d3 ON a3.domain_id = d3.id LEFT JOIN domain_aliases AS da3 ON da3.domain_id = d3.id WHERE CONCAT(a3.local_part,'@',da3.name) = ?)
 )};
-    $self->{vbox}->{sth}->{userinfo} = $self->{vbox}->{dbh}->prepare($sql_userinfo);
+    $self->{server}->{vbox}->{sth}->{userinfo} = $self->{server}->{vbox}->{dbh}->prepare($sql_userinfo);
 
     return 1;
 }
@@ -76,23 +76,25 @@ sub process_request {
     my $self = shift;
 
     # Check if the sql server went away
-    if ( !$self->{vbox}->{nodb} && !$self->{vbox}->{dbh}->ping() ) {
+    if ( !$self->{server}->{vbox}->{nodb} && !$self->{server}->{vbox}->{dbh}->ping() ) {
         $self->db_connect();
         $self->prepare_queries();
     }
+    
+    my $prev_timeout = 0;
 
     eval {
         local $SIG{ALRM} = sub { die "Child server process timed out!\n" };
-        my $timeout = $self->{vbox}->{childtimeout} || 30;
+        my $timeout = $self->{server}->{vbox}->{childtimeout} || 30;
 
         # start a timer
-        alarm($timeout);
+        $prev_timeout = alarm($timeout);
 
         # Start the SMTP-Server part which listens to the incoming
         # transaction
         my $smtp_server = VBoxAdm::SMTP::Server->new(
             sock    => $self->{server}->{client},
-            tempdir => $self->{vbox}->{tempdir},
+            tempdir => $self->{server}->{vbox}->{tempdir},
         ) or die "Failed to create a listening server: $!\n";
 
         # Start the SMTP-Client part which talks to the internal
@@ -100,7 +102,7 @@ sub process_request {
         # if more than one relayhost is given, try to connect to
         # each one until the connection succeeds. use short timeout (max. 10s)
         my $client = undef;
-        foreach my $node ( shuffle @{ $self->{vbox}->{relayhosts} } ) {
+        foreach my $node ( shuffle @{ $self->{server}->{vbox}->{relayhosts} } ) {
             my ( $host, $port ) = split( /:/, $node );
             $client = VBoxAdm::SMTP::Client->new(
                 interface  => $host,
@@ -135,11 +137,11 @@ sub process_request {
                 foreach my $recipient ( @{ $smtp_server->{recipients} } ) {
                     if ( $msg_size > $self->max_msg_size($recipient) ) {
                         my $msg = "Message too big ($msg_size/" . $self->max_msg_size($recipient) . ") for $recipient";
-                        if ( $self->{vbox}->{dry} ) {
-                            $self->log("DRY: $msg. Would reject this mail.");
+                        if ( $self->{server}->{vbox}->{dry} ) {
+                            $self->{'server'}->{'logger'}->log( message => "DRY: $msg. Would reject this mail.", level => 'notice', );
                         }
                         else {
-                            if ( $self->{vbox}->{soft_bounce} ) {
+                            if ( $self->{server}->{vbox}->{soft_bounce} ) {
                                 $smtp_server->tmpfail($msg);
                             }
                             else {
@@ -153,11 +155,11 @@ sub process_request {
                 # CHECK: SpamAssassin
                 if ( $self->is_spam($smtp_server) ) {
                     my $msg = "Your message appears to be SPAM";
-                    if ( $self->{vbox}->{dry} ) {
-                        $self->log("DRY: $msg. Would reject this mail.");
+                    if ( $self->{server}->{vbox}->{dry} ) {
+                        $self->{'server'}->{'logger'}->log( message => "DRY: $msg. Would reject this mail.", level => 'notice', );
                     }
                     else {
-                        if ( $self->{vbox}->{soft_bounce} ) {
+                        if ( $self->{server}->{vbox}->{soft_bounce} ) {
                             $smtp_server->tmpfail($msg);
                         }
                         else {
@@ -195,10 +197,10 @@ sub process_request {
             my $helo    = $smtp_server->{xforward}{helo} || $default;
             my $proto   = $smtp_server->{xforward}{proto} || $default;
             my $source  = $smtp_server->{xforward}{source} || $default;
-            $self->log( "message-accepted - queued as $queue_id; from="
+            $self->{'server'}->{'logger'}->log( message =>  "message-accepted - queued as $queue_id; from="
                   . $smtp_server->{from} . "; to="
                   . join( ",", @{ $smtp_server->{recipients} } )
-                  . "; client=$client; helo=$helo; proto=$proto; source=$source;" );
+                  . "; client=$client; helo=$helo; proto=$proto; source=$source;", level => 'debug', );
         }
 
         # Close open connections
@@ -207,14 +209,15 @@ sub process_request {
         $smtp_server->{sock}->close()
           or warn "Could not close server socket: $!\n";
     };    # end of eval block
-
+		alarm $prev_timeout; # restore timeout
     if ($@) {
         chomp($@);
         my $msg = "WARNING: Error in process_request eval: $@";
         $self->log($msg);
+        # TODO return "default" value instead
         die( $msg . "\n" );
     }
-    $self->{vbox}->{instance}++;
+    $self->{server}->{vbox}->{instance}++;
 
     return 1;
 }
@@ -234,17 +237,17 @@ sub max_msg_size {
     my $email = &VBoxAdm::Utils::extract_recipients($recipient);
 
     # check the max msg size for this recipient
-    my $max_msg_size = $self->{vbox}->{max_msg_size};
-    if ( $self->{vbox}->{caching} && $self->{cache}->{max_msg_size}->{$email} ) {
+    my $max_msg_size = $self->{server}->{vbox}->{max_msg_size};
+    if ( $self->{server}->{vbox}->{caching} && $self->{cache}->{max_msg_size}->{$email} ) {
         $max_msg_size = $self->{cache}->{max_msg_size}->{$email};
     }
-    elsif ( $self->{vbox}->{sth}->{userinfo}->execute( $email, $email, $email, $email ) ) {
-        my @userinfo = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
+    elsif ( $self->{server}->{vbox}->{sth}->{userinfo}->execute( $email, $email, $email, $email ) ) {
+        my @userinfo = $self->{server}->{vbox}->{sth}->{userinfo}->fetchrow_array();
         $max_msg_size = $userinfo[2] || $max_msg_size;
-        $self->{cache}->{max_msg_size}->{$email} = $max_msg_size if $self->{vbox}->{caching};
+        $self->{cache}->{max_msg_size}->{$email} = $max_msg_size if $self->{server}->{vbox}->{caching};
     }
     else {
-        $self->log( "max_msg_size - Excuting userinfo query (" . $self->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr );
+        $self->{'server'}->{'logger'}->log( message =>  "max_msg_size - Excuting userinfo query (" . $self->{server}->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr, level => 'error', );
     }
 
     return $max_msg_size;
@@ -262,17 +265,17 @@ sub sa_block_score {
     my $self       = shift;
     my $recipients = shift;
 
-    if ( $self->{vbox}->{nodb} ) {
-        return $self->{vbox}->{sa_default_block_score} || 6.31;
+    if ( $self->{server}->{vbox}->{nodb} ) {
+        return $self->{server}->{vbox}->{sa_default_block_score} || 6.31;
     }
 
     # set arbitrarily high limit
     my $lowest_kill_score = 0xFFFF;
 
-    my $delim = $self->{vbox}->{recipient_delimiter} || undef;
+    my $delim = $self->{server}->{vbox}->{recipient_delimiter} || undef;
 
     foreach my $email ( &VBoxAdm::Utils::extract_recipients( $recipients, $delim ) ) {
-        if ( $self->{vbox}->{caching} && $self->{cache}->{sa_block_score}->{$email} ) {
+        if ( $self->{server}->{vbox}->{caching} && $self->{cache}->{sa_block_score}->{$email} ) {
 
             # try cached result first
             my $sa_kill_score = $self->{cache}->{sa_block_score}->{$email};
@@ -281,17 +284,17 @@ sub sa_block_score {
                 $lowest_kill_score = $sa_kill_score;
             }
         }
-        elsif ( $self->{vbox}->{sth}->{userinfo}->execute( $email, $email, $email, $email ) ) {
-            my @userinfo      = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
+        elsif ( $self->{server}->{vbox}->{sth}->{userinfo}->execute( $email, $email, $email, $email ) ) {
+            my @userinfo      = $self->{server}->{vbox}->{sth}->{userinfo}->fetchrow_array();
             my $sa_kill_score = $userinfo[4];
-            $self->{cache}->{sa_block_score}->{$email} = $sa_kill_score if $self->{vbox}->{caching};
+            $self->{cache}->{sa_block_score}->{$email} = $sa_kill_score if $self->{server}->{vbox}->{caching};
 
             if ( $sa_kill_score && $sa_kill_score < $lowest_kill_score ) {
                 $lowest_kill_score = $sa_kill_score;
             }
         }
         else {
-            $self->log( "sa_block_score - Excuting userinfo query (" . $self->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr );
+            $self->{'server'}->{'logger'}->log( message =>  "sa_block_score - Excuting userinfo query (" . $self->{server}->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr, level => 'error', );
         }
     }
 
@@ -311,26 +314,26 @@ sub want_sa {
     my $self       = shift;
     my $recipients = shift;
 
-    if ( $self->{vbox}->{nodb} ) {
-        return $self->{vbox}->{sa_default_status} || 1;
+    if ( $self->{server}->{vbox}->{nodb} ) {
+        return $self->{server}->{vbox}->{sa_default_status} || 1;
     }
 
     my $want_sa = 0;
 
-    my $delim = $self->{vbox}->{recipient_delimiter} || undef;
+    my $delim = $self->{server}->{vbox}->{recipient_delimiter} || undef;
 
     # iterate over all recipients, if one wants sa checking, the message will be checked
     foreach my $email ( &VBoxAdm::Utils::extract_recipients( $recipients, $delim ) ) {
-        if ( $self->{vbox}->{caching} && defined( $self->{cache}->{want_sa} ) ) {
+        if ( $self->{server}->{vbox}->{caching} && defined( $self->{cache}->{want_sa} ) ) {
             $want_sa = $want_sa || $self->{cache}->{want_sa}->{$email} || 0;
         }
-        elsif ( $self->{vbox}->{sth}->{userinfo}->execute( $email, $email, $email, $email ) ) {
-            my @userinfo = $self->{vbox}->{sth}->{userinfo}->fetchrow_array();
+        elsif ( $self->{server}->{vbox}->{sth}->{userinfo}->execute( $email, $email, $email, $email ) ) {
+            my @userinfo = $self->{server}->{vbox}->{sth}->{userinfo}->fetchrow_array();
             $want_sa = $want_sa || $userinfo[3] || 0;
-            $self->{cache}->{want_sa}->{$email} = $userinfo[3] if $self->{vbox}->{caching};
+            $self->{cache}->{want_sa}->{$email} = $userinfo[3] if $self->{server}->{vbox}->{caching};
         }
         else {
-            $self->log( "want_sa - Excuting userinfo query (" . $self->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr );
+            $self->{'server'}->{'logger'}->log( message =>  "want_sa - Excuting userinfo query (" . $self->{server}->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr, level => 'error', );
         }
 
     }
@@ -354,7 +357,7 @@ sub want_sa {
 # See Also   : n/a
 sub is_spam {
     my $self   = shift;
-    my $sa     = $self->{vbox}->{sa};
+    my $sa     = $self->{server}->{vbox}->{sa};
     my $server = shift;
 
     my $is_spam = 0;
@@ -362,11 +365,11 @@ sub is_spam {
     my $t0 = time;
 
     my $msg_size = ( $server->{data}->stat )[7];
-    if ( $msg_size > $self->{vbox}->{sa_max_msg_size} ) {
+    if ( $msg_size > $self->{server}->{vbox}->{sa_max_msg_size} ) {
 
         # we wont check messages which are to big, so we can't assume
         # that they are spam
-        $self->log("Skipped too large msg ($msg_size > $self->{vbox}->{sa_max_msg_size})");
+        $self->{'server'}->{'logger'}->log( message => "Skipped too large msg ($msg_size > $self->{server}->{vbox}->{sa_max_msg_size})", level => 'notice', );
         return;
     }
 
@@ -435,7 +438,7 @@ sub is_spam {
 
         # to support caching, create a checksum (sha1) over the whole message (excluding some headers like To:, etc. and store
         # with the spam score.
-        if ( $self->{vbox}->{caching} ) {
+        if ( $self->{server}->{vbox}->{caching} ) {
             if ( $in_header && ( $line =~ m/^(From|Bcc|CC|To|Message-Id|Date|Received):/i || $line =~ m/^\s+/ ) ) {
 
                 # don't add to checksum
@@ -447,13 +450,13 @@ sub is_spam {
     }
 
     # only calculate checksum if caching is enabled
-    my $checksum = $digest->hexdigest() if $self->{vbox}->{caching};
+    my $checksum = $digest->hexdigest() if $self->{server}->{vbox}->{caching};
 
     # destroy the digest object
     $digest = undef;
 
     # Check cached result, don't invoke SA if we have a cached result for this message
-    if ( $self->{vbox}->{caching} && defined( $self->{cache}->{spam_score}->{$checksum} ) ) {
+    if ( $self->{server}->{vbox}->{caching} && defined( $self->{cache}->{spam_score}->{$checksum} ) ) {
         my $block_score = $self->sa_block_score($recipients) || 6.31;
         my $msg_score   = $self->{cache}->{spam_score}->{$checksum};
         my $was_it_spam = 'clean message';
@@ -465,16 +468,17 @@ sub is_spam {
             $is_spam     = 0;
             $was_it_spam = 'clean message';
         }
-        $self->log("$was_it_spam - using cached result for $msgid ($msg_score/$block_score) from $sender for $recipients, $msg_size bytes.");
+        $self->{'server'}->{'logger'}->log( message => "$was_it_spam - using cached result for $msgid ($msg_score/$block_score) from $sender for $recipients, $msg_size bytes.", level => 'notice', );
     }
     else {
 
         # check if this message is spam
+        my $prev_timeout = 0;
         eval {
             local $SIG{ALRM} = sub { die "Timed out!\n"; };
 
             # save the prev. setting of the alarm timer and start our own
-            my $prev_alarm = alarm( $self->{vbox}->{sa_timeout} );
+            $prev_timeout = alarm( $self->{server}->{vbox}->{sa_timeout} );
 
             # SA seems to ignore these settings if set after parse/check ...
             $sa->{conf}->{required_score} = $self->sa_block_score($recipients) || 6.31;
@@ -534,7 +538,7 @@ sub is_spam {
             }
 
             # Cache score
-            $self->{cache}->{spam_score}->{$checksum} = $status->get_score() if $self->{vbox}->{caching};
+            $self->{cache}->{spam_score}->{$checksum} = $status->get_score() if $self->{server}->{vbox}->{caching};
 
             # Log what was done
             my $msg_score   = sprintf( "%.2f", $status->get_score() );
@@ -546,12 +550,9 @@ sub is_spam {
 
             # Cleanup the SA analysis object
             $status->finish();
-
-            # Set the timeout to whichever value is was before
-            alarm($prev_alarm);
-
         };
-
+				# Set the timeout to whichever value is was before
+        alarm($prev_timeout);
         if ($@) {
             $self->log("eval error: $@");
             return;

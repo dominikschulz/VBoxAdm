@@ -120,7 +120,10 @@ sub _init_filename {
     my $self = shift;
 
     my $name = lc( $self->facility() );
-    $name =~ s/\W/_/g;
+    $name =~ s/\W/-/g;
+    if ( $name !~ m/\.log$/ ) {
+        $name .= '.log';
+    }
     if ( -w '/var/log/' ) {
         return '/var/log/' . $name;
     }

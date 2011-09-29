@@ -5,14 +5,20 @@ use warnings;
 # We use "Defined-or operators" operators introduced with 5.9.0
 use 5.9.0;
 
+#ifdef @LIBDIR@
 use lib '@LIBDIR@';
+
+#endif
 
 use Getopt::Long;
 use Config::Std;
 
+use VBoxAdm::Logger '@VERSION@';
 use VBoxAdm::SMTP::Proxy::SA '@VERSION@';
 
 my $syntax = "syntax: $0 [--verbose] [--config=<FILE>]\n";
+
+my $Logger = VBoxAdm::Logger->new( { 'facility' => 'vboxadm-sa', } );
 
 my ( $conffile_used, @hooks, %hook, %config, );
 
@@ -129,6 +135,31 @@ my $sa = Mail::SpamAssassin->new(
 $sa->compile_now();
 
 # specify hosts and ports
+
+my $vboxadm_args = {
+    relayhosts   => \@connect,
+    dbh          => undef,
+    childtimeout => $childtimeout,
+
+    #sa                     => $sa,
+    sa_max_msg_size        => $sa_max_msg_size,
+    sa_timeout             => $sa_timeout,
+    max_msg_size           => $max_msg_size,
+    dry                    => $config{'dry'},
+    caching                => $caching,
+    tempdir                => $tempdir,
+    nodb                   => $nodb,
+    soft_bounce            => $soft_bounce,
+    sa_default_block_score => $sa_default_block_score,
+    sa_default_status      => $sa_default_status,
+    recipient_delimiter    => $recipient_delimiter,
+    dbhosts                => \@dbhosts,
+    dbport                 => $dbport,
+    dbuser                 => $dbuser,
+    dbpass                 => $dbpass,
+    dbdb                   => $dbdb,
+};
+
 my $server_args = {
 
     # Binding
@@ -155,41 +186,21 @@ my $server_args = {
     max_servers       => $max_servers,
     max_spare_servers => $max_spare_servers,
     max_requests      => $max_requests,
-};
-my $vboxadm_args = {
-    relayhosts   => \@connect,
-    dbh          => undef,
-    childtimeout => $childtimeout,
 
-    #sa                     => $sa,
-    sa_max_msg_size        => $sa_max_msg_size,
-    sa_timeout             => $sa_timeout,
-    max_msg_size           => $max_msg_size,
-    dry                    => $config{'dry'},
-    caching                => $caching,
-    tempdir                => $tempdir,
-    nodb                   => $nodb,
-    soft_bounce            => $soft_bounce,
-    sa_default_block_score => $sa_default_block_score,
-    sa_default_status      => $sa_default_status,
-    recipient_delimiter    => $recipient_delimiter,
-
-    dbhosts => \@dbhosts,
-    dbport  => $dbport,
-    dbuser  => $dbuser,
-    dbpass  => $dbpass,
-    dbdb    => $dbdb,
+    'vbox'   => $vboxadm_args,
+    'logger' => $Logger,
 };
 
-my $server = VBoxAdm::SMTP::Proxy::SA->new($server_args);
-$server->{'vbox'} = $vboxadm_args;
+my $proxy = VBoxAdm::SMTP::Proxy::SA->new($server_args);
 
 # Test DB connection before starting server
-if ( $server->db_connect() ) {
-    $server->{vbox}->{dbh}->disconnect() if $server->{vbox}->{dbh};
+if ( $proxy->db_connect() ) {
+    $proxy->{server}->{vbox}->{dbh}->disconnect() if $proxy->{server}->{vbox}->{dbh};
 }
 else {
-    die("Could not connect to database!");
+    my $msg = "Could not connect to database!";
+    $Logger->log( message => $msg, level => 'error', );
+    die($msg);
 }
 
 # redirect STDOUT and STDERR to logfile
@@ -197,14 +208,16 @@ else {
 # something behaves badly, e.g. a module used,
 # we redirect the remaining output to a logfile
 # for further investigation.
-close(STDOUT);
-close(STDERR);
-close(STDIN);
-open STDIN,  '<', '/dev/null';
-open STDOUT, '>', $logfile;
-open STDERR, '>&STDOUT';
+if ($background) {
+    close(STDOUT);
+    close(STDERR);
+    close(STDIN);
+    open STDIN,  '<', '/dev/null';
+    open STDOUT, '>', $logfile;
+    open STDERR, '>&STDOUT';
+}
 
-$server->run();
+$proxy->run();
 
 exit 1;
 
