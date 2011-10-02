@@ -416,8 +416,10 @@ dist-minor: git
 dist-major: test-all git
 	build/release.pl --verbose --major
 
-critic:
+critic: all
 	$(PERLCRITIC) --stern bin/
+	$(PERLCRITIC) --stern cgi-bin/
+	$(PERLCRITIC) --stern cron/
 	$(PERLCRITIC) --stern lib/
 
 test: all
