@@ -9,13 +9,13 @@ use Data::Dumper;
 
 has 'dbh' => (
     'is'       => 'ro',
-    'isa'      => 'Object',
+    'isa'      => 'DBI::db',
     'required' => 1,
 );
 
 has 'logger' => (
     'is'       => 'ro',
-    'isa'      => 'Object',
+    'isa'      => 'VBoxAdm::Logger',
     'required' => 1,
 );
 

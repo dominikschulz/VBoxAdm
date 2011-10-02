@@ -47,7 +47,7 @@ sub process_request {
 
     # Check if the sql server went away
     if ( !$self->{server}->{vbox}->{dbh} || !$self->{server}->{vbox}->{dbh}->ping() ) {
-    	$self->logger()->log( message => "Ooops, looks like the SQL server went away. Trying to reconnect ...", level => 'notice', );
+        $self->logger()->log( message => "Ooops, looks like the SQL server went away. Trying to reconnect ...", level => 'notice', );
         $self->db_connect();
         $self->prepare_queries();
     }
@@ -58,7 +58,7 @@ sub process_request {
         # weekly or daily rotation.
         $self->prepare_queries();
     }
-    
+
     my $prev_timeout = 0;
 
     eval {
@@ -110,7 +110,7 @@ sub process_request {
                     $smtp_server->ok('Recipient OK');
                 }
                 else {
-                		$self->logger()->log( message => "Could not unroll recipient from ".$smtp_server->{to}, level => 'warning', );
+                    $self->logger()->log( message => "Could not unroll recipient from " . $smtp_server->{to}, level => 'warning', );
                     $smtp_server->tempfail('Recipient could not be unrolled!');
                 }
             }
@@ -137,18 +137,19 @@ sub process_request {
             }
             else {
 
-								$self->logger()->log( message => "Unknown SMTP command: ".$what, level => 'warning', );
+                $self->logger()->log( message => "Unknown SMTP command: " . $what, level => 'warning', );
+
                 # unknown SMTP command, send tempfail
                 $smtp_server->tempfail('Unknown command.');
             }
         }    # end-of-while-LINE
 
         # Close open connections
-        if(!$smtp_server->{sock}->close()) {
-        	$self->logger()->log( message => "Could not close server socket: $!", level => 'warning', );
+        if ( !$smtp_server->{sock}->close() ) {
+            $self->logger()->log( message => "Could not close server socket: $!", level => 'warning', );
         }
-    }; # end of eval block
-		alarm($prev_timeout);
+    };    # end of eval block
+    alarm($prev_timeout);
     if ($@) {
         chomp($@);
         my $msg = "WARNING: Error in process_request eval: $@";
@@ -236,7 +237,14 @@ sub process_message {
         return 1;
     }
     else {
-        $self->logger()->log( message => "Failed to log message from " . $sender . " to " . $recipient . " to DB. Query failed: " . $self->{server}->{vbox}->{sth}->{insert}->errstr, level => 'error', );
+        $self->logger()->log(
+            message => "Failed to log message from " 
+              . $sender . " to "
+              . $recipient
+              . " to DB. Query failed: "
+              . $self->{server}->{vbox}->{sth}->{insert}->errstr,
+            level => 'error',
+        );
         return;
     }
 

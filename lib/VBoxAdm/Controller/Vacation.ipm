@@ -3,7 +3,593 @@ package VBoxAdm::Controller::Vacation;
 use Moose;
 use namespace::autoclean;
 
-# TODO refactor vacation auto responder to this class
+use Config::Std;
+use Getopt::Long;
+
+use VBoxAdm::DB '@VERSION@';
+use VBoxAdm::Logger '@VERSION@';
+
+has 'dbh' => (
+    'is'      => 'ro',
+    'isa'     => 'DBI::db',
+    'lazy'    => 1,
+    'builder' => '_init_dbh',
+);
+
+sub _init_dbh {
+    my $self = shift;
+
+    # TODO refactor config class
+    # Database connection
+    #
+    my $hostname = $self->config()->{'default'}->{'dbhost'} || 'localhost';
+    my $database = $self->config()->{'default'}->{'dbdb'}   || 'vboxadm';
+    my $username = $self->config()->{'default'}->{'dbuser'} || 'vboxadm';
+    my $password = $self->config()->{'default'}->{'dbpass'} || 'vboxadm';
+    my $port     = $self->config()->{'default'}->{'dbport'} || 3306;
+
+    my $dsn = "DBI:mysql:host=$hostname;database=$database;port=$port;user=$username;password=$password";
+    my $dbh = &VBoxAdm::DB::connect( $dsn, { RaiseError => 0, PrintError => 0, } );
+
+    if ( !$dbh ) {
+        die("Could not connect to DB!\n");
+    }
+    else {
+
+        #print "Connected to DB\n";
+        return $dbh;
+    }
+}
+
+has 'logger' => (
+    'is'      => 'ro',
+    'isa'     => 'VBoxAdm::Logger',
+    'lazy'    => 1,
+    'builder' => '_init_logger',
+);
+
+has 'config_locations' => (
+    'is'      => 'ro',
+    'isa'     => 'ArrayRef',
+    'lazy'    => 1,
+    'builder' => '_init_config_locs',
+);
+
+sub _init_config_locs {
+    my $self = shift;
+
+    # Valid config file locations to try
+    my @conffile_locations = qw(
+      vboxadm.conf
+      conf/vboxadm.conf
+      /etc/vboxadm/vboxadm.conf
+      @CFGDIR@/vboxadm/vboxadm.conf
+    );
+
+    return \@conffile_locations;
+}
+
+has 'config' => (
+    'is'  => 'rw',
+    'isa' => 'Object',
+);
+
+has 'sender' => (
+    'is'  => 'rw',
+    'isa' => 'Str',
+);
+
+has 'recipient' => (
+    'is'      => 'rw',
+    'isa'     => 'Str',
+    'lazy'    => 1,
+    'builder' => '_init_recipient',
+);
+
+has 'orig_recipient' => (
+    'is'  => 'rw',
+    'isa' => 'Str',
+);
+
+has 'vacation_domain' => (
+    'is'      => 'ro',
+    'isa'     => 'Str',
+    'lazy'    => 1,
+    'builder' => '_init_vacation_domain',
+);
+
+sub _init_vacation_domain {
+    my $self = shift;
+
+    return $self->config()->{'vacation'}->{'domain'} || 'autoreply.domain.tld';
+}
+
+has 'notify_interval' => (
+    'is'      => 'ro',
+    'isa'     => 'Int',
+    'lazy'    => 1,
+    'builder' => '_init_notify_interval',
+);
+
+sub _init_notify_interval {
+    my $self = shift;
+
+    my $notify_interval = $self->config()->{'vacation'}->{'notify_interval'} || 7;    # default to seven days = one week
+    $notify_interval = $notify_interval * 24 * 3600;
+
+    return $notify_interval;
+}
+
+sub _init_logger {
+    my $self = shift;
+
+    return VBoxAdm::Logger->new('vboxadm-vacation');
+}
+
+sub _init_recipient {
+    my $self = shift;
+
+    # recipient must be "unrolled", it's smth. like "user#domain.tld@vacation.domain.tld" -> "user@domain.tld"
+    my $unrolled = &VBoxAdm::Utils::unroll_recipient( $self->orig_recipient() );
+    if ($unrolled) {
+        return $unrolled;
+    }
+    else {
+        return $self->orig_recipient();
+    }
+}
+
+has 'opts' => (
+    'is'      => 'ro',
+    'isa'     => 'HashRef',
+    'default' => sub { {} },
+);
+
+sub _read_options {
+    my $self = shift;
+
+    GetOptions(
+        'verbose|v+'    => \$self->opts()->{Verbose},
+        'sender|s=s'    => \$self->opts()->{'Sender'},
+        'recipient|r=s' => \$self->opts()->{'Recipient'},
+    ) or die("Unknown Command");
+
+    # Check options
+    die("No sender given on command line!") if !$self->opts()->{'Sender'};
+    $self->sender( $self->opts()->{'Sender'} );
+    die("No recipient given on command line!") if !$self->opts()->{'Recipient'};
+    $self->recipient( $self->opts()->{'Recipient'} );
+
+    return 1;
+}
+
+has 'conffile_used' => (
+    'is'  => 'rw',
+    'isa' => 'Str',
+);
+
+sub _read_config {
+    my $self = shift;
+
+    my %config;
+
+    # Try all config file locations
+    foreach my $loc ( @{ $self->config_locations() } ) {
+        if ( -r $loc ) {
+            $self->conffile_used($loc);
+            read_config $loc => %config;
+            last;
+        }
+    }
+
+    $config{'default'}{'dbhost'}   ||= 'localhost';
+    $config{'default'}{'dbuser'}   ||= 'vboxadm';
+    $config{'default'}{'dbpass'}   ||= '';
+    $config{'default'}{'dbport'}   ||= 3306;
+    $config{'default'}{'dbdb'}     ||= 'vboxadm';
+    $config{'default'}{'pwscheme'} ||= 'sha256';
+
+    $self->config( \%config );
+
+    return 1;
+}
+
+sub run {
+    my $self = shift;
+
+    $self->_read_options();
+    $self->_read_config();
+    return $self->_handle_message();
+}
+
+sub _handle_message {
+    my $self = shift;
+
+    ###
+    # Parse incoming mail
+    ###
+    # Extract the interesting header values and abort processing when the header ends.
+    my %header = ();
+    my %status = ();
+
+    while ( my $line = <> ) {
+        last if ( $line =~ /^$/ );    # end of header, skip the body
+        $line =~ /^From:\s+(.*)$/i                  and $header{'from'}              = $1;
+        $line =~ /^To:\s+(.*)$/i                    and $header{'to'}                = $1;
+        $line =~ /^CC:\s+(.*)$/i                    and $header{'cc'}                = $1;
+        $line =~ /^Bcc:\s+(.*)$/i                   and $header{'bcc'}               = $1;
+        $line =~ /^Resent-To:\s+(.*)$/i             and $header{'resent-to'}         = $1;
+        $line =~ /^Resent-CC:\s+(.*)$/i             and $header{'resent-cc'}         = $1;
+        $line =~ /^Resent-Bcc:\s+(.*)$/i            and $header{'resent-bcc'}        = $1;
+        $line =~ /^Reply-to:\s+(.*)$/i              and $header{'reply-to'}          = $1;
+        $line =~ /^Subject:\s+(.*)$/i               and $header{'subject'}           = $1;
+        $line =~ /^Return-Path:\s+<?([^>]+)>?$/i    and $header{'return-path'}       = $1;
+        $line =~ /^Auto-Submitted:\s+(.*)$/i        and $header{'auto-submitted'}    = lc($1);
+        $line =~ /^X-Loop:\s+VBoxAdm-Vacation\s+$/i and $status{'is-loop'}           = 1;
+        $line =~ /^List-.*:/i                       and $status{'is-list'}           = 1;
+        $line =~ /^Message-Id:\s+<([^>]+)>/i        and $header{'msg-id'}            = $1;
+        $line =~ /^X-Spam-(Flag|Status):\s+YES/i    and $header{'x-spam-status'}     = 1 and $status{'is-spam'} = 1;
+        $line =~ /^X-Facebook-Notify:/i             and $header{'x-facebook-notify'} = 1;
+        $line =~ /^Precedence:\s+(bulk|list|junk)/i and $header{'precedence'}        = $1;
+        $line =~ /^(X-(Barracuda-)?Spam-Status):\s+(Yes)/i                        and $header{$1} = $3 and $status{'is-spam'} = 1;
+        $line =~ /^(X-Dspam-Result):\s+(spam|bl[ao]cklisted)/i                    and $header{$1} = $3 and $status{'is-spam'} = 1;
+        $line =~ /^(X-(Anti|Avas-)?virus-status):\s+(infected)/i                  and $header{$1} = $3 and $status{'is-spam'} = 1;
+        $line =~ /^(X-(Avas-spam|Spamtest|CRM114|Razor|Pyzor)-status):\s+(Spam)/i and $header{$1} = $3 and $status{'is-spam'} = 1;
+        $line =~ /^(X-OSBF-LUA-Score):\s+[0-9\/\.\-\+]+\s+\[([-S])\]/i            and $header{$1} = $3 and $status{'is-spam'} = 1;
+    }
+
+    ###
+    # DO NOT RESPOND IF:
+    ###
+
+    # Loops:
+    # $is_loop
+    if ( $status{'is-loop'} ) {
+        $self->logger()->log( level => 'debug', message => 'Detected Loop - From: ' . $self->sender() . ' - To: ' . $self->recipient() . ' - Exiting', );
+        return;
+    }
+
+# Bounces:
+# $from =~ /(MAILER-DAEMON|postmaster|Mail Delivery System|E-postsystemet|Delivery Subsystem|Mailer_Daemon)/i
+# $subject =~ /(Undeliver|Returned|returning|failure|failed|Delivery (Status )?Notification|fehlgeschlagen|remise|rejected|nicht zustellbar|Unzustellbar|Unbekannt|DSN|Benachrichtung|problem|falla|Zurückgeschickte Mail|Nondeliverable mail|Kan ikke leveres)/i
+    if ( $header{'from'} && $header{'from'} =~ /(MAILER-DAEMON|postmaster|Mail Delivery System|E-postsystemet|Delivery Subsystem|Mailer_Daemon)/i ) {
+        $self->logger()->log( level => 'debug', message => 'Detected Bounce - From: ' . $self->sender() . ' - To: ' . $self->recipient() . ' - Exiting', );
+        return;
+    }
+
+# Vacation:
+# $subject =~
+# /(abwesen|vacation|Out of Office|reply|ist au.er Haus|Vielen Dank für Ihre E-Mail|Out-of-office|Deine E-Mail|Ihre Nachricht|Semestersvar|Feriesvar|R.ponse en cas d.absence|Risposta di assenza)/i
+    if (   $header{'subject'}
+        && $header{'subject'} =~
+/(abwesen|vacation|Out of Office|reply|ist au.er Haus|Vielen Dank für Ihre E-Mail|Out-of-office|Deine E-Mail|Ihre Nachricht|Semestersvar|Feriesvar|R.ponse en cas d.absence|Risposta di assenza)/i
+      )
+    {
+        $self->logger()->log(
+            level   => 'debug',
+            message => 'Detected Vacation Message - From: '
+              . $self->sender()
+              . ' - To: '
+              . $self->recipient()
+              . ' - Subject: '
+              . $header{'subject'}
+              . ' - Exiting',
+        );
+        return;
+    }
+
+    # Delays:
+    # $from && $subject && $from =~ /(mailer|Mail Delivery System)/i && $subject =~ /(delay|warning)/i
+    if (   $header{'from'}
+        && $header{'subject'}
+        && $header{'from'} =~ m/(mailer|Mail Delivery System)/i
+        && $header{'subject'} =~ m/(delay|warning)/i )
+    {
+        $self->logger()->log(
+            level   => 'debug',
+            message => 'Detected Delay Message - From: %s - To: %s - Subject: %s - Exiting',
+            $self->sender(), $self->recipient(), $header{'subject'}
+        );
+        return;
+    }
+
+    # Auto-Generated Messages:
+    # $is_list || ( $auto_submitted && $auto_submitted ne "no" ) || ( $from && $from eq "<>" )
+    if (   $status{'is-list'}
+        || ( $header{'auto-submitted'} && $header{'auto-submitted'} ne 'no' )
+        || ( $header{'from'} && $header{'from'} eq '<>' ) )
+    {
+        $self->logger()
+          ->log( level => 'debug', message => 'Detected Auto-Submitted Message - From: ' . $self->sender() . ' - To: ' . $self->recipient() . ' - Exiting', );
+        return;
+    }
+
+    # Spam:
+    # $from && $subject && $subject =~ m/(\*\*\*SPAM\*\*\*|WW Spam: high)
+    # $status{'is-spam'}
+    if ( $status{'is-spam'} ) {
+        $self->logger()->log( level => 'debug', message => 'Detected SPAM - From: ' . $self->sender() . ' - To: ' . $self->recipient() . ' - Exiting', );
+        return;
+    }
+
+    # Facebook:
+    # $header{'x-facebook-notify'}
+    if ( $header{'x-facebook-notify'} ) {
+        $self->logger()
+          ->log( level => 'debug', message => 'Detected Facebook Notify - From: ' . $self->sender() . ' - To: ' . $self->recipient() . ' - Exiting', );
+        return;
+    }
+
+    # Precedence:
+    # $header{'precedence'}
+    if ( $header{'precedence'} ) {
+        $self->logger()->log(
+            level   => 'debug',
+            message => 'Detected Precedence Header (' . $header{'precedence'} . ') - From: ' . $self->sender() . ' - To: ' . $self->recipient() . ' - Exiting',
+        );
+        return;
+    }
+
+    # No Return-Path:
+    # !$header{'return-path'}
+    if ( !$header{'return-path'} ) {
+        $self->logger()->log( level => 'debug', message => 'Missing Return-Path - From: ' . $self->sender() . ' - To: ' . $self->recipient() . ' - Exiting', );
+        return;
+    }
+
+# recipient address must be contained in either: to, cc, bcc, resent-to, resent-cc or resent-bcc
+# This doesn't work with aliases. Disabled until a final descission was made how to handle this case.
+# if ( !$self->_check_recipient( \%header ) ) {
+#    $self->logger()->log( level => 'debug', message => 'Envelope-To Recipient not found in one of To, CC, BCC, Resent-To, Resent-CC or Reset-BCC - From: %s - To: %s - Exiting',
+#        $self->sender(), $self->recipient() );
+#
+#    return;
+# }
+
+    my %reply_header = ();
+
+    # sent respone to Return-Path if set, of Reply-To if set or From as last resort
+    $reply_header{'To'} = undef;
+    if ( $header{'return-path'} ) {
+        $reply_header{'To'} = $header{'return-path'};
+    }
+    elsif ( $header{'reply-to'} ) {
+        $reply_header{'To'} = $header{'reply-to'};
+    }
+    elsif ( $header{'from'} ) {
+        $reply_header{'To'} = $header{'from'};
+    }
+    elsif ( $self->sender() ) {
+        $reply_header{'To'} = $self->sender();
+    }
+    else {
+        $self->logger()->log(
+            level   => 'debug',
+            message => 'Could not find a valid sender address - From: ' . $self->sender() . ' - To: ' . $self->recipient() . ' - Exiting',
+        );
+
+        return;
+    }
+
+    # set sender to (local) recipient
+    $reply_header{'From'} = undef;
+    $reply_header{'From'} = $self->recipient();
+
+    # set X-Loop: VBoxAdmVacation
+    $reply_header{'X-Loop'} = 'VBoxAdm-Vacation';
+
+    # set Auto-Submitted: auto-replied
+    $reply_header{'Auto-Submitted'} = 'auto-replied';
+
+    # set references/in-reply-to, if we found a message id
+    if ( $header{'msg-id'} ) {
+        $reply_header{'In-Reply-To'} = $header{'msg-id'};
+        $reply_header{'References'}  = $header{'msg-id'};
+    }
+
+    # check vacation_blacklist which lists senders (or parts thereof) which are never notified although they pass the tests above
+    if ( $self->_is_blacklisted() ) {
+        $self->logger()->log( level => 'debug', message => 'Sender ' . $self->sender() . ' is blacklisted in DB.', );
+        return;
+    }
+
+    # check if vacation is (still) active
+    if ( !$self->_is_on_vacation() ) {
+        $self->logger()->log(
+            level   => 'debug',
+            message => 'Recipient '
+              . $self->recipient()
+              . ' is no longer on vacation. Not sending reply. Check your MTA configuration! Vacation Script should not be invoked if the recipient is not on vacation.',
+        );
+        return;
+    }
+
+    # check notification sent within ... (see above)
+    if ( $self->_already_notified() ) {
+        $self->logger()->log( level => 'debug', message => 'Already notified - From: ' . $self->sender() . ' - To: ' . $self->recipient() . ' - Exiting', );
+        return;
+    }
+
+    # send msg
+    $self->_send_vacation_mail( \%reply_header );
+    $self->dbh()->disconnect();
+    return 1;
+}
+
+###########################################################################
+# Subs
+###########################################################################
+# Usage      : my $status = &is_blacklisted($dbh, 'user@domain.tld');
+# Purpose    : Determine if this use should not get an reply.
+# Returns    : Returns true if this user is blacklisted.
+# Parameters : DBH and an email address.
+# Throws     : n/a
+# Comments   : This sub could be refactored to an Vacation module.
+# See Also   : n/a
+sub _is_blacklisted {
+    my $self = shift;
+
+    my ( $local_part, $domain ) = split /@/, $self->sender();
+
+    # check vacation_blacklist which lists senders (or parts thereof) which are never notified although they pass the other tests before
+    my $query = "SELECT COUNT(*) FROM vacation_blacklist WHERE domain = ? AND local_part = ?";
+    my $sth   = &VBoxAdm::DB::prepexec( $self->dbh(), $query, $domain, $local_part );
+    my $count = $sth->fetchrow_array();
+
+    # add wildcard query count
+    # *@domain
+    $sth->execute( $domain, '*' );
+    $count += $sth->fetchrow_array();
+    $sth->finish();
+
+    # localpart@*
+    $sth->execute( '*', $local_part );
+    $count += $sth->fetchrow_array();
+    $sth->finish();
+
+    return $count;
+}
+############################################
+# Usage      : my $status = &is_on_vacation($dbh, 'user@domain.tld');
+# Purpose    : Determine if a local user is on vacation.
+# Returns    : True if the user is question is known and on vacation.
+# Parameters : DBH and an email address of a local user.
+# Throws     : n/a
+# Comments   : This sub could be refactored to an User module.
+# See Also   : n/a
+sub _is_on_vacation {
+    my $self = shift;
+
+    # if the user is not found or not on vacation count will be zero which is false wrt. to perl
+    my $query = "SELECT COUNT(*) FROM mailboxes AS ma LEFT JOIN domains AS d ON ma.domain_id = d.id ";
+    $query .= "WHERE is_on_vacation AND CONCAT(ma.local_part,'\@',d.name) = ? ";
+
+    # this part of the where clause covers a) infinite vacations, b) finite vacations w/ a lower bound and no upper bound and c)
+    # finite vacations w/ a lower and upper bound
+    $query .= "AND (ma.vacation_start = '0000-00-00' OR NOW() >= ma.vacation_start) AND (ma.vacation_end = '0000-00-00' OR ma.vacation_end >= NOW())";
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh(), $query, $self->recipient() );
+    my $count = $sth->fetchrow_array();
+
+    $sth->finish();
+    return $count;
+}
+############################################
+# Usage      : my $status = &check_recipient('user@domain.tld', $header_ref);
+# Purpose    : Determine if the message we really adressed to this mailbox, i.e. do
+# not send replies to shady alias redirections et. al.
+# Returns    : True if the recipient is contained within one of the following headers:
+# To, CC, BCC, Resent-To, Resent-CC or Resent-BCC
+# Parameters : Recipient and reference to Header hash
+# Throws     : n/a
+# Comments   : This sub could be refactored to a Vacation/utility module.
+# See Also   : n/a
+sub _check_recipient {
+    my $self = shift;
+
+    # recipient address must be contained in either: to, cc, bcc, resent-to, resent-cc or resent-bcc
+    my $header_ref = shift;
+
+    my $found_recipient = 0;
+
+    # Check each header in question ...
+    foreach my $hdr (qw(to cc bcc resent-to resent-cc resent-bcc)) {
+        if ( $header_ref->{$hdr} ) {
+
+            # Each header may consist of several recipients, so unfold it first ...
+            foreach my $dest ( &VBoxAdm::Utils::extract_recipients( $header_ref->{$hdr} ) ) {
+                if ( $self->recipient() =~ m/^$dest$/i ) {
+                    return 1;
+                }
+            }
+        }
+    }
+
+    return;
+}
+############################################
+# Usage      : my $status = &already_notified($dbh, $recipient, $sender, $interval);
+# Purpose    : Determine if this sender was already notified for this recipient.
+# Returns    : True if we did already send a notification within the interval.
+# Parameters : DBH, (local) recipient, (remote) sender and the re-notification interval.
+# Throws     : n/a
+# Comments   : n/a
+# See Also   : n/a
+sub _already_notified {
+    my $self = shift;
+
+    # Notification sent within $notify_interval seconds
+    # SQL: SELECT COUNT(*) FROM vacation_notify WHERE on_vacation = recipient AND notified = sender AND notified_at <= NOW() - $notify_interval;
+    my $sql = "SELECT COUNT(*) FROM vacation_notify WHERE on_vacation = ? AND notified = ? AND notified_at <= NOW() - ?";
+    my $sth = $self->dbh()->prepare($sql);
+    if ( $sth->execute( $self->recipient(), $self->sender(), $self->notify_interval() ) ) {
+        my $count = $sth->fetchrow_array();
+        $sth->finish();
+        if ( $count > 0 ) {
+            return 1;
+        }
+        else {
+            return;
+        }
+    }
+    else {
+
+        # if in doubt, assume we've already sent a notification
+        # better not respond than sending too much
+        $sth->finish();
+        return 1;
+    }
+}
+############################################
+# Usage      : &send_vacation_mail($dbh, $recipient, $header_ref)
+# Purpose    : Send a vacation mail to the given recipient (the former sender ;( )
+# Returns    : True if the mail could be sent.
+# Parameters : DBH, Recipient of the notification and the header hashref.
+# Throws     : n/a
+# Comments   : n/a
+# See Also   : n/a
+sub _send_vacation_mail {
+    my $self       = shift;
+    my $header_ref = shift;
+
+    # get vacation subj and vacation msg
+    my $sql =
+"SELECT vacation_subj, vacation_msg FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,'\@',d.name) = ? AND is_on_vacation";
+    my $sth = $self->dbh()->prepare($sql);
+
+    if ( $sth->execute( $self->recipient() ) ) {
+        my ( $subj, $msg ) = $sth->fetchrow_array();
+
+        if ( !$subj || !$msg ) {
+            $self->logger()
+              ->log( level => 'debug', message => 'Recipient: ' . $self->recipient() . ' - No Vacation Subject or Message found in DB. Aborting.', );
+            return;
+        }
+
+        $header_ref->{'Subject'} = $subj;
+
+        my $mail = '';
+        foreach my $key ( keys %{$header_ref} ) {
+            $mail .= ucfirst($key) . ': ' . $header_ref->{$key} . "\r\n";
+        }
+        $mail .= "\r\n";
+        $mail .= $msg;
+
+        if ( &VBoxAdm::Utils::sendmail( $header_ref->{'From'}, $mail ) ) {
+            $self->logger()->log( level => 'debug', message => "Sent vacation reply to " . $header_ref->{'To'} . " on behalf of " . $self->recipient() );
+        }
+        else {
+            $self->logger()
+              ->log( level => 'error', message => "Failed to send vacation reply to " . $header_ref->{'To'} . " on behalf of " . $self->recipient() );
+        }
+        return 1;
+    }
+    else {
+
+        # log error
+        $self->logger()->log( level => 'debug', message => 'Recipient: ' . $self->recipient() . ' - SQL-Error: ' . $self->dbh()->errstr . ' Aborting.', );
+        return;
+    }
+}
 
 no Moose;
 __PACKAGE__->meta->make_immutable();

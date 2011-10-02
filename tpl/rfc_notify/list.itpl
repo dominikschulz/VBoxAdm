@@ -1,8 +1,8 @@
 [% INCLUDE includes/header.tpl %]
-    <div id="main" class="datatable_container">
-		[% FOREACH line IN blacklist %]
+    <div id="main" role="main">
+		[% FOREACH line IN notifies %]
 		[% IF loop.first %]
-		<table id="datatable">
+		<table class="datatable">
 			<thead>
 			<tr>
 				<th>[% "Recipient" | l10n %]</th>
@@ -14,8 +14,6 @@
 			<tr>
 				<td>
 					[% line.email | highlight(search) %]
-				</td>
-				<td>
 				</td>
 				<td>
 					[% line.ts %]

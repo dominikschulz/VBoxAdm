@@ -74,12 +74,12 @@ sub process_request {
 
     # Check if the sql server went away
     if ( !$self->{server}->{vbox}->{nodb} && !$self->{server}->{vbox}->{dbh}->ping() ) {
-    	$self->logger()->log( message => "Ooops, looks like the SQL server went away. Trying to reconnect ...", level => 'notice', );
+        $self->logger()->log( message => "Ooops, looks like the SQL server went away. Trying to reconnect ...", level => 'notice', );
         $self->db_connect();
         $self->prepare_queries();
     }
-    
-    # The default timeout is zero which disables any timer. This is good. if we never set the alarm we don't want to enable it later when it should just be reset to its previous value.
+
+# The default timeout is zero which disables any timer. This is good. if we never set the alarm we don't want to enable it later when it should just be reset to its previous value.
     my $prev_timeout = 0;
 
     eval {
@@ -88,11 +88,11 @@ sub process_request {
 
         # start a timer
         $prev_timeout = alarm($timeout);
-        
+
         # Clarification:
         # Server - this is the upstream postfix instance which sends the message to be checked to us
         # we'll later tell it if the message is ok (so it'll send an ok to the client) or not (so it'll send an error to the client)
-        # Client - this is the downstream postfix instance which will actually handle the message delivery for us 
+        # Client - this is the downstream postfix instance which will actually handle the message delivery for us
 
         # Start the SMTP-Server part which listens to the incoming
         # transaction
@@ -118,9 +118,9 @@ sub process_request {
             last if ($client);
         }
         if ( !$client ) {
-        	my $msg = "Failed to create a sending client: $!";
-          $self->logger()->log( message => $msg, level => 'error', );
-          croak $msg;
+            my $msg = "Failed to create a sending client: $!";
+            $self->logger()->log( message => $msg, level => 'error', );
+            croak $msg;
         }
 
         # Pass the inital welcome
@@ -129,7 +129,7 @@ sub process_request {
         my $queue_id;    # remember the upstream queue id for logging
         my $xforward;
 
-				# listen to the client (upstream postfix) and relay everything except the final dot (end-of-data command) to the server (downstream postfix)
+        # listen to the client (upstream postfix) and relay everything except the final dot (end-of-data command) to the server (downstream postfix)
       LINE: while ( my $what = $smtp_server->chat() ) {
             if ( $what ne '.' ) {
 
@@ -208,31 +208,36 @@ sub process_request {
             my $helo    = $smtp_server->{xforward}{helo} || $default;
             my $proto   = $smtp_server->{xforward}{proto} || $default;
             my $source  = $smtp_server->{xforward}{source} || $default;
-            $self->logger()->log( message =>  "message-accepted - queued as $queue_id; from="
+            $self->logger()->log(
+                message => "message-accepted - queued as $queue_id; from="
                   . $smtp_server->{from} . "; to="
                   . join( ",", @{ $smtp_server->{recipients} } )
-                  . "; client=$client; helo=$helo; proto=$proto; source=$source;", level => 'notice', );
+                  . "; client=$client; helo=$helo; proto=$proto; source=$source;",
+                level => 'notice',
+            );
         }
 
         # Close open connections
-        if(!$client->{sock}->close()) {
-        	$self->logger()->log( message => "Could not close client socket: $!", level => 'warning', );
+        if ( !$client->{sock}->close() ) {
+            $self->logger()->log( message => "Could not close client socket: $!", level => 'warning', );
         }
-        if(!$smtp_server->{sock}->close()) {
-        	$self->logger()->log( message => "Could not close server socket: $!", level => 'warning', );
+        if ( !$smtp_server->{sock}->close() ) {
+            $self->logger()->log( message => "Could not close server socket: $!", level => 'warning', );
         }
-    }; # end of eval block
-		alarm $prev_timeout; # restore timeout, note: neither place this inside the evel nor inside the error checking if, or it may be omitted and bite your ass later!
+    };    # end of eval block
+    alarm
+      $prev_timeout; # restore timeout, note: neither place this inside the evel nor inside the error checking if, or it may be omitted and bite your ass later!
     if ($@) {
         chomp($@);
         my $msg = "WARNING: Error in process_request eval: $@";
         $self->logger()->log( message => $msg, level => 'error', );
         croak $msg . "\n";
     }
+
     # increase number of messages processed
     $self->{server}->{vbox}->{instance}++;
 
-		# successfully processed request
+    # successfully processed request
     return 1;
 }
 
@@ -261,7 +266,10 @@ sub max_msg_size {
         $self->{cache}->{max_msg_size}->{$email} = $max_msg_size if $self->{server}->{vbox}->{caching};
     }
     else {
-        $self->logger()->log( message =>  "max_msg_size - Excuting userinfo query (" . $self->{server}->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr, level => 'error', );
+        $self->logger()->log(
+            message => "max_msg_size - Excuting userinfo query (" . $self->{server}->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr,
+            level   => 'error',
+        );
     }
 
     return $max_msg_size;
@@ -308,7 +316,10 @@ sub sa_block_score {
             }
         }
         else {
-            $self->logger()->log( message =>  "sa_block_score - Excuting userinfo query (" . $self->{server}->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr, level => 'error', );
+            $self->logger()->log(
+                message => "sa_block_score - Excuting userinfo query (" . $self->{server}->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr,
+                level   => 'error',
+            );
         }
     }
 
@@ -347,7 +358,10 @@ sub want_sa {
             $self->{cache}->{want_sa}->{$email} = $userinfo[3] if $self->{server}->{vbox}->{caching};
         }
         else {
-            $self->logger()->log( message =>  "want_sa - Excuting userinfo query (" . $self->{server}->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr, level => 'error', );
+            $self->logger()->log(
+                message => "want_sa - Excuting userinfo query (" . $self->{server}->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr,
+                level   => 'error',
+            );
         }
 
     }
@@ -402,7 +416,7 @@ sub is_spam {
 
     # check if at least one recipient requests spam scanning (check DB)
     if ( !$self->want_sa($recipients) ) {
-    	$self->logger()->log( message => "None of the recipients ($recipients) wants spam scanning. Skipping this message.", level => 'notice', );
+        $self->logger()->log( message => "None of the recipients ($recipients) wants spam scanning. Skipping this message.", level => 'notice', );
 
         # we wont check messages if no user wants it, so we can't assume
         # that they are spam either
@@ -410,10 +424,10 @@ sub is_spam {
     }
 
     my $fh = $server->{data};
-    if(!$fh->seek( 0, 0 )) {
-    	my $msg = "Can't rewind message file: $!";
-    	$self->logger()->log( message => $msg, level => 'error', );
-    	croak $msg . "\n";
+    if ( !$fh->seek( 0, 0 ) ) {
+        my $msg = "Can't rewind message file: $!";
+        $self->logger()->log( message => $msg, level => 'error', );
+        croak $msg . "\n";
     }
 
     # Add Envelope-To/From and calculated checksum for caching
@@ -487,7 +501,10 @@ sub is_spam {
             $is_spam     = 0;
             $was_it_spam = 'clean message';
         }
-        $self->{'server'}->{'logger'}->log( message => "$was_it_spam - using cached result for $msgid ($msg_score/$block_score) from $sender for $recipients, $msg_size bytes.", level => 'notice', );
+        $self->{'server'}->{'logger'}->log(
+            message => "$was_it_spam - using cached result for $msgid ($msg_score/$block_score) from $sender for $recipients, $msg_size bytes.",
+            level   => 'notice',
+        );
     }
     else {
 
@@ -533,15 +550,15 @@ sub is_spam {
                 my $pause_alarm = alarm(0);
                 my $in_header   = 1;
                 my $skipline    = 0;
-                if(!$fh->seek( 0, 0 )) {
-                	my $msg = "Can't rewind message file: $!";
-                	$self->logger()->log( message => $msg, level => 'error', );
-                  croak $msg . "\n";
+                if ( !$fh->seek( 0, 0 ) ) {
+                    my $msg = "Can't rewind message file: $!";
+                    $self->logger()->log( message => $msg, level => 'error', );
+                    croak $msg . "\n";
                 }
-                if(!$fh->truncate(0)) {
-                	my $msg = "Can't truncate message file: $!";
-                	$self->logger()->log( message => $msg, level => 'error', );
-                  croak $msg . "\n";
+                if ( !$fh->truncate(0) ) {
+                    my $msg = "Can't truncate message file: $!";
+                    $self->logger()->log( message => $msg, level => 'error', );
+                    croak $msg . "\n";
                 }
                 foreach my $line ( split( /\r?\n/, $msg_response ) ) {
                     if ( $line =~ m/^\r?\n$/ ) {
@@ -554,10 +571,10 @@ sub is_spam {
                     }
 
                     if ( !$skipline ) {
-                        if(!$fh->print( $line . "\r\n" )) {
-                        	my $msg = "Can't print to message file: $!";
-                        	$self->logger()->log( message => $msg, level => 'error', );
-                        	croak $msg . "\n";
+                        if ( !$fh->print( $line . "\r\n" ) ) {
+                            my $msg = "Can't print to message file: $!";
+                            $self->logger()->log( message => $msg, level => 'error', );
+                            croak $msg . "\n";
                         }
                     }
                     else {
@@ -576,13 +593,17 @@ sub is_spam {
             my $block_score = sprintf( "%.2f", $status->get_required_score() );
             my $proc_time   = sprintf( "%.2f", time - $t0 );
 
-            $self->logger()->log( message => "$was_it_spam $msgid ($msg_score/$block_score) from $sender for $recipients in $proc_time s, $msg_size bytes. rules hit: "
-                  . $status->get_names_of_tests_hit(), level => 'notice', );
+            $self->logger()->log(
+                message => "$was_it_spam $msgid ($msg_score/$block_score) from $sender for $recipients in $proc_time s, $msg_size bytes. rules hit: "
+                  . $status->get_names_of_tests_hit(),
+                level => 'notice',
+            );
 
             # Cleanup the SA analysis object
             $status->finish();
         };
-				# Set the timeout to whichever value is was before
+
+        # Set the timeout to whichever value is was before
         alarm($prev_timeout);
         if ($@) {
             $self->logger()->log( message => "eval error: $@", level => 'error', );

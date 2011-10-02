@@ -163,8 +163,10 @@ TESTFILES = \
 	t/VBoxAdm/Model/MessageQueue.t \
 	t/VBoxAdm/Model/User.t \
 	t/VBoxAdm/Model/VacationBlacklist.t \
+	t/VBoxAdm/Model/VacationNotify.t \
+	t/VBoxAdm/SMTP/Proxy/MA.t \
+	t/VBoxAdm/SMTP/Proxy/SA.t \
 	t/VBoxAdm/SMTP/Client.t \
-	t/VBoxAdm/SMTP/Mailarchive.t \
 	t/VBoxAdm/SMTP/Proxy.t \
 	t/VBoxAdm/SMTP/Server.t \
 	t/VBoxAdm/API.t \
@@ -348,19 +350,10 @@ real-install: all test rcvboxadm
 	$(INSTALL_CONF) doc/lighttpd/50-vboxadm.conf $(CFGDIR)/vboxadm/lighttpd.conf
 
 tidy:
-	$(PERLTIDY) lib/VBoxAdm/*.ipm
-	$(PERLTIDY) lib/VBoxAdm/Model/*.ipm
-	$(PERLTIDY) lib/VBoxAdm/L10N/*.ipm
-	$(PERLTIDY) lib/VBoxAdm/SMTP/*.ipm
-	$(PERLTIDY) t/VBoxAdm/*.it
-	$(PERLTIDY) t/VBoxAdm/L10N/*.it
-	$(PERLTIDY) t/VBoxAdm/Model/*.it
-	$(PERLTIDY) bin/*.ipl
-	$(PERLTIDY) cgi-bin/*.ipl
+	$(FIND) . -name "*.ipl" -exec $(PERLTIDY) {} \;
+	$(FIND) . -name "*.ipm" -exec $(PERLTIDY) {} \;
+	$(FIND) . -name "*.it"  -exec $(PERLTIDY) {} \;
 	$(PERLTIDY) cgi-bin/*.ifcgi
-	$(PERLTIDY) cron/*.ipl
-	$(PERLTIDY) contrib/*.ipl
-
 
 clean:
 	$(FIND) bin/ -name "*.pl" -exec $(RM) {} \;

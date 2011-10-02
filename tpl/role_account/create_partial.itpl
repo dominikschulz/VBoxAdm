@@ -3,11 +3,11 @@
 		<input type="hidden" name="rm" value="add_role_account" />
 		<h1>[% "Create a new Role Account" | l10n %]</h1>
 		
-		<label for="name">
+		<label for="role">
 			[% "Name:" | l10n %]
 			<span class="small">The local part of the Role Account you're creating.</span>
 		</label>
-		<input class="flat" type="text" name="name" />
+		<input class="flat" type="text" name="role" />
 		
 		<div class="spacer"></div>
 		
