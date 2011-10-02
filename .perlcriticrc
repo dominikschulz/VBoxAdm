@@ -1,0 +1,6 @@
+exclude = RegularExpressions::RequireDotMatchAnything RegularExpressions::RequireExtendedFormatting RegularExpressions::RequireLineBoundaryMatching 
+
+[ControlStructures::ProhibitPostfixControls]
+severity = 4
+allow = if unless
+
