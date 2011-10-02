@@ -137,11 +137,10 @@ $sa->compile_now();
 # specify hosts and ports
 
 my $vboxadm_args = {
-    relayhosts   => \@connect,
-    dbh          => undef,
-    childtimeout => $childtimeout,
-
-    #sa                     => $sa,
+    relayhosts             => \@connect,
+    dbh                    => undef,
+    childtimeout           => $childtimeout,
+    sa                     => $sa,
     sa_max_msg_size        => $sa_max_msg_size,
     sa_timeout             => $sa_timeout,
     max_msg_size           => $max_msg_size,

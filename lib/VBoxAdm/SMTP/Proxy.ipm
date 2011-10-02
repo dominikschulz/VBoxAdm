@@ -1,36 +1,23 @@
 package VBoxAdm::SMTP::Proxy;
 
-use Moose;
-use namespace::autoclean;
-
 use Carp;
 
-use Getopt::Long;
 use IO::File;
-use DBI;
 use Time::HiRes qw(time);
 use List::Util qw(shuffle);
 
-use Mail::SpamAssassin;
-
-use Digest::SHA;
-
-use VBoxAdm::SMTP::Server '@VERSION@';
-use VBoxAdm::SMTP::Client '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::DB '@VERSION@';
 
 our $VERSION = '@VERSION@';
 
-extends 'Net::Server::PreFork';
+use base qw(Net::Server::PreFork);
 
-# see http://cpan.uwinnipeg.ca/htdocs/RTSP-Proxy/RTSP/Proxy.pm.html
+sub logger {
+    my $self = shift;
 
-has 'logger' => (
-    'is'       => 'rw',
-    'isa'      => 'VBoxAdm::Logger',
-    'required' => 1,
-);
+    return $self->{'server'}->{'logger'};
+}
 
 ############################################
 # Usage      : ????
@@ -42,8 +29,6 @@ has 'logger' => (
 # See Also   : n/a
 sub db_connect {
     my $self = shift;
-
-    #$self->{'server'}->{'logger'}->log( message => "Message", level => 'error', );
 
     my $user = $self->{server}->{vbox}->{dbuser} || 'vboxadm';
     my $pass = $self->{server}->{vbox}->{dbpass} || 'vboxadm';
@@ -65,7 +50,9 @@ sub db_connect {
         $self->{server}->{vbox}->{dbh} = VBoxAdm::DB::connect( $dsn . $host, { ConnectTimeout => 10, } ) and last;
     }
     if ( !$self->{server}->{vbox}->{dbh} ) {
-        croak "Could not connect to DB with DSN $dsn - Hosts: " . join( ',', @{ $self->{server}->{vbox}->{dbhosts} } ) . " - DBI Error: " . DBI->errstr;
+        my $msg = "Could not connect to DB with DSN $dsn - Hosts: " . join( ',', @{ $self->{server}->{vbox}->{dbhosts} } ) . " - DBI Error: " . DBI->errstr;
+        $self->logger()->log( message => $msg, level => 'error', );
+        croak $msg;
     }
 
     return 1;
@@ -97,11 +84,18 @@ sub child_init_hook {
 
     # setup my env
     # getpwuid reads /etc/passwd, field 7 is the home dir
-    # TODO setpwuid first?
-    $ENV{'HOME'} = ( getpwuid($>) )[7];
+    my $homedir = ( getpwuid($>) )[7];
+    $ENV{'HOME'} = $homedir;
+    $self->logger()->log( message => "Homedir set to $homedir", level => 'debug', );
 
-    $self->db_connect();
-    $self->prepare_queries();
+    if ( !$self->db_connect() ) {
+        $self->logger()->log( message => "Could not connect to db!", level => "error", );
+        return;
+    }
+    if ( !$self->prepare_queries() ) {
+        $self->logger()->log( message => "Could not prepare queries!", level => 'error', );
+        return;
+    }
 
     return 1;
 }
@@ -142,13 +136,10 @@ sub child_finish_hook {
 sub process_request {
     my $self = shift;
 
-    $self->{'server'}->{'logger'}->log( message => "Not implemented", level => 'error' );
+    $self->logger()->log( message => "Not implemented", level => 'error' );
 
     return;
 }
-
-no Moose;
-__PACKAGE__->meta->make_immutable( inline_constructor => 0, );
 
 1;
 __END__

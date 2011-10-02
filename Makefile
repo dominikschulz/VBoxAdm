@@ -99,7 +99,6 @@ LIBFILES = \
 	lib/VBoxAdm/SMTP/Proxy/MA.pm \
 	lib/VBoxAdm/SMTP/Proxy/SA.pm \
 	lib/VBoxAdm/SMTP/Client.pm \
-	lib/VBoxAdm/SMTP/Mailarchive.pm \
 	lib/VBoxAdm/SMTP/Proxy.pm \
 	lib/VBoxAdm/SMTP/Server.pm \
 	lib/VBoxAdm/API.pm \
@@ -135,8 +134,10 @@ MANFILES = \
 	lib/VBoxAdm/Model/MessageQueue.3 \
 	lib/VBoxAdm/Model/User.3 \
 	lib/VBoxAdm/Model/VacationBlacklist.3 \
+	lib/VBoxAdm/Model/VacationNotify.3 \
+	lib/VBoxAdm/SMTP/Proxy/MA.3 \
+	lib/VBoxAdm/SMTP/Proxy/SA.3 \
 	lib/VBoxAdm/SMTP/Client.3 \
-	lib/VBoxAdm/SMTP/Mailarchive.3 \
 	lib/VBoxAdm/SMTP/Proxy.3 \
 	lib/VBoxAdm/SMTP/Server.3 \
 	lib/VBoxAdm/API.3 \
@@ -282,7 +283,7 @@ install: clean real-install
 real-install: all test rcvboxadm
 	$(INSTALL) -d $(BINDIR) $(SBINDIR) $(DESTDIR)/etc
 	$(INSTALL) -d $(CFGDIR)/vboxadm
-	$(INSTALL) -d $(LIBDIR)/VBoxAdm/L10N $(LIBDIR)/VBoxAdm/SMTP $(LIBDIR)/VBoxAdm/Model $(LIBDIR)/VBoxAdm/Controller
+	$(INSTALL) -d $(LIBDIR)/VBoxAdm/L10N $(LIBDIR)/VBoxAdm/SMTP/Proxy $(LIBDIR)/VBoxAdm/Model $(LIBDIR)/VBoxAdm/Controller
 	$(INSTALL) -d $(MANDIR)/man1 $(MANDIR)/man3 $(MANDIR)/man8
 	$(INSTALL) -d $(VBOXLIBDIR)/bin
 	$(INSTALL) -d $(VBOXLIBDIR)/tpl/alias $(VBOXLIBDIR)/tpl/autoconfig $(VBOXLIBDIR)/tpl/awl $(VBOXLIBDIR)/tpl/domain
