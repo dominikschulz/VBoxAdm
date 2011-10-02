@@ -305,7 +305,7 @@ real-install: all test rcvboxadm
 	$(INSTALL_WWW) cgi-bin/autodiscover.pl $(VHDIR)/cgi-bin/autodiscover.pl
 	$(INSTALL_WWW) cgi-bin/vboxadm.pl $(VHDIR)/cgi-bin/vboxadm.pl
 	$(INSTALL_WWW) cgi-bin/vboxadm.fcgi $(VHDIR)/cgi-bin/vboxadm.fcgi
-	$(INSTALL_WWW) cgi-bin/vboxapi.cgi $(VHDIR)/cgi-bin/vboxapi.cgi
+	$(INSTALL_WWW) cgi-bin/vboxapi.pl $(VHDIR)/cgi-bin/vboxapi.pl
 	$(INSTALL_PROGRAM) cron/cleanup.pl $(VBOXLIBDIR)/bin/cleanup
 	$(INSTALL_PROGRAM) cron/awl.pl $(VBOXLIBDIR)/bin/awl
 	$(INSTALL_PROGRAM) cron/notify.pl $(VBOXLIBDIR)/bin/notify
