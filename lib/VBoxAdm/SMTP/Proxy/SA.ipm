@@ -1,0 +1,749 @@
+package VBoxAdm::SMTP::Proxy::SA;
+
+use Carp;
+
+use Getopt::Long;
+use IO::File;
+use DBI;
+use Time::HiRes qw(time);
+use List::Util qw(shuffle);
+
+use Mail::SpamAssassin;
+
+use Digest::SHA;
+
+use VBoxAdm::SMTP::Server '@VERSION@';
+use VBoxAdm::SMTP::Client '@VERSION@';
+use VBoxAdm::Utils '@VERSION@';
+use VBoxAdm::DB '@VERSION@';
+
+our $VERSION = '@VERSION@';
+
+use base qw(VBoxAdm::SMTP::Proxy);
+
+############################################
+# Usage      : ????
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub prepare_queries {
+    my $self = shift;
+
+    if ( $self->{server}->{vbox}->{nodb} ) {
+
+        # no db connection is created in nodb mode
+        return 1;
+    }
+
+    # prepare statements
+    # postfix won't/can't do address expansion before, so
+    # we should check if we can resolve the alias locally and retreive the
+    # settings from there!
+    # the subqueryies inside the IN clause:
+    # - a straight forward mailbox
+    # - a straight forward alias
+    # - a mailbox on an alias domain
+    # - an alias on an alias domain
+    # This is a pretty huge and expensive query. I haven't found a better way to do this yet.
+    my $sql_userinfo = q{SELECT m.id,d.id,m.max_msg_size,m.sa_active,m.sa_kill_score 
+FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id 
+WHERE CONCAT(m.local_part,'@',d.name) IN 
+(?,
+(SELECT a1.goto FROM aliases AS a1 LEFT JOIN domains AS d1 ON a1.domain_id = d1.id WHERE CONCAT(a1.local_part,'@',d1.name) = ?),
+(SELECT CONCAT(m2.local_part,'@',d2.name) FROM mailboxes AS m2 LEFT JOIN domains AS d2 ON m2.domain_id = d2.id LEFT JOIN domain_aliases AS da2 ON da2.domain_id = d2.id WHERE CONCAT(m2.local_part,'@',da2.name) = ?),
+(SELECT a3.goto FROM aliases AS a3 LEFT JOIN domains AS d3 ON a3.domain_id = d3.id LEFT JOIN domain_aliases AS da3 ON da3.domain_id = d3.id WHERE CONCAT(a3.local_part,'@',da3.name) = ?)
+)};
+    $self->{server}->{vbox}->{sth}->{userinfo} = $self->{server}->{vbox}->{dbh}->prepare($sql_userinfo);
+
+    return 1;
+}
+
+############################################
+# Usage      : invoked by Net::Server
+# Purpose    : handle a new incoming request
+# Returns    : true if the request was processed fine
+# Parameters : none
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub process_request {
+    my $self = shift;
+
+    # Check if the sql server went away
+    if ( !$self->{server}->{vbox}->{nodb} && !$self->{server}->{vbox}->{dbh}->ping() ) {
+    	$self->logger()->log( message => "Ooops, looks like the SQL server went away. Trying to reconnect ...", level => 'notice', );
+        $self->db_connect();
+        $self->prepare_queries();
+    }
+    
+    # The default timeout is zero which disables any timer. This is good. if we never set the alarm we don't want to enable it later when it should just be reset to its previous value.
+    my $prev_timeout = 0;
+
+    eval {
+        local $SIG{ALRM} = sub { die "Child server process timed out!\n" };
+        my $timeout = $self->{server}->{vbox}->{childtimeout} || 300;
+
+        # start a timer
+        $prev_timeout = alarm($timeout);
+        
+        # Clarification:
+        # Server - this is the upstream postfix instance which sends the message to be checked to us
+        # we'll later tell it if the message is ok (so it'll send an ok to the client) or not (so it'll send an error to the client)
+        # Client - this is the downstream postfix instance which will actually handle the message delivery for us 
+
+        # Start the SMTP-Server part which listens to the incoming
+        # transaction
+        my $smtp_server = VBoxAdm::SMTP::Server->new(
+            sock    => $self->{server}->{client},
+            tempdir => $self->{server}->{vbox}->{tempdir},
+        ) or die "Failed to create a listening server: $!\n";
+
+        # Start the SMTP-Client part which talks to the internal
+        # mta (postfix) instance
+        # if more than one relayhost is given, try to connect to
+        # each one until the connection succeeds. use a short timeout (max. 5s), rember that we are
+        # inside the "childtimeout" timer! so we won't waste too much time here.
+        my $client = undef;
+        foreach my $node ( shuffle @{ $self->{server}->{vbox}->{relayhosts} } ) {
+            my ( $host, $port ) = split( /:/, $node );
+            $client = VBoxAdm::SMTP::Client->new(
+                interface  => $host,
+                port       => $port,
+                timeout    => 5,
+                RaiseError => 0,
+            );
+            last if ($client);
+        }
+        if ( !$client ) {
+        	my $msg = "Failed to create a sending client: $!";
+          $self->logger()->log( message => $msg, level => 'error', );
+          croak $msg;
+        }
+
+        # Pass the inital welcome
+        $smtp_server->print( $client->hear() . "\r\n" );
+
+        my $queue_id;    # remember the upstream queue id for logging
+        my $xforward;
+
+				# listen to the client (upstream postfix) and relay everything except the final dot (end-of-data command) to the server (downstream postfix)
+      LINE: while ( my $what = $smtp_server->chat() ) {
+            if ( $what ne '.' ) {
+
+                # Do nothing but pass on the output from the server
+                # VBoxAdm::SMTP::Server will cache all interesting data for us
+                $client->say($what);
+            }
+            else {
+
+                # Message sent completely, now do our checks
+                # CHECK: Max_msg_size
+                my $msg_size = ( $smtp_server->{data}->stat )[7] || 1;
+                foreach my $recipient ( @{ $smtp_server->{recipients} } ) {
+                    if ( $msg_size > $self->max_msg_size($recipient) ) {
+                        my $msg = "Message too big ($msg_size/" . $self->max_msg_size($recipient) . ") for $recipient";
+                        if ( $self->{server}->{vbox}->{dry} ) {
+                            $self->logger()->log( message => "DRY: $msg. Would reject this mail.", level => 'notice', );
+                        }
+                        else {
+                            if ( $self->{server}->{vbox}->{soft_bounce} ) {
+                                $smtp_server->tmpfail($msg);
+                            }
+                            else {
+                                $smtp_server->fail($msg);
+                            }
+                            last LINE;
+                        }
+                    }
+                }
+
+                # CHECK: SpamAssassin
+                if ( $self->is_spam($smtp_server) ) {
+                    my $msg = "Your message appears to be SPAM";
+                    if ( $self->{server}->{vbox}->{dry} ) {
+                        $self->{'server'}->{'logger'}->log( message => "DRY: $msg. Would reject this mail.", level => 'notice', );
+                    }
+                    else {
+                        if ( $self->{server}->{vbox}->{soft_bounce} ) {
+                            $smtp_server->tmpfail($msg);
+                        }
+                        else {
+                            $smtp_server->fail($msg);
+                        }
+                        last LINE;
+                    }
+                }
+
+                # further checks if necessary ...
+                # this would be the right place to e.g. hook up a content (virus) scanner or another anti-spam engine
+                # feel free to send in patches.
+                # it would probably be a good idea to refactor this to use some kind of plugin mechanism, but in combination w/ Net::Server
+                # and the pre-fork tricks we're using it would be a too big mess for the flexbility gained.
+
+                # after all checks are done, send the whole DATA part to the destination
+
+                # client needs a rewound file
+                $smtp_server->{data}->seek( 0, 0 );
+                $client->yammer( $smtp_server->{data} );
+            }
+
+            # extract queue id for logging
+            my $msg = $client->hear();
+
+            # Queue-ID format: http://archives.neohapsis.com/archives/postfix/2010-12/0728.html
+            if ( $what eq '.' && $msg =~ m/^250 .* queued as ([0-9A-F]+)/ ) {
+                $queue_id = $1;
+            }
+            $smtp_server->print( $msg . "\r\n" );
+        }    # end-of-while-LINE
+
+        if ($queue_id) {
+
+            # log queue id, remote ip, if authed, etc. after message is accepted
+            my $default = '[UNKNOWN]';
+            my $client  = $smtp_server->{xforward}{addr} || $default;
+            my $helo    = $smtp_server->{xforward}{helo} || $default;
+            my $proto   = $smtp_server->{xforward}{proto} || $default;
+            my $source  = $smtp_server->{xforward}{source} || $default;
+            $self->logger()->log( message =>  "message-accepted - queued as $queue_id; from="
+                  . $smtp_server->{from} . "; to="
+                  . join( ",", @{ $smtp_server->{recipients} } )
+                  . "; client=$client; helo=$helo; proto=$proto; source=$source;", level => 'notice', );
+        }
+
+        # Close open connections
+        if(!$client->{sock}->close()) {
+        	$self->logger()->log( message => "Could not close client socket: $!", level => 'warning', );
+        }
+        if(!$smtp_server->{sock}->close()) {
+        	$self->logger()->log( message => "Could not close server socket: $!", level => 'warning', );
+        }
+    }; # end of eval block
+		alarm $prev_timeout; # restore timeout, note: neither place this inside the evel nor inside the error checking if, or it may be omitted and bite your ass later!
+    if ($@) {
+        chomp($@);
+        my $msg = "WARNING: Error in process_request eval: $@";
+        $self->logger()->log( message => $msg, level => 'error', );
+        croak $msg . "\n";
+    }
+    # increase number of messages processed
+    $self->{server}->{vbox}->{instance}++;
+
+		# successfully processed request
+    return 1;
+}
+
+############################################
+# Usage      : $self->max_msg_size('user@domain.tld')
+# Purpose    : get the max. message size for the given user
+# Returns    : the max. message size
+# Parameters : the username
+# Throws     : no exceptions
+# Comments   : Once cached the results are kept until this instance exits!
+# See Also   : n/a
+sub max_msg_size {
+    my $self      = shift;
+    my $recipient = shift;
+
+    my $email = &VBoxAdm::Utils::extract_recipients($recipient);
+
+    # check the max msg size for this recipient
+    my $max_msg_size = $self->{server}->{vbox}->{max_msg_size};
+    if ( $self->{server}->{vbox}->{caching} && $self->{cache}->{max_msg_size}->{$email} ) {
+        $max_msg_size = $self->{cache}->{max_msg_size}->{$email};
+    }
+    elsif ( $self->{server}->{vbox}->{sth}->{userinfo}->execute( $email, $email, $email, $email ) ) {
+        my @userinfo = $self->{server}->{vbox}->{sth}->{userinfo}->fetchrow_array();
+        $max_msg_size = $userinfo[2] || $max_msg_size;
+        $self->{cache}->{max_msg_size}->{$email} = $max_msg_size if $self->{server}->{vbox}->{caching};
+    }
+    else {
+        $self->logger()->log( message =>  "max_msg_size - Excuting userinfo query (" . $self->{server}->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr, level => 'error', );
+    }
+
+    return $max_msg_size;
+}
+
+############################################
+# Usage      : ????
+# Purpose    : Get the lowest sa_block_score of all given recipients
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : Once cached the results are kept until this instance exits!
+# See Also   : n/a
+sub sa_block_score {
+    my $self       = shift;
+    my $recipients = shift;
+
+    if ( $self->{server}->{vbox}->{nodb} ) {
+        return $self->{server}->{vbox}->{sa_default_block_score} || 6.31;
+    }
+
+    # set arbitrarily high limit
+    my $lowest_kill_score = 0xFFFF;
+
+    my $delim = $self->{server}->{vbox}->{recipient_delimiter} || undef;
+
+    foreach my $email ( &VBoxAdm::Utils::extract_recipients( $recipients, $delim ) ) {
+        if ( $self->{server}->{vbox}->{caching} && $self->{cache}->{sa_block_score}->{$email} ) {
+
+            # try cached result first
+            my $sa_kill_score = $self->{cache}->{sa_block_score}->{$email};
+
+            if ( $sa_kill_score && $sa_kill_score < $lowest_kill_score ) {
+                $lowest_kill_score = $sa_kill_score;
+            }
+        }
+        elsif ( $self->{server}->{vbox}->{sth}->{userinfo}->execute( $email, $email, $email, $email ) ) {
+            my @userinfo      = $self->{server}->{vbox}->{sth}->{userinfo}->fetchrow_array();
+            my $sa_kill_score = $userinfo[4];
+            $self->{cache}->{sa_block_score}->{$email} = $sa_kill_score if $self->{server}->{vbox}->{caching};
+
+            if ( $sa_kill_score && $sa_kill_score < $lowest_kill_score ) {
+                $lowest_kill_score = $sa_kill_score;
+            }
+        }
+        else {
+            $self->logger()->log( message =>  "sa_block_score - Excuting userinfo query (" . $self->{server}->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr, level => 'error', );
+        }
+    }
+
+    # return lowest SA tag/reject score of all recipients
+    return $lowest_kill_score;
+}
+
+############################################
+# Usage      : ????
+# Purpose    : ????
+# Returns    : ????
+# Parameters : ????
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub want_sa {
+    my $self       = shift;
+    my $recipients = shift;
+
+    if ( $self->{server}->{vbox}->{nodb} ) {
+        return $self->{server}->{vbox}->{sa_default_status} || 1;
+    }
+
+    my $want_sa = 0;
+
+    my $delim = $self->{server}->{vbox}->{recipient_delimiter} || undef;
+
+    # iterate over all recipients, if one wants sa checking, the message will be checked
+    foreach my $email ( &VBoxAdm::Utils::extract_recipients( $recipients, $delim ) ) {
+        if ( $self->{server}->{vbox}->{caching} && defined( $self->{cache}->{want_sa} ) ) {
+            $want_sa = $want_sa || $self->{cache}->{want_sa}->{$email} || 0;
+        }
+        elsif ( $self->{server}->{vbox}->{sth}->{userinfo}->execute( $email, $email, $email, $email ) ) {
+            my @userinfo = $self->{server}->{vbox}->{sth}->{userinfo}->fetchrow_array();
+            $want_sa = $want_sa || $userinfo[3] || 0;
+            $self->{cache}->{want_sa}->{$email} = $userinfo[3] if $self->{server}->{vbox}->{caching};
+        }
+        else {
+            $self->logger()->log( message =>  "want_sa - Excuting userinfo query (" . $self->{server}->{vbox}->{sth}->{userinfo}->{Statement} . ") failed: " . DBI->errstr, level => 'error', );
+        }
+
+    }
+
+    # return true if at least on recipient wants spam scanning
+    if ($want_sa) {
+        return 1;
+    }
+    else {
+        return;
+    }
+}
+
+############################################
+# Usage      : $self->is_spam($smtp_server)
+# Purpose    : check the current message body for spam
+# Returns    : true if this message is considered spam
+# Parameters : the smtp_server
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub is_spam {
+    my $self   = shift;
+    my $sa     = $self->{server}->{vbox}->{sa};
+    my $server = shift;
+
+    my $is_spam = 0;
+
+    my $t0 = time;
+
+    my $msg_size = ( $server->{data}->stat )[7];
+    if ( $msg_size > $self->{server}->{vbox}->{sa_max_msg_size} ) {
+
+        # we wont check messages which are to big, so we can't assume
+        # that they are spam
+        $self->logger()->log( message => "Skipped too large msg ($msg_size > $self->{server}->{vbox}->{sa_max_msg_size})", level => 'notice', );
+        return;
+    }
+
+    # add x-envelope-to and x-envelope-from if not present
+    # and retrieve message-id for logging
+    my @msglines   = ();
+    my $msgid      = '(unknown)';
+    my $sender     = '(unknown)';
+    my $recipients = '(unknown)';
+    if ( $server->{recipients} && ref( $server->{recipients} ) eq 'ARRAY' ) {
+        $recipients = join( ", ", @{ $server->{recipients} } );
+    }
+    if ( $server->{from} && $server->{from} =~ m/(\<[^>]*\>)/ ) {
+        $sender = $1;
+    }
+
+    # check if at least one recipient requests spam scanning (check DB)
+    if ( !$self->want_sa($recipients) ) {
+    	$self->logger()->log( message => "None of the recipients ($recipients) wants spam scanning. Skipping this message.", level => 'notice', );
+
+        # we wont check messages if no user wants it, so we can't assume
+        # that they are spam either
+        return;
+    }
+
+    my $fh = $server->{data};
+    if(!$fh->seek( 0, 0 )) {
+    	my $msg = "Can't rewind message file: $!";
+    	$self->logger()->log( message => $msg, level => 'error', );
+    	croak $msg . "\n";
+    }
+
+    # Add Envelope-To/From and calculated checksum for caching
+    my $envto       = 0;
+    my $envfrom     = 0;
+    my $in_header   = 1;                       # still inside the header?
+    my $added_envto = 0;                       # did we add an envelope-to?
+    my $digest      = Digest::SHA->new(256);
+    while ( my $line = <$fh> ) {
+        if ( $line =~ m/^(?:X-)?Envelope-To:/i ) {
+            $envto = 1;
+        }
+        elsif ( $line =~ m/^(?:X-)?Envelope-From:/i ) {
+            $envfrom = 1;
+        }
+
+        # first blank line ends header as per RFC822
+        elsif ( $in_header && $line =~ m/^\r?\n$/ ) {
+            $in_header = 0;
+            if ( !$envfrom ) {
+                push( @msglines, "X-Envelope-From: " . lc($sender) . "\r\n" );
+            }
+            if ( !$envto ) {
+                push( @msglines, "X-Envelope-To: " . lc($recipients) . "\r\n" );
+                $added_envto = 1;
+            }
+        }
+        elsif ( $in_header && $line =~ m/^Message-Id:\s+(.*)\s*$/i ) {
+
+            # Extract Message-ID
+            $msgid = $1;
+            while ( $msgid =~ s/\([^\(\)]*\)// ) { }    # remove comments and
+            $msgid =~ s/^\s+|\s+$//g;                   # leading and trailing spaces
+            $msgid =~ s/\s+/ /g;                        # collapse whitespaces
+            $msgid =~ s/^.*?<(.*?)>.*$/$1/;             # keep only the id itself
+            $msgid =~ s/[^\x21-\x7e]/?/g;               # replace all weird chars
+            $msgid =~ s/[<>]/?/g;                       # plus all dangling angle brackets
+            $msgid =~ s/^(.+)$/<$1>/;                   # re-bracket the id (if not empty)
+        }
+        push( @msglines, $line );
+
+        # to support caching, create a checksum (sha1) over the whole message (excluding some headers like To:, etc. and store
+        # with the spam score.
+        if ( $self->{server}->{vbox}->{caching} ) {
+            if ( $in_header && ( $line =~ m/^(From|Bcc|CC|To|Message-Id|Date|Received):/i || $line =~ m/^\s+/ ) ) {
+
+                # don't add to checksum
+            }
+            else {
+                $digest->add($line);
+            }
+        }
+    }
+
+    # only calculate checksum if caching is enabled
+    my $checksum = $digest->hexdigest() if $self->{server}->{vbox}->{caching};
+
+    # destroy the digest object
+    $digest = undef;
+
+    # Check cached result, don't invoke SA if we have a cached result for this message
+    if ( $self->{server}->{vbox}->{caching} && defined( $self->{cache}->{spam_score}->{$checksum} ) ) {
+        my $block_score = $self->sa_block_score($recipients) || 6.31;
+        my $msg_score   = $self->{cache}->{spam_score}->{$checksum};
+        my $was_it_spam = 'clean message';
+        if ( $msg_score > $block_score ) {
+            $is_spam     = 1;
+            $was_it_spam = 'identified spam';
+        }
+        else {
+            $is_spam     = 0;
+            $was_it_spam = 'clean message';
+        }
+        $self->{'server'}->{'logger'}->log( message => "$was_it_spam - using cached result for $msgid ($msg_score/$block_score) from $sender for $recipients, $msg_size bytes.", level => 'notice', );
+    }
+    else {
+
+        # check if this message is spam
+        my $prev_timeout = 0;
+        eval {
+            local $SIG{ALRM} = sub { die "Timed out!\n"; };
+
+            # save the prev. setting of the alarm timer and start our own
+            $prev_timeout = alarm( $self->{server}->{vbox}->{sa_timeout} );
+
+            # SA seems to ignore these settings if set after parse/check ...
+            $sa->{conf}->{required_score} = $self->sa_block_score($recipients) || 6.31;
+
+            # Audit the message
+            my $mail = $sa->parse( \@msglines );
+            undef(@msglines);
+
+            # Check spaminess (returns a Mail::SpamAssassin::PerMsgStatus object)
+            my $status = $sa->check($mail);
+
+            # check if the reported score is higher than the lowest score
+            # of all recipients. return true (=> this message is spam) if so.
+            $status->{conf}->{report_safe} = 0;
+            my $was_it_spam = 'unknown';
+            if ( $status->is_spam() ) {
+                $is_spam     = 1;
+                $was_it_spam = 'identified spam';
+            }
+            else {
+                $is_spam     = 0;
+                $was_it_spam = 'clean message';
+
+                # No spam, only add header to inform the user
+                # what checks were performed and what the spam rating is
+                # remember that this anti-spam proxy is meant to act as an pre-queue filter,
+                # so spam is rejected and NOT delivered to the users inbox. since he will never
+                # see mails classified as spam it would make no sense to tag them.
+                my $msg_response = $status->rewrite_mail();
+
+                # Build the rewritten message
+                # pause the timeout while doing so
+                my $pause_alarm = alarm(0);
+                my $in_header   = 1;
+                my $skipline    = 0;
+                if(!$fh->seek( 0, 0 )) {
+                	my $msg = "Can't rewind message file: $!";
+                	$self->logger()->log( message => $msg, level => 'error', );
+                  croak $msg . "\n";
+                }
+                if(!$fh->truncate(0)) {
+                	my $msg = "Can't truncate message file: $!";
+                	$self->logger()->log( message => $msg, level => 'error', );
+                  croak $msg . "\n";
+                }
+                foreach my $line ( split( /\r?\n/, $msg_response ) ) {
+                    if ( $line =~ m/^\r?\n$/ ) {
+                        $in_header = 0;
+                    }
+
+                    # while in header skip over any X-Envelope-To we have added
+                    if ( $in_header && $added_envto && $line =~ m/^X-Envelope-To:/i ) {
+                        $skipline = 1;
+                    }
+
+                    if ( !$skipline ) {
+                        if(!$fh->print( $line . "\r\n" )) {
+                        	my $msg = "Can't print to message file: $!";
+                        	$self->logger()->log( message => $msg, level => 'error', );
+                        	croak $msg . "\n";
+                        }
+                    }
+                    else {
+                        $skipline = 0;
+                    }
+                }    # end of foreach-split-msg_response
+                     # restart the alarm
+                alarm($pause_alarm);
+            }
+
+            # Cache score
+            $self->{cache}->{spam_score}->{$checksum} = $status->get_score() if $self->{server}->{vbox}->{caching};
+
+            # Log what was done
+            my $msg_score   = sprintf( "%.2f", $status->get_score() );
+            my $block_score = sprintf( "%.2f", $status->get_required_score() );
+            my $proc_time   = sprintf( "%.2f", time - $t0 );
+
+            $self->logger()->log( message => "$was_it_spam $msgid ($msg_score/$block_score) from $sender for $recipients in $proc_time s, $msg_size bytes. rules hit: "
+                  . $status->get_names_of_tests_hit(), level => 'notice', );
+
+            # Cleanup the SA analysis object
+            $status->finish();
+        };
+				# Set the timeout to whichever value is was before
+        alarm($prev_timeout);
+        if ($@) {
+            $self->logger()->log( message => "eval error: $@", level => 'error', );
+            return;
+        }
+    }
+
+    if ($is_spam) {
+        return 1;
+    }
+    else {
+        return;
+    }
+}
+
+1;
+__END__
+
+=head1 NAME
+
+VBoxAdm::SMTP::Proxy::SA - Spam Filtering SMTP-Proxy for VBoxAdm
+
+=head1 VERSION
+
+This documentation refers to VBoxAdm::SMTP::Proxy version @VERSION@
+built on @BUILDDATE@.
+
+=head1 SYNOPSIS
+
+    use VBoxAdm::SMTP::Proxy;
+
+=head1 SCHEMA
+
+ Internet -> Postfix1 (Client) -> smtpproxy -> Postfix2 (Server)
+
+=head1 DESCRIPTION
+
+The smtp-proxy listens on the port configured in its configuration file
+and sends the command it recieves on the the SMTP-Server specified also
+in its configuration file. The SMTP commands and replies from the server
+are passed on unmodified until the client send the end-of-data command
+(a single dot "." on a line of its own). The the proxy first checks
+the message size against the max message size for the recipients and
+if that test passes it checks the spam rating. If SpamAssassin reports
+a spam rating above the lowest spam kill score of all recipients the
+message if blocked at SMTP level (no bounce is generated on our side).
+
+All mails are rewritten while they pass through this proxy so even clean mails
+get SpamAssassin headers for later inspection.
+
+You can control the ressource usage of this application by tuning the
+variables min_server, max_servers et. al. See the documentation
+of Net::Server::PreFork for more details. Basically this application
+will create a SpamAssasin instance, precompile the rules and fork
+of as many children as specified. These children live for some time,
+handle the requests the parent receives and die when they've done
+enough work. The the parent will spawn a new children. If there a too much
+incoming requests the server will spawn new children until max_servers
+if reached. This is very much like the behaviour of the Apache HTTPD
+prefork worker.
+
+=head1 WARNING
+
+This application is designed as an intermediate component. Do not place it
+in an exposed position where everyone can talk to it. Put it between
+a sandwich of two postfix instances as suggested by the sample
+configuration distributed with this application.
+
+=head1 PERFORMANCE NOTES
+
+This application is designed with some very specific assumptions in mind:
+Executing perl is very expensive, forking perl is somewhat expensive
+(although highly optimized), messages will vary in size and memory usage
+is more imporant than CPU-utilization. It uses apache-style preforking
+(through Net::Server::PreFork) to reduce the need to fork perl instances.
+Controlled child restarts reduce the effect of resource leaks in its
+children. The message passed through is bufferd in an unlinked tempfile
+in /tmp, which SHOULD by a tmpfs large enough to hold max_servers * max_msg_size
+of data. This prevents the allocation overhead associated with large strings
+and ensures that space will be returned to the OS as soon as possible.
+
+=head1 CACHING
+
+User information from the database is cached in each fork of this script
+so the number of database lookups is reduced. This causes two possible problems:
+1) the ram usage will grow if too many data is cached and 2) changes to the database
+won't immedeate effect. The severity of both issues can decreased by keeping
+the number of requests per instance reasonably low. 
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+The configuration file should be place either in /etc/vboxadm.conf or
+in /etc/vboxadm/vboxadm.conf. This is a common configuration file
+for the whole suite of VBoxAdm applications. Each part of this suite
+has its own section in the config file and all use the values
+from the default section when appropriate.
+
+=head2 default
+The default section should contain at least the database configuration.
+
+dbuser - The user used to connect to the MySQL database.
+dbpass - This users password.
+dbdb - The db used by this application.
+dbhost - The MySQL database host, usually localhost.
+
+=head2 smtpproxy
+
+listen - Hostname:Port - Listen on this hostname (or IP) and port for
+incoming SMTP dialogs.
+connect - Hostname:Port - Connect to this hostname (or IP) and port
+to forward the SMTP.
+pidfile - This applications pidfile.
+user - The user this application should run as.
+group - The group this application should run as.
+max_msg_size - The overall max. message size.
+sa_max_msg_size - The max. size of messages SpamAssassin will scan.
+sa_timeout - The SpamAssassin scan timeout.
+min_servers - Start at least this much children.
+max_servers - Run no more than this number of children.
+min_spare_servers - Min. spare Children.
+max_spare_servers - Max. spare Children.
+max_requests - Each children will complete this much requests and than exit.
+
+=head1 DEPENDENCIES
+
+VBoxAdm::Utils, VBoxAdm::SMTP::Proxy, VBoxAdm::SMTP::Client, VBoxAdm::SMTP::Server.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+This implementation was previously based on smtpproxy but switched to
+Net::Server::PreFork later. Large parts of this code are based on the ideas
+of SpamPD, which is itself based on smtpprox, but all code was written by myself.
+The SMTP Classes are modeled closely after MSDW::SMTP::*.
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut

@@ -1,21 +1,8 @@
-package VBoxAdm::SMTP::Mailarchive;
-
-use strict;
-use warnings;
-
-# TODO refactor:
-# common code of SMTP::Proxy + SMTP::Mailarchive to SMTP::Proxy
-# the "real" SMTP::Proxy to SMTP::Proxy::SA and the Mailarchive to SMTP::Proxy::MA
-
-# TODO use Moose;
-#use namespace::autoclean;
+package VBoxAdm::SMTP::Proxy::MA;
 
 use Carp;
 
-use Getopt::Long;
-use DBI;
 use Time::HiRes qw(time);
-
 use Digest::SHA;
 
 use VBoxAdm::SMTP::Server '@VERSION@';
@@ -24,35 +11,7 @@ use VBoxAdm::DB '@VERSION@';
 
 our $VERSION = '@VERSION@';
 
-use base qw(Net::Server::PreFork);
-
-############################################
-# Usage      : ????
-# Purpose    : ????
-# Returns    : ????
-# Parameters : ????
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
-sub db_connect {
-    my $self = shift;
-    my $user = $self->{vbox}->{dbuser} || 'vboxadm';
-    my $pass = $self->{vbox}->{dbpass} || 'vboxadm';
-    my $host = $self->{vbox}->{dbhost} || 'localhost';
-    my $port = $self->{vbox}->{dbport} || 3306;
-    my $db   = $self->{vbox}->{dbdb} || 'vboxadm';
-
-    # if more than one dbhost is given shuffle the list
-    # and try each one until a connection succeeds, use short timeout
-    # use guarding alarm timer
-    my $dsn = "DBI:mysql:database=$db;user=$user;password=$pass;port=$port;host=$host";
-    $self->{vbox}->{dbh} = VBoxAdm::DB::connect( $dsn, { ConnectTimeout => 10, } );
-    if ( !$self->{vbox}->{dbh} ) {
-        croak "Could not connect to DB with DSN $dsn: " . DBI->errstr;
-    }
-
-    return 1;
-}
+use base qw(VBoxAdm::SMTP::Proxy);
 
 sub prepare_queries {
     my $self = shift;
@@ -64,56 +23,13 @@ sub prepare_queries {
     my $db_metadata_table = 'archive_metadata';
 
     # make sure to re-init this query when we enter a new month/year!
-    $self->{vbox}->{prepare_dom} = $mday;
+    $self->{server}->{vbox}->{prepare_dom} = $mday;
 
     # prepare statements
     my $sql_insert_mail = "INSERT DELAYED INTO " . $db_archive_table . " (checksum,body) VALUES(?,?)";
-    $self->{vbox}->{sth}->{insert} = $self->{vbox}->{dbh}->prepare($sql_insert_mail);
+    $self->{server}->{vbox}->{sth}->{insert} = $self->{server}->{vbox}->{dbh}->prepare($sql_insert_mail);
 
     # TODO add statements for meta data, logging et. al.
-
-    return 1;
-}
-
-############################################
-# Usage      : invoked by Net::Server
-# Purpose    : called when a new child is created, setup db connections
-# Returns    : always true
-# Parameters : none
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
-sub child_init_hook {
-    my $self = shift;
-
-    # setup my env
-    $ENV{'HOME'} = ( getpwuid($>) )[7];
-
-    $self->db_connect();
-    $self->prepare_queries();
-
-    return 1;
-}
-
-############################################
-# Usage      : invoked by Net::Server
-# Purpose    : called when a child has reached the end of its lifetime, tear down db connections
-# Returns    : always true
-# Parameters : none
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
-sub child_finish_hook {
-    my $self = shift;
-
-    foreach my $key ( keys %{ $self->{vbox}->{sth} } ) {
-        $self->{vbox}->{sth}->{$key}->finish();
-    }
-
-    # Disconnect from DB
-    if ( $self->{vbox}->{dbh} ) {
-        $self->{vbox}->{dbh}->disconnect();
-    }
 
     return 1;
 }
@@ -130,34 +46,37 @@ sub process_request {
     my $self = shift;
 
     # Check if the sql server went away
-    if ( !$self->{vbox}->{dbh}->ping() ) {
+    if ( !$self->{server}->{vbox}->{dbh} || !$self->{server}->{vbox}->{dbh}->ping() ) {
+    	$self->logger()->log( message => "Ooops, looks like the SQL server went away. Trying to reconnect ...", level => 'notice', );
         $self->db_connect();
         $self->prepare_queries();
     }
-    elsif ( $self->{vbox}->{prepare_dom} != ( localtime(time) )[3] ) {
+    elsif ( $self->{server}->{vbox}->{prepare_dom} != ( localtime(time) )[3] ) {
 
         # Reconnect when the dom changes, since this could affect the table to log to.
         # With monthly rotation it would be ok to just chcek the month, but this won't work for
         # weekly or daily rotation.
         $self->prepare_queries();
     }
+    
+    my $prev_timeout = 0;
 
     eval {
         local $SIG{ALRM} = sub { die "Child server process timed out!\n" };
-        my $timeout = $self->{vbox}->{childtimeout} || 60;
+        my $timeout = $self->{server}->{vbox}->{childtimeout} || 300;
 
         # start a timer
-        alarm($timeout);
+        $prev_timeout = alarm($timeout);
 
         # Start the SMTP-Server part which listens to the incoming
         # transaction
         my $smtp_server = VBoxAdm::SMTP::Server->new(
             sock    => $self->{server}->{client},
-            tempdir => $self->{vbox}->{tempdir},
+            tempdir => $self->{server}->{vbox}->{tempdir},
         ) or die "Failed to create a listening server: $!\n";
 
         # Pass the inital welcome
-        $smtp_server->print( "220 " . $self->{vbox}->{hostname} . " SMTP\r\n" );
+        $smtp_server->print( "220 " . $self->{server}->{vbox}->{hostname} . " SMTP\r\n" );
 
       LINE: while ( my $what = $smtp_server->chat() ) {
 
@@ -184,7 +103,6 @@ sub process_request {
                     $smtp_server->tempfail('Only one recipient per mail!');
                     next LINE;
                 }
-                print "$what - to: " . $smtp_server->{to} . "\n";
                 my $unrolled = &VBoxAdm::Utils::unroll_recipient( $smtp_server->{to} );
                 if ($unrolled) {
                     $smtp_server->{to}         = $unrolled;
@@ -192,6 +110,7 @@ sub process_request {
                     $smtp_server->ok('Recipient OK');
                 }
                 else {
+                		$self->logger()->log( message => "Could not unroll recipient from ".$smtp_server->{to}, level => 'warning', );
                     $smtp_server->tempfail('Recipient could not be unrolled!');
                 }
             }
@@ -218,27 +137,30 @@ sub process_request {
             }
             else {
 
+								$self->logger()->log( message => "Unknown SMTP command: ".$what, level => 'warning', );
                 # unknown SMTP command, send tempfail
                 $smtp_server->tempfail('Unknown command.');
             }
         }    # end-of-while-LINE
 
         # Close open connections
-        $smtp_server->{sock}->close()
-          or warn "Could not close server socket: $!\n";
-    };    # end of eval block
-
+        if(!$smtp_server->{sock}->close()) {
+        	$self->logger()->log( message => "Could not close server socket: $!", level => 'warning', );
+        }
+    }; # end of eval block
+		alarm($prev_timeout);
     if ($@) {
         chomp($@);
         my $msg = "WARNING: Error in process_request eval: $@";
-        $self->log(2, $msg);
-        die( $msg . "\n" );
+        $self->logger()->log( message => $msg, level => 'error', );
+        croak $msg . "\n";
     }
-    $self->{vbox}->{instance}++;
+    $self->{server}->{vbox}->{instance}++;
 
     return 1;
 }
 
+# TODO extract return codes to constants
 sub process_message {
     my $self      = shift;
     my $sender    = shift;
@@ -254,16 +176,16 @@ sub process_message {
     $recipient = lc($recipient);
 
     # Exclude sender = recipient
-    return 2 if ( $self->{vbox}->{ignore_sender_eq_recipient} && $sender eq $recipient );
+    return 2 if ( $self->{server}->{vbox}->{ignore_sender_eq_recipient} && $sender eq $recipient );
 
     my ( $sender_lp,    $sender_domain )    = split /@/, $sender;
     my ( $recipient_lp, $recipient_domain ) = split /@/, $recipient;
 
     # Exclude sender_domain = recipient_domain
-    return 3 if ( $self->{vbox}->{ignore_senderdom_eq_recipientdom} && $sender_domain eq $recipient_domain );
+    return 3 if ( $self->{server}->{vbox}->{ignore_senderdom_eq_recipientdom} && $sender_domain eq $recipient_domain );
 
     # Exclude role-accounts
-    return 4 if ( $self->{vbox}->{ignore_sender_roleacc} && $sender_lp =~ m/^(?:postmaster|abuse|root)$/ );
+    return 4 if ( $self->{server}->{vbox}->{ignore_sender_roleacc} && $sender_lp =~ m/^(?:postmaster|abuse|root)$/ );
 
     # add X-Envelope-From and X-Envelope-To to preserve original sender/recipient
     my $xenvfrom = 'X-Envelope-From: ' . $sender . "\r\n";
@@ -305,16 +227,16 @@ sub process_message {
     }
 
     # Exclude spam
-    return 4 if ( $self->{vbox}->{ignore_spam} && $status{'is-spam'} );
+    return 5 if ( $self->{server}->{vbox}->{ignore_spam} && $status{'is-spam'} );
 
     my $checksum = $digest->hexdigest();
 
-    if ( $self->{vbox}->{sth}->{insert}->execute( $checksum, $body ) ) {
-        $self->log(2,  "Wrote message from " . $sender . " to " . $recipient . " to DB." );
+    if ( $self->{server}->{vbox}->{sth}->{insert}->execute( $checksum, $body ) ) {
+        $self->logger()->log( message => "Wrote message from " . $sender . " to " . $recipient . " to DB.", level => 'debug', );
         return 1;
     }
     else {
-        $self->log(2,  "Failed to log message from " . $sender . " to " . $recipient . " to DB. Query failed: " . $self->{vbox}->{sth}->{insert}->errstr );
+        $self->logger()->log( message => "Failed to log message from " . $sender . " to " . $recipient . " to DB. Query failed: " . $self->{server}->{vbox}->{sth}->{insert}->errstr, level => 'error', );
         return;
     }
 
@@ -322,15 +244,12 @@ sub process_message {
     # we could (and should) use the extracted meta-data for retrieval of archived mails
 }
 
-#no Moose;
-#__PACKAGE__->meta->make_immutable;
-
 1;
 __END__
 
 =head1 NAME
 
-VBoxAdm::SMTP::Mailarchive - Mailarchive for VBoxAdm
+VBoxAdm::SMTP::Proxy::MA - Mailarchive for VBoxAdm
 
 =head1 VERSION
 

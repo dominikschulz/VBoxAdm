@@ -1,5 +1,4 @@
 #!/usr/bin/perl
-
 use strict;
 use warnings;
 
@@ -12,9 +11,12 @@ use Getopt::Long;
 use Config::Std;
 use Net::Domain;
 
-use VBoxAdm::SMTP::Mailarchive '@VERSION@';
+use VBoxAdm::Logger '@VERSION@';
+use VBoxAdm::SMTP::Proxy::MA '@VERSION@';
 
 my $syntax = "syntax: $0 [--verbose] [--config=<FILE>]\n";
+
+my $Logger = VBoxAdm::Logger->new( { 'facility' => 'vboxadm-ma', } );
 
 my ( $conffile_used, @hooks, %hook, %config, );
 
@@ -109,65 +111,68 @@ else {
 # Parse listen and connect options
 my ( $srcaddr, $srcport ) = split /:/, $listen;
 
-# specify hosts and ports
-my $server = bless {
-    server => {
+my $vboxadm_args = {
+    dbh          => undef,
+    childtimeout => $childtimeout,
+    dry          => $config{'dry'},
+    tempdir      => $tempdir,
+    hostname     => Net::Domain::hostfqdn() || 'localhost',
 
-        # Binding
-        host  => $srcaddr,
-        port  => $srcport,
-        proto => 'tcp',
+    dbhosts => \@dbhosts,
+    dbport  => $dbport,
+    dbuser  => $dbuser,
+    dbpass  => $dbpass,
+    dbdb    => $dbdb,
 
-        # ACL
-        allow => \@allow,
+    ignore_spam                      => $ignore_spam,
+    ignore_sender_roleacc            => $ignore_sender_roleacc,
+    ignore_sender_eq_recipient       => $ignore_sender_eq_recipient,
+    ignore_senderdom_eq_recipientdom => $ignore_senderdom_eq_recipientdom,
+};
+my $server_args = {
 
-        # Logging
-        log_file        => 'Sys::Syslog',
-        log_level       => $nsloglevel,
-        syslog_logsock  => $logsock,
-        syslog_ident    => 'vboxadm-ma',
-        syslog_facility => 'mail',
+    # Binding
+    host  => $srcaddr,
+    port  => $srcport,
+    proto => 'tcp',
 
-        # Misc
-        background => $background,
-        pid_file   => $pidfile,
-        user       => $user,
-        group      => $group,
+    # ACL
+    allow => \@allow,
 
-        # PreFork
-        min_servers       => $min_servers,
-        min_spare_servers => $min_spare_servers,
-        max_servers       => $max_servers,
-        max_spare_servers => $max_spare_servers,
-        max_requests      => $max_requests,
-    },
-    vbox => {
-        dbh          => undef,
-        childtimeout => $childtimeout,
-        dry          => $config{'dry'},
-        tempdir      => $tempdir,
-        hostname     => Net::Domain::hostfqdn() || 'localhost',
+    # Logging
+    log_file        => 'Sys::Syslog',
+    log_level       => $nsloglevel,
+    syslog_logsock  => $logsock,
+    syslog_ident    => 'vboxadm-ma',
+    syslog_facility => 'mail',
 
-        dbhosts => \@dbhosts,
-        dbport  => $dbport,
-        dbuser  => $dbuser,
-        dbpass  => $dbpass,
-        dbdb    => $dbdb,
+    # Misc
+    background => $background,
+    pid_file   => $pidfile,
+    user       => $user,
+    group      => $group,
 
-        ignore_spam                      => $ignore_spam,
-        ignore_sender_roleacc            => $ignore_sender_roleacc,
-        ignore_sender_eq_recipient       => $ignore_sender_eq_recipient,
-        ignore_senderdom_eq_recipientdom => $ignore_senderdom_eq_recipientdom,
-    },
-  },
-  'VBoxAdm::SMTP::Mailarchive';
+    # PreFork
+    min_servers       => $min_servers,
+    min_spare_servers => $min_spare_servers,
+    max_servers       => $max_servers,
+    max_spare_servers => $max_spare_servers,
+    max_requests      => $max_requests,
+
+    'vbox'   => $vboxadm_args,
+    'logger' => $Logger,
+};
+
+my $proxy = VBoxAdm::SMTP::Proxy::MA->new($server_args);
 
 # Test DB connection before starting server
-if ( $server->db_connect() ) {
-    $server->{vbox}->{dbh}->disconnect() if $server->{vbox}->{dbh};
+if ( $proxy->db_connect() ) {
+    $proxy->{server}->{vbox}->{dbh}->disconnect() if $proxy->{server}->{vbox}->{dbh};
 }
 else {
-    die("Could not connect to database!");
+    my $msg = "Could not connect to database!";
+    $Logger->log( message => $msg, level => 'error', );
+    die($msg);
 }
 
 # redirect STDOUT and STDERR to logfile
@@ -175,14 +180,16 @@ else {
 # something behaves badly, e.g. a module used,
 # we redirect the remaining output to a logfile
 # for further investigation.
-close(STDOUT);
-close(STDERR);
-close(STDIN);
-open STDIN,  '<', '/dev/null';
-open STDOUT, '>', $logfile;
-open STDERR, '>&STDOUT';
+if ($background) {
+    close(STDOUT);
+    close(STDERR);
+    close(STDIN);
+    open STDIN,  '<', '/dev/null';
+    open STDOUT, '>', $logfile;
+    open STDERR, '>&STDOUT';
+}
 
-$server->run();
+$proxy->run();
 
 exit 1;
 

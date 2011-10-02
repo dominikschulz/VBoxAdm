@@ -1,19 +1,24 @@
 #!/usr/bin/perl
-
 use strict;
 use warnings;
 
 # We use "Defined-or operators" operators introduced with 5.9.0
 use 5.9.0;
 
+#ifdef @LIBDIR@
 use lib '@LIBDIR@';
+
+#endif
 
 use Getopt::Long;
 use Config::Std;
 
-use VBoxAdm::SMTP::Proxy '@VERSION@';
+use VBoxAdm::Logger '@VERSION@';
+use VBoxAdm::SMTP::Proxy::SA '@VERSION@';
 
 my $syntax = "syntax: $0 [--verbose] [--config=<FILE>]\n";
+
+my $Logger = VBoxAdm::Logger->new( { 'facility' => 'vboxadm-sa', } );
 
 my ( $conffile_used, @hooks, %hook, %config, );
 
@@ -131,68 +136,72 @@ my $sa = Mail::SpamAssassin->new(
 # recommended for fork()ing servers.
 $sa->compile_now();
 
-# TODO this kind of subclassing is ... VERY DIRTY. proper subclassing would be way better ....
 # specify hosts and ports
-my $server = bless {
-    server => {
 
-        # Binding
-        host  => $srcaddr,
-        port  => $srcport,
-        proto => 'tcp',
+my $vboxadm_args = {
+    relayhosts             => \@connect,
+    dbh                    => undef,
+    childtimeout           => $childtimeout,
+    sa                     => $sa,
+    sa_max_msg_size        => $sa_max_msg_size,
+    sa_timeout             => $sa_timeout,
+    max_msg_size           => $max_msg_size,
+    dry                    => $config{'dry'},
+    caching                => $caching,
+    tempdir                => $tempdir,
+    nodb                   => $nodb,
+    soft_bounce            => $soft_bounce,
+    sa_default_block_score => $sa_default_block_score,
+    sa_default_status      => $sa_default_status,
+    recipient_delimiter    => $recipient_delimiter,
+    dbhosts                => \@dbhosts,
+    dbport                 => $dbport,
+    dbuser                 => $dbuser,
+    dbpass                 => $dbpass,
+    dbdb                   => $dbdb,
+};
 
-        # Logging
-        log_file        => 'Sys::Syslog',
-        log_level       => $nsloglevel,
-        syslog_logsock  => $logsock,
-        syslog_ident    => 'vboxadm-sa',
-        syslog_facility => 'mail',
+my $server_args = {
 
-        # Misc
-        background => $background,
-        pid_file   => $pidfile,
-        user       => $user,
-        group      => $group,
+    # Binding
+    host  => $srcaddr,
+    port  => $srcport,
+    proto => 'tcp',
 
-        # PreFork
-        min_servers       => $min_servers,
-        min_spare_servers => $min_spare_servers,
-        max_servers       => $max_servers,
-        max_spare_servers => $max_spare_servers,
-        max_requests      => $max_requests,
-    },
-    vbox => {
-        relayhosts             => \@connect,
-        dbh                    => undef,
-        childtimeout           => $childtimeout,
-        sa                     => $sa,
-        sa_max_msg_size        => $sa_max_msg_size,
-        sa_timeout             => $sa_timeout,
-        max_msg_size           => $max_msg_size,
-        dry                    => $config{'dry'},
-        caching                => $caching,
-        tempdir                => $tempdir,
-        nodb                   => $nodb,
-        soft_bounce            => $soft_bounce,
-        sa_default_block_score => $sa_default_block_score,
-        sa_default_status      => $sa_default_status,
-        recipient_delimiter    => $recipient_delimiter,
+    # Logging
+    log_file        => 'Sys::Syslog',
+    log_level       => $nsloglevel,
+    syslog_logsock  => $logsock,
+    syslog_ident    => 'vboxadm-sa',
+    syslog_facility => 'mail',
 
-        dbhosts => \@dbhosts,
-        dbport  => $dbport,
-        dbuser  => $dbuser,
-        dbpass  => $dbpass,
-        dbdb    => $dbdb,
-    },
-  },
-  'VBoxAdm::SMTP::Proxy';
+    # Misc
+    background => $background,
+    pid_file   => $pidfile,
+    user       => $user,
+    group      => $group,
+
+    # PreFork
+    min_servers       => $min_servers,
+    min_spare_servers => $min_spare_servers,
+    max_servers       => $max_servers,
+    max_spare_servers => $max_spare_servers,
+    max_requests      => $max_requests,
+
+    'vbox'   => $vboxadm_args,
+    'logger' => $Logger,
+};
+
+my $proxy = VBoxAdm::SMTP::Proxy::SA->new($server_args);
 
 # Test DB connection before starting server
-if ( $server->db_connect() ) {
-    $server->{vbox}->{dbh}->disconnect() if $server->{vbox}->{dbh};
+if ( $proxy->db_connect() ) {
+    $proxy->{server}->{vbox}->{dbh}->disconnect() if $proxy->{server}->{vbox}->{dbh};
 }
 else {
-    die("Could not connect to database!");
+    my $msg = "Could not connect to database!";
+    $Logger->log( message => $msg, level => 'error', );
+    die($msg);
 }
 
 # redirect STDOUT and STDERR to logfile
@@ -200,14 +209,16 @@ else {
 # something behaves badly, e.g. a module used,
 # we redirect the remaining output to a logfile
 # for further investigation.
-close(STDOUT);
-close(STDERR);
-close(STDIN);
-open STDIN,  '<', '/dev/null';
-open STDOUT, '>', $logfile;
-open STDERR, '>&STDOUT';
+if ($background) {
+    close(STDOUT);
+    close(STDERR);
+    close(STDIN);
+    open STDIN,  '<', '/dev/null';
+    open STDOUT, '>', $logfile;
+    open STDERR, '>&STDOUT';
+}
 
-$server->run();
+$proxy->run();
 
 exit 1;
 

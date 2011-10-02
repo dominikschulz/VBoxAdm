@@ -69,7 +69,13 @@ logfile=/var/log/vboxadm/sa.log
 user=vboxadm
 group=vboxadm
 max_msg_size=25
-childtimeout=60
+# the childtimeout should not be set too low. the time necessary to process a message
+# is depended on the configuration, the protocol used as well as the size of the message
+# and the upstream bandwidth.
+# some (!) setups may required very high values here (> 3600s)!
+childtimeout=300
+# tempdir should be a sufficient large ramdisk to speed up processing
+tempdir=/tmp
 
 # SpamAssassin
 # max. msg size for scanning in MB
