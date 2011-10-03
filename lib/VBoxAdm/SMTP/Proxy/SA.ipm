@@ -1,10 +1,11 @@
 package VBoxAdm::SMTP::Proxy::SA;
 
+use strict;
+use warnings;
+
 use Carp;
 
-use Getopt::Long;
 use IO::File;
-use DBI;
 use Time::HiRes qw(time);
 use List::Util qw(shuffle);
 
@@ -483,7 +484,8 @@ sub is_spam {
     }
 
     # only calculate checksum if caching is enabled
-    my $checksum = $digest->hexdigest() if $self->{server}->{vbox}->{caching};
+    my $checksum = undef;
+    $checksum = $digest->hexdigest() if $self->{server}->{vbox}->{caching};
 
     # destroy the digest object
     $digest = undef;

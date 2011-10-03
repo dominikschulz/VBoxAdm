@@ -394,7 +394,9 @@ sub _read_options {
         'vacstart=s'      => \$self->opts()->{VacationStart},
         'vacend=s'        => \$self->opts()->{VacationEnd},
         'forcepass!'      => \$self->opts()->{ForcePassword},
-    ) or die("Unknown Command");
+    ) or confess "Unknown Command";
+
+    return 1;
 }
 
 has 'conffile_used' => (
@@ -446,10 +448,10 @@ sub run {
         }
     }
     elsif ( $module && $module eq 'migrate' ) {
-        $self->migrate();
+        return $self->migrate();
     }
     elsif ( $module && $action && ref( $self->actions()->{$module}{$action} ) eq 'CODE' && ( $action eq 'list' || scalar( @{ $self->modes() } ) > 0 ) ) {
-        &{ $self->actions()->{$module}{$action} }( @{ $self->modes() } );
+        return &{ $self->actions()->{$module}{$action} }( @{ $self->modes() } );
     }
     else {
         print "Invalid/Missing module and/or action.\n";
@@ -459,7 +461,10 @@ sub run {
         elsif ( $module && !$self->actions()->{$module} ) {
             print "Did you mean " . $self->get_similar_module($module) . "?\n";
         }
+        return;
     }
+
+    return;
 }
 
 sub _init_help {
@@ -827,11 +832,14 @@ sub _init_actions {
 }
 
 sub display_messages {
-    my $self   = shift;
+    my $self = shift;
+
     my $format = "[%10s] %s\n";
     foreach my $msg ( $self->msgq()->pop() ) {
         printf( $format, uc( $msg->{'severity'} ), $msg->{'en'} );
     }
+
+    return 1;
 }
 
 sub get_similar_module {

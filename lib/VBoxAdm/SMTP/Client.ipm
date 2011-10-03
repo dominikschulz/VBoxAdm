@@ -3,11 +3,10 @@ package VBoxAdm::SMTP::Client;
 use strict;
 use warnings;
 
-# TODO use Moose;
-# use namespace::autoclean;
-
 use Carp qw(croak);
 use IO::Socket::INET6;
+
+# Not using moose for performance reasons
 
 our $VERSION = '@VERSION@';
 
@@ -117,9 +116,6 @@ sub yammer {
 
     return 1;
 }
-
-#no Moose;
-#__PACKAGE__->meta->make_immutable;
 
 1;
 

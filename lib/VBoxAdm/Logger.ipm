@@ -73,7 +73,7 @@ has 'verbosity' => (
 sub _set_level {
     my ( $self, $new_value, $old_value ) = @_;
 
-    $self->dispatcher()->{'min_level'} = $self->_verbosity_to_level($new_value);
+    return $self->dispatcher()->{'min_level'} = $self->_verbosity_to_level($new_value);
 }
 
 sub _verbosity_to_level {
@@ -103,6 +103,8 @@ sub get_buffer {
 sub clear_buffer {
     my $self = shift;
     $self->_buffer( [] );
+
+    return 1;
 }
 
 sub _add_to_buffer {
@@ -114,6 +116,8 @@ sub _add_to_buffer {
         shift @{ $self->_buffer() };
     }
     push( @{ $self->_buffer() }, $obj );
+
+    return;
 }
 
 sub _init_filename {
@@ -155,6 +159,8 @@ sub _check_filename {
             return $self->_init_filename();
         }
     }
+
+    return;
 }
 
 sub _init_dispatcher {
@@ -238,7 +244,7 @@ sub log {
         $params{'message'} = sprintf( "%04i.%02i.%02i-%02i:%02i:%02i", $year, $mon, $mday, $hour, $min, $sec ) . "\t" . $params{'message'};
     }
     $params{'message'} .= "\n";
-    $self->dispatcher()->log(%params);
+    return $self->dispatcher()->log(%params);
 }
 
 around BUILDARGS => sub {
@@ -263,6 +269,8 @@ sub BUILD {
     else {
         $self->{'filename'} = $self->_init_filename();
     }
+
+    return 1;
 }
 
 no Moose;

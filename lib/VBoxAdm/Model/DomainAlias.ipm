@@ -106,7 +106,8 @@ sub update {
         return;
     }
 
-    my $domain_name = $self->get_name($domain_alias_id) if $domain_alias_id;
+    my $domain_name = 'domain.tld';
+    $domain_name = $self->get_name($domain_alias_id) if $domain_alias_id;
 
     if ( $domain_alias_id && defined( $params->{'IsActive'} ) ) {
         my $query = "UPDATE domain_aliases SET is_active = ? WHERE id = ?";

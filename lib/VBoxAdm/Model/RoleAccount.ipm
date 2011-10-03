@@ -132,8 +132,11 @@ sub delete {
         }
         else {
             $self->msg->push( 'error', "Unable to delete RoleAccount $entry_id. Database Error." );
+            return;
         }
     }
+
+    return;
 }
 
 sub read {

@@ -1,5 +1,8 @@
 package VBoxAdm::SMTP::Proxy::MA;
 
+use strict;
+use warnings;
+
 use Carp;
 
 use Time::HiRes qw(time);

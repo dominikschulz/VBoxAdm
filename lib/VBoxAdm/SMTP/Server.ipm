@@ -3,12 +3,11 @@ package VBoxAdm::SMTP::Server;
 use strict;
 use warnings;
 
-#TODO use Moose;
-#use namespace::autoclean;
-
 use IO::Socket::INET6;
 use File::Temp;
 use Carp qw(carp croak);
+
+# Not using moose for performance reasons
 
 our $VERSION = '@VERSION@';
 
@@ -21,8 +20,7 @@ our $VERSION = '@VERSION@';
 # Comments   : none
 # See Also   : n/a
 sub new {
-    my $this = shift;
-    my @opts = @_;
+    my ( $this, @opts ) = @_;
 
     my $class = ref($this) || $this;
     my $self = bless {@opts}, $class;
@@ -63,8 +61,7 @@ sub new {
 # Comments   : none
 # See Also   : n/a
 sub accept {
-    my $self = shift;
-    my @opts = @_;
+    my ( $self, @opts ) = @_;
 
     if ( $self->{sockmode} ne 'accept' ) {
         carp( "Accept not available in this mode (" . $self->{sockmode} . ")!\n" );
@@ -210,8 +207,7 @@ sub getline {
 # Comments   : none
 # See Also   : n/a
 sub print {
-    my $self = shift;
-    my @msg  = @_;
+    my ( $self, @msg ) = @_;
 
     $self->{debug}->print(@msg) if defined $self->{debug};
     $self->{'s'}->print(@msg);
@@ -227,8 +223,7 @@ sub print {
 # Comments   : none
 # See Also   : n/a
 sub ok {
-    my $self = shift;
-    my @msg  = @_;
+    my ( $self, @msg ) = @_;
 
     @msg = ("ok.") unless @msg;
 
@@ -246,8 +241,7 @@ sub ok {
 # Comments   : none
 # See Also   : n/a
 sub tempfail {
-    my $self = shift;
-    my @msg  = @_;
+    my ( $self, @msg ) = @_;
 
     @msg = ("temporary failure.") unless @msg;
 
@@ -265,8 +259,7 @@ sub tempfail {
 # Comments   : none
 # See Also   : n/a
 sub fail {
-    my $self = shift;
-    my @msg  = @_;
+    my ( $self, @msg ) = @_;
 
     @msg = ("no.") unless @msg;
 
@@ -274,9 +267,6 @@ sub fail {
       or croak("$0: Socket write error acknowledging $self->{state}: $!\n");
     return 1;
 }
-
-#no Moose;
-#__PACKAGE__->meta->make_immutable;
 
 1;
 

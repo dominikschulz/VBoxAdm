@@ -159,8 +159,8 @@ sub msg {
 }
 
 sub log {
-    my $self = shift;
-    return $self->logger()->log(@_);
+    my ( $self, @opts ) = @_;
+    return $self->logger()->log(@opts);
 }
 
 no Moose;

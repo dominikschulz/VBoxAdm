@@ -34,9 +34,7 @@ our $VERSION = '@VERSION@';
             }
             return wantarray ? @ips : $ips[0];
         }
-        else {
-            return;
-        }
+        return;
     }
     ############################################
     # Usage      : ????
@@ -59,9 +57,7 @@ our $VERSION = '@VERSION@';
                 return $rr->ptrdname;
             }
         }
-        else {
-            return;
-        }
+        return;
     }
     ############################################
     # Usage      : ????
@@ -108,9 +104,7 @@ our $VERSION = '@VERSION@';
             }
             return wantarray ? @ns : $ns[0];
         }
-        else {
-            return;
-        }
+        return;
     }
 
 }

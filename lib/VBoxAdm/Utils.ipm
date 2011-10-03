@@ -105,6 +105,7 @@ sub blarf {
     if ( open( my $FH, $mode, $file ) ) {
         print $FH $str;
         close($FH);
+        return 1;
     }
     else {
         return;

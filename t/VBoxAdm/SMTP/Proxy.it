@@ -4,5 +4,5 @@ use VBoxAdm::SMTP::Proxy '@VERSION@';
 BEGIN { use_ok( 'VBoxAdm::SMTP::Proxy', '@VERSION@' ); }
 
 my $Proxy = VBoxAdm::SMTP::Proxy->new();
-isa_ok($Proxy,'VBoxAdm::SMTP::Proxy');
-can_ok($Proxy,qw(child_finish_hook child_init_hook db_connect logger prepare_queries process_request));
+isa_ok( $Proxy, 'VBoxAdm::SMTP::Proxy' );
+can_ok( $Proxy, qw(child_finish_hook child_init_hook db_connect logger prepare_queries process_request) );
