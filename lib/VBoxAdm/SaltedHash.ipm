@@ -55,6 +55,7 @@ sub plain_md5 {
 # Since we need to access the internal state array of the MD5 algorithm we can not
 # use the fast XS implementation of the Digest::MD5 algorithm which does not export
 # this state array.
+## no critic (ProhibitBitwiseOperators)
 sub cram_md5 {
     my $pass   = shift;
     my $secret = $pass;
@@ -84,7 +85,7 @@ sub cram_md5 {
 
     return "{CRAM-MD5}$outerhex$innerhex";
 }
-
+## use critic
 ############################################
 # Usage      : my $hash = VBoxAdm::SaltedHash::plain_md5('pwclear');
 # Purpose    : Generate a Base64 encoded MD5 Hash
