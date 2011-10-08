@@ -179,6 +179,8 @@ if($rsa->verify($checksum,$signature)) {
 }
 =cut
 
+    return;
+
 }
 ############################################
 # Usage      : &create_archive_tables($dbh, $config);

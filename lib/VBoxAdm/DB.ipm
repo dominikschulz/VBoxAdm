@@ -20,7 +20,9 @@ sub show_child_handles {
     my $h = shift;
     my $level = shift || 0;
     printf "%sh %s %s\n", $h->{Type}, "\t" x $level, $h;
-    &show_child_handles( $_, $level + 1 ) for ( grep { defined } @{ $h->{ChildHandles} } );
+    for ( grep { defined } @{ $h->{ChildHandles} } ) {
+        &show_child_handles( $_, $level + 1 );
+    }
     return;
 }
 

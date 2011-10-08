@@ -1,4 +1,8 @@
 #!/usr/bin/perl
+
+use strict;
+use warnings;
+
 use lib '@LIBDIR@';
 use lib qw(../lib);
 
@@ -9,7 +13,7 @@ binmode STDIN,  ":utf8";
 binmode STDOUT, ":utf8";
 binmode STDERR, ":utf8";
 
-while ( my $q = new CGI::Fast ) {
+while ( my $q = CGI::Fast->new() ) {
     my $vbox = VBoxAdm::Controller::Frontend->new(
         PARAMS => {
             'require_ssl'    => 1,

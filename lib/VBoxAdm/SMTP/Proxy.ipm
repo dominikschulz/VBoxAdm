@@ -88,7 +88,11 @@ sub child_init_hook {
     # setup my env
     # getpwuid reads /etc/passwd, field 7 is the home dir
     my $homedir = ( getpwuid($>) )[7];
+
+    # DGR: We want the global effect of this assignment
+    ## no critic (RequireLocalizedPunctuationVars)
     $ENV{'HOME'} = $homedir;
+    ## use critic
     $self->logger()->log( message => "Homedir set to $homedir", level => 'debug', );
 
     if ( !$self->db_connect() ) {

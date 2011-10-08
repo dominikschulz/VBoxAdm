@@ -19,8 +19,7 @@ our $VERSION = '@VERSION@';
 # Comments   : none
 # See Also   : n/a
 sub new {
-    my $this = shift;
-    my @opts = @_;
+    my ( $this, @opts ) = @_;
 
     my $class = ref($this) || $this;
     my $self = bless { timeout => 300, @opts }, $class;
@@ -78,8 +77,7 @@ sub hear {
 # Comments   : none
 # See Also   : n/a
 sub say {
-    my $self = shift;
-    my @msg  = @_;
+    my ( $self, @msg ) = @_;
 
     return unless @msg;
 

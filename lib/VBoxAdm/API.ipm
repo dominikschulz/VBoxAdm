@@ -36,18 +36,20 @@ sub http_request {
     my $content;
     my $response;
     my $timeout = $opts->{Timeout} || 10;
+    my $prev_timeout = 0;
     eval {
         local $SIG{ALRM} = sub { die "alarm\n"; };
-        my $prev_timeout = alarm $timeout;
-        $response = $ua->request($req);
-        $content  = $response->content;
+        $prev_timeout = alarm $timeout;
+        $response     = $ua->request($req);
+        $content      = $response->content;
         if ( !$response->is_success ) {
             die( "ERROR " . $response->code . " - " . $content . "\n" );
-            return;
         }
-        die("HTTP request failed!") unless $content;
-        alarm $prev_timeout;
+        if ( !$content ) {
+            die("HTTP request failed!");
+        }
     };
+    alarm $prev_timeout;
     if ($@) {
         warn "http_request($url) - WARNING: $@";
         return;
