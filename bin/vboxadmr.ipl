@@ -5,7 +5,7 @@ use warnings;
 use lib '@LIBDIR@';
 
 use English qw(-no_match_vars);
-
+use Carp;
 use Data::Dumper;
 use Getopt::Long;
 use Config::Std;
@@ -13,12 +13,10 @@ use JSON;
 use Crypt::CBC;
 use Digest::SHA;
 use MIME::Base64;
-use Sys::Syslog;
 
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::API '@VERSION@';
-
-openlog( 'vboxadm-remote-cli', 'ndelay,nofatal', 'mail' );
+use VBoxAdm::Logger '@VERSION@';
 
 my ( $conffile_used, %config, @modes, $opts );
 $opts = {};
@@ -30,6 +28,8 @@ my @conffile_locations = qw(
   /etc/vboxadm/vboxadm.conf
   @CFGDIR@/vboxadm/vboxadm.conf
 );
+
+my $Logger = VBoxAdm::Logger->new('vboxadmr');
 
 GetOptions(
     'verbose|v+' => \$opts->{Verbose},
@@ -56,7 +56,7 @@ GetOptions(
     'vacmsg=s'        => \$opts->{VacationMessage},
     'vacstart=s'      => \$opts->{VacationStart},
     'vacend=s'        => \$opts->{VacationEnd},
-) or die("Unknown Command");
+) or croak("Unknown Command");
 
 # Try all config file locations
 foreach my $loc (@conffile_locations) {
@@ -145,6 +145,3 @@ foreach my $module ( sort keys %{$response} ) {
         }
     }
 }
-
-closelog();
-

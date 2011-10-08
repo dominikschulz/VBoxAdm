@@ -7,6 +7,7 @@ use 5.9.0;
 
 use lib '@LIBDIR@';
 
+use Carp;
 use Getopt::Long;
 use Config::Std;
 use Net::Domain;
@@ -18,7 +19,7 @@ my $syntax = "syntax: $0 [--verbose] [--config=<FILE>]\n";
 
 my $Logger = VBoxAdm::Logger->new( { 'facility' => 'vboxadm-ma', } );
 
-my ( $conffile_used, @hooks, %hook, %config, );
+my ( $conffile_used, %config, );
 
 # Valid config file locations to try
 my @conffile_locations = qw(
@@ -172,7 +173,7 @@ if ( $proxy->db_connect() ) {
 else {
     my $msg = "Could not connect to database!";
     $Logger->log( message => $msg, level => 'error', );
-    die($msg);
+    croak($msg);
 }
 
 # redirect STDOUT and STDERR to logfile
@@ -184,9 +185,9 @@ if ($background) {
     close(STDOUT);
     close(STDERR);
     close(STDIN);
-    open STDIN,  '<', '/dev/null';
-    open STDOUT, '>', $logfile;
-    open STDERR, '>&STDOUT';
+    open STDIN,  '<', '/dev/null' or croak("Could not redirect STDIN");
+    open STDOUT, '>', $logfile    or croak("Could not redirect STDOUT");
+    open STDERR, '>&STDOUT' or croak("Could not dup STDERR");
 }
 
 $proxy->run();

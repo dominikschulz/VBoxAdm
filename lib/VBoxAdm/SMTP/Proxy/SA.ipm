@@ -512,7 +512,7 @@ sub is_spam {
 
         # check if this message is spam
         my $prev_timeout = 0;
-        eval {
+        my $eval_status  = eval {
             local $SIG{ALRM} = sub { die "Timed out!\n"; };
 
             # save the prev. setting of the alarm timer and start our own
@@ -603,11 +603,13 @@ sub is_spam {
 
             # Cleanup the SA analysis object
             $status->finish();
+
+            1;
         };
 
         # Set the timeout to whichever value is was before
         alarm($prev_timeout);
-        if ($@) {
+        if ( $@ || !$eval_status ) {
             $self->logger()->log( message => "eval error: $@", level => 'error', );
             return;
         }
