@@ -1,0 +1,208 @@
+package VBoxAdm::Controller::Autodiscover;
+
+use Moose;
+use namespace::autoclean;
+
+use Config::Std;
+use CGI;
+use Template;
+
+use VBoxAdm::DB '@VERSION@';
+use VBoxAdm::Logger '@VERSION@';
+
+our $VERSION = '@VERSION@';
+
+has 'dbh' => (
+    'is'      => 'ro',
+    'isa'     => 'DBI::db',
+    'lazy'    => 1,
+    'builder' => '_init_dbh',
+);
+
+has 'logger' => (
+    'is'      => 'ro',
+    'isa'     => 'VBoxAdm::Logger',
+    'lazy'    => 1,
+    'builder' => '_init_logger',
+);
+
+has 'config_locations' => (
+    'is'      => 'ro',
+    'isa'     => 'ArrayRef',
+    'lazy'    => 1,
+    'builder' => '_init_config_locs',
+);
+
+sub _init_config_locs {
+    my $self = shift;
+
+    # Valid config file locations to try
+    my @conffile_locations = qw(
+      vboxadm.conf
+      conf/vboxadm.conf
+      /etc/vboxadm/vboxadm.conf
+      @CFGDIR@/vboxadm/vboxadm.conf
+    );
+
+    return \@conffile_locations;
+}
+
+has 'config' => (
+    'is'  => 'rw',
+    'isa' => 'Object',
+);
+
+sub _init_logger {
+    my $self = shift;
+
+    return VBoxAdm::Logger->new('vboxadm-vacation');
+}
+
+has 'conffile_used' => (
+    'is'  => 'rw',
+    'isa' => 'Str',
+);
+
+sub _read_config {
+    my $self = shift;
+
+    my %config;
+
+    # Try all config file locations
+    foreach my $loc ( @{ $self->config_locations() } ) {
+        if ( -r $loc ) {
+            $self->conffile_used($loc);
+            read_config $loc => %config;
+            last;
+        }
+    }
+
+    $self->config()->{'default'}{'dbhost'}   ||= 'localhost';
+    $self->config()->{'default'}{'dbuser'}   ||= 'vboxadm';
+    $self->config()->{'default'}{'dbpass'}   ||= '';
+    $self->config()->{'default'}{'dbport'}   ||= 3306;
+    $self->config()->{'default'}{'dbdb'}     ||= 'vboxadm';
+    $self->config()->{'default'}{'pwscheme'} ||= 'sha256';
+
+    $self->config( \%config );
+
+    return 1;
+}
+
+has '_cgi' => (
+    'is'      => 'rw',
+    'isa'     => 'CGI',
+    'lazy'    => 1,
+    'builder' => '_init_cgi',
+);
+
+sub _init_cgi {
+    my $self = shift;
+
+    my $CGI = CGI->new();
+
+    return $CGI;
+}
+
+has '_tt' => (
+    'is'      => 'rw',
+    'isa'     => 'Template',
+    'lazy'    => 1,
+    'builder' => '_init_tt',
+);
+
+sub _init_tt {
+    my $self = shift;
+
+    # Templates are used to build the mails sent
+    my $tpl_config = {
+        INCLUDE_PATH => [ 'tpl', '../tpl', '/usr/lib/vboxadm/tpl' ],
+        POST_CHOMP   => 1,
+    };
+    my $TT = Template->new($tpl_config);
+}
+
+sub run {
+    my $self = shift;
+
+    $self->_read_config();
+
+    my $post_body = $self->_cgi()->param('POSTDATA')     || undef;
+    my $email     = $self->_cgi()->param('emailaddress') || undef;
+
+    # Outlook
+    if ( $post_body && $post_body =~ m/<EMailAddress>([^<]+)<\/EMailAddress>/i ) {
+        $email = $1;
+    }
+
+    my $imap_hostname = $self->config()->{'autodiscover'}{'imap_hostname'} || 'mail.' . $self->config()->{'default'}{'domain'};
+    my $pop3_hostname = $self->config()->{'autodiscover'}{'pop3_hostname'} || 'mail.' . $self->config()->{'default'}{'domain'};
+    my $smtp_hostname = $self->config()->{'autodiscover'}{'smtp_hostname'} || 'mail.' . $self->config()->{'default'}{'domain'};
+    my $imap_ssl      = $self->config()->{'autodiscover'}{'imap_ssl'};
+    my $imap_tls      = $self->config()->{'autodiscover'}{'imap_tls'};
+    my $pop3_ssl      = $self->config()->{'autodiscover'}{'pop3_ssl'};
+    my $pop3_tls      = $self->config()->{'autodiscover'}{'pop3_tls'};
+    my $smtp_ssl      = $self->config()->{'autodiscover'}{'smtp_ssl'};
+    my $smtp_sma      = $self->config()->{'autodiscover'}{'smtp_sma'};
+    my $title         = $self->config()->{'autodiscover'}{'title'}         || $self->config()->{'default'}{'domain'};
+    my $short_name    = $self->config()->{'autodiscover'}{'short_name'}    || $title;
+    my $pwenc         = $self->config()->{'autodiscover'}{'pw_encrypt'};
+
+    my %params = (
+        'title'         => $title,
+        'short_name'    => $short_name,
+        'domain'        => $self->config()->{'default'}{'domain'},
+        'imap_ssl'      => $imap_ssl,
+        'imap_hostname' => $imap_hostname,
+        'imap_tls'      => $imap_tls,
+        'pop3_hostname' => $pop3_hostname,
+        'pop3_ssl'      => $pop3_ssl,
+        'pop3_tls'      => $pop3_tls,
+        'smtp_ssl'      => $smtp_ssl,
+        'smtp_sma'      => $smtp_sma,
+        'smtp_hostname' => $smtp_hostname,
+        'username'      => $email,
+        'pwenc'         => $pwenc,
+    );
+
+    if ( $ENV{'REQUEST_URI'} =~ m#/mail/config-v1\.1\.xml# && $email ) {
+        #########################################################################
+        # THUNDERBIRD
+        #########################################################################
+        # TB will try to GET http://autoconfig.domain.tld/mail/config-v1.1.xml?emailaddress=user@domain.tld
+        # Thunderbird, Evolution, Kmail, et. al.
+        print $self->_cgi()->header( -type => 'text/xml', -charset => 'UTF-8', );
+        $self->_tt()->process( 'autoconfig/mozilla-xml.tpl', \%params )
+          or die $self->_tt()->error() . "\n";
+        $self->logger()->log( message => "Delivered mozilla autoconfiguration for $email", level => 'debug', );
+    }
+    elsif ( $ENV{'REQUEST_URI'} =~ m#/autodiscover/autodiscover.xml# && $email ) {
+        #########################################################################
+        # OUTLOOK
+        #########################################################################
+        # Outlook will try to POST to https://autodiscover.domain.tld/autodiscover/autodiscover.xml
+        print $self->_cgi()->header( -type => 'text/xml', -status => '405 Microsoft Outlook Autoconfiguration', -charset => 'UTF-8', );
+        $self->_tt()->process( 'autoconfig/outlook-xml.tpl', \%params )
+          or die $self->_tt()->error() . "\n";
+        $self->logger()->log( message => "Delivered microsoft autoconfiguration for $email", level => 'debug', );
+    }
+    else {
+        #########################################################################
+        # UNKNOWN CLIENT
+        #########################################################################
+        $self->logger()->log( message => "Unknown Request to " . $ENV{'REQUEST_URI'}, level => 'debug', );
+
+        # Unknown
+        print $self->_cgi()->header( -type => 'text/plain', -status => '400 Client Error', -charset => 'UTF-8', );
+        print "Unknown Client\n";
+    }
+    print "\n";
+}
+
+no Moose;
+__PACKAGE__->meta->make_immutable();
+
+1;
+
+__END__
+

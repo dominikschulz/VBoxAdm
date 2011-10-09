@@ -67,6 +67,8 @@ foreach my $loc (@conffile_locations) {
     }
 }
 
+my $API = VBoxAdm::API->new( 'logger' => $Logger, );
+
 if ( !$config{'api'}{'key'} ) {
     print "Missing API-Key. Aborting.\n";
     exit 1;
@@ -108,15 +110,15 @@ if ( !$valid ) {
 print "Request:\n";
 print Dumper($request);
 
-my $ciphertext = &VBoxAdm::API::encrypt( $config{'api'}{'key'}, $request );
-my $response_crypt = &VBoxAdm::API::http_request( $config{'api'}{'url'} . '?rm=api&v=1&p=' . $ciphertext );
+my $ciphertext = $API->encrypt( $config{'api'}{'key'}, $request );
+my $response_crypt = $API->http_request( $config{'api'}{'url'} . '?rm=api&v=1&p=' . $ciphertext );
 
 if ( !$response_crypt ) {
     print "Error. Request failed.\n";
     exit 1;
 }
 
-my $response = &VBoxAdm::API::decrypt( $config{'api'}{'key'}, $response_crypt );
+my $response = $API->decrypt( $config{'api'}{'key'}, $response_crypt );
 print "OK. Response:\n";
 print Dumper($response);
 

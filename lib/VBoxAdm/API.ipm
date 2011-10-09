@@ -1,29 +1,74 @@
 package VBoxAdm::API;
 
-use strict;
-use warnings;
+use Moose;
+use namespace::autoclean;
 
-use Sys::Syslog;
 use LWP::UserAgent;
 use MIME::Base64;
 use Crypt::CBC;
 use Digest::SHA;
 use JSON;
+use VBoxAdm::Logger '@VERSION@';
+
+has '_ua' => (
+    'is'      => 'rw',
+    'isa'     => 'LWP::UserAgent',
+    'lazy'    => 1,
+    'builder' => '_init_ua',
+);
+
+has '_json' => (
+    'is'      => 'rw',
+    'isa'     => 'JSON',
+    'lazy'    => 1,
+    'builder' => '_init_json',
+);
+
+has 'logger' => (
+    'is'      => 'rw',
+    'isa'     => 'VBoxAdm::Logger',
+    'lazy'    => 1,
+    'builder' => '_init_logger',
+);
+
+sub _init_logger {
+    my $self = shift;
+
+    my $Logger = VBoxAdm::Logger->new('vboxadm-remotecli');
+
+    return $Logger;
+}
+
+sub _init_ua {
+    my $self = shift;
+
+    my $UA = LWP::UserAgent->new();
+    $UA->agent('VBoxAdm/RemoteCLI @VERSION@');
+
+    return $UA;
+}
+
+sub _init_json {
+    my $self = shift;
+
+    my $JSON = JSON->new->utf8();
+
+    return $JSON;
+}
 
 sub http_request {
+    my $self = shift;
     my $url  = shift;
     my $post = shift;
     my $opts = shift || {};
 
-    my $ua = LWP::UserAgent->new;
-    $ua->agent('VBoxAdm/RemoteCLI @VERSION@');
     my $req;
     my $req_content = '';
     if ($post) {
         $req = HTTP::Request->new( POST => $url );
         $req->content_type('application/x-www-form-urlencoded');
         $req->content($req_content);
-        print "http_request($url) - INFO - POST Content: " . $req_content . "\n" if $opts->{'Debug'};
+        $self->logger()->log( message => "http_request($url) - INFO - POST Content: " . $req_content, level => 'debug', );
     }
     else {
         $req = HTTP::Request->new( GET => $url );
@@ -40,7 +85,7 @@ sub http_request {
     eval {
         local $SIG{ALRM} = sub { die "alarm\n"; };
         $prev_timeout = alarm $timeout;
-        $response     = $ua->request($req);
+        $response     = $self->_ua()->request($req);
         $content      = $response->content;
         if ( !$response->is_success ) {
             die( "ERROR " . $response->code . " - " . $content . "\n" );
@@ -55,24 +100,25 @@ sub http_request {
         return;
     }
     else {
-        print "http_request($url) - SUCCESS!\n" if $opts->{'Debug'};
+        $self->logger()->log( message => "http_request($url) - SUCCESS!", level => 'debug', );
         return wantarray ? ( $content, $response ) : $content;
     }
 }
 
 sub decrypt {
+    my $self       = shift;
     my $raw_key    = shift;
     my $ciphertext = shift;
 
-    $ciphertext = decode_base64( &VBoxAdm::Utils::urldecode($ciphertext) );
+    $ciphertext = MIME::Base64::decode_base64( &VBoxAdm::Utils::urldecode($ciphertext) );
 
     if ( !$raw_key || length($raw_key) < 12 ) {
-        syslog( 2, "Misconfigured Server. Invalid Key Length." );
+        $self->logger()->log( message => "Misconfigured Server. Invalid Key Length.", level => 'error', );
         return;
     }
 
-    my $key = &gen_key($raw_key);
-    my $iv  = &gen_iv($raw_key);
+    my $key = $self->gen_key($raw_key);
+    my $iv  = $self->gen_iv($raw_key);
 
     # the Crypt::CBC parameters are important,
     # this set of parameters makes the ciphertext
@@ -90,40 +136,39 @@ sub decrypt {
     my $plaintext = undef;
     eval { $plaintext = $cipher->decrypt($ciphertext); };
     if ( $@ || !$plaintext ) {
-        syslog( 2, "Failed to decrypt ciphertext: $@" );
+        $self->logger()->log( message => "Failed to decrypt ciphertext: $@", level => 'warning', );
         return;
     }
 
     # plaintext should now contain a JSON string
-    my $json     = JSON->new->utf8;
     my $hash_ref = undef;
-    eval { $hash_ref = $json->decode($plaintext); };
+    eval { $hash_ref = $self->json()->decode($plaintext); };
     if ( $@ || !$hash_ref ) {
-        syslog( 2, "Failed to decode JSON to hash_ref: $@" );
+        $self->logger()->log( message => "Failed to decode JSON to hash_ref: $@", level => 'warning', );
         return;
     }
     return $hash_ref;
 }
 
 sub encrypt {
+    my $self     = shift;
     my $raw_key  = shift;
     my $hash_ref = shift;
 
-    my $json      = JSON->new->utf8;
     my $plaintext = undef;
-    eval { $plaintext = $json->encode($hash_ref); };
+    eval { $plaintext = $self->json()->encode($hash_ref); };
     if ( $@ || !$plaintext ) {
-        syslog( 2, "Failed to encode hashref to JSON: $@" );
+        $self->logger()->log( message => "Failed to encode hashref to JSON: $@", level => 'warning', );
         return;
     }
 
     if ( !$raw_key || length($raw_key) < 12 ) {
-        syslog( 2, "Misconfigured Server. Invalid Key Length." );
+        $self->logger()->log( message => "Misconfigured Server. Invalid Key Length.", level => 'warning', );
         return;
     }
 
-    my $key = &gen_key($raw_key);
-    my $iv  = &gen_iv($raw_key);
+    my $key = $self->gen_key($raw_key);
+    my $iv  = $self->gen_iv($raw_key);
 
     # the Crypt::CBC parameters are important,
     # this set of parameters makes the ciphertext
@@ -141,7 +186,7 @@ sub encrypt {
     my $ciphertext = undef;
     eval { $ciphertext = $cipher->encrypt($plaintext); };
     if ( $@ || !$ciphertext ) {
-        syslog( 2, "Failed to encrypt the plaintext: $@" );
+        $self->logger()->log( message => "Failed to encrypt the plaintext: $@", level => 'warning', );
         return;
     }
     else {
@@ -150,16 +195,22 @@ sub encrypt {
 }
 
 sub gen_key {
-    my $key = shift;
+    my $self = shift;
+    my $key  = shift;
     return substr( Digest::SHA::sha512($key), 0, 56 );
 }
 
 sub gen_iv {
-    my $key = shift;
+    my $self = shift;
+    my $key  = shift;
     return substr( Digest::SHA::sha512($key), 56 );
 }
 
+no Moose;
+__PACKAGE__->meta->make_immutable;
+
 1;
+
 __END__
 
 

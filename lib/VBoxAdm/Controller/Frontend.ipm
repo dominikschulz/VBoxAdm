@@ -246,7 +246,8 @@ sub setup {
         }
     }
     if ( !$conffile_used ) {
-        $self->{'logger'}->log( "setup - Warning: No readable config file found in search path! (" . join( ':', @conffile_locations ) . ")" );
+        $self->{'logger'}
+          ->log( message => "setup - Warning: No readable config file found in search path! (" . join( ':', @conffile_locations ) . ")", level => 'warning', );
     }
     $self->{config} = \%config;
 
@@ -285,7 +286,7 @@ sub setup {
         }
     );
     if ( !$self->dbh ) {
-        $self->{'logger'}->log( "setup - Failed to establish DB connection with DSN $dsn and error message: " . DBI->errstr );
+        $self->{'logger'}->log( message => "setup - Failed to establish DB connection with DSN $dsn and error message: " . DBI->errstr, level => 'error', );
         die("Could not connect to DB.");
     }
 
@@ -488,7 +489,7 @@ sub log {
     my $dbh = $self->dbh();
 
     if ($msg) {
-        $self->{'logger'}->log($msg);
+        $self->{'logger'}->log( message => $msg, level => 'debug', );
         my $query = "INSERT INTO log (ts,msg) VALUES(NOW(),?)";
         my $sth   = $dbh->prepare($query)
           or $self->{'logger'}->log( 'log - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
@@ -1030,9 +1031,10 @@ sub show_create_domain_alias {
     }
     $query .= "ORDER BY name";
     my $sth = $dbh->prepare($query)
-      or $self->{'logger'}->log( 'show_create_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+      or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, level => 'warning', );
     $sth->execute(@args)
-      or $self->{'logger'}->log( 'show_create_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+      or $self->{'logger'}
+      ->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, level => 'warning', );
 
     my @domains = ();
     while ( my @row = $sth->fetchrow_array() ) {
@@ -1106,9 +1108,9 @@ sub show_edit_domain_alias {
     }
     $query .= " ORDER BY name";
     my $sth = $dbh->prepare($query)
-      or $self->{'logger'}->log( 'show_edit_domain_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+      or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, level => 'warning', );
     $sth->execute(@args)
-      or $self->{'logger'}->log( 'show_edit_domain_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+      or $self->{'logger'}->log( message => 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
 
     my @domains = ();
     while ( my @row = $sth->fetchrow_array() ) {
@@ -1211,9 +1213,10 @@ sub show_create_alias {
     }
     $query .= "ORDER BY name";
     my $sth = $dbh->prepare($query)
-      or $self->{'logger'}->log( 'show_create_alias - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+      or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, level => 'warning', );
     $sth->execute(@args)
-      or $self->{'logger'}->log( 'show_create_alias - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+      or $self->{'logger'}
+      ->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, level => 'warning', );
 
     my @domains = ();
     while ( my @row = $sth->fetchrow_array() ) {
@@ -1364,9 +1367,9 @@ sub show_create_mailbox {
     }
     $query .= "ORDER BY name";
     my $sth = $dbh->prepare($query)
-      or $self->{'logger'}->log( 'show_create_mailbox - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+      or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr );
     $sth->execute(@args)
-      or $self->{'logger'}->log( 'show_create_mailbox - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+      or $self->{'logger'}->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr );
 
     my @domains = ();
     while ( my @row = $sth->fetchrow_array() ) {
@@ -1563,9 +1566,9 @@ sub show_log {
 
     # Get the actual data
     my $sth = $dbh->prepare( 'SELECT ts,msg ' . $query )
-      or $self->{'logger'}->log( 'show_log - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+      or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr );
     $sth->execute(@args)
-      or $self->{'logger'}->log( 'show_log - Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+      or $self->{'logger'}->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr );
 
     my @log = ();
     while ( my @row = $sth->fetchrow_array() ) {
@@ -1696,8 +1699,10 @@ sub show_vacation_replies {
         push( @args, $search_arg );
     }
     $query .= "ORDER BY on_vacation,notified,notified_at";
-    my $sth = $dbh->prepare($query);
-    $sth->execute(@args);
+    my $sth = $dbh->prepare($query)
+      or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr );
+    $sth->execute(@args)
+      or $self->{'logger'}->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr );
     my @notifies = ();
     while ( my ( $on_vacation, $notified, $notified_at ) = $sth->fetchrow_array() ) {
         push(
@@ -1994,6 +1999,7 @@ sub show_update_role_account {
     $self->redirect( $self->{base_url} . '?rm=roleaccs' );
     return;
 }
+
 1;
 
 __END__

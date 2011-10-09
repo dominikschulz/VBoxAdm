@@ -6,121 +6,18 @@ use utf8;
 use lib '@LIBDIR@';
 use lib qw(../lib);
 
+use VBoxAdm::Controller::Autodiscover '@VERSION@';
+
 binmode STDIN,  ":utf8";
 binmode STDOUT, ":utf8";
 binmode STDERR, ":utf8";
 
-use CGI;
-use Config::Std;
-use Sys::Syslog;
-use Template;
-
-my ( $conffile_used, %config, );
-
-# Valid config file locations to try
-my @conffile_locations = qw(
-  vboxadm.conf
-  conf/vboxadm.conf
-  /etc/vboxadm.conf
-  /etc/vboxadm/vboxadm.conf
-  @CFGDIR@/vboxadm/vboxadm.conf
-);
-
-# Try all config file locations
-foreach my $loc (@conffile_locations) {
-    if ( -r $loc ) {
-        $conffile_used = $loc;
-        read_config $loc => %config;
-        last;
-    }
-}
-
-openlog( 'vboxadm-autoconfig', 'ndelay,nofatal', 'mail' );
-
-# Templates are used to build the mails sent
-my $tpl_config = {
-    INCLUDE_PATH => [ 'tpl', '../tpl', '/usr/lib/vboxadm/tpl' ],
-    POST_CHOMP   => 1,
-};
-
-my $q   = CGI->new;
-my $tpl = Template->new($tpl_config);
-
-my $post_body = $q->param('POSTDATA')     || undef;
-my $email     = $q->param('emailaddress') || undef;
-
-# Outlook
-if ( $post_body && $post_body =~ m/<EMailAddress>([^<]+)<\/EMailAddress>/i ) {
-    $email = $1;
-}
-
-my $imap_hostname = $config{'autodiscover'}{'imap_hostname'} || 'mail.' . $config{'default'}{'domain'};
-my $pop3_hostname = $config{'autodiscover'}{'pop3_hostname'} || 'mail.' . $config{'default'}{'domain'};
-my $smtp_hostname = $config{'autodiscover'}{'smtp_hostname'} || 'mail.' . $config{'default'}{'domain'};
-my $imap_ssl      = $config{'autodiscover'}{'imap_ssl'};
-my $imap_tls      = $config{'autodiscover'}{'imap_tls'};
-my $pop3_ssl      = $config{'autodiscover'}{'pop3_ssl'};
-my $pop3_tls      = $config{'autodiscover'}{'pop3_tls'};
-my $smtp_ssl      = $config{'autodiscover'}{'smtp_ssl'};
-my $smtp_sma      = $config{'autodiscover'}{'smtp_sma'};
-my $title         = $config{'autodiscover'}{'title'}         || $config{'default'}{'domain'};
-my $short_name    = $config{'autodiscover'}{'short_name'}    || $title;
-my $pwenc         = $config{'autodiscover'}{'pw_encrypt'};
-
-my %params = (
-    'title'         => $title,
-    'short_name'    => $short_name,
-    'domain'        => $config{'default'}{'domain'},
-    'imap_ssl'      => $imap_ssl,
-    'imap_hostname' => $imap_hostname,
-    'imap_tls'      => $imap_tls,
-    'pop3_hostname' => $pop3_hostname,
-    'pop3_ssl'      => $pop3_ssl,
-    'pop3_tls'      => $pop3_tls,
-    'smtp_ssl'      => $smtp_ssl,
-    'smtp_sma'      => $smtp_sma,
-    'smtp_hostname' => $smtp_hostname,
-    'username'      => $email,
-    'pwenc'         => $pwenc,
-);
-
-if ( $ENV{'REQUEST_URI'} =~ m#/mail/config-v1\.1\.xml# && $email ) {
-    #########################################################################
-    # THUNDERBIRD
-    #########################################################################
-    # TB will try to GET http://autoconfig.domain.tld/mail/config-v1.1.xml?emailaddress=user@domain.tld
-    # Thunderbird, Evolution, Kmail, et. al.
-    print $q->header( -type => 'text/xml', -charset => 'UTF-8', );
-    $tpl->process( 'autoconfig/mozilla-xml.tpl', \%params )
-      or die $tpl->error() . "\n";
-    syslog( 2, "Delivered mozilla autoconfiguration for $email" );
-}
-elsif ( $ENV{'REQUEST_URI'} =~ m#/autodiscover/autodiscover.xml# && $email ) {
-    #########################################################################
-    # OUTLOOK
-    #########################################################################
-    # Outlook will try to POST to https://autodiscover.domain.tld/autodiscover/autodiscover.xml
-    print $q->header( -type => 'text/xml', -status => '405 Microsoft Outlook Autoconfiguration', -charset => 'UTF-8', );
-    $tpl->process( 'autoconfig/outlook-xml.tpl', \%params )
-      or die $tpl->error() . "\n";
-    syslog( 2, "Delivered microsoft autoconfiguration for $email" );
-}
-else {
-    #########################################################################
-    # UNKNOWN CLIENT
-    #########################################################################
-    syslog( 2, "Unknown Request to " . $ENV{'REQUEST_URI'} );
-
-    # Unknown
-    print $q->header( -type => 'text/plain', -status => '400 Client Error', -charset => 'UTF-8', );
-    print "Unknown Client\n";
-}
-print "\n";
+my $adisc = VBoxAdm::Controller::Autodiscover->new();
+$adisc->run();
 
 # TODO Support Apple Mail Autoconfiguration
+# Anyone knows how it works? Send me a patch! ;)
 
-closelog();
-exit 0;
 __END__
 
 =head1 NAME

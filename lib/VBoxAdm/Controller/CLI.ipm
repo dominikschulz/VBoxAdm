@@ -915,9 +915,9 @@ sub _init_user {
     }
     else {
         print "No .vboxadm.cnf found in your home.\n";
-        $user_config{'auth'}{'username'} = &ask_string('Please enter the email of an site-admin');
-        $user_config{'auth'}{'password'} = &ask_string('Please enter the password');
-        if ( &ask_yesno('Should I create a .vboxadm.cnf for you?') ) {
+        $user_config{'auth'}{'username'} = $self->ask_string('Please enter the email of an site-admin');
+        $user_config{'auth'}{'password'} = $self->ask_string('Please enter the password');
+        if ( $self->ask_yesno('Should I create a .vboxadm.cnf for you?') ) {
             write_config %user_config => $conf;
         }
     }
@@ -947,6 +947,57 @@ sub _init_user {
     }
     print "Authorized as site-admin " . $user_config{'auth'}{'username'} . "\n" if $self->opts()->{'Verbose'};
     return $User;
+}
+
+sub ask_select {
+    my ( $self, $msg, @options ) = @_;
+
+    # let user select on of the options provided
+    while (1) {
+        print $msg. "\n";
+        my $i = 0;
+        foreach my $opt (@options) {
+            print "[$i] $opt\n";
+            $i++;
+        }
+        my $num = $self->ask_number( 'Print enter any number between 0 and ' . $i . '. Press enter to abort' );
+        if ( defined($num) && $options[$num] ) {
+            return wantarray ? ( $num, $options[$num] ) : $options[$num];
+        }
+        else {
+            return;
+        }
+    }
+}
+
+sub ask_yesno {
+    my ( $self, $msg ) = @_;
+    print $msg. " [y/N]: ";
+    my $resp = <STDIN>;
+    chomp($resp);
+    if ( $resp =~ m/(1|Yes|Ja|Y)/i ) {
+        return 1;
+    }
+    return;
+}
+
+sub ask_number {
+    my ( $self, $msg ) = @_;
+    print $msg. ": ";
+    my $resp = <STDIN>;
+    chomp($resp);
+    if ( $resp =~ m/^\s*(\d+)\s*$/ ) {
+        return $1;
+    }
+    return;
+}
+
+sub ask_string {
+    my ( $self, $msg ) = @_;
+    print $msg. ": ";
+    my $resp = <STDIN>;
+    chomp($resp);
+    return $resp;
 }
 
 no Moose;

@@ -150,8 +150,7 @@ You can use this sed command to update all cf files at once:
 Change to /etc/postfix and create the database maps:
  $> make maps
 
-If you haven't done so already install postgrey and policyd-weight:
- $> aptitude install postgrey policyd-weight
+I no longer recommend using policyd-weight, since it seems to have some serious bugs.
  
 Adjust the port to 60000 in /etc/default/postgrey and restart postgrey:
  $> /etc/init.d/postgrey restart

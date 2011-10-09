@@ -19,8 +19,6 @@ use VBoxAdm::SMTP::Proxy::SA '@VERSION@';
 
 my $syntax = "syntax: $0 [--verbose] [--config=<FILE>]\n";
 
-my $Logger = VBoxAdm::Logger->new( { 'facility' => 'vboxadm-sa', } );
-
 my ( $conffile_used, %config, );
 
 # Valid config file locations to try
@@ -86,6 +84,8 @@ my $soft_bounce            = $config{'smtpproxy'}{'soft_bounce'}            || 0
 my $sa_default_block_score = $config{'smtpproxy'}{'sa_default_block_score'} || 6.31;
 my $sa_default_status      = $config{'smtpproxy'}{'sa_default_status'}      || 1;
 my $recipient_delimiter    = $config{'smtpproxy'}{'recipient_delimiter'};
+
+my $Logger = VBoxAdm::Logger->new( { 'facility' => 'vboxadm-sa', 'filename' => $logfile, } );
 
 # Database Hosts
 my @dbhosts = ();
