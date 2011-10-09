@@ -94,9 +94,10 @@ sub login {
     # check if login works
     my $sql =
 "SELECT m.id,m.password,m.is_domainadmin,m.is_siteadmin,d.id FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $self->local_part(), $self->domain() );
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh(), $sql, $self->local_part(), $self->domain() );
 
     if ( !$sth ) {
+    		$self->logger()->log( message => "Database error during query ($sql): ".$self->dbh()->errstr(), level => 'error', );
         $self->msg->push( 'error', 'Database error.' );
         return;
     }
@@ -104,7 +105,7 @@ sub login {
     my ( $id, $pw, $is_da, $is_sa, $domain_id ) = $sth->fetchrow_array();
     $sth->finish();
     if ( !$self->force && !&VBoxAdm::SaltedHash::verify_pass( $password, $pw ) ) {
-        $self->logger()->log("Password invalid!");
+        $self->logger()->log( message => "Password invalid!", level => 'warning', );
         return;
     }
     $self->{'domainadmin'} = $is_da;
