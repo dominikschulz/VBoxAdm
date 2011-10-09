@@ -125,6 +125,7 @@ MANFILES = \
 	cron/mailarchive.8 \
 	cron/notify.8 \
 	lib/VBoxAdm/Controller/API.3 \
+	lib/VBoxAdm/Controller/Autodiscover.3 \
 	lib/VBoxAdm/Controller/CLI.3 \
 	lib/VBoxAdm/Controller/Frontend.3 \
 	lib/VBoxAdm/Model/Alias.3 \
@@ -152,6 +153,7 @@ MANFILES = \
 
 TESTFILES = \
 	t/VBoxAdm/Controller/API.t \
+	t/VBoxAdm/Controller/Autodiscover.t \
 	t/VBoxAdm/Controller/CLI.t \
 	t/VBoxAdm/Controller/Frontend.t \
 	t/VBoxAdm/L10N/de.t \
