@@ -80,6 +80,8 @@ smtpd_sasl_type = dovecot
 smtpd_sasl_path = private/auth
 smtpd_sasl_auth_enable = yes
 
+smtpd_reject_unlisted_recipient = no
+
 # Recipient and Relay Checks - VERY IMPORTANT
 smtpd_recipient_restrictions =
 # Allow Postmaster, Abuse and other imporant role accounts
@@ -120,6 +122,7 @@ smtpd_recipient_restrictions =
 #       permit_mx_backup,
 # No other relaying
         reject_unauth_destination,
+        reject_unlisted_recipient,
 # Policyd-Weight
 #        check_policy_service inet:127.0.0.1:12525,
 # allow the rest
