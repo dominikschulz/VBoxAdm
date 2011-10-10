@@ -287,8 +287,13 @@ sub _handle_message {
     {
         $self->logger()->log(
             level   => 'debug',
-            message => 'Detected Delay Message - From: %s - To: %s - Subject: %s - Exiting',
-            $self->sender(), $self->recipient(), $header{'subject'}
+            message => 'Detected Delay Message - From: '
+              . $self->sender()
+              . ' - To: '
+              . $self->recipient()
+              . ' - Subject: '
+              . $header{'subject'}
+              . ' - Exiting',
         );
         return;
     }

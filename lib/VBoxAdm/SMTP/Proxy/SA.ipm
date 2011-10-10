@@ -151,7 +151,7 @@ sub process_request {
                         }
                         else {
                             if ( $self->{server}->{vbox}->{soft_bounce} ) {
-                                $smtp_server->tmpfail($msg);
+                                $smtp_server->tempfail($msg);
                             }
                             else {
                                 $smtp_server->fail($msg);
@@ -169,7 +169,7 @@ sub process_request {
                     }
                     else {
                         if ( $self->{server}->{vbox}->{soft_bounce} ) {
-                            $smtp_server->tmpfail($msg);
+                            $smtp_server->tempfail($msg);
                         }
                         else {
                             $smtp_server->fail($msg);

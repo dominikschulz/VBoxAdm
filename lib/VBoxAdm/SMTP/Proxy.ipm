@@ -93,6 +93,12 @@ sub child_init_hook {
     ## no critic (RequireLocalizedPunctuationVars)
     $ENV{'HOME'} = $homedir;
     ## use critic
+    if ( $self->logger()->filename() && !-w $self->logger()->filename() ) {
+        $self->log( 2, "Can not write to logfile at " . $self->logger()->filename() . ". Killing Parent!" );
+        $self->close_parent();
+        croak "Can not write logfile at " . $self->logger()->filename() . ". Check permissions!";
+    }
+
     $self->logger()->log( message => "Homedir set to $homedir", level => 'debug', );
 
     if ( !$self->db_connect() ) {

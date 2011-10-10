@@ -39,7 +39,7 @@ sub create {
             return 1;
         }
         else {
-            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, $domain, $self->dbh->errstr );
+            $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . $domain . ', Error: ' . $self->dbh()->errstr() );
             $self->msg->push( 'error', "Failed to add Domain '[_1]'. Database error.", $domain );
             return;
         }
@@ -106,7 +106,7 @@ sub update {
             return 1;
         }
         else {
-            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $sql, join( ',', @args ), $self->dbh->errstr );
+            $self->log( 'Could not execute Query: ' . $sql . ', Args: ' . join( ',', @args ) . ', Error: ' . $self->dbh->errstr );
             $self->msg->push( 'error', 'Failed to update Domain [_1]. Database error.', $domain_name );
             return;
         }

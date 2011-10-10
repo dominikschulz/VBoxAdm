@@ -492,13 +492,13 @@ sub log {
         $self->{'logger'}->log( message => $msg, level => 'debug', );
         my $query = "INSERT INTO log (ts,msg) VALUES(NOW(),?)";
         my $sth   = $dbh->prepare($query)
-          or $self->{'logger'}->log( 'log - Could not prepare Query: %s, Error: %s', $query, DBI->errstr );
+          or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr );
         if ( $sth->execute($msg) ) {
             $sth->finish();
             return 1;
         }
         else {
-            $self->{'logger'}->log( 'log - Could not execute Query: %s, Args: %s, Error: %s', $query, $msg, $sth->errstr );
+            $self->{'logger'}->log( message => 'Could not execute Query: ' . $query . ', Args: ' . $msg . ', Error: ' . $sth->errstr );
             $sth->finish();
             return;
         }
@@ -535,7 +535,7 @@ sub post_login_callback {
 sub log_login {
     my $self = shift;
     return unless ( $self->authen->is_authenticated );
-    $self->log( "User " . $self->authen->username . " logged in." );
+    $self->log( "User " . $self->authen->username . " logged in.", );
     return 1;
 }
 
@@ -1110,7 +1110,8 @@ sub show_edit_domain_alias {
     my $sth = $dbh->prepare($query)
       or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, level => 'warning', );
     $sth->execute(@args)
-      or $self->{'logger'}->log( message => 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $sth->errstr );
+      or $self->{'logger'}
+      ->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, level => 'warning', );
 
     my @domains = ();
     while ( my @row = $sth->fetchrow_array() ) {

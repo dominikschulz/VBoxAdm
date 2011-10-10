@@ -87,7 +87,7 @@ sub create {
             return 1;
         }
         else {
-            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", ( $domain_id, $local_part, $goto ) ), $self->dbh->errstr );
+            $self->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", ( $domain_id, $local_part, $goto ) ) . ', Error:' . $self->dbh->errstr );
             $self->msg->push( 'error', "Failed to add alias [_1] => [_2]. Database Error.", "$local_part\@$domain_name", $goto );
             return;
         }
@@ -134,7 +134,7 @@ sub delete {
             return 1;
         }
         else {
-            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
+            $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh()->errstr() );
             $self->msg->push( 'error', "Failed to remove Alias [_1] => [_2] (#[_3]). Database Error.", $alias, $goto, $alias_id );
             return;
         }
@@ -195,7 +195,10 @@ sub update {
             $sth->finish();
         }
         else {
-            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
+            $self->logger()->log(
+                message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh()->errstr(),
+                level   => 'error',
+            );
             $self->msg->push( 'error', "Failed to set Alias [_1] (#[_2]) [_3].", $alias_name, $alias_id, $status_str );
         }
     }
@@ -222,7 +225,8 @@ sub update {
             $sth->finish();
         }
         else {
-            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
+            $self->logger()
+              ->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh->errstr, level => 'error', );
             $self->msg->push( 'error', "Failed to redirect Alias [_1] (#[_2]) to [_3].", $alias_name, $alias_id, $target );
         }
     }
@@ -290,7 +294,7 @@ sub list {
     }
     my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
     if ( !$sth ) {
-        $self->msg->push( 'error', 'Database error.' );
+        $self->msg->push( 'error', 'Database error: ' . $self->dbh()->err() );
         return;
     }
     my @results = ();

@@ -97,7 +97,7 @@ sub login {
     my $sth = &VBoxAdm::DB::prepexec( $self->dbh(), $sql, $self->local_part(), $self->domain() );
 
     if ( !$sth ) {
-    		$self->logger()->log( message => "Database error during query ($sql): ".$self->dbh()->errstr(), level => 'error', );
+        $self->logger()->log( message => "Database error during query ($sql): " . $self->dbh()->errstr(), level => 'error', );
         $self->msg->push( 'error', 'Database error.' );
         return;
     }

@@ -167,8 +167,9 @@ sub create {
             }
         }
         else {
-            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", (%args) ), $self->dbh->errstr );
-            $self->msg->push( 'error', "Failed to add Mailbox [_1] for [_2]. Database Error.", "$local_part\@$domain_name", $args{'name'} );
+            $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", (%args) ) . ', Error: ' . $self->dbh()->errstr() );
+            $self->msg->push( 'error', "Failed to add Mailbox [_1] for [_2]. Database Error: " . $sth->dbh()->err(),
+                "$local_part\@$domain_name", $args{'name'} );
         }
     }
     return;
@@ -203,8 +204,8 @@ sub delete {
         $self->msg->push( 'information', "Mailbox [_1] (#[_2]) removed.", $mailbox_name, $mailbox_id );
     }
     else {
-        $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
-        $self->msg->push( 'error', "Failed to remove Mailbox [_1] (#[_2]). Database Error.", $mailbox_name, $mailbox_id );
+        $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh()->errstr() );
+        $self->msg->push( 'error', "Failed to remove Mailbox [_1] (#[_2]). Database Error: " . $self->dbh()->err(), $mailbox_name, $mailbox_id );
     }
 
     return 1;
@@ -441,7 +442,7 @@ sub update {
             $self->msg->push( 'information', "Updated Mailbox [_1] (#[_2]).", $mailbox_name, $mailbox_id );
         }
         else {
-            $self->log( 'Could not execute Query: %s, Args: %s, Error: %s', $query, join( "-", @args ), $self->dbh->errstr );
+            $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh()->errstr() );
             $self->msg->push( 'error', "Failed to update Mailbox [_1] (#[_2]). Database Error.", $mailbox_name, $mailbox_id );
         }
     }
