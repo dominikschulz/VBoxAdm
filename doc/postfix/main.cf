@@ -61,6 +61,8 @@ virtual_alias_maps =
 	proxy:mysql:/etc/postfix/maps/virtual_alias_domain_maps.cf,
 	proxy:mysql:/etc/postfix/maps/virtual_alias_domain_mailbox_maps.cf,
 	proxy:mysql:/etc/postfix/maps/virtual_vacation_alias_maps.cf
+smtpd_sender_login_maps =
+	proxy:mysql:/etc/postfix/maps/virtual_smtpd_sender_login_maps.cf
 
 # Local Mail Delivery (LDA)
 # Use either the dovecot lda deliver, configured in the master.cf ...
@@ -98,6 +100,7 @@ smtpd_recipient_restrictions =
         reject_unknown_sender_domain,
         reject_unknown_recipient_domain,
 # Allow our authed. users
+        reject_sender_login_mismatch,
         permit_sasl_authenticated,
         permit_mynetworks,
 # These rejects may have to be disabled, watch your logs
@@ -143,6 +146,7 @@ proxy_read_maps =
      $relocated_maps
      $transport_maps
      $mynetworks
+     $smtpd_sender_login_maps
      proxy:mysql:/etc/postfix/maps/access_recipient_roles.cf
 
 # Milter settings

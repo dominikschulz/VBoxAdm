@@ -1,0 +1,5 @@
+user = postfix
+password = PASSWORD
+hosts = localhost
+dbname = vboxadm
+query = /* virtual_smtpd_sender_login_maps.cf */ SELECT CONCAT(m.local_part, '@', d.name) AS sasl_login_name FROM domains AS d LEFT JOIN domain_aliases AS da ON (da.domain_id = d.id) JOIN mailboxes AS m ON m.domain_id = d.id WHERE (d.name = '%d' OR da.name = '%d') AND m.local_part = '%u' AND d.is_active AND da.is_active AND m.is_active
