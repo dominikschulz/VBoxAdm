@@ -87,6 +87,12 @@ my $recipient_delimiter    = $config{'smtpproxy'}{'recipient_delimiter'};
 
 my $Logger = VBoxAdm::Logger->new( { 'facility' => 'vboxadm-sa', 'filename' => $logfile, } );
 
+# Important: Make sure the logfile exists (by logging to it) and is owned by the user
+# our child will be running as. Otherwise you may experience a situation
+# where childs are spawned very fast and immedeately dying.
+$Logger->log( message => "Anti-Spam Proxy starting ...", level => 'debug', );
+chown $user, $group, $logfile;
+
 # Database Hosts
 my @dbhosts = ();
 if ( $config{'smtpproxy'}{'dbhost'} ) {

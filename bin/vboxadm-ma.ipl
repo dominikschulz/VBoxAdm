@@ -17,8 +17,6 @@ use VBoxAdm::SMTP::Proxy::MA '@VERSION@';
 
 my $syntax = "syntax: $0 [--verbose] [--config=<FILE>]\n";
 
-my $Logger = VBoxAdm::Logger->new( { 'facility' => 'vboxadm-ma', } );
-
 my ( $conffile_used, %config, );
 
 # Valid config file locations to try
@@ -74,6 +72,13 @@ my $ignore_spam                      = $config{'mailarchive'}{'ignore_spam'}    
 my $ignore_sender_roleacc            = $config{'mailarchive'}{'ignore_sender_roleacc'}            || 1;
 my $ignore_sender_eq_recipient       = $config{'mailarchive'}{'ignore_sender_eq_recipient'}       || 1;
 my $ignore_senderdom_eq_recipientdom = $config{'mailarchive'}{'ignore_senderdom_eq_recipientdom'} || 1;
+
+my $Logger = VBoxAdm::Logger->new( { 'facility' => 'vboxadm-ma', 'filename' => $logfile, } );
+# Important: Make sure the logfile exists (by logging to it) and is owned by the user
+# our child will be running as. Otherwise you may experience a situation
+# where childs are spawned very fast and immedeately dying.
+$Logger->log( message => "Mailarchive starting ...", level => 'debug', );
+chown $user, $group, $logfile;
 
 # Database Hosts
 my @dbhosts = ();
