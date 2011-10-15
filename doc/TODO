@@ -60,4 +60,3 @@ Make sure class-C ip subnet auto-whitelists are supported
 - Bugs/Errors:
 * no-fork option for vboxadm-(sa|ma) doesn't work atm.
 * replace Net::Fork's syslogging by VBoxAdm::Logger
-* Debian-Packaging: add postgrey, add postfix-mysql, add postfix-pcre, add mooose, add libnamespace-autoclean-perl
