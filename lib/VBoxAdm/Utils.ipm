@@ -54,11 +54,11 @@ sub extract_recipients {
 sub unroll_recipient {
     my $rolled = shift;
     my $delim = shift || '#';
-    
-    if(!$rolled) {
-    	return;
+
+    if ( !$rolled ) {
+        return;
     }
-    
+
     my $re_rolled = qr/^([^@]+)\Q$delim\E([^@\Q$delim\E]+)\@/;
 
     # recipient must be "unrolled", it's smth. like "user#domain.tld@vacation.domain.tld" -> "user@domain.tld"

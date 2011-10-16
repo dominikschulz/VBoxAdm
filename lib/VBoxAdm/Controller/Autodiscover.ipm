@@ -120,6 +120,8 @@ sub _init_tt {
         POST_CHOMP   => 1,
     };
     my $TT = Template->new($tpl_config);
+
+    return $TT;
 }
 
 sub run {
@@ -197,6 +199,8 @@ sub run {
         print "Unknown Client\n";
     }
     print "\n";
+
+    return 1;
 }
 
 no Moose;

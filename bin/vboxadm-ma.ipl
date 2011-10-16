@@ -74,6 +74,7 @@ my $ignore_sender_eq_recipient       = $config{'mailarchive'}{'ignore_sender_eq_
 my $ignore_senderdom_eq_recipientdom = $config{'mailarchive'}{'ignore_senderdom_eq_recipientdom'} || 1;
 
 my $Logger = VBoxAdm::Logger->new( { 'facility' => 'vboxadm-ma', 'filename' => $logfile, } );
+
 # Important: Make sure the logfile exists (by logging to it) and is owned by the user
 # our child will be running as. Otherwise you may experience a situation
 # where childs are spawned very fast and immedeately dying.

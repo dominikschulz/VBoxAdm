@@ -968,12 +968,15 @@ sub ask_select {
             return;
         }
     }
+    return;
 }
 
 sub ask_yesno {
     my ( $self, $msg ) = @_;
     print $msg. " [y/N]: ";
+    ## no critic (ProhibitExplicitStdin)
     my $resp = <STDIN>;
+    ## use critic
     chomp($resp);
     if ( $resp =~ m/(1|Yes|Ja|Y)/i ) {
         return 1;
@@ -984,7 +987,9 @@ sub ask_yesno {
 sub ask_number {
     my ( $self, $msg ) = @_;
     print $msg. ": ";
+    ## no critic (ProhibitExplicitStdin)
     my $resp = <STDIN>;
+    ## use critic
     chomp($resp);
     if ( $resp =~ m/^\s*(\d+)\s*$/ ) {
         return $1;
@@ -995,7 +1000,9 @@ sub ask_number {
 sub ask_string {
     my ( $self, $msg ) = @_;
     print $msg. ": ";
+    ## no critic (ProhibitExplicitStdin)
     my $resp = <STDIN>;
+    ## use critic
     chomp($resp);
     return $resp;
 }
