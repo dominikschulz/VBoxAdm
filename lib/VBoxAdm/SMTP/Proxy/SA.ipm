@@ -49,14 +49,15 @@ sub prepare_queries {
     # - a mailbox on an alias domain
     # - an alias on an alias domain
     # This is a pretty huge and expensive query. I haven't found a better way to do this yet.
-    my $sql_userinfo = q{SELECT m.id,d.id,m.max_msg_size,m.sa_active,m.sa_kill_score 
-FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id 
+    my $sql_userinfo = <<'SQL';
+SELECT m.id,d.id,m.max_msg_size,m.sa_active,m.sa_kill_score FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id 
 WHERE CONCAT(m.local_part,'@',d.name) IN 
 (?,
 (SELECT a1.goto FROM aliases AS a1 LEFT JOIN domains AS d1 ON a1.domain_id = d1.id WHERE CONCAT(a1.local_part,'@',d1.name) = ?),
 (SELECT CONCAT(m2.local_part,'@',d2.name) FROM mailboxes AS m2 LEFT JOIN domains AS d2 ON m2.domain_id = d2.id LEFT JOIN domain_aliases AS da2 ON da2.domain_id = d2.id WHERE CONCAT(m2.local_part,'@',da2.name) = ?),
 (SELECT a3.goto FROM aliases AS a3 LEFT JOIN domains AS d3 ON a3.domain_id = d3.id LEFT JOIN domain_aliases AS da3 ON da3.domain_id = d3.id WHERE CONCAT(a3.local_part,'@',da3.name) = ?)
 )};
+SQL
     $self->{server}->{vbox}->{sth}->{userinfo} = $self->{server}->{vbox}->{dbh}->prepare($sql_userinfo);
 
     return 1;
@@ -70,6 +71,7 @@ WHERE CONCAT(m.local_part,'@',d.name) IN
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
+# TODO too high complexity, refactor
 sub process_request {
     my $self = shift;
 
@@ -83,7 +85,7 @@ sub process_request {
 # The default timeout is zero which disables any timer. This is good. if we never set the alarm we don't want to enable it later when it should just be reset to its previous value.
     my $prev_timeout = 0;
 
-    eval {
+    my $eval_status = eval {
         local $SIG{ALRM} = sub { die "Child server process timed out!\n" };
         my $timeout = $self->{server}->{vbox}->{childtimeout} || 300;
 
@@ -128,7 +130,6 @@ sub process_request {
         $smtp_server->print( $client->hear() . "\r\n" );
 
         my $queue_id;    # remember the upstream queue id for logging
-        my $xforward;
 
         # listen to the client (upstream postfix) and relay everything except the final dot (end-of-data command) to the server (downstream postfix)
       LINE: while ( my $what = $smtp_server->chat() ) {
@@ -225,12 +226,15 @@ sub process_request {
         if ( !$smtp_server->{sock}->close() ) {
             $self->logger()->log( message => "Could not close server socket: $!", level => 'warning', );
         }
+        # true return value to test for
+        1;
     };    # end of eval block
     alarm
       $prev_timeout; # restore timeout, note: neither place this inside the evel nor inside the error checking if, or it may be omitted and bite your ass later!
-    if ($@) {
-        chomp($@);
-        my $msg = "WARNING: Error in process_request eval: $@";
+    if (!$eval_status || $@) {
+    	my $eval_err = $@;
+        chomp($eval_err);
+        my $msg = "WARNING: Error in process_request eval: $eval_err";
         $self->logger()->log( message => $msg, level => 'error', );
         croak $msg . "\n";
     }
@@ -384,6 +388,7 @@ sub want_sa {
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
+# TODO this method has a too high complexity score, refactor
 sub is_spam {
     my $self   = shift;
     my $sa     = $self->{server}->{vbox}->{sa};
@@ -391,7 +396,7 @@ sub is_spam {
 
     my $is_spam = 0;
 
-    my $t0 = time;
+    my $time_start = time;
 
     my $msg_size = ( $server->{data}->stat )[7];
     if ( $msg_size > $self->{server}->{vbox}->{sa_max_msg_size} ) {
@@ -438,6 +443,7 @@ sub is_spam {
     my $added_envto = 0;                       # did we add an envelope-to?
     my $digest      = Digest::SHA->new(256);
     while ( my $line = <$fh> ) {
+    	## no critic (ProhibitCascadingIfElse)
         if ( $line =~ m/^(?:X-)?Envelope-To:/i ) {
             $envto = 1;
         }
@@ -468,6 +474,7 @@ sub is_spam {
             $msgid =~ s/[<>]/?/g;                       # plus all dangling angle brackets
             $msgid =~ s/^(.+)$/<$1>/;                   # re-bracket the id (if not empty)
         }
+        ## use critic
         push( @msglines, $line );
 
         # to support caching, create a checksum (sha1) over the whole message (excluding some headers like To:, etc. and store
@@ -550,7 +557,7 @@ sub is_spam {
                 # Build the rewritten message
                 # pause the timeout while doing so
                 my $pause_alarm = alarm(0);
-                my $in_header   = 1;
+                my $still_in_header   = 1;
                 my $skipline    = 0;
                 if ( !$fh->seek( 0, 0 ) ) {
                     my $msg = "Can't rewind message file: $!";
@@ -564,11 +571,11 @@ sub is_spam {
                 }
                 foreach my $line ( split( /\r?\n/, $msg_response ) ) {
                     if ( $line =~ m/^\r?\n$/ ) {
-                        $in_header = 0;
+                        $still_in_header = 0;
                     }
 
                     # while in header skip over any X-Envelope-To we have added
-                    if ( $in_header && $added_envto && $line =~ m/^X-Envelope-To:/i ) {
+                    if ( $still_in_header && $added_envto && $line =~ m/^X-Envelope-To:/i ) {
                         $skipline = 1;
                     }
 
@@ -593,7 +600,7 @@ sub is_spam {
             # Log what was done
             my $msg_score   = sprintf( "%.2f", $status->get_score() );
             my $block_score = sprintf( "%.2f", $status->get_required_score() );
-            my $proc_time   = sprintf( "%.2f", time - $t0 );
+            my $proc_time   = sprintf( "%.2f", time() - $time_start );
 
             $self->logger()->log(
                 message => "$was_it_spam $msgid ($msg_score/$block_score) from $sender for $recipients in $proc_time s, $msg_size bytes. rules hit: "

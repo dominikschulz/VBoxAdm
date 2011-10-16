@@ -10,7 +10,10 @@ use VBoxAdm::Utils '@VERSION@';
 
 extends 'VBoxAdm::Model';
 
+# DGR: Well, sorry for you Perl::Critic, but you're unable to keep up with my OO style ;)
+## no critic (ProhibitUnusedPrivateSubroutines)
 sub _init_fields { return [qw(on_vacation notified notified_at)]; }
+## use critic
 
 sub create {
     my ( $self, $email ) = @_;
