@@ -14,7 +14,6 @@ our $VERSION = '@VERSION@';
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
-# TODO make this method more robust
 sub extract_recipients {
     my $recipients = shift;
     my $recipient_delimiter = shift || undef;
@@ -26,7 +25,7 @@ sub extract_recipients {
     my @recps = split( /\s*,\s*/, $recipients );
     foreach my $recp (@recps) {
         my $email;
-        if ( $recp =~ m/<([^>@]+@[^>]+)>/ ) {
+        if ( $recp =~ m/<([^>@]+@[^>]+)>?/ ) {
             $email = lc($1);    # should match '<user@domain.tld>',Name <user@doman.tld>, etc.
         }
         elsif ( $recp =~ m/^([^<@]+@\S+)$/ ) {
@@ -54,11 +53,16 @@ sub extract_recipients {
 # See Also   : n/a
 sub unroll_recipient {
     my $rolled = shift;
-    $rolled or return;
+    my $delim = shift || '#';
+    
+    if(!$rolled) {
+    	return;
+    }
+    
+    my $re_rolled = qr/^([^@]+)\Q$delim\E([^@\Q$delim\E]+)\@/;
 
-    # TODO support different recipient delimiter
     # recipient must be "unrolled", it's smth. like "user#domain.tld@vacation.domain.tld" -> "user@domain.tld"
-    if ( $rolled =~ m/^([^@]+)#([^@#]+)\@/ ) {
+    if ( $rolled =~ m/$re_rolled/ ) {
         my $local_part = $1;
         my $domain     = $2;
         return $local_part . '@' . $domain;

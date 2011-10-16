@@ -20,6 +20,8 @@ is( VBoxAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", 'tri
           [qw(user1@domain.tld user2@domain.tld user3@domain.tld root@localhost)],
         'user1@domain.tld user2@domain.tld' => [qw(user1@domain.tld user2@domain.tld)],
         'user1@domain.tld;user2@domain.tld' => [qw(user1@domain.tld user2@domain.tld)],
+        'John Doe <john.doe@bad.corp>' => [qw(john.doe@bad.corp)],
+        'John Doe <john.doe@evil.com' => [qw(john.doe@evil.com)],
     );
     foreach my $string ( keys %data ) {
         my @expect = @{ $data{$string} };
@@ -73,6 +75,7 @@ is( VBoxAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", 'tri
 
 # Test unroll_recipient
 {
+	# part 1: default recipient_delimiter
     my %data = (
         'admin#domain.tld@vacation.domain.tld'      => 'admin@domain.tld',
         'admin#test#domain.tld@vacation.domain.tld' => 'admin#test@domain.tld',
@@ -81,6 +84,17 @@ is( VBoxAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", 'tri
     foreach my $rolled ( keys %data ) {
         my $unrolled = &VBoxAdm::Utils::unroll_recipient($rolled);
         my $expected = $data{$rolled};
+        is( $unrolled, $expected, $expected . ' equals ' . $unrolled );
+    }
+  # part 2: recipient_delimiter = %
+  my %data2 = (
+        'admin%domain.tld@vacation.domain.tld'      => 'admin@domain.tld',
+        'admin#test%domain.tld@vacation.domain.tld' => 'admin#test@domain.tld',
+        'admin+test%domain.tld@vacation.domain.tld' => 'admin+test@domain.tld',
+  );
+  foreach my $rolled ( keys %data2 ) {
+        my $unrolled = &VBoxAdm::Utils::unroll_recipient($rolled,'%');
+        my $expected = $data2{$rolled};
         is( $unrolled, $expected, $expected . ' equals ' . $unrolled );
     }
 }

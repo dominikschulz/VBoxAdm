@@ -384,6 +384,7 @@ clean:
 	$(FIND) . -name "*.3" -exec $(RM) {} \;
 	$(FIND) . -name "*.8" -exec $(RM) {} \;
 	$(FIND) . -name "*.pm" -exec $(RM) {} \;
+	$(FIND) . -name "*.pm~" -exec $(RM) {} \;
 	$(RM) -f bin/tmon.out
 	$(RM) -f doc/man/*
 	$(RM) -f contrib/roundcube-plugin-vboxadm.tar.gz
