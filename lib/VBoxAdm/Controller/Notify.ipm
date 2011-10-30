@@ -1,0 +1,568 @@
+package VBoxAdm::Controller::Notify;
+
+use Moose;
+use namespace::autoclean;
+
+use Config::Std;
+use Template;
+use Mail::POP3Client;
+
+use VBoxAdm::DB '@VERSION@';
+use VBoxAdm::DNS '@VERSION@';
+use VBoxAdm::Logger '@VERSION@';
+use VBoxAdm::Utils '@VERSION@';
+
+our $VERSION = '@VERSION@';
+
+has 'dbh' => (
+    'is'      => 'ro',
+    'isa'     => 'DBI::db',
+    'lazy'    => 1,
+    'builder' => '_init_dbh',
+);
+
+has 'logger' => (
+    'is'      => 'ro',
+    'isa'     => 'VBoxAdm::Logger',
+    'lazy'    => 1,
+    'builder' => '_init_logger',
+);
+
+has 'config_locations' => (
+    'is'      => 'ro',
+    'isa'     => 'ArrayRef',
+    'lazy'    => 1,
+    'builder' => '_init_config_locs',
+);
+
+sub _init_config_locs {
+    my $self = shift;
+
+    # Valid config file locations to try
+    my @conffile_locations = qw(
+      vboxadm.conf
+      conf/vboxadm.conf
+      /etc/vboxadm/vboxadm.conf
+      @CFGDIR@/vboxadm/vboxadm.conf
+    );
+
+    return \@conffile_locations;
+}
+
+has 'config' => (
+    'is'  => 'rw',
+    'isa' => 'Object',
+);
+
+sub _init_logger {
+    my $self = shift;
+
+    return VBoxAdm::Logger->new('vboxadm-rfcnotify');
+}
+
+has 'conffile_used' => (
+    'is'  => 'rw',
+    'isa' => 'Str',
+);
+
+sub _read_config {
+    my $self = shift;
+
+    my %config;
+
+    # Try all config file locations
+    foreach my $loc ( @{ $self->config_locations() } ) {
+        if ( -r $loc ) {
+            $self->conffile_used($loc);
+            read_config $loc => %config;
+            last;
+        }
+    }
+
+    $config{'default'}{'dbhost'}   ||= 'localhost';
+    $config{'default'}{'dbuser'}   ||= 'vboxadm';
+    $config{'default'}{'dbpass'}   ||= '';
+    $config{'default'}{'dbport'}   ||= 3306;
+    $config{'default'}{'dbdb'}     ||= 'vboxadm';
+    $config{'default'}{'pwscheme'} ||= 'sha256';
+
+    $self->config( \%config );
+
+    return 1;
+}
+
+has '_tt' => (
+    'is'      => 'rw',
+    'isa'     => 'Template',
+    'lazy'    => 1,
+    'builder' => '_init_tt',
+);
+
+sub _init_tt {
+    my $self = shift;
+
+    # Templates are used to build the mails sent
+    my $tpl_config = {
+        INCLUDE_PATH => [ 'tpl', '../tpl', '/usr/lib/vboxadm/tpl' ],
+        POST_CHOMP   => 0,
+    };
+    my $TT = Template->new($tpl_config);
+
+    return $TT;
+}
+
+has 'logfile' => (
+    'is'      => 'ro',
+    'isa'     => 'Str',
+    'lazy'    => 1,
+    'builder' => '_init_logfile',
+);
+
+sub _init_logfile {
+    my $self = shift;
+
+    my $logfile = $self->config()->{'notify'}->{'logfile'};
+
+    if ( !$logfile || !-r $logfile ) {
+        $logfile = '/var/log/mail.log';
+    }
+
+    return $logfile;
+}
+
+sub run {
+    my $self = shift;
+
+    $self->_read_config();
+
+    $self->_parse_postfix_logfile();
+    $self->_process_bounces();
+    
+    $self->logger()->log( message => "Finished", level => 'debug', );
+
+    return 1;
+}
+
+############################################
+# Usage      : &parse_reject_line($line);
+# Purpose    : Parses a postfix reject line and acts upon, called by parse_postfix_maillog
+# Returns    : False if the notify was skipped.
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub _parse_reject_line {
+    my $self = shift;
+    my $line = shift;
+
+    if ( $line =~
+        m/postfix\/smtpd\[\d+\]: NOQUEUE: reject: RCPT from ([^[]+)\[([^]]+)\]: (\d\d\d) ([^;]+); from=<([^>]+)> to=<([^>]+)> proto=([A-Z]+) helo=<([^>]+)>/ )
+    {
+        my ( $rdns, $ip, $smtpcode, $smtpmsg, $from, $to, $proto, $helo ) = ( $1, $2, $3, $4, $5, $6, $7, $8 );
+        if ( $from eq $to ) {
+            $self->logger()->log( message => "SKIPPED: SPAM - from=to", level => 'debug', );
+            return;
+        }
+        elsif ( $smtpmsg =~ m/Greylisted/ ) {
+            $self->logger()->log( message => "SKIPPED: GREYLISTED", level => 'debug', );
+            return;
+        }
+        elsif ( $from =~ m/@(yahoo|gmail|microsoft|hotmail|msn|live|aim|rolex|blizzard|gmx|web)\./ ) {
+            $self->logger()->log( message => "SKIPPED: SPAM from well-known domain", level => 'debug', );
+            return;
+        }
+
+        my $vars = {};
+
+        $self->logger()->log(
+            message => "REJECT - RDNS: $rdns - IP: $ip - SMTP-Code: $smtpcode - SMTP-Msg: $smtpmsg - From: $from - To: $to - Proto: $proto - Helo: $helo",
+            level   => 'debug',
+        );
+
+        $vars->{'to'}            = $to;
+        $vars->{'from'}          = $from;
+        $vars->{'rdns'}          = $rdns;
+        $vars->{'fdns'}          = &VBoxAdm::DNS::get_a($rdns) || 'not found';
+        $vars->{'ip'}            = $ip;
+        $vars->{'system_domain'} = $self->config()->{'default'}->{'domain'};
+        $vars->{'logline'}       = $line;
+        $vars->{'helo'}          = $helo;
+        $vars->{'helo_ip'}       = &VBoxAdm::DNS::get_a($helo) || 'not found';
+
+        my $from_domain;
+        if ( $from =~ m/@(.*)$/ ) {
+            $from_domain = $1;
+            $vars->{'from_domain'} = $from_domain;
+        }
+        else {
+
+            # Silently ignore this line.
+            # Seems like the sender is missing the domain
+            # part. Weird but not impossible.
+            # - sp
+            return;
+        }
+
+        if ( $self->_is_notified( 'postmaster@' . $from_domain ) ) {
+            $self->logger()->log( message => "SKIPPED: This postmaster (postmaster\@$from_domain) was already notified.", level => 'debug', );
+            return;
+        }
+
+        if ( &VBoxAdm::Utils::is_local_domain( $self->dbh(), $from_domain ) && !$self->config()->{'notify'}->{'debug'} ) {
+            $self->logger()->log( message => "SKIPPED: Forged localdomain in sender ($from_domain may not be a local domain)!", level => 'debug', );
+            return;
+        }
+
+        if ( !&VBoxAdm::Utils::is_local_mailbox( $self->dbh(), $to ) && !$self->config()->{'notify'}->{'debug'} ) {
+            $self->logger()->log( message => "SKIPPED: Invalid recipient ($to is no local mailbox)!", level => 'debug', );
+            return;
+        }
+
+        # Log-Message: Client host rejected: cannot find your hostname
+        # Action: no RDNS found, notify about missing RDNS
+        if ( $smtpmsg =~ m/Client host rejected: cannot find your hostname/i ) {
+            $self->logger()->log( message => "WOULD Handle missing RDNS and send report to $from, $to, postmaster\@$from_domain.", level => 'debug', );
+            $vars->{'is_rdns'} = 1;
+        }
+
+        # Log-Message: Helo command rejected: Host not found
+        # Action: helo does not resolve to valid IP, notify about invalid helo
+        if ( $smtpmsg =~ m/Helo command rejected: Host not found/i ) {
+            $self->logger()->log( message => "WOULD Handle invalid HELO and send report to $from, $to, postmaster\@$from_domain.", level => 'debug', );
+            $vars->{'is_helo'} = 1;
+        }
+
+        # Log-Message: Sender address rejected: need fully-qualified address
+        # Action: invalid sender domain, send general information
+        if ( $smtpmsg =~ m/ Sender address rejected: need fully-qualified address/i ) {
+            $self->logger()
+              ->log( message => "WOULD handle invalid sender address and send report to $from, $to, postmaster\@$from_domain.", level => 'debug', );
+            $vars->{'is_other'} = 1;
+        }
+
+        if ( $vars->{'is_rdns'} || $vars->{'is_helo'} || $vars->{'is_other'} ) {
+
+            my $sender = 'postmaster@' . $self->config()->{'default'}->{'domain'};
+
+            my $common_header = '';
+            $common_header .= "Subject: Dear Postmaster, please check your DNS- and/or HELO-name\r\n";
+            $common_header .= "Auto-Submitted: auto-generated\r\n";
+            $common_header .= "From: Postmaster <" . $sender . ">\r\n";
+            $common_header .= "BCC: <" . $self->config()->{'notify'}->{'cc'} . ">\r\n" if $self->config()->{'notify'}->{'cc'};
+            $common_header .= 'X-Client: VBoxAdm/RFC-Notify @VERSION@\r\n';
+
+            my $postmaster_msg;
+            $self->_tt()->process( 'notify/postmaster.tpl', $vars, \$postmaster_msg );
+
+            my $emsg = $common_header;
+            $emsg .= "To: <postmaster\@$from_domain>\r\n";
+            $emsg .= 'X-Notified: <postmaster@' . $from_domain . ">\r\n";
+            $emsg .= "\r\n";
+            $emsg .= $postmaster_msg;
+
+            if ( $self->config()->{'notify'}->{'postmaster'} ) {
+                if ( $self->config()->{'notify'}->{'dry'} ) {
+                    $self->logger()->log( message => "DRY - Would send message to POSTMASTER: " . $emsg, level => 'debug', );
+                }
+                else {
+                    &VBoxAdm::Utils::sendmail( $sender, $emsg );
+                }
+            }
+
+            my $recipient_msg;
+            $self->_tt()->process( 'notify/recipient.tpl', $vars, \$recipient_msg );
+
+            $emsg = $common_header;
+            $emsg .= "To: <$to>\r\n";
+            $emsg .= 'X-Notified: <' . $to . ">\r\n";
+            $emsg .= "\r\n";
+            $emsg .= $recipient_msg;
+
+            if ( $self->config()->{'notify'}->{'recipient'} ) {
+                if ( $self->config()->{'notify'}->{'dry'} ) {
+                    $self->logger()->log( message => "DRY - Would send message to RECIPIENT: " . $emsg, level => 'debug', );
+                }
+                else {
+                    &VBoxAdm::Utils::sendmail( $sender, $emsg );
+                }
+            }
+
+            my $sender_msg;
+            $self->_tt()->process( 'notify/sender.tpl', $vars, \$sender_msg );
+
+            $emsg = $common_header;
+            $emsg .= "To: <$from>\r\n";
+            $emsg .= 'X-Notified: <' . $from . ">\r\n";
+            $emsg .= "\r\n";
+            $emsg .= $sender_msg;
+
+            if ( $self->config()->{'notify'}{'sender'} ) {
+                if ( $self->config()->{'notify'}{'dry'} ) {
+                    $self->logger()->log( message => "DRY - Would send message to SENDER: " . $emsg, level => 'debug', );
+                }
+                else {
+                    &VBoxAdm::Utils::sendmail( $sender, $emsg );
+                }
+            }
+
+            $self->_set_notified( 'postmaster@' . $from_domain ) if ( $self->config()->{'notify'}->{'postmaster'} );
+        }
+        else {
+            $self->logger()->log( message => "ERROR Unknown Cause: $smtpmsg", level => 'error', );
+        }
+    }
+    return 1;
+}
+############################################
+# Usage      : &parse_postfix_mailllog('/var/log/mail.log',$config);
+# Purpose    : Parse the given postfix mail.log for rejections
+# Returns    : True if the logfile could be opened.
+# Parameters : The Logfile location and the config hashref.
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub _parse_postfix_logfile {
+    my $self = shift;
+
+		if(!-f $self->logfile()) {
+			$self->logger()->log( message => "Need a logfile", level => 'error', );
+			return;
+		}
+		
+    $self->logger()->log( message => "Reading file ".$self->logfile(), level => 'debug', );
+    if ( open( my $FH, "<", $self->logfile() ) ) {
+      LINE: while ( my $line = <$FH> ) {
+            if ( $line =~ m/postfix\/smtpd/ && $line =~ m/NOQUEUE: reject:/ ) {
+                $self->_parse_reject_line($line);
+            }
+        }
+        close($FH);
+        return 1;
+    }
+    return;
+}
+
+sub _process_bounces {
+    my $self = shift;
+
+    my $mail_server = $self->config()->{'notify'}->{'bounce_server'};
+    my $username    = $self->config()->{'notify'}->{'bounce_user'};
+    my $password    = $self->config()->{'notfiy'}->{'bounce_pass'};
+
+    if ( !$mail_server || !$username || !$password ) {
+        return;
+    }
+
+    my $delays  = 0;
+    my $spams   = 0;
+    my $bounces = 0;
+
+    # connect to the mailserver
+    my $pop = new Mail::POP3Client( HOST => $mail_server );
+    $pop->User($username);
+    $pop->Pass($password);
+    $pop->Connect() >= 0 || next;
+
+    # check bounces
+    # iterate over each message in the inbox
+  MSG: foreach my $i ( 1 .. $pop->Count() ) {
+        my $return_path    = undef;            # filled with Return-Path header if present
+        my $auto_submitted = undef;            # filled with auto_submitted if present
+        my $is_list        = 0;                # set if List-* header present
+        my $is_loop        = 0;                # set if X-Loop: <from addr> present
+        my $from           = undef;
+        my $to             = undef;
+        my $subject        = undef;
+        my $msg_id         = undef;
+        my @header_lines   = $pop->Head($i);
+
+        # iterate over the header lines and set from and subject
+        foreach my $line (@header_lines) {
+            $line =~ m/^From:\s+(.*)$/i           and $from           = $1;
+            $line =~ m/^To:\s+(.*)$/i             and $to             = $1;
+            $line =~ m/^Subject:\s+(.*)$/i        and $subject        = $1;
+            $line =~ m/^Return-Path:\s+(.*)$/i    and $return_path    = $1;
+            $line =~ m/^Auto-Submitted:\s+(.*)$/i and $auto_submitted = $1;
+            $line =~ m/^List-.*:/i                and $is_list        = 1;
+            $line =~ m/^Message-Id:\s+<([^>]+)>/i and $msg_id         = $1;
+        }
+
+        # Decode MIME encoded subject for parsing
+        if ( $subject && $subject =~ m/=\?/ ) {
+            $subject = decode_mimewords($subject);
+        }
+        ##############
+        # DELETE LOOPS
+        #######
+        if ($is_loop) {
+
+            # found a looped message
+
+            # delete message
+            $pop->Delete($i);
+        }
+        ##############
+        # BOUNCES
+        #######
+        elsif ($from
+            && $subject
+            && $from =~ /(MAILER-DAEMON|postmaster|Mail Delivery System|E-postsystemet|Delivery Subsystem|Mailer_Daemon)/i
+            && $subject =~
+/(Undeliver|Returned|returning|failure|failed|Delivery (Status )?Notification|fehlgeschlagen|remise|rejected|nicht zustellbar|Unzustellbar|Unbekannt|DSN|Benachrichtung|problem|falla|Zurückgeschickte Mail|Nondeliverable mail|Kan ikke leveres)/i
+          )
+        {
+            my $x_client   = undef;
+            my $x_notified = undef;
+
+            my @body_lines = $pop->Body($i);
+
+            foreach my $body_line ( $pop->Body($i) ) {
+                if ( $body_line =~ m/^X-Client:\s+(.*)$/i ) {
+                    $x_client = $1;
+                }
+                elsif ( $body_line =~ m/^X-Notified:\s+(.*)$/i ) {
+                    $x_notified = $1;
+                }
+                if ( $x_client && $x_notified ) {
+                    last;
+                }
+            }
+
+            if ( $x_client && $x_notified && $x_client =~ m/VBoxAdm.RFC-Notify/i ) {
+
+                if ( $self->config()->{'notify'}->{'report_broken_postmaster'} ) {
+                    $self->_report_bounced_postmaster( $x_notified, \@header_lines, \@body_lines );
+                    $bounces++;
+                }
+
+                # delete message
+                $pop->Delete($i);
+
+                # successfully processed a bounce
+            }
+            else {
+
+                # could not process a bounce
+
+                # delete message
+                $pop->Delete($i);
+            }
+        }
+        ##############
+        # DELAYED
+        #######
+        elsif ( $from && $subject && $from =~ /(mailer|Mail Delivery System)/i && $subject =~ /(delay|warning)/i ) {
+            $delays++;
+            $pop->Delete($i);
+        }
+        ##############
+        # DELETE AUTO-GENERATED MESSAGES
+        #######
+        elsif ( $is_list || ( $auto_submitted && $auto_submitted ne "no" ) || ( $from && $from eq "<>" ) ) {
+
+            # found a auto-generated message
+            # delete message
+            $pop->Delete($i);
+        }
+        ##############
+        # SPAM
+        #######
+        elsif ( $from && $subject && $subject =~ m/(\*\*\*SPAM\*\*\*|WW Spam: high)/ ) {
+            $spams++;
+            $pop->Delete($i);
+        }
+        ##############
+        # UNKNOWN
+        #######
+        else {
+            ;    # nop
+        }
+    }
+    $pop->Close();
+
+    return;
+}
+
+sub _report_bounced_postmaster {
+    my $self           = shift;
+    my $orig_recipient = shift;
+    my $header_ref     = shift;
+    my $body_ref       = shift;
+
+    my $from = 'postmaster@' . $self->config()->{'default'}->{'domain'};
+    my $to   = 'submit-postmaster@rfc-ignorant.org';
+    $to = $from;    # TODO DEBUG
+
+    my ( $orig_lp, $orig_domain ) = split /@/, $orig_recipient;
+
+    if ( !$orig_lp || !$orig_domain ) {
+        return;
+    }
+
+    my $subject = $orig_domain;
+
+    # TODO parse body and report only messages containing bounces to hostmaster from responding mx!
+    return;
+}
+
+############################################
+# Usage      : &set_notified($dbh, $email);
+# Purpose    : Mark this email as notified.
+# Returns    : Nothing
+# Parameters : DBH and an email.
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+# Mark this recipient as already notified
+sub _set_notified {
+    my $self   = shift;
+    my $email  = shift;
+    my $config = shift || {};
+
+    if ( $config->{'notify'}{'dry'} ) {
+        return 1;
+    }
+
+    my $query = "INSERT IGNORE INTO rfc_notify (email,ts) VALUES(?,NOW())";
+    if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh(), $query, $email ) ) {
+        $sth->finish();
+        return 1;
+    }
+    else {
+        return;
+    }
+}
+
+############################################
+# Usage      : if(&is_notified($dbh,$email)) { ... }
+# Purpose    : Determine if this email was already notified.
+# Returns    : True if it was notified. False otherwise.
+# Parameters : DBH and an email.
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+# Find out whether this recipient was already notified
+sub _is_notified {
+    my $self   = shift;
+    my $email  = shift;
+    my $config = shift || {};
+
+    if ( $config->{'notify'}{'debug'} ) {
+        return 0;
+    }
+
+    my $query = "SELECT COUNT(*) FROM rfc_notify WHERE email = ?";
+    my $sth   = &VBoxAdm::DB::prepexec( $self->dbh(), $query, $email );
+    my $count = $sth->fetchrow_array();
+    $sth->finish();
+
+    return $count;
+}
+
+no Moose;
+__PACKAGE__->meta->make_immutable();
+
+1;
+
+__END__
+

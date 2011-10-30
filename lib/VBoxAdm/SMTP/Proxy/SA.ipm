@@ -226,13 +226,14 @@ sub process_request {
         if ( !$smtp_server->{sock}->close() ) {
             $self->logger()->log( message => "Could not close server socket: $!", level => 'warning', );
         }
+
         # true return value to test for
         1;
     };    # end of eval block
     alarm
       $prev_timeout; # restore timeout, note: neither place this inside the evel nor inside the error checking if, or it may be omitted and bite your ass later!
-    if (!$eval_status || $@) {
-    	my $eval_err = $@;
+    if ( !$eval_status || $@ ) {
+        my $eval_err = $@;
         chomp($eval_err);
         my $msg = "WARNING: Error in process_request eval: $eval_err";
         $self->logger()->log( message => $msg, level => 'error', );
@@ -443,7 +444,7 @@ sub is_spam {
     my $added_envto = 0;                       # did we add an envelope-to?
     my $digest      = Digest::SHA->new(256);
     while ( my $line = <$fh> ) {
-    	## no critic (ProhibitCascadingIfElse)
+        ## no critic (ProhibitCascadingIfElse)
         if ( $line =~ m/^(?:X-)?Envelope-To:/i ) {
             $envto = 1;
         }
@@ -556,9 +557,9 @@ sub is_spam {
 
                 # Build the rewritten message
                 # pause the timeout while doing so
-                my $pause_alarm = alarm(0);
-                my $still_in_header   = 1;
-                my $skipline    = 0;
+                my $pause_alarm     = alarm(0);
+                my $still_in_header = 1;
+                my $skipline        = 0;
                 if ( !$fh->seek( 0, 0 ) ) {
                     my $msg = "Can't rewind message file: $!";
                     $self->logger()->log( message => $msg, level => 'error', );

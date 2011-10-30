@@ -13,7 +13,12 @@ use Template;
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::DNS '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
+use VBoxAdm::Controller::Notify '@VERSION@';
 
+my $RN = VBoxAdm::Controller::Notify->new();
+$RN->run();
+
+=begin cut
 my ( $conffile_used, @hooks, %hook, %config, );
 
 # Valid config file locations to try
@@ -186,7 +191,8 @@ sub parse_reject_line {
             $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
             $emsg .= "To: <postmaster\@$from_domain>\r\n";
             $emsg .= "BCC: <" . $config{'notify'}{'cc'} . ">\r\n" if $config{'notify'}{'cc'};
-            $emsg .= "X-Client: VBoxAdm/RFC-Notify @VERSION@\r\n";
+            $emsg .= 'X-Client: VBoxAdm/RFC-Notify @VERSION@\r\n';
+            $emsg .= 'X-Notified: <postmaster@'.$from_domain.">\r\n";
             $emsg .= "\r\n";
             $emsg .= $postmaster_msg;
 
@@ -207,7 +213,8 @@ sub parse_reject_line {
             $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
             $emsg .= "To: <$to>\r\n";
             $emsg .= "BCC: <" . $config{'notify'}{'cc'} . ">\r\n" if $config{'notify'}{'cc'};
-            $emsg .= "X-Client: VBoxAdm/RFC-Notify @VERSION@\r\n";
+            $emsg .= 'X-Client: VBoxAdm/RFC-Notify @VERSION@\r\n';
+            $emsg .= 'X-Notified: <'.$to.">\r\n";
             $emsg .= "\r\n";
             $emsg .= $recipient_msg;
 
@@ -228,7 +235,8 @@ sub parse_reject_line {
             $emsg .= "From: Postmaster <postmaster\@" . $config{'default'}{'domain'} . ">\r\n";
             $emsg .= "To: <$from>\r\n";
             $emsg .= "BCC: <" . $config{'notify'}{'cc'} . ">\r\n" if $config{'notify'}{'cc'};
-            $emsg .= "X-Client: VBoxAdm/RFC-Notify @VERSION@\r\n";
+            $emsg .= 'X-Client: VBoxAdm/RFC-Notify @VERSION@\r\n';
+            $emsg .= 'X-Notified: <'.$from.">\r\n";
             $emsg .= "\r\n";
             $emsg .= $sender_msg;
 
@@ -326,6 +334,9 @@ sub is_notified {
 
     return $count;
 }
+
+=cut
+
 __END__
 
 =head1 NAME

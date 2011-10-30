@@ -70,6 +70,7 @@ LIBFILES = \
 	lib/VBoxAdm/Controller/Autodiscover.pm \
 	lib/VBoxAdm/Controller/CLI.pm \
 	lib/VBoxAdm/Controller/Frontend.pm \
+	lib/VBoxAdm/Controller/Notify.pm \
 	lib/VBoxAdm/Controller/Vacation.pm \
 	lib/VBoxAdm/L10N/ar.pm \
 	lib/VBoxAdm/L10N/da.pm \

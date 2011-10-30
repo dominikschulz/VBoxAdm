@@ -1,5 +1,7 @@
 TODO:
 
+- rfc-notify: send ndrs to rfc-ignorant: http://www.rfc-ignorant.org/tools/submit_form.php?table=postmaster
+
 - "Back to ..." Link in should log the user out
 
 - Relay Domains
