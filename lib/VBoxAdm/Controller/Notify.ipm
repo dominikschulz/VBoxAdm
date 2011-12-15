@@ -137,7 +137,7 @@ sub run {
 
     $self->_parse_postfix_logfile();
     $self->_process_bounces();
-    
+
     $self->logger()->log( message => "Finished", level => 'debug', );
 
     return 1;
@@ -324,12 +324,12 @@ sub _parse_reject_line {
 sub _parse_postfix_logfile {
     my $self = shift;
 
-		if(!-f $self->logfile()) {
-			$self->logger()->log( message => "Need a logfile", level => 'error', );
-			return;
-		}
-		
-    $self->logger()->log( message => "Reading file ".$self->logfile(), level => 'debug', );
+    if ( !-f $self->logfile() ) {
+        $self->logger()->log( message => "Need a logfile", level => 'error', );
+        return;
+    }
+
+    $self->logger()->log( message => "Reading file " . $self->logfile(), level => 'debug', );
     if ( open( my $FH, "<", $self->logfile() ) ) {
       LINE: while ( my $line = <$FH> ) {
             if ( $line =~ m/postfix\/smtpd/ && $line =~ m/NOQUEUE: reject:/ ) {

@@ -415,7 +415,10 @@ sub is_spam {
     my $sender     = '(unknown)';
     my $recipients = '(unknown)';
     if ( $server->{recipients} && ref( $server->{recipients} ) eq 'ARRAY' ) {
-        $recipients = join( ", ", @{ $server->{recipients} } );
+
+        # recipients may be enclosed in < and >. remove them
+        my @recp = map { $_ =~ s/(?:^<|>$)//g; $_; } @{ $server->{recipients} };
+        $recipients = join( ", ", @recp );
     }
     if ( $server->{from} && $server->{from} =~ m/(\<[^>]*\>)/ ) {
         $sender = $1;
