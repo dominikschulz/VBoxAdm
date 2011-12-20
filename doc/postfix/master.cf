@@ -11,6 +11,7 @@
 # ==========================================================================
 smtp      inet  n       -       -       -       -       smtpd
   -o smtpd_proxy_filter=localhost:10024
+  -o smtpd_proxy_options=speed_adjust
   -o smtp_send_xforward_command=yes
 submission inet n       -       -       -       -       smtpd
   -o smtpd_tls_security_level=encrypt
