@@ -265,7 +265,7 @@ sub migrate {
         $query = "SELECT alias FROM vexim.domainalias WHERE domain_id = ?";
         my $sth_domainalias = $dbh->prepare($query);
         $query =
-            'SELECT localpart,clear,smtp,pop,type,admin,on_vacation,enabled,forward,maxmsgsize,quota,realname,vacation,on_spamassassin,sa_refuse,crypt FROM `'
+'SELECT localpart,clear,smtp,pop,type,admin,on_vacation,enabled,forward,maxmsgsize,quota,realname,vacation,on_spamassassin,sa_refuse,crypt,on_forward FROM `'
           . $source_db
           . '`.users WHERE domain_id = ?';
         my $sth_users = $dbh->prepare($query);
@@ -302,8 +302,8 @@ sub migrate {
             $sth_users->execute($old_domain_id);
             while ( my @row = $sth_users->fetchrow_array() ) {
                 my (
-                    $localpart, $pwclear,    $smtp,  $pop,      $type,         $admin,     $on_vacation,   $enabled,
-                    $forward,   $maxmsgsize, $quota, $realname, $vacation_msg, $sa_active, $sa_kill_score, $pwcrypt,
+                    $localpart,  $pwclear, $smtp,     $pop,          $type,      $admin,         $on_vacation, $enabled, $forward,
+                    $maxmsgsize, $quota,   $realname, $vacation_msg, $sa_active, $sa_kill_score, $pwcrypt,     $on_forward,
                 ) = @row;
                 my $is_siteadmin   = 0;
                 my $is_domainadmin = 0;
@@ -330,9 +330,9 @@ sub migrate {
                     $is_alias = 1;
                 }
                 if ($is_alias) {
-                    $sth_new_alias->execute( $new_domain_id, $localpart, $forward, $enabled )
+                    $sth_new_alias->execute( $new_domain_id, $localpart, $forward, $on_forward )
                       or warn( "Could not execute Query $sql_new_alias: " . $sth_new_alias->errstr );
-                    print "New Alias: $localpart\@$domain ($new_domain_id) => $forward, Enabled: $enabled\n";
+                    print "New Alias: $localpart\@$domain ($new_domain_id) => $forward, Enabled: $on_forward\n";
                 }
                 if ($is_local) {
                     my $pw = '';
