@@ -50,13 +50,27 @@ sub prepare_queries {
     # - an alias on an alias domain
     # This is a pretty huge and expensive query. I haven't found a better way to do this yet.
     my $sql_userinfo = <<'SQL';
-SELECT m.id,d.id,m.max_msg_size,m.sa_active,m.sa_kill_score FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id 
+SELECT m.id,d.id,m.max_msg_size,m.sa_active,m.sa_kill_score
+FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id 
 WHERE CONCAT(m.local_part,'@',d.name) IN 
-(?,
-(SELECT a1.goto FROM aliases AS a1 LEFT JOIN domains AS d1 ON a1.domain_id = d1.id WHERE CONCAT(a1.local_part,'@',d1.name) = ?),
-(SELECT CONCAT(m2.local_part,'@',d2.name) FROM mailboxes AS m2 LEFT JOIN domains AS d2 ON m2.domain_id = d2.id LEFT JOIN domain_aliases AS da2 ON da2.domain_id = d2.id WHERE CONCAT(m2.local_part,'@',da2.name) = ?),
-(SELECT a3.goto FROM aliases AS a3 LEFT JOIN domains AS d3 ON a3.domain_id = d3.id LEFT JOIN domain_aliases AS da3 ON da3.domain_id = d3.id WHERE CONCAT(a3.local_part,'@',da3.name) = ?)
-)};
+(
+  ?,
+  (
+    SELECT a1.goto
+    FROM aliases AS a1 LEFT JOIN domains AS d1 ON a1.domain_id = d1.id
+    WHERE CONCAT(a1.local_part,'@',d1.name) = ?
+  ),
+  (
+    SELECT CONCAT(m2.local_part,'@',d2.name)
+    FROM mailboxes AS m2 LEFT JOIN domains AS d2 ON m2.domain_id = d2.id LEFT JOIN domain_aliases AS da2 ON da2.domain_id = d2.id
+    WHERE CONCAT(m2.local_part,'@',da2.name) = ?
+  ),
+  (
+    SELECT a3.goto
+    FROM aliases AS a3 LEFT JOIN domains AS d3 ON a3.domain_id = d3.id LEFT JOIN domain_aliases AS da3 ON da3.domain_id = d3.id
+    WHERE CONCAT(a3.local_part,'@',da3.name) = ?
+  )
+);
 SQL
     $self->{server}->{vbox}->{sth}->{userinfo} = $self->{server}->{vbox}->{dbh}->prepare($sql_userinfo);
 

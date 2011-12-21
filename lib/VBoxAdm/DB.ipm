@@ -65,12 +65,13 @@ sub connect {
     my $dbh  = undef;
 
     my $timeout = $opts->{ConnectTimeout} || 30;
+    my $prev_timeout = 0;
     eval {
         local $SIG{ALRM} = sub { die "alarm\n" };
-        my $prev_timeout = alarm $timeout;
+        $prev_timeout = alarm $timeout;
         $dbh = DBI->connect_cached( $dsn, undef, undef, { RaiseError => 0, PrintError => 0, } );
-        alarm $prev_timeout;
     };
+    alarm $prev_timeout;
 
     # No eval error handling. If the connection timed out $dbh will be undef anyway ...
     if ($dbh) {
