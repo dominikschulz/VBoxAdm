@@ -798,7 +798,8 @@ sub _init_actions {
                 my $format = "%i\t%s\@%s\t%s\t%i\t%f\t%i\t%i\t%i\n";
                 print "ID\tEmail\tName\tSA-Kill-Score\tSA-Active\tMax-Msg-Size\tActive\tSiteadmin\tDomainadmin\tVacation\n";
                 foreach my $mailbox ( $self->mailbox()->list() ) {
-                    printf( $format, @{$mailbox}{qw(id local_part domain sa_kill_score sa_active max_msg_size is_active is_siteadmin is_domainadmin is_on_vacation)} );
+                    printf( $format,
+                        @{$mailbox}{qw(id local_part domain sa_kill_score sa_active max_msg_size is_active is_siteadmin is_domainadmin is_on_vacation)} );
                 }
                 $self->display_messages();
             },

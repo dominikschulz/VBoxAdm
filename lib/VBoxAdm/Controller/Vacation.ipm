@@ -133,11 +133,11 @@ sub _init_recipient {
     # recipient must be "unrolled", it's smth. like "user#domain.tld@vacation.domain.tld" -> "user@domain.tld"
     my $unrolled = &VBoxAdm::Utils::unroll_recipient( $self->orig_recipient() );
     if ($unrolled) {
-    	$self->logger()->log( message => "Unrolled recipient to ".$unrolled, level => 'debug', );
+        $self->logger()->log( message => "Unrolled recipient to " . $unrolled, level => 'debug', );
         return $unrolled;
     }
     else {
-    	$self->logger()->log( message => "Unable to unroll recipient. Using default: ".$self->orig_recipient(), level => 'debug', );
+        $self->logger()->log( message => "Unable to unroll recipient. Using default: " . $self->orig_recipient(), level => 'debug', );
         return $self->orig_recipient();
     }
 }
@@ -159,9 +159,9 @@ sub _read_options {
 
     # Check options
     die("No sender given on command line!") if !$self->opts()->{'Sender'};
-    $self->sender($self->opts()->{'Sender'});
+    $self->sender( $self->opts()->{'Sender'} );
     die("No recipient given on command line!") if !$self->opts()->{'Recipient'};
-	$self->orig_recipient($self->opts()->{'Recipient'});
+    $self->orig_recipient( $self->opts()->{'Recipient'} );
 
     return 1;
 }
