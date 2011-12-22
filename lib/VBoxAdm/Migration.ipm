@@ -309,6 +309,7 @@ sub migrate {
                 my $is_domainadmin = 0;
                 my $is_alias       = 0;
                 my $is_local       = 0;
+                my $alias_is_enabled = 0;
                 $vacation_msg ||= '';
                 $vacation_msg = &VBoxAdm::Utils::trim($vacation_msg);
                 if ( $type eq 'site' && $admin ) {
@@ -319,6 +320,7 @@ sub migrate {
                 }
                 if ( $type eq 'alias' ) {
                     $is_alias = 1;
+                    $alias_is_enabled = $enabled;
                     $forward  = $smtp;
                     $forward  = &VBoxAdm::Utils::trim($forward);
                     $forward =~ s/\s+/,/g;
@@ -328,11 +330,12 @@ sub migrate {
                 }
                 if ( $type eq 'local' && $forward ) {
                     $is_alias = 1;
+                    $alias_is_enabled = $on_forward;
                 }
                 if ($is_alias) {
-                    $sth_new_alias->execute( $new_domain_id, $localpart, $forward, $on_forward )
+                    $sth_new_alias->execute( $new_domain_id, $localpart, $forward, $alias_is_enabled )
                       or warn( "Could not execute Query $sql_new_alias: " . $sth_new_alias->errstr );
-                    print "New Alias: $localpart\@$domain ($new_domain_id) => $forward, Enabled: $on_forward\n";
+                    print "New Alias: $localpart\@$domain ($new_domain_id) => $forward, Enabled: $alias_is_enabled\n";
                 }
                 if ($is_local) {
                     my $pw = '';
