@@ -305,13 +305,14 @@ sub migrate {
                     $localpart,  $pwclear, $smtp,     $pop,          $type,      $admin,         $on_vacation, $enabled, $forward,
                     $maxmsgsize, $quota,   $realname, $vacation_msg, $sa_active, $sa_kill_score, $pwcrypt,     $on_forward,
                 ) = @row;
-                my $is_siteadmin   = 0;
-                my $is_domainadmin = 0;
-                my $is_alias       = 0;
-                my $is_local       = 0;
+                my $is_siteadmin     = 0;
+                my $is_domainadmin   = 0;
+                my $is_alias         = 0;
+                my $is_local         = 0;
                 my $alias_is_enabled = 0;
                 $vacation_msg ||= '';
                 $vacation_msg = &VBoxAdm::Utils::trim($vacation_msg);
+
                 if ( $type eq 'site' && $admin ) {
                     $is_siteadmin = 1;
                 }
@@ -319,17 +320,17 @@ sub migrate {
                     $is_domainadmin = 1;
                 }
                 if ( $type eq 'alias' ) {
-                    $is_alias = 1;
+                    $is_alias         = 1;
                     $alias_is_enabled = $enabled;
-                    $forward  = $smtp;
-                    $forward  = &VBoxAdm::Utils::trim($forward);
+                    $forward          = $smtp;
+                    $forward          = &VBoxAdm::Utils::trim($forward);
                     $forward =~ s/\s+/,/g;
                 }
                 if ( $type eq 'local' ) {
                     $is_local = 1;
                 }
                 if ( $type eq 'local' && $forward ) {
-                    $is_alias = 1;
+                    $is_alias         = 1;
                     $alias_is_enabled = $on_forward;
                 }
                 if ($is_alias) {

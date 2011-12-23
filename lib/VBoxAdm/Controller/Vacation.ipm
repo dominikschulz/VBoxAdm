@@ -527,7 +527,7 @@ sub _already_notified {
 
     # Notification sent within $notify_interval seconds
     # SQL: SELECT COUNT(*) FROM vacation_notify WHERE on_vacation = recipient AND notified = sender AND notified_at <= NOW() - $notify_interval;
-    my $sql = "SELECT COUNT(*) FROM vacation_notify WHERE on_vacation = ? AND notified = ? AND notified_at <= NOW() - ?";
+    my $sql = "SELECT COUNT(*) FROM vacation_notify WHERE on_vacation = ? AND notified = ? AND notified_at >= NOW() - ?";
     my $sth = $self->dbh()->prepare($sql);
     if ( $sth->execute( $self->recipient(), $self->sender(), $self->notify_interval() ) ) {
         my $count = $sth->fetchrow_array();
@@ -540,6 +540,8 @@ sub _already_notified {
         }
     }
     else {
+
+        $self->logger()->log( message => "Could not execute query $sql with error: " . $sth->error(), level => 'warning', );
 
         # if in doubt, assume we've already sent a notification
         # better not respond than sending too much
@@ -589,6 +591,19 @@ sub _send_vacation_mail {
             $self->logger()
               ->log( level => 'error', message => "Failed to send vacation reply to " . $header_ref->{'To'} . " on behalf of " . $self->recipient() );
         }
+
+        my $sql = "INSERT INTO vacation_notify (on_vacation,notified,notified_at) VALUES(?,?,NOW()) ON DUPLICATE KEY UPDATE notified_at = NOW()";
+        my $sth = $self->dbh()->prepare($sql);
+        if ( !$sth ) {
+            $self->logger()->log( message => "Could not prepare query $sql with error: " . $self->dbh()->errstr, level => 'warning', );
+            return;
+        }
+        if ( !$sth->execute( $self->recipient(), $header_ref->{'To'} ) ) {
+            $self->logger()->log( message => "Could not execute query $sql with error: " . $sth->errstr, level => 'warning', );
+            return;
+        }
+        $sth->finish();
+
         return 1;
     }
     else {
