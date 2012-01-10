@@ -43,7 +43,7 @@ use VBoxAdm::Model::AWL '@VERSION@';
 use VBoxAdm::Model::Domain '@VERSION@';
 use VBoxAdm::Model::DomainAlias '@VERSION@';
 use VBoxAdm::Model::Mailbox '@VERSION@';
-use VBoxAdm::Model::MessageQueue '@VERSION@';
+use VWebAdm::Model::MessageQueue '@VERSION@';
 use VBoxAdm::Model::RFCNotify '@VERSION@';
 use VBoxAdm::Model::RoleAccount '@VERSION@';
 use VBoxAdm::Model::User '@VERSION@';
@@ -66,7 +66,7 @@ Readonly my $ENTRIES_PER_PAGE => 20;
 sub setup {
     my $self = shift;
 
-    my $Logger = VBoxAdm::Logger->new( { 'facility' => 'VBoxAdm/Frontend', } );
+    my $Logger = VWebAdm::Logger::->new( { 'facility' => 'VBoxAdm/Frontend', } );
     $self->{'logger'} = $Logger;
 
     # define the default run mode
@@ -294,10 +294,10 @@ sub setup {
     # L10N
     #
     # the user handle, will try to determine the appropriate language ... look at the docs of Locale::Maketext
-    $self->{lh} = VBoxAdm::L10N->get_handle();
+    $self->{lh} = VBoxAdm::L10N::->get_handle();
 
     # this handle is used for logging. logged messages should always be in english
-    $self->{lh_en} = VBoxAdm::L10N->get_handle('en');
+    $self->{lh_en} = VBoxAdm::L10N::->get_handle('en');
 
     #
     # Templating unsing the Template Toolkit
@@ -355,7 +355,7 @@ sub setup {
 
     # setup classes if the user is logged in
     if ( $self->authen->is_authenticated && $self->authen->username ) {
-        my $Messages = VBoxAdm::Model::MessageQueue->new(
+        my $Messages = VWebAdm::Model::MessageQueue::->new(
             {
                 'lh'      => $self->{'lh'},
                 'lh_en'   => $self->{'lh_en'},
@@ -366,7 +366,7 @@ sub setup {
         # if we can not create a new user object we MUST NOT die but redirect to login page instead
         my $User;
         eval {
-            $User = VBoxAdm::Model::User->new(
+            $User = VBoxAdm::Model::User::->new(
                 {
                     'dbh'      => $self->dbh,
                     'username' => $self->authen->username,
@@ -391,14 +391,14 @@ sub setup {
                 'logger' => $Logger,
                 'config' => $self->{'config'},
             };
-            $self->{'Alias'}             = VBoxAdm::Model::Alias->new($arg_ref);
-            $self->{'AWL'}               = VBoxAdm::Model::AWL->new($arg_ref);
-            $self->{'Domain'}            = VBoxAdm::Model::Domain->new($arg_ref);
-            $self->{'DomainAlias'}       = VBoxAdm::Model::DomainAlias->new($arg_ref);
-            $self->{'Mailbox'}           = VBoxAdm::Model::Mailbox->new($arg_ref);
-            $self->{'RFCNotify'}         = VBoxAdm::Model::RFCNotify->new($arg_ref);
-            $self->{'RoleAccount'}       = VBoxAdm::Model::RoleAccount->new($arg_ref);
-            $self->{'VacationBlacklist'} = VBoxAdm::Model::VacationBlacklist->new($arg_ref);
+            $self->{'Alias'}             = VBoxAdm::Model::Alias::->new($arg_ref);
+            $self->{'AWL'}               = VBoxAdm::Model::AWL::->new($arg_ref);
+            $self->{'Domain'}            = VBoxAdm::Model::Domain::->new($arg_ref);
+            $self->{'DomainAlias'}       = VBoxAdm::Model::DomainAlias::->new($arg_ref);
+            $self->{'Mailbox'}           = VBoxAdm::Model::Mailbox::->new($arg_ref);
+            $self->{'RFCNotify'}         = VBoxAdm::Model::RFCNotify::->new($arg_ref);
+            $self->{'RoleAccount'}       = VBoxAdm::Model::RoleAccount::->new($arg_ref);
+            $self->{'VacationBlacklist'} = VBoxAdm::Model::VacationBlacklist::->new($arg_ref);
         }
     }
 

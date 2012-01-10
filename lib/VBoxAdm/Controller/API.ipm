@@ -24,7 +24,7 @@ use VBoxAdm::Model::AWL '@VERSION@';
 use VBoxAdm::Model::Domain '@VERSION@';
 use VBoxAdm::Model::DomainAlias '@VERSION@';
 use VBoxAdm::Model::Mailbox '@VERSION@';
-use VBoxAdm::Model::MessageQueue '@VERSION@';
+use VWebAdm::Model::MessageQueue '@VERSION@';
 use VBoxAdm::Model::RFCNotify '@VERSION@';
 use VBoxAdm::Model::RoleAccount '@VERSION@';
 use VBoxAdm::Model::User '@VERSION@';
@@ -45,7 +45,7 @@ our $VERSION = '@VERSION@';
 sub setup {
     my $self = shift;
     
-    my $Logger = VBoxAdm::Logger->new( { 'facility' => 'VBoxAdm/Frontend', } );
+    my $Logger = VWebAdm::Logger::->new( { 'facility' => 'VBoxAdm/Frontend', } );
     $self->{'logger'} = $Logger;
 
     # define the default run mode
@@ -133,10 +133,10 @@ sub setup {
     # L10N
     #
     # the user handle, will try to determine the appropriate language ... look at the docs of Locale::Maketext
-    $self->{lh} = VBoxAdm::L10N->get_handle();
+    $self->{lh} = VBoxAdm::L10N::->get_handle();
 
     # this handle is used for logging. logged messages should always be in english
-    $self->{lh_en} = VBoxAdm::L10N->get_handle('en');
+    $self->{lh_en} = VBoxAdm::L10N::->get_handle('en');
 
     # to make perlcritic happy
     return 1;
@@ -221,7 +221,7 @@ sub handle_v1 {
         return "Missing parameters.\n";
     }
 
-    my $hash_ref = &VBoxAdm::API::decrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $payload );
+    my $hash_ref = &VWebAdm::API::decrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $payload );
     my $answer_ref = {};
 
     if ( !$hash_ref ) {
@@ -234,7 +234,7 @@ sub handle_v1 {
         return "Illegal request.\n";
     }
 
-    my $Messages = VBoxAdm::Model::MessageQueue->new(
+    my $Messages = VWebAdm::Model::MessageQueue::->new(
         {
             'LH'    => $cgiapp->{'lh'},
             'LH_EN' => $cgiapp->{'lh_en'},
@@ -275,13 +275,13 @@ sub handle_v1 {
         'Config'       => $cgiapp->{'config'},
     };
     my $c = {};
-    $c->{alias}             = VBoxAdm::Model::Alias->new($arg_ref);
-    $c->{awl}               = VBoxAdm::Model::AWL->new($arg_ref);
-    $c->{domain}            = VBoxAdm::Model::Domain->new($arg_ref);
-    $c->{domainalias}       = VBoxAdm::Model::DomainAlias->new($arg_ref);
-    $c->{mailbox}           = VBoxAdm::Model::Mailbox->new($arg_ref);
-    $c->{rfcnotify}         = VBoxAdm::Model::RFCNotify->new($arg_ref);
-    $c->{vacationblacklist} = VBoxAdm::Model::VacationBlacklist->new($arg_ref);
+    $c->{alias}             = VBoxAdm::Model::Alias::->new($arg_ref);
+    $c->{awl}               = VBoxAdm::Model::AWL::->new($arg_ref);
+    $c->{domain}            = VBoxAdm::Model::Domain::->new($arg_ref);
+    $c->{domainalias}       = VBoxAdm::Model::DomainAlias::->new($arg_ref);
+    $c->{mailbox}           = VBoxAdm::Model::Mailbox::->new($arg_ref);
+    $c->{rfcnotify}         = VBoxAdm::Model::RFCNotify::->new($arg_ref);
+    $c->{vacationblacklist} = VBoxAdm::Model::VacationBlacklist::->new($arg_ref);
 
     $answer_ref->{'auth'} = 'ok';
 
@@ -352,7 +352,7 @@ sub handle_v1 {
     #$output .= "Response-Ciphertext: ".$ciphertext."<br />\n";
     #my $plaintext = &decrypt( $cgiapp, $ciphertext );
     #$output .= "Response-Hashref: <pre>".Dumper($plaintext)."</pre><br />\n";
-    my $output = &VBoxAdm::API::encrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $answer_ref );
+    my $output = &VWebAdm::API::encrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $answer_ref );
     return $output;
 }
 

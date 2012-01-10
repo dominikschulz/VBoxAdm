@@ -78,7 +78,7 @@ around BUILDARGS => sub {
         $arg_ref->{'system_user'} = 1;
         $arg_ref->{'user'}        = 1;
     }
-    elsif ( $arg_ref->{'username'} && &VBoxAdm::Utils::is_valid_address_rfc822( $arg_ref->{'username'} ) ) {
+    elsif ( $arg_ref->{'username'} && &VWebAdm::Utils::is_valid_address_rfc822( $arg_ref->{'username'} ) ) {
         my ( $local_part, $domain ) = split /@/, $arg_ref->{'username'};
         $arg_ref->{'local_part'} = $local_part;
         $arg_ref->{'domain'}     = $domain;
@@ -94,7 +94,7 @@ sub login {
     # check if login works
     my $sql =
 "SELECT m.id,m.password,m.is_domainadmin,m.is_siteadmin,d.id FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh(), $sql, $self->local_part(), $self->domain() );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh(), $sql, $self->local_part(), $self->domain() );
 
     if ( !$sth ) {
         $self->logger()->log( message => "Database error during query ($sql): " . $self->dbh()->errstr(), level => 'error', );
@@ -104,7 +104,7 @@ sub login {
 
     my ( $id, $pw, $is_da, $is_sa, $domain_id ) = $sth->fetchrow_array();
     $sth->finish();
-    if ( !$self->force && !&VBoxAdm::SaltedHash::verify_pass( $password, $pw ) ) {
+    if ( !$self->force && !&VWebAdm::SaltedHash::verify_pass( $password, $pw ) ) {
         $self->logger()->log( message => "Password invalid!", level => 'warning', );
         return;
     }

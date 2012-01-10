@@ -153,7 +153,6 @@ MANFILES = \
 	lib/VBoxAdm/Model/Domain.3 \
 	lib/VBoxAdm/Model/DomainAlias.3 \
 	lib/VBoxAdm/Model/Mailbox.3 \
-	lib/VBoxAdm/Model/MessageQueue.3 \
 	lib/VBoxAdm/Model/User.3 \
 	lib/VBoxAdm/Model/VacationBlacklist.3 \
 	lib/VBoxAdm/Model/VacationNotify.3 \
@@ -170,6 +169,7 @@ MANFILES = \
 	lib/VDnsAdm/Model/Domain.3 \
 	lib/VDnsAdm/Model/Record.3 \
 	lib/VDnsAdm/Model/Supermaster.3 \
+	lib/VWebAdm/Model/MessageQueue.3 \
 	lib/VWebAdm/API.3 \
 	lib/VWebAdm/DB.3 \
 	lib/VWebAdm/DNS.3 \
@@ -193,7 +193,6 @@ TESTFILES = \
 	t/VBoxAdm/Model/Domain.t \
 	t/VBoxAdm/Model/DomainAlias.t \
 	t/VBoxAdm/Model/Mailbox.t \
-	t/VBoxAdm/Model/MessageQueue.t \
 	t/VBoxAdm/Model/User.t \
 	t/VBoxAdm/Model/VacationBlacklist.t \
 	t/VBoxAdm/Model/VacationNotify.t \
@@ -211,6 +210,7 @@ TESTFILES = \
 	t/VDnsAdm/Model/Record.t \
 	t/VDnsAdm/Model/Supermaster.t \
 	t/VDnsAdm/L10N.t \
+	t/VWebAdm/Model/MessageQueue.t \
 	t/VWebAdm/API.t \
 	t/VWebAdm/DB.t \
 	t/VWebAdm/DNS.t \

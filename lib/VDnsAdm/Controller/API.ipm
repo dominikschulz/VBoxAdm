@@ -13,10 +13,9 @@ use CGI::Application::Plugin::DBH (qw/dbh_config dbh/);
 use Carp;
 use Config::Std;
 use Data::Dumper;
-use Sys::Syslog;
 
 use VWebAdm::API '@VERSION@';
-use VBoxAdm::L10N '@VERSION@';
+use VDnsAdm::L10N '@VERSION@';
 use VWebAdm::Utils '@VERSION@';
 
 use VBoxAdm::Model::Alias '@VERSION@';
@@ -24,7 +23,7 @@ use VBoxAdm::Model::AWL '@VERSION@';
 use VBoxAdm::Model::Domain '@VERSION@';
 use VBoxAdm::Model::DomainAlias '@VERSION@';
 use VBoxAdm::Model::Mailbox '@VERSION@';
-use VBoxAdm::Model::MessageQueue '@VERSION@';
+use VWebAdm::Model::MessageQueue '@VERSION@';
 use VBoxAdm::Model::RFCNotify '@VERSION@';
 use VBoxAdm::Model::RoleAccount '@VERSION@';
 use VBoxAdm::Model::User '@VERSION@';
@@ -130,10 +129,10 @@ sub setup {
     # L10N
     #
     # the user handle, will try to determine the appropriate language ... look at the docs of Locale::Maketext
-    $self->{lh} = VBoxAdm::L10N->get_handle();
+    $self->{lh} = VBoxAdm::L10N::->get_handle();
 
     # this handle is used for logging. logged messages should always be in english
-    $self->{lh_en} = VBoxAdm::L10N->get_handle('en');
+    $self->{lh_en} = VBoxAdm::L10N::->get_handle('en');
 
     # to make perlcritic happy
     return 1;
@@ -234,7 +233,7 @@ sub handle_v1 {
         return "Illegal request.\n";
     }
 
-    my $Messages = VBoxAdm::Model::MessageQueue->new(
+    my $Messages = VWebAdm::Model::MessageQueue::->new(
         {
             'LH'    => $cgiapp->{'lh'},
             'LH_EN' => $cgiapp->{'lh_en'},
@@ -244,7 +243,7 @@ sub handle_v1 {
     my $User;
     if ( $hash_ref->{'user'}->{'username'} && $hash_ref->{'user'}->{'password'} ) {
         eval {
-            $User = VBoxAdm::Model::User->new(
+            $User = VBoxAdm::Model::User::->new(
                 {
                     'dbh'          => $cgiapp->dbh,
                     'MessageQueue' => $Messages,
@@ -275,13 +274,13 @@ sub handle_v1 {
         'Config'       => $cgiapp->{'config'},
     };
     my $c = {};
-    $c->{alias}             = VBoxAdm::Model::Alias->new($arg_ref);
-    $c->{awl}               = VBoxAdm::Model::AWL->new($arg_ref);
-    $c->{domain}            = VBoxAdm::Model::Domain->new($arg_ref);
-    $c->{domainalias}       = VBoxAdm::Model::DomainAlias->new($arg_ref);
-    $c->{mailbox}           = VBoxAdm::Model::Mailbox->new($arg_ref);
-    $c->{rfcnotify}         = VBoxAdm::Model::RFCNotify->new($arg_ref);
-    $c->{vacationblacklist} = VBoxAdm::Model::VacationBlacklist->new($arg_ref);
+    $c->{alias}             = VBoxAdm::Model::Alias::->new($arg_ref);
+    $c->{awl}               = VBoxAdm::Model::AWL::->new($arg_ref);
+    $c->{domain}            = VBoxAdm::Model::Domain::->new($arg_ref);
+    $c->{domainalias}       = VBoxAdm::Model::DomainAlias::->new($arg_ref);
+    $c->{mailbox}           = VBoxAdm::Model::Mailbox::->new($arg_ref);
+    $c->{rfcnotify}         = VBoxAdm::Model::RFCNotify::->new($arg_ref);
+    $c->{vacationblacklist} = VBoxAdm::Model::VacationBlacklist::->new($arg_ref);
 
     $answer_ref->{'auth'} = 'ok';
 

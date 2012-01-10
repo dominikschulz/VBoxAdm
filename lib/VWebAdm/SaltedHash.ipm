@@ -1,4 +1,4 @@
-package VBoxAdm::SaltedHash;
+package VWebAdm::SaltedHash;
 
 use strict;
 use warnings;
