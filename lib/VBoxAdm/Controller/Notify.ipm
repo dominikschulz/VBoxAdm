@@ -7,10 +7,10 @@ use Config::Std;
 use Template;
 use Mail::POP3Client;
 
-use VBoxAdm::DB '@VERSION@';
-use VBoxAdm::DNS '@VERSION@';
-use VBoxAdm::Logger '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::DNS '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 
 our $VERSION = '@VERSION@';
 
@@ -23,7 +23,7 @@ has 'dbh' => (
 
 has 'logger' => (
     'is'      => 'ro',
-    'isa'     => 'VBoxAdm::Logger',
+    'isa'     => 'VWebAdm::Logger',
     'lazy'    => 1,
     'builder' => '_init_logger',
 );
@@ -57,7 +57,7 @@ has 'config' => (
 sub _init_logger {
     my $self = shift;
 
-    return VBoxAdm::Logger->new('vboxadm-rfcnotify');
+    return VWebAdm::Logger->new('vboxadm-rfcnotify');
 }
 
 has 'conffile_used' => (
@@ -182,12 +182,12 @@ sub _parse_reject_line {
         $vars->{'to'}            = $to;
         $vars->{'from'}          = $from;
         $vars->{'rdns'}          = $rdns;
-        $vars->{'fdns'}          = &VBoxAdm::DNS::get_a($rdns) || 'not found';
+        $vars->{'fdns'}          = &VWebAdm::DNS::get_a($rdns) || 'not found';
         $vars->{'ip'}            = $ip;
         $vars->{'system_domain'} = $self->config()->{'default'}->{'domain'};
         $vars->{'logline'}       = $line;
         $vars->{'helo'}          = $helo;
-        $vars->{'helo_ip'}       = &VBoxAdm::DNS::get_a($helo) || 'not found';
+        $vars->{'helo_ip'}       = &VWebAdm::DNS::get_a($helo) || 'not found';
 
         my $from_domain;
         if ( $from =~ m/@(.*)$/ ) {
@@ -208,12 +208,12 @@ sub _parse_reject_line {
             return;
         }
 
-        if ( &VBoxAdm::Utils::is_local_domain( $self->dbh(), $from_domain ) && !$self->config()->{'notify'}->{'debug'} ) {
+        if ( &VWebAdm::Utils::is_local_domain( $self->dbh(), $from_domain ) && !$self->config()->{'notify'}->{'debug'} ) {
             $self->logger()->log( message => "SKIPPED: Forged localdomain in sender ($from_domain may not be a local domain)!", level => 'debug', );
             return;
         }
 
-        if ( !&VBoxAdm::Utils::is_local_mailbox( $self->dbh(), $to ) && !$self->config()->{'notify'}->{'debug'} ) {
+        if ( !&VWebAdm::Utils::is_local_mailbox( $self->dbh(), $to ) && !$self->config()->{'notify'}->{'debug'} ) {
             $self->logger()->log( message => "SKIPPED: Invalid recipient ($to is no local mailbox)!", level => 'debug', );
             return;
         }
@@ -265,7 +265,7 @@ sub _parse_reject_line {
                     $self->logger()->log( message => "DRY - Would send message to POSTMASTER: " . $emsg, level => 'debug', );
                 }
                 else {
-                    &VBoxAdm::Utils::sendmail( $sender, $emsg );
+                    &VWebAdm::Utils::sendmail( $sender, $emsg );
                 }
             }
 
@@ -283,7 +283,7 @@ sub _parse_reject_line {
                     $self->logger()->log( message => "DRY - Would send message to RECIPIENT: " . $emsg, level => 'debug', );
                 }
                 else {
-                    &VBoxAdm::Utils::sendmail( $sender, $emsg );
+                    &VWebAdm::Utils::sendmail( $sender, $emsg );
                 }
             }
 
@@ -301,7 +301,7 @@ sub _parse_reject_line {
                     $self->logger()->log( message => "DRY - Would send message to SENDER: " . $emsg, level => 'debug', );
                 }
                 else {
-                    &VBoxAdm::Utils::sendmail( $sender, $emsg );
+                    &VWebAdm::Utils::sendmail( $sender, $emsg );
                 }
             }
 
@@ -524,7 +524,7 @@ sub _set_notified {
     }
 
     my $query = "INSERT IGNORE INTO rfc_notify (email,ts) VALUES(?,NOW())";
-    if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh(), $query, $email ) ) {
+    if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh(), $query, $email ) ) {
         $sth->finish();
         return 1;
     }
@@ -552,7 +552,7 @@ sub _is_notified {
     }
 
     my $query = "SELECT COUNT(*) FROM rfc_notify WHERE email = ?";
-    my $sth   = &VBoxAdm::DB::prepexec( $self->dbh(), $query, $email );
+    my $sth   = &VWebAdm::DB::prepexec( $self->dbh(), $query, $email );
     my $count = $sth->fetchrow_array();
     $sth->finish();
 

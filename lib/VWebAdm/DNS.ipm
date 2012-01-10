@@ -1,4 +1,4 @@
-package VBoxAdm::DNS;
+package VWebAdm::DNS;
 
 use strict;
 use warnings;
@@ -20,7 +20,7 @@ our $VERSION = '@VERSION@';
     sub get_a {
         my $hostname = shift || return;
         if ( !$res ) {
-            $res = Net::DNS::Resolver->new;
+            $res = Net::DNS::Resolver::->new;
         }
 
         my $query = $res->search($hostname);
@@ -47,7 +47,7 @@ our $VERSION = '@VERSION@';
     sub get_ptr {
         my $ip = shift || return;
         if ( !$res ) {
-            $res = Net::DNS::Resolver->new;
+            $res = Net::DNS::Resolver::->new;
         }
         my $query = $res->query( $ip, 'PTR' );
 
@@ -70,7 +70,7 @@ our $VERSION = '@VERSION@';
     sub get_mx {
         my $hostname = shift || return;
         if ( !$res ) {
-            $res = Net::DNS::Resolver->new;
+            $res = Net::DNS::Resolver::->new;
         }
 
         my $query = $res->search($hostname);
@@ -90,7 +90,7 @@ our $VERSION = '@VERSION@';
     sub get_ns {
         my $hostname = shift || return;
         if ( !$res ) {
-            $res = Net::DNS::Resolver->new;
+            $res = Net::DNS::Resolver::->new;
         }
 
         my $query = $res->query( $hostname, 'NS' );
@@ -128,16 +128,16 @@ __END__
 
 =head1 NAME
 
-VBoxAdm::DNS - DNS Utility Methods
+VWebAdm::DNS - DNS Utility Methods
 
 =head1 VERSION
 
-This documentation refers to VBoxAdm::DNS version @VERSION@
+This documentation refers to VWebAdm::DNS version @VERSION@
 built on @BUILDDATE@.
 
 =head1 SYNOPSIS
 
-    use VBoxAdm::DNS;
+    use VWebAdm::DNS;
 
 =head1 DESCRIPTION
 

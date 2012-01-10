@@ -8,7 +8,7 @@ use Digest::MD5;
 use Digest::Perl::MD5;
 use Digest::SHA;
 
-use VBoxAdm::Password '@VERSION@';
+use VWebAdm::Password '@VERSION@';
 
 our $VERSION = '@VERSION@';
 

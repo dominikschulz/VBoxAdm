@@ -1,4 +1,4 @@
-package VBoxAdm::DB;
+package VWebAdm::DB;
 
 use strict;
 use warnings;
@@ -9,7 +9,7 @@ use DBI qw(:sql_types);
 our $VERSION = '@VERSION@';
 
 ############################################
-# Usage      : VBoxAdm::DB->show_child_handles($dbh);
+# Usage      : VWebAdm::DB->show_child_handles($dbh);
 # Purpose    : Recursively prints all child handles of the given handle.
 # Returns    : nothing
 # Parameters : One DBI handle
@@ -27,7 +27,7 @@ sub show_child_handles {
 }
 
 ############################################
-# Usage      : VBoxAdm::DB->finish_child_handles($dbh);
+# Usage      : VWebAdm::DB->finish_child_handles($dbh);
 # Purpose    : Recursivly (up to 10 levels of nesting) visit all child handles an call finish() on them.
 # Returns    : nothing
 # Parameters : One DBI handle
@@ -52,7 +52,7 @@ sub finish_child_handles {
 }
 
 ############################################
-# Usage      : my $dbh = VBoxAdm::DB->connect($dsn);
+# Usage      : my $dbh = VWebAdm::DB->connect($dsn);
 # Purpose    : Connect to a Database
 # Returns    : a valid DBI database handle
 # Parameters : $dsn - the dsn
@@ -112,16 +112,16 @@ __END__
 
 =head1 NAME
 
-VBoxAdm::DB - common DB methods for VBoxAdm
+VWebAdm::DB - common DB methods for VBoxAdm
 
 =head1 VERSION
 
-This documentation refers to VBoxAdm::DB version @VERSION@
+This documentation refers to VWebAdm::DB version @VERSION@
 built on @BUILDDATE@.
 
 =head1 SYNOPSIS
 
-    use VBoxAdm::DB;
+    use VWebAdm::DB;
 
 =head1 DESCRIPTION
 

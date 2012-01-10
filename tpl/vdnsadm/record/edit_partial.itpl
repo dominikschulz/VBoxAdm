@@ -1,0 +1,46 @@
+<div class="forms">
+	<form name="create_domain" method="POST">
+		<input type="hidden" name="rm" value="update_domain_alias" />
+		<h1>[% "Modify a domain alias" | l10n %]</h1>
+		
+		<label for="domain_name">
+			[% "Alias-Domain:" | l10n %]
+			<span class="small"></span>
+		</label>
+		[% domain_name %]
+		
+		<div class="spacer"></div>
+		
+		<label for="target">
+			[% "Target:" | l10n %]
+			<span class="small"></span>
+		</label>
+		
+		[% FOREACH line IN domains %]
+			[% IF loop.first %]
+			<select name="target">
+			[% END %]
+			<option value="[% line.id %]"[% IF line.id == target %] selected[% END %]>[% line.name %]</option>
+			[% IF loop.last %]
+			</select>
+			[% END %]
+		[% END %]
+		
+		<div class="spacer"></div>
+		
+		<label for="is_active">
+			[% "Enabled:" | l10n %]
+			<span class="small"></span>
+		</label>
+		<input type="checkbox" name="is_active" [% IF is_active %]checked[% END %] />
+		
+		<div class="spacer"></div>
+		
+		<button class="button" type="submit" name="submit">
+			<img src="[% media_prefix %]/icons/fffsilk/accept.png" border="0" />
+			[% "Modify Domain-Alias" | l10n %]
+		</button>
+		
+		<input type="hidden" name="domain_alias_id" value="[% domain_alias_id %]" />
+	</form>
+</div>

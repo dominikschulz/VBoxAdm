@@ -5,9 +5,8 @@ use namespace::autoclean;
 
 use Carp;
 
-use Sys::Syslog;
-use VBoxAdm::DB '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 
 extends 'VBoxAdm::Model';
 
@@ -25,7 +24,7 @@ sub create {
     }
 
     my $sql = "INSERT IGNORE INTO awl (email,last_seen,disabled) VALUES(?,NOW(),0)";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $email );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $email );
 
     if ( !$sth ) {
         $self->msg->push( 'error', 'Database error.' );
@@ -46,12 +45,12 @@ sub get_id {
         return;
     }
 
-    if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+    if ( !&VWebAdm::Utils::is_valid_address_rfc822($email) ) {
         return;
     }
 
     my $sql = "SELECT id FROM awl WHERE email = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $email );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $email );
     my $id  = $sth->fetchrow_array();
 
     if ( !$sth ) {

@@ -1,4 +1,4 @@
-package VBoxAdm::API;
+package VWebAdm::API;
 
 use Moose;
 use namespace::autoclean;
@@ -8,7 +8,7 @@ use MIME::Base64;
 use Crypt::CBC;
 use Digest::SHA;
 use JSON;
-use VBoxAdm::Logger '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
 
 has '_ua' => (
     'is'      => 'rw',
@@ -26,7 +26,7 @@ has '_json' => (
 
 has 'logger' => (
     'is'      => 'rw',
-    'isa'     => 'VBoxAdm::Logger',
+    'isa'     => 'VWebAdm::Logger',
     'lazy'    => 1,
     'builder' => '_init_logger',
 );
@@ -34,7 +34,7 @@ has 'logger' => (
 sub _init_logger {
     my $self = shift;
 
-    my $Logger = VBoxAdm::Logger->new('vboxadm-remotecli');
+    my $Logger = VWebAdm::Logger->new('vwebadm-remotecli');
 
     return $Logger;
 }
@@ -43,7 +43,7 @@ sub _init_ua {
     my $self = shift;
 
     my $UA = LWP::UserAgent->new();
-    $UA->agent('VBoxAdm/RemoteCLI @VERSION@');
+    $UA->agent('VWebAdm/RemoteCLI @VERSION@');
 
     return $UA;
 }
@@ -216,11 +216,11 @@ __END__
 
 =head1 NAME
 
-VBoxAdm::API - Common API methods
+VWebAdm::API - Common API methods
 
 =head1 VERSION
 
-This documentation refers to VBoxAdm::API version @VERSION@
+This documentation refers to VWebAdm::API version @VERSION@
 built on @BUILDDATE@.
 
 =head1 SYNOPSIS

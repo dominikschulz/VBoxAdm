@@ -51,10 +51,14 @@ BINFILES = \
 	bin/vboxadm-sa.pl \
 	bin/vboxadm.pl \
 	bin/vboxadmr.pl \
+	bin/vdnsadm.pl \
+	bin/vdnsadmr.pl \
 	cgi-bin/autodiscover.pl \
 	cgi-bin/vboxadm.pl \
 	cgi-bin/vboxadm.fcgi \
 	cgi-bin/vboxapi.pl \
+	cgi-bin/vdnsadm.pl \
+	cgi-bin/vdnsapi.pl \
 	cron/cleanup.pl \
 	cron/awl.pl \
 	cron/notify.pl \
@@ -103,12 +107,21 @@ LIBFILES = \
 	lib/VBoxAdm/SMTP/Client.pm \
 	lib/VBoxAdm/SMTP/Proxy.pm \
 	lib/VBoxAdm/SMTP/Server.pm \
+	lib/VBoxAdm/L10N.pm \
+	lib/VBoxAdm/Migration.pm \
+	lib/VDnsAdm/Controller/API.pm \
+	lib/VDnsAdm/Controller/CLI.pm \
+	lib/VDnsAdm/Controller/Frontend.pm \
+	lib/VDnsAdm/L10N/de.pm \
+	lib/VDnsAdm/L10N/en.pm \
+	lib/VDnsAdm/Model/Domain.pm \
+	lib/VDnsAdm/Model/Record.pm \
+	lib/VDnsAdm/Model/Supermaster.pm \
+	lib/VDnsAdm/L10N.pm \
 	lib/VBoxAdm/API.pm \
 	lib/VBoxAdm/DB.pm \
 	lib/VBoxAdm/DNS.pm \
-	lib/VBoxAdm/L10N.pm \
 	lib/VBoxAdm/Logger.pm \
-	lib/VBoxAdm/Migration.pm \
 	lib/VBoxAdm/Model.pm \
 	lib/VBoxAdm/Password.pm \
 	lib/VBoxAdm/SaltedHash.pm \
@@ -119,8 +132,12 @@ MANFILES = \
 	bin/vboxadm-ma.8 \
 	bin/vboxadm-sa.8 \
 	bin/vboxadm.8 \
+	bin/vdnsadm.8 \
+	bin/vdnsadmr.8 \
 	cgi-bin/autodiscover.1 \
 	cgi-bin/vboxadm.1 \
+	cgi-bin/vdnsadm.1 \
+	cgi-bin/vdnsapi.1 \
 	cron/awl.8 \
 	cron/cleanup.8 \
 	cron/mailarchive.8 \
@@ -145,14 +162,22 @@ MANFILES = \
 	lib/VBoxAdm/SMTP/Client.3 \
 	lib/VBoxAdm/SMTP/Proxy.3 \
 	lib/VBoxAdm/SMTP/Server.3 \
-	lib/VBoxAdm/API.3 \
-	lib/VBoxAdm/DB.3 \
 	lib/VBoxAdm/L10N.3 \
 	lib/VBoxAdm/Migration.3 \
-	lib/VBoxAdm/Model.3 \
-	lib/VBoxAdm/Password.3 \
-	lib/VBoxAdm/SaltedHash.3 \
-	lib/VBoxAdm/Utils.3
+	lib/VDnsAdm/Controller/API.3 \
+	lib/VDnsAdm/Controller/CLI.3 \
+	lib/VDnsAdm/Controller/Frontend.3 \
+	lib/VDnsAdm/Model/Domain.3 \
+	lib/VDnsAdm/Model/Record.3 \
+	lib/VDnsAdm/Model/Supermaster.3 \
+	lib/VWebAdm/API.3 \
+	lib/VWebAdm/DB.3 \
+	lib/VWebAdm/DNS.3 \
+	lib/VWebAdm/Logger.3 \
+	lib/VWebAdm/Model.3 \
+	lib/VWebAdm/Password.3 \
+	lib/VWebAdm/SaltedHash.3 \
+	lib/VWebAdm/Utils.3
 
 TESTFILES = \
 	t/VBoxAdm/Controller/API.t \
@@ -177,13 +202,23 @@ TESTFILES = \
 	t/VBoxAdm/SMTP/Client.t \
 	t/VBoxAdm/SMTP/Proxy.t \
 	t/VBoxAdm/SMTP/Server.t \
-	t/VBoxAdm/API.t \
-	t/VBoxAdm/DB.t \
 	t/VBoxAdm/L10N.t \
 	t/VBoxAdm/Migration.t \
-	t/VBoxAdm/Model.t \
-	t/VBoxAdm/SaltedHash.t \
-	t/VBoxAdm/Utils.t
+	t/VDnsAdm/Controller/API.t \
+	t/VDnsAdm/Controller/CLI.t \
+	t/VDnsAdm/Controller/Frontend.t \
+	t/VDnsAdm/Model/Domain.t \
+	t/VDnsAdm/Model/Record.t \
+	t/VDnsAdm/Model/Supermaster.t \
+	t/VDnsAdm/L10N.t \
+	t/VWebAdm/API.t \
+	t/VWebAdm/DB.t \
+	t/VWebAdm/DNS.t \
+	t/VWebAdm/Logger.t \
+	t/VWebAdm/Model.t \
+	t/VWebAdm/Password.t \
+	t/VWebAdm/SaltedHash.t \
+	t/VWebAdm/Utils.t
 
 CSSFILES = \
 	res/css/datatable/datatable_jui.min.css \
@@ -196,45 +231,63 @@ JSFILES = \
 	res/js/script.min.js
 
 TPLFILES = \
-	tpl/alias/create_partial.tpl \
-	tpl/alias/create.tpl \
-	tpl/alias/edit_partial.tpl \
-	tpl/alias/edit.tpl \
-	tpl/alias/list.tpl \
-	tpl/awl/list.tpl \
-	tpl/domain/create_partial.tpl \
-	tpl/domain/create.tpl \
-	tpl/domain/list.tpl \
-	tpl/domain/show.tpl \
-	tpl/domain_alias/create_partial.tpl \
-	tpl/domain_alias/create.tpl \
-	tpl/domain_alias/edit_partial.tpl \
-	tpl/domain_alias/edit.tpl \
-	tpl/domain_alias/list.tpl \
-	tpl/includes/footer.tpl \
-	tpl/includes/header.tpl \
-	tpl/includes/navigation.tpl \
-	tpl/mailbox/admins.tpl \
-	tpl/mailbox/create_partial.tpl \
-	tpl/mailbox/create.tpl \
-	tpl/mailbox/edit_partial.tpl \
-	tpl/mailbox/edit.tpl \
-	tpl/mailbox/list.tpl \
-	tpl/rfc_notify/list.tpl \
-	tpl/role_account/create_partial.tpl \
-	tpl/role_account/create.tpl \
-	tpl/role_account/edit_partial.tpl \
-	tpl/role_account/edit.tpl \
-	tpl/role_account/list.tpl \
-	tpl/vacation_blacklist/create_partial.tpl \
-	tpl/vacation_blacklist/create.tpl \
-	tpl/vacation_blacklist/list.tpl \
-	tpl/vacation_notify/list.tpl \
-	tpl/broadcast_result.tpl \
-	tpl/broadcast.tpl \
-	tpl/log.tpl \
-	tpl/login.tpl \
-	tpl/welcome.tpl
+	tpl/vboxadm/alias/create_partial.tpl \
+	tpl/vboxadm/alias/create.tpl \
+	tpl/vboxadm/alias/edit_partial.tpl \
+	tpl/vboxadm/alias/edit.tpl \
+	tpl/vboxadm/alias/list.tpl \
+	tpl/vboxadm/awl/list.tpl \
+	tpl/vboxadm/domain/create_partial.tpl \
+	tpl/vboxadm/domain/create.tpl \
+	tpl/vboxadm/domain/list.tpl \
+	tpl/vboxadm/domain/show.tpl \
+	tpl/vboxadm/domain_alias/create_partial.tpl \
+	tpl/vboxadm/domain_alias/create.tpl \
+	tpl/vboxadm/domain_alias/edit_partial.tpl \
+	tpl/vboxadm/domain_alias/edit.tpl \
+	tpl/vboxadm/domain_alias/list.tpl \
+	tpl/vboxadm/includes/footer.tpl \
+	tpl/vboxadm/includes/header.tpl \
+	tpl/vboxadm/includes/navigation.tpl \
+	tpl/vboxadm/mailbox/admins.tpl \
+	tpl/vboxadm/mailbox/create_partial.tpl \
+	tpl/vboxadm/mailbox/create.tpl \
+	tpl/vboxadm/mailbox/edit_partial.tpl \
+	tpl/vboxadm/mailbox/edit.tpl \
+	tpl/vboxadm/mailbox/list.tpl \
+	tpl/vboxadm/rfc_notify/list.tpl \
+	tpl/vboxadm/role_account/create_partial.tpl \
+	tpl/vboxadm/role_account/create.tpl \
+	tpl/vboxadm/role_account/edit_partial.tpl \
+	tpl/vboxadm/role_account/edit.tpl \
+	tpl/vboxadm/role_account/list.tpl \
+	tpl/vboxadm/vacation_blacklist/create_partial.tpl \
+	tpl/vboxadm/vacation_blacklist/create.tpl \
+	tpl/vboxadm/vacation_blacklist/list.tpl \
+	tpl/vboxadm/vacation_notify/list.tpl \
+	tpl/vboxadm/broadcast_result.tpl \
+	tpl/vboxadm/broadcast.tpl \
+	tpl/vboxadm/welcome.tpl \
+	tpl/vdnsadm/domain/create_partial.tpl \
+	tpl/vdnsadm/domain/create.tpl \
+	tpl/vdnsadm/domain/
+	tpl/vdnsadm/domain/
+	tpl/vdnsadm/domain/list.tpl \
+	tpl/vdnsadm/domain/show.tpl \
+	tpl/vdnsadm/record/create_partial.tpl \
+	tpl/vdnsadm/record/create.tpl \
+	tpl/vdnsadm/record/edit_partial.tpl \
+	tpl/vdnsadm/record/edit.tpl \
+	tpl/vdnsadm/record/list.tpl \
+	tpl/vdnsadm/record/show.tpl \
+	tpl/vdnsadm/supermaster/create_partial.tpl \
+	tpl/vdnsadm/supermaster/create.tpl \
+	tpl/vdnsadm/supermaster/edit_partial.tpl \
+	tpl/vdnsadm/supermaster/edit.tpl \
+	tpl/vdnsadm/supermaster/list.tpl \
+	tpl/vdnsadm/supermaster/show.tpl \
+	tpl/vwebadm/log.tpl \
+	tpl/vwebadm/login.tpl
 
 .PHONY: install tidy critic test
 

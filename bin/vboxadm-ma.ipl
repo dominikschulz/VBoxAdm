@@ -12,7 +12,7 @@ use Getopt::Long;
 use Config::Std;
 use Net::Domain;
 
-use VBoxAdm::Logger '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
 use VBoxAdm::SMTP::Proxy::MA '@VERSION@';
 
 my $syntax = "syntax: $0 [--verbose] [--config=<FILE>]\n";
@@ -73,7 +73,7 @@ my $ignore_sender_roleacc            = $config{'mailarchive'}{'ignore_sender_rol
 my $ignore_sender_eq_recipient       = $config{'mailarchive'}{'ignore_sender_eq_recipient'}       || 1;
 my $ignore_senderdom_eq_recipientdom = $config{'mailarchive'}{'ignore_senderdom_eq_recipientdom'} || 1;
 
-my $Logger = VBoxAdm::Logger->new( { 'facility' => 'vboxadm-ma', 'filename' => $logfile, } );
+my $Logger = VWebAdm::Logger::->new( { 'facility' => 'vboxadm-ma', 'filename' => $logfile, } );
 
 # Important: Make sure the logfile exists (by logging to it) and is owned by the user
 # our child will be running as. Otherwise you may experience a situation
@@ -170,7 +170,7 @@ my $server_args = {
     'logger' => $Logger,
 };
 
-my $proxy = VBoxAdm::SMTP::Proxy::MA->new($server_args);
+my $proxy = VBoxAdm::SMTP::Proxy::MA::->new($server_args);
 
 # Test DB connection before starting server
 if ( $proxy->db_connect() ) {

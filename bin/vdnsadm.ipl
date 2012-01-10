@@ -4,11 +4,11 @@ use warnings;
 
 use lib '@LIBDIR@';
 
-use VBoxAdm::Controller::CLI '@VERSION@';
+use VDnsAdm::Controller::CLI '@VERSION@';
 
 binmode( STDIN, ':utf8' );
 
-my $CLI = VBoxAdm::Controller::CLI::->new();
+my $CLI = VDnsAdm::Controller::CLI::->new();
 $CLI->run();
 
 exit 0;

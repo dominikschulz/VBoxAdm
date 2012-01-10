@@ -1,12 +1,12 @@
-package VBoxAdm::Model::Domain;
+package VDnsAdm::Model::Domain;
 
 use Moose;
 use namespace::autoclean;
 
 use Carp;
 
-use VBoxAdm::DB '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 
 extends 'VBoxAdm::Model';
 

@@ -1,4 +1,4 @@
-package VBoxAdm::Model;
+package VWebAdm::Model;
 
 use Moose;
 use namespace::autoclean;
@@ -27,13 +27,13 @@ has 'config' => (
 
 has 'user' => (
     'is'       => 'ro',
-    'isa'      => 'VBoxAdm::Model::User',
+    'isa'      => 'VWebAdm::Model::User',
     'required' => 0,
 );
 
 has 'msgq' => (
     'is'       => 'ro',
-    'isa'      => 'VBoxAdm::Model::MessageQueue',
+    'isa'      => 'VWebAdm::Model::MessageQueue',
     'required' => 1,
 );
 
@@ -54,9 +54,9 @@ around BUILDARGS => sub {
 
     my $arg_ref = $class->$orig(@_);
 
-    if ( $arg_ref->{'Model'} && $arg_ref->{'Model'}->isa('VBoxAdm::Model') ) {
+    if ( $arg_ref->{'Model'} && $arg_ref->{'Model'}->isa('VWebAdm::Model') ) {
 
-        # 'Inherit' from another VBoxAdm::Model class
+        # 'Inherit' from another VWebAdm::Model class
         my $ModelClass = $arg_ref->{'Model'};
         $arg_ref->{'logger'} = $ModelClass->logger();
         $arg_ref->{'config'} = $ModelClass->config();
@@ -66,7 +66,7 @@ around BUILDARGS => sub {
     }
     else {
         if ( !$arg_ref->{'dbh'} || !$arg_ref->{'dbh'}->ping() ) {
-            confess( "Missing DBH handle in VBoxAdm::Model constructor for " . caller(1) . "\n" );
+            confess( "Missing DBH handle in VWebAdm::Model constructor for " . caller(1) . "\n" );
         }
     }
 

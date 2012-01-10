@@ -14,7 +14,7 @@ use Carp;
 use Getopt::Long;
 use Config::Std;
 
-use VBoxAdm::Logger '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
 use VBoxAdm::SMTP::Proxy::SA '@VERSION@';
 
 my $syntax = "syntax: $0 [--verbose] [--config=<FILE>]\n";
@@ -85,7 +85,7 @@ my $sa_default_block_score = $config{'smtpproxy'}{'sa_default_block_score'} || 6
 my $sa_default_status      = $config{'smtpproxy'}{'sa_default_status'}      || 1;
 my $recipient_delimiter    = $config{'smtpproxy'}{'recipient_delimiter'};
 
-my $Logger = VBoxAdm::Logger->new( { 'facility' => 'vboxadm-sa', 'filename' => $logfile, } );
+my $Logger = VWebAdm::Logger::->new( { 'facility' => 'vboxadm-sa', 'filename' => $logfile, } );
 
 # Important: Make sure the logfile exists (by logging to it) and is owned by the user
 # our child will be running as. Otherwise you may experience a situation
@@ -131,7 +131,7 @@ else {
 }
 
 # Create a new SA instance
-my $sa = Mail::SpamAssassin->new(
+my $sa = Mail::SpamAssassin::->new(
     {
         'dont_copy_prefs'  => 1,
         'local_tests_only' => $sa_local_only,
@@ -199,7 +199,7 @@ my $server_args = {
     'logger' => $Logger,
 };
 
-my $proxy = VBoxAdm::SMTP::Proxy::SA->new($server_args);
+my $proxy = VBoxAdm::SMTP::Proxy::SA::->new($server_args);
 
 # Test DB connection before starting server
 if ( $proxy->db_connect() ) {

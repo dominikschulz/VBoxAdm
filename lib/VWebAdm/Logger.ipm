@@ -1,4 +1,4 @@
-package VBoxAdm::Logger;
+package VWebAdm::Logger;
 
 use Moose;
 use namespace::autoclean;

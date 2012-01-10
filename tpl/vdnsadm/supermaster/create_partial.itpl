@@ -1,0 +1,25 @@
+<div class="forms">
+	<form name="create_domain" method="POST">
+		<input type="hidden" name="rm" value="add_domain" />
+		<h1>[% "Add a new domain" | l10n %]</h1>
+		
+		<label for="domain">
+			[% "Domain:" | l10n %]
+			<span class="small">Domain name</span>
+		</label>
+		<input type="text" name="domain" />
+		
+		<label for="create_domainadmin">
+			[% "Create Domainadmin:" | l10n %]
+			<span class="small">Tick here to create a domainadmin for this domain.</span>
+		</label>
+		<input type="checkbox" name="create_domainadmin" />
+		
+		<div class="spacer"></div>
+		
+		<button class="button" type="submit" name="submit">
+			<img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" />
+			[% "Add Domain" | l10n %]
+		</button>
+	</form>
+</div>

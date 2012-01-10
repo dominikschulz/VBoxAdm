@@ -6,10 +6,10 @@ use namespace::autoclean;
 use Carp;
 use Encode;
 
-use VBoxAdm::DB '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 
-extends 'VBoxAdm::Model';
+extends 'VWebAdm::Model';
 
 sub get_id {
     my ( $self, $email ) = @_;
@@ -20,7 +20,7 @@ sub get_id {
         return;
     }
 
-    if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+    if ( !&VWebAdm::Utils::is_valid_address_rfc822($email) ) {
         return;
     }
 
@@ -34,7 +34,7 @@ sub get_id {
         $sql .= " AND a.domain_id = ?";
         push( @args, $self->user->get_domain_id() );
     }
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
     if ( !$sth ) {
         $self->msg->push( 'error', 'Database error.' );
         return;
@@ -53,8 +53,8 @@ sub create {
         return;
     }
 
-    $local_part = &VBoxAdm::Utils::trim( lc($local_part) );
-    $goto       = &VBoxAdm::Utils::trim( lc($goto) );
+    $local_part = &VWebAdm::Utils::trim( lc($local_part) );
+    $goto       = &VWebAdm::Utils::trim( lc($goto) );
     my $delim = $self->config()->{'smtpproxy'}->{'recipient_delimiter'};
 
     my $Domain = VBoxAdm::Model::Domain->new( { 'Model' => $self, } );
@@ -66,11 +66,11 @@ sub create {
         $self->msg->push( 'error', "You are not authorized to modify this domain!" );
         return;
     }
-    elsif ( $local_part && !&VBoxAdm::Utils::is_valid_localpart_rfc822($local_part) ) {
+    elsif ( $local_part && !&VWebAdm::Utils::is_valid_localpart_rfc822($local_part) ) {
         $self->msg->push( 'error', "Invalid local part. This address is not RFC822 compliant!" );
         return;
     }
-    elsif ( $goto && !&VBoxAdm::Utils::is_valid_addresses_rfc822($goto) ) {
+    elsif ( $goto && !&VWebAdm::Utils::is_valid_addresses_rfc822($goto) ) {
         $self->msg->push( 'error', "Invalid address in destination!" );
         return;
     }
@@ -81,7 +81,7 @@ sub create {
     elsif ( $local_part && $domain_id && $goto ) {
 
         my $query = "INSERT INTO aliases (domain_id,local_part,goto,is_active) VALUES(?,?,?,1)";
-        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain_id, $local_part, $goto ) ) {
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $domain_id, $local_part, $goto ) ) {
             $sth->finish();
             $self->msg->push( 'information', "Alias [_1] to [_2] added.", "$local_part\@$domain_name", $goto );
             return 1;
@@ -113,7 +113,7 @@ sub delete {
 
         # get alias name for message
         my $query = 'SELECT CONCAT(a.local_part,\'@\',d.name) AS alias,a.goto FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?';
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $alias_id );
+        my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $alias_id );
         if ( !$sth ) {
             $self->msg->push( 'error', 'Database error.' );
             return;
@@ -128,7 +128,7 @@ sub delete {
             $query .= "AND domain_id = ?";
             push( @args, $self->user->get_domain_id() );
         }
-        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
             $sth->finish();
             $self->msg->push( 'information', "Alias [_1] => [_2] (#[_3]) removed.", $alias, $goto, $alias_id );
             return 1;
@@ -156,12 +156,12 @@ sub update {
     }
 
     my $is_active = $params->{IsActive};
-    my $target    = &VBoxAdm::Utils::trim( $params->{Goto} );
+    my $target    = &VWebAdm::Utils::trim( $params->{Goto} );
 
     my $alias_name = '';
     if ($alias_id) {
         my $query = "SELECT a.local_part,d.name FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
-        my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $alias_id );
+        my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $alias_id );
         if ( !$sth ) {
             $self->msg->push( 'error', 'Database error.' );
             return;
@@ -190,7 +190,7 @@ sub update {
         if ($is_active) {
             $status_str = 'enabled';
         }
-        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
             $self->msg->push( 'information', "Alias [_1] (#[_2]) [_3].", $alias_name, $alias_id, $status_str );
             $sth->finish();
         }
@@ -208,7 +208,7 @@ sub update {
     if ($target) {
         $target = join( ",", split( /\s*,\s*/, $target ) );
     }
-    if ( $target && !&VBoxAdm::Utils::is_valid_addresses_rfc822($target) ) {
+    if ( $target && !&VWebAdm::Utils::is_valid_addresses_rfc822($target) ) {
         $self->msg->push( 'error', "Invalid address in destination!" );
     }
     elsif ( $alias_id && $target ) {
@@ -220,7 +220,7 @@ sub update {
             $query .= " AND domain_id = ?";
             push( @args, $self->user->get_domain_id() );
         }
-        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
             $self->msg->push( 'information', "Alias [_1] (#[_2]) redirected to [_3].", $alias_name, $alias_id, $target );
             $sth->finish();
         }
@@ -251,7 +251,7 @@ sub read {
         $sql .= " AND a.domain_id = ?";
         push( @args, $self->user->get_domain_id() );
     }
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
     if ( !$sth ) {
         $self->msg->push( 'error', 'Database error.' );
         return;
@@ -292,7 +292,7 @@ sub list {
         $sql .= " AND a.domain_id = ?";
         push( @args, $self->user->get_domain_id() );
     }
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
     if ( !$sth ) {
         $self->msg->push( 'error', 'Database error: ' . $self->dbh()->err() );
         return;
