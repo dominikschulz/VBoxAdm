@@ -14,9 +14,9 @@ use Crypt::CBC;
 use Digest::SHA;
 use MIME::Base64;
 
-use VBoxAdm::Utils '@VERSION@';
-use VBoxAdm::API '@VERSION@';
-use VBoxAdm::Logger '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
+use VWebAdm::API '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
 
 my ( $conffile_used, %config, @modes, $opts );
 $opts = {};
@@ -29,7 +29,7 @@ my @conffile_locations = qw(
   @CFGDIR@/vboxadm/vboxadm.conf
 );
 
-my $Logger = VBoxAdm::Logger->new('vboxadmr');
+my $Logger = VWebAdm::Logger::->new('vboxadmr');
 
 GetOptions(
     'verbose|v+' => \$opts->{Verbose},

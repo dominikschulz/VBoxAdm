@@ -5,10 +5,10 @@ use namespace::autoclean;
 
 use Carp;
 
-use VBoxAdm::DB '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 
-extends 'VBoxAdm::Model';
+extends 'VWebAdm::Model';
 
 # DGR: Well, sorry for you Perl::Critic, but you're unable to keep up with my OO style ;)
 ## no critic (ProhibitUnusedPrivateSubroutines)

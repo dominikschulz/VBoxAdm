@@ -20,11 +20,11 @@ use Net::POP3;
 use Net::IMAP::Client;
 use Text::Levenshtein qw(distance);
 
-use VBoxAdm::DB '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 use VBoxAdm::Migration '@VERSION@';
-use VBoxAdm::SaltedHash '@VERSION@';
-use VBoxAdm::Password '@VERSION@';
+use VWebAdm::SaltedHash '@VERSION@';
+use VWebAdm::Password '@VERSION@';
 use VBoxAdm::Model::Alias '@VERSION@';
 use VBoxAdm::Model::AWL '@VERSION@';
 use VBoxAdm::Model::Domain '@VERSION@';
@@ -34,7 +34,7 @@ use VBoxAdm::Model::User '@VERSION@';
 use VBoxAdm::Model::VacationBlacklist '@VERSION@';
 use VBoxAdm::Model::MessageQueue '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
-use VBoxAdm::Logger '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
 
 binmode( STDIN, ':utf8' );
 

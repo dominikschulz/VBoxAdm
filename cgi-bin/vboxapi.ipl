@@ -11,7 +11,7 @@ binmode STDIN,  ":utf8";
 binmode STDOUT, ":utf8";
 binmode STDERR, ":utf8";
 
-my $vboxapi = VBoxAdm::Controller::API->new();
+my $vboxapi = VBoxAdm::Controller::API::->new();
 $vboxapi->run();
 
 __END__

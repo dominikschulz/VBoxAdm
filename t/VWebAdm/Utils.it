@@ -1,17 +1,17 @@
 use Test::More qw( no_plan );
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 
-BEGIN { use_ok( 'VBoxAdm::Utils', '@VERSION@' ); }
+BEGIN { use_ok( 'VWebAdm::Utils', '@VERSION@' ); }
 
 # Special values to test
 # 0, 0E0, 0.0 and '0 but true'
 # undef, lists of undef
 
 # trim()
-is( VBoxAdm::Utils::trim("   hello, blaa    \t \n \r \f"), "hello, blaa", "trim() - '   hello, blaa  ' => 'hello, blaa'" );
+is( VWebAdm::Utils::trim("   hello, blaa    \t \n \r \f"), "hello, blaa", "trim() - '   hello, blaa  ' => 'hello, blaa'" );
 
 # trim2()
-is( VBoxAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", 'trim2() - "  key = value # comment   " => "key = value"' );
+is( VWebAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", 'trim2() - "  key = value # comment   " => "key = value"' );
 
 # Test extract_recipients
 {
@@ -25,7 +25,7 @@ is( VBoxAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", 'tri
     );
     foreach my $string ( keys %data ) {
         my @expect = @{ $data{$string} };
-        my @emails = &VBoxAdm::Utils::extract_recipients($string);
+        my @emails = &VWebAdm::Utils::extract_recipients($string);
         foreach my $i ( 0 .. $#expect ) {
             is( lc( $emails[$i] ), lc( $expect[$i] ), 'extract_recipients - ' . $expect[$i] . ' equals expectation in regular test.' );
         }
@@ -44,7 +44,7 @@ is( VBoxAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", 'tri
     foreach my $string ( keys %data ) {
         my @expect = @{ $data{$string}{'recipients'} };
         my $delim  = $data{$string}{'delim'};
-        my @emails = &VBoxAdm::Utils::extract_recipients( $string, $delim );
+        my @emails = &VWebAdm::Utils::extract_recipients( $string, $delim );
         foreach my $i ( 0 .. $#expect ) {
             is( lc( $emails[$i] ), lc( $expect[$i] ), 'extract_recipients - ' . $expect[$i] . ' equals expectation in delim test.' );
         }
@@ -65,10 +65,10 @@ is( VBoxAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", 'tri
     foreach my $input ( keys %data ) {
         my $valid = $data{$input};
         if ($valid) {
-            ok( &VBoxAdm::Utils::is_valid_domain_rfc822($input), $input . ' is a valid domain.' );
+            ok( &VWebAdm::Utils::is_valid_domain_rfc822($input), $input . ' is a valid domain.' );
         }
         else {
-            ok( !&VBoxAdm::Utils::is_valid_domain_rfc822($input), $input . ' is not a valid domain.' );
+            ok( !&VWebAdm::Utils::is_valid_domain_rfc822($input), $input . ' is not a valid domain.' );
         }
     }
 }
@@ -83,7 +83,7 @@ is( VBoxAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", 'tri
         'admin+test#domain.tld@vacation.domain.tld' => 'admin+test@domain.tld',
     );
     foreach my $rolled ( keys %data ) {
-        my $unrolled = &VBoxAdm::Utils::unroll_recipient($rolled);
+        my $unrolled = &VWebAdm::Utils::unroll_recipient($rolled);
         my $expected = $data{$rolled};
         is( $unrolled, $expected, $expected . ' equals ' . $unrolled );
     }
@@ -95,7 +95,7 @@ is( VBoxAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", 'tri
         'admin+test%domain.tld@vacation.domain.tld' => 'admin+test@domain.tld',
     );
     foreach my $rolled ( keys %data2 ) {
-        my $unrolled = &VBoxAdm::Utils::unroll_recipient( $rolled, '%' );
+        my $unrolled = &VWebAdm::Utils::unroll_recipient( $rolled, '%' );
         my $expected = $data2{$rolled};
         is( $unrolled, $expected, $expected . ' equals ' . $unrolled );
     }

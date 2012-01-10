@@ -5,12 +5,11 @@ use namespace::autoclean;
 
 use Carp;
 use Encode;
-use Sys::Syslog;
 
-use VBoxAdm::SaltedHash '@VERSION@';
-use VBoxAdm::Password '@VERSION@';
+use VWebAdm::SaltedHash '@VERSION@';
+use VWebAdm::Password '@VERSION@';
 
-extends 'VBoxAdm::Model';
+extends 'VWebAdm::Model';
 
 sub _init_fields {
     return [

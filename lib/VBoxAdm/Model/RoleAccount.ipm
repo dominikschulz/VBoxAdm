@@ -5,11 +5,10 @@ use namespace::autoclean;
 
 use Carp;
 
-use Sys::Syslog;
-use VBoxAdm::DB '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 
-extends 'VBoxAdm::Model';
+extends 'VWebAdm::Model';
 
 sub _init_fields { return [qw(id name local_part domain ts)]; }
 

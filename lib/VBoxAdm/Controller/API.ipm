@@ -14,7 +14,7 @@ use Carp;
 use Config::Std;
 use Data::Dumper;
 
-use VDnsAdm::API '@VERSION@';
+use VWebAdm::API '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
 use VWebAdm::Utils '@VERSION@';
 use VWebAdm::Logger '@VERSION@';

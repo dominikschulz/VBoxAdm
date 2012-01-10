@@ -1,4 +1,4 @@
-package VDnsAdm::Model::Domain;
+package VDnsAdm::Model::Record;
 
 use Moose;
 use namespace::autoclean;

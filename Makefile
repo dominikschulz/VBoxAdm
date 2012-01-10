@@ -96,7 +96,6 @@ LIBFILES = \
 	lib/VBoxAdm/Model/Domain.pm \
 	lib/VBoxAdm/Model/DomainAlias.pm \
 	lib/VBoxAdm/Model/Mailbox.pm \
-	lib/VBoxAdm/Model/MessageQueue.pm \
 	lib/VBoxAdm/Model/RFCNotify.pm \
 	lib/VBoxAdm/Model/RoleAccount.pm \
 	lib/VBoxAdm/Model/User.pm \
@@ -118,14 +117,15 @@ LIBFILES = \
 	lib/VDnsAdm/Model/Record.pm \
 	lib/VDnsAdm/Model/Supermaster.pm \
 	lib/VDnsAdm/L10N.pm \
-	lib/VBoxAdm/API.pm \
-	lib/VBoxAdm/DB.pm \
-	lib/VBoxAdm/DNS.pm \
-	lib/VBoxAdm/Logger.pm \
-	lib/VBoxAdm/Model.pm \
-	lib/VBoxAdm/Password.pm \
-	lib/VBoxAdm/SaltedHash.pm \
-	lib/VBoxAdm/Utils.pm
+	lib/VWebAdm/Model/MessageQueue.pm \
+	lib/VWebAdm/API.pm \
+	lib/VWebAdm/DB.pm \
+	lib/VWebAdm/DNS.pm \
+	lib/VWebAdm/Logger.pm \
+	lib/VWebAdm/Model.pm \
+	lib/VWebAdm/Password.pm \
+	lib/VWebAdm/SaltedHash.pm \
+	lib/VWebAdm/Utils.pm
 
 MANFILES = \
 	bin/vacation.8 \
@@ -270,8 +270,8 @@ TPLFILES = \
 	tpl/vboxadm/welcome.tpl \
 	tpl/vdnsadm/domain/create_partial.tpl \
 	tpl/vdnsadm/domain/create.tpl \
-	tpl/vdnsadm/domain/
-	tpl/vdnsadm/domain/
+	tpl/vdnsadm/domain/edit_partial.tpl \
+	tpl/vdnsadm/domain/edit.tpl \
 	tpl/vdnsadm/domain/list.tpl \
 	tpl/vdnsadm/domain/show.tpl \
 	tpl/vdnsadm/record/create_partial.tpl \

@@ -1,4 +1,4 @@
-package VBoxAdm::Model::MessageQueue;
+package VWebAdm::Model::MessageQueue;
 
 use Moose;
 use namespace::autoclean;

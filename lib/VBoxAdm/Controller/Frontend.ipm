@@ -33,10 +33,10 @@ use DBI;
 use Readonly;
 use Try::Tiny;
 
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
-use VBoxAdm::SaltedHash '@VERSION@';
-use VBoxAdm::Logger '@VERSION@';
+use VWebAdm::SaltedHash '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
 
 use VBoxAdm::Model::Alias '@VERSION@';
 use VBoxAdm::Model::AWL '@VERSION@';

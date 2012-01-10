@@ -5,11 +5,11 @@ use namespace::autoclean;
 
 use Carp;
 
-use VBoxAdm::DB '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
-use VBoxAdm::SaltedHash '@VERSION@';
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
+use VWebAdm::SaltedHash '@VERSION@';
 
-extends 'VBoxAdm::Model';
+extends 'VWebAdm::Model';
 
 has 'domainadmin' => (
     'is'      => 'ro',

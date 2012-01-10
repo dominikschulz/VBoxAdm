@@ -6,7 +6,7 @@ use DBI;
 use Getopt::Long;
 use Config::Std;
 
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 use VBoxAdm::Migration '@VERSION@';
 
 my $db_host = 'localhost';

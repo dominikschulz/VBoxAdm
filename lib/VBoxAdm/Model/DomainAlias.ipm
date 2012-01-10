@@ -6,7 +6,7 @@ use namespace::autoclean;
 use Carp;
 use Encode;
 
-extends 'VBoxAdm::Model';
+extends 'VWebAdm::Model';
 
 sub _init_fields {
     return [qw(id name domain_id is_active)];

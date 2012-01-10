@@ -7,8 +7,8 @@ use Config::Std;
 use CGI;
 use Template;
 
-use VBoxAdm::DB '@VERSION@';
-use VBoxAdm::Logger '@VERSION@';
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
 
 our $VERSION = '@VERSION@';
 

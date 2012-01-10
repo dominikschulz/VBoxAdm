@@ -8,7 +8,7 @@ use Carp;
 use VWebAdm::DB '@VERSION@';
 use VWebAdm::Utils '@VERSION@';
 
-extends 'VBoxAdm::Model';
+extends 'VWebAdm::Model';
 
 sub _init_fields {
     return [qw(id email last_seen disabled)];

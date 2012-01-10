@@ -3,8 +3,8 @@ package VBoxAdm::Migration;
 use strict;
 use warnings;
 
-use VBoxAdm::SaltedHash '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::SaltedHash '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 
 our $VERSION = '@VERSION@';
 

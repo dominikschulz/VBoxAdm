@@ -9,8 +9,8 @@ use Time::HiRes qw(time);
 use Digest::SHA;
 
 use VBoxAdm::SMTP::Server '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
-use VBoxAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
+use VWebAdm::DB '@VERSION@';
 
 our $VERSION = '@VERSION@';
 

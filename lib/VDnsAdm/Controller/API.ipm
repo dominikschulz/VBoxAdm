@@ -15,9 +15,9 @@ use Config::Std;
 use Data::Dumper;
 use Sys::Syslog;
 
-use VBoxAdm::API '@VERSION@';
+use VWebAdm::API '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 
 use VBoxAdm::Model::Alias '@VERSION@';
 use VBoxAdm::Model::AWL '@VERSION@';
