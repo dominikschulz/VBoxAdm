@@ -43,7 +43,7 @@ GetOptions(
     # shift removes name of the option (config) and leaves the value for unshift
     # unshift prepends to the list of valid config files so it is tried first
     'config=s' => sub { shift; unshift( @conffile_locations, @_ ); },
-    'active|a=i'      => \$opts->{IsActive},
+    'active|a=i' => \$opts->{IsActive},
 ) or croak("Unknown Command");
 
 # Try all config file locations

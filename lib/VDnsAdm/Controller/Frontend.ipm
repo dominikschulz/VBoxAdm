@@ -38,6 +38,9 @@ use VDnsAdm::L10N '@VERSION@';
 use VWebAdm::SaltedHash '@VERSION@';
 use VWebAdm::Logger '@VERSION@';
 
+use VWebAdm::Model::MessageQueue '@VERSION@';
+use VWebAdm::Model::User '@VERSION@';
+
 use VDnsAdm::Model::Domain '@VERSION@';
 use VDnsAdm::Model::Record '@VERSION@';
 use VDnsAdm::Model::Supermaster '@VERSION@';
@@ -58,7 +61,7 @@ Readonly my $ENTRIES_PER_PAGE => 20;
 sub setup {
     my $self = shift;
 
-    my $Logger = VBoxAdm::Logger->new( { 'facility' => 'VBoxAdm/Frontend', } );
+    my $Logger = VWebAdm::Logger::->new( { 'facility' => 'VDnsAdm/Frontend', } );
     $self->{'logger'} = $Logger;
 
     # define the default run mode
@@ -85,25 +88,8 @@ sub setup {
         'create_domain' => 'show_create_domain',
         'add_domain'    => 'show_add_domain',
         'remove_domain' => 'show_remove_domain',
-
-        # no need for 'edit_domain', we can only change is_active anyway
+        'edit_domain'   => 'show_edit_domain',
         'update_domain' => 'show_update_domain',
-
-        # Domain Aliases
-        'domain_aliases'      => 'show_domain_aliases',
-        'create_domain_alias' => 'show_create_domain_alias',
-        'add_domain_alias'    => 'show_add_domain_alias',
-        'remove_domain_alias' => 'show_remove_domain_alias',
-        'edit_domain_alias'   => 'show_edit_domain_alias',
-        'update_domain_alias' => 'show_update_domain_alias',
-
-        # Aliases
-        'aliases'      => 'show_aliases',
-        'create_alias' => 'show_create_alias',
-        'add_alias'    => 'show_add_alias',
-        'remove_alias' => 'show_remove_alias',
-        'edit_alias'   => 'show_edit_alias',
-        'update_alias' => 'show_update_alias',
 
         # Mailboxes
         'mailboxes'      => 'show_mailboxes',
@@ -113,42 +99,11 @@ sub setup {
         'edit_mailbox'   => 'show_edit_mailbox',
         'update_mailbox' => 'show_update_mailbox',
 
-        # Broadcast
-        'broadcast'      => 'show_broadcast',
-        'send_broadcast' => 'show_send_broadcast',
-
-        # Vacation Blacklist
-        'vac_bl'        => 'show_vacation_blacklist',
-        'create_vac_bl' => 'show_create_vacbl_entry',
-        'add_vac_bl'    => 'show_add_vacbl_entry',
-        'remove_vac_bl' => 'show_remove_vacbl_entry',
-
-        # Auto-Whitelist
-        'awl'        => 'show_awl',
-        'update_awl' => 'show_update_awl',
-
         # Log
         'log' => 'show_log',
 
         # Admins
         'admins' => 'show_admins',
-
-        # Vacation Replies
-        'vac_repl' => 'show_vacation_replies',
-
-        # RFC Notifies
-        'notify' => 'show_rfc_notify',
-
-        # Mailarchive
-        # TODO show mailarchive if configured
-
-        # RoleAccounts
-        'role_accounts'       => 'show_role_accounts',
-        'create_role_account' => 'show_create_role_account',
-        'add_role_account'    => 'show_add_role_account',
-        'remove_role_account' => 'show_remove_role_account',
-        'edit_role_account'   => 'show_edit_role_account',
-        'update_role_account' => 'show_update_role_account',
     );
 
     # Authentication
@@ -214,10 +169,10 @@ sub setup {
     #
     # Valid config file locations to try
     my @conffile_locations = qw(
-      vboxadm.conf
-      conf/vboxadm.conf
-      /etc/vboxadm/vboxadm.conf
-      @CFGDIR@/vboxadm/vboxadm.conf
+      vdnsadm.conf
+      conf/vdnsadm.conf
+      /etc/vdnsadm/vdnsadm.conf
+      @CFGDIR@/vdnsadm/vdnsadm.conf
     );
 
     # if the application if run as a FastCGI app, the server might
@@ -248,11 +203,11 @@ sub setup {
     #
     my $user = $config{'default'}{'dbuser'} || 'root';
     my $pass = $config{'default'}{'dbpass'} || 'root';
-    my $db   = $config{'default'}{'dbdb'}   || 'vboxadm';
+    my $db   = $config{'default'}{'dbdb'}   || 'vdnsadm';
     my $port = $config{'default'}{'dbport'} || 3306;
     my $host = $config{'default'}{'dbhost'} || 'localhost';
     my $dsn  = "DBI:mysql:database=$db;user=$user;password=$pass;host=$host;port=$port";
-    $self->{base_url}     = $config{'cgi'}{'base_url'}     || '/cgi-bin/vboxadm.pl';
+    $self->{base_url}     = $config{'cgi'}{'base_url'}     || '/cgi-bin/vdnsadm.pl';
     $self->{media_prefix} = $config{'cgi'}{'media_prefix'} || '';
 
     # Connect to DBI database, same args as DBI->connect();
@@ -286,10 +241,10 @@ sub setup {
     # L10N
     #
     # the user handle, will try to determine the appropriate language ... look at the docs of Locale::Maketext
-    $self->{lh} = VBoxAdm::L10N->get_handle();
+    $self->{lh} = VDnsAdm::L10N->get_handle();
 
     # this handle is used for logging. logged messages should always be in english
-    $self->{lh_en} = VBoxAdm::L10N->get_handle('en');
+    $self->{lh_en} = VDnsAdm::L10N->get_handle('en');
 
     #
     # Templating unsing the Template Toolkit
@@ -299,7 +254,7 @@ sub setup {
     # Short version: they allow filters with more than one argument.
     # highlight provides syntax highlightning for the search
     # l10n provides localization via Locale::Maketext
-    my @include_path = qw(tpl ../tpl /usr/lib/vboxadm/tpl);
+    my @include_path = qw(tpl/vdnsadm ../tpl/vdnsadm /usr/lib/vdnsadm/tpl);
     if ( $config{'cgi'}{'template_path'} && -d $config{'cgi'}{'template_path'} ) {
         unshift( @include_path, $config{'cgi'}{'template_path'} );
     }
@@ -347,7 +302,7 @@ sub setup {
 
     # setup classes if the user is logged in
     if ( $self->authen->is_authenticated && $self->authen->username ) {
-        my $Messages = VBoxAdm::Model::MessageQueue->new(
+        my $Messages = VWebAdm::Model::MessageQueue::->new(
             {
                 'lh'      => $self->{'lh'},
                 'lh_en'   => $self->{'lh_en'},
@@ -358,7 +313,7 @@ sub setup {
         # if we can not create a new user object we MUST NOT die but redirect to login page instead
         my $User;
         eval {
-            $User = VBoxAdm::Model::User->new(
+            $User = VWebAdm::Model::User::->new(
                 {
                     'dbh'      => $self->dbh,
                     'username' => $self->authen->username,
@@ -383,14 +338,9 @@ sub setup {
                 'logger' => $Logger,
                 'config' => $self->{'config'},
             };
-            $self->{'Alias'}             = VBoxAdm::Model::Alias->new($arg_ref);
-            $self->{'AWL'}               = VBoxAdm::Model::AWL->new($arg_ref);
-            $self->{'Domain'}            = VBoxAdm::Model::Domain->new($arg_ref);
-            $self->{'DomainAlias'}       = VBoxAdm::Model::DomainAlias->new($arg_ref);
-            $self->{'Mailbox'}           = VBoxAdm::Model::Mailbox->new($arg_ref);
-            $self->{'RFCNotify'}         = VBoxAdm::Model::RFCNotify->new($arg_ref);
-            $self->{'RoleAccount'}       = VBoxAdm::Model::RoleAccount->new($arg_ref);
-            $self->{'VacationBlacklist'} = VBoxAdm::Model::VacationBlacklist->new($arg_ref);
+            $self->{'Domain'}      = VDnsAdm::Model::Domain::->new($arg_ref);
+            $self->{'Record'}      = VDnsAdm::Model::Record::->new($arg_ref);
+            $self->{'Supermaster'} = VDnsAdm::Model::Supermaster::->new($arg_ref);
         }
     }
 
@@ -662,7 +612,7 @@ sub show_login {
     $self->session_delete();
 
     my %params = (
-        title        => $self->{lh}->maketext('VBoxAdm Login'),
+        title        => $self->{lh}->maketext('VDnsAdm Login'),
         nonavigation => 1,
     );
 
@@ -680,94 +630,11 @@ sub show_welcome {
     my $self = shift;
 
     my %params = (
-        'title'   => $self->{lh}->maketext('VBoxAdm Overview'),
+        'title'   => $self->{lh}->maketext('VDnsAdm Overview'),
         'current' => 'welcome',
     );
 
     return $self->tt_process( 'welcome.tpl', \%params );
-}
-
-#
-# Broadcast
-#
-# Show the broadcast form
-sub show_broadcast {
-    my $self = shift;
-
-    if ( !$self->user->is_siteadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $query = "SELECT COUNT(*) FROM mailboxes WHERE is_active";
-    my $sth   = $dbh->prepare($query);
-    $sth->execute();
-    my $count = $sth->fetchrow_array();
-    $sth->finish();
-
-    my %params = (
-        'title'   => $self->{lh}->maketext('VBoxAdm Send Broadcast'),
-        'current' => 'broadcast',
-        'count'   => $count,
-    );
-
-    return $self->tt_process( 'broadcast.tpl', \%params );
-}
-
-# Send the broadcast message and show confirmation page
-sub show_send_broadcast {
-    my $self = shift;
-
-    if ( !$self->user->is_siteadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $subject = $q->param('subject');
-    my $message = $q->param('message');
-
-    my $system_domain = $self->{config}{'default'}{'domain'} || 'localhost';
-
-    my $query = "SELECT m.local_part,d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.is_active AND d.is_active";
-    my $sth   = $dbh->prepare($query);
-    $sth->execute();
-    my $num_sent = 0;
-    while ( my ( $local_part, $domain_name ) = $sth->fetchrow_array() ) {
-        my $email = $local_part . '@' . $domain_name;
-        my $emsg  = '';
-        $emsg .= "Subject: " . $subject . "\r\n";
-        $emsg .= "Auto-Submitted: auto-generated\r\n";
-        $emsg .= "From: VBoxAdm <vboxadm\@" . $system_domain . ">\r\n";
-        $emsg .= "To: <" . $email . ">\r\n";
-        $emsg .= "\r\n";
-        $emsg .= $message;
-        &VBoxAdm::Utils::sendmail( 'vboxadm@' . $system_domain, $emsg );
-        $num_sent++;
-    }
-    $sth->finish();
-
-    my %params = (
-        'title'    => $self->{lh}->maketext('VBoxAdm Sent Broadcast'),
-        'current'  => 'broadcast',
-        'num_sent' => $num_sent,
-    );
-
-    return $self->tt_process( 'broadcast_result.tpl', \%params );
 }
 
 #
@@ -787,33 +654,21 @@ sub show_domains {
     my $search = $q->param('search');
     my %params = ( 'Search' => $search, );
 
-    my $sql_aliases       = "SELECT COUNT(*) FROM aliases WHERE domain_id = ?";
-    my $sth_aliases       = $dbh->prepare($sql_aliases);
-    my $sql_mailboxes     = "SELECT COUNT(*) FROM mailboxes WHERE domain_id = ?";
-    my $sth_mailboxes     = $dbh->prepare($sql_mailboxes);
-    my $sql_domainaliases = "SELECT COUNT(*) FROM domain_aliases WHERE domain_id = ?";
-    my $sth_domainaliases = $dbh->prepare($sql_domainaliases);
+    my $sql_records = "SELECT COUNT(*) FROM records WHERE domain_id = ?";
+    my $sth_records = $dbh->prepare($sql_records);
 
     my @domains = $self->{'Domain'}->list( \%params );
 
     foreach my $domain (@domains) {
-        if ( $sth_aliases->execute( $domain->{'id'} ) ) {
-            $domain->{'num_aliases'} = $sth_aliases->fetchrow_array();
-        }
-        if ( $sth_mailboxes->execute( $domain->{'id'} ) ) {
-            $domain->{'num_mailboxes'} = $sth_mailboxes->fetchrow_array();
-        }
-        if ( $sth_domainaliases->execute( $domain->{'id'} ) ) {
-            $domain->{'num_domainaliases'} = $sth_domainaliases->fetchrow_array();
+        if ( $sth_records->execute( $domain->{'id'} ) ) {
+            $domain->{'num_records'} = $sth_records->fetchrow_array();
         }
     }
 
-    $sth_aliases->finish;
-    $sth_mailboxes->finish();
-    $sth_domainaliases->finish();
+    $sth_records->finish();
 
     %params = (
-        'title'   => $self->{lh}->maketext('VBoxAdm Domains'),
+        'title'   => $self->{lh}->maketext('VDnsAdm Domains'),
         'current' => 'domains',
         'domains' => \@domains,
         'search'  => $search,
@@ -853,23 +708,15 @@ sub show_domain {
     my $sth = undef;
 
     # Get Domain name
+    # TODO use Domain model
     $sql = "SELECT name FROM domains WHERE id = ?";
     $sth = $dbh->prepare($sql);
     $sth->execute($domain_id);
     my $domain_name = $sth->fetchrow_array();
     $sth->finish();
 
-    # Get Aliases
-    $sql = "SELECT id,local_part,goto,is_active FROM aliases WHERE domain_id = ? ORDER BY local_part";
-    $sth = $dbh->prepare($sql);
-    $sth->execute($domain_id);
-    my @aliases = ();
-    while ( my ( $id, $local_part, $goto, $is_active ) = $sth->fetchrow_array() ) {
-        push( @aliases, { id => $id, local_part => $local_part, 'goto' => $goto, is_active => $is_active, } );
-    }
-    $sth->finish();
-
-    # Get Mailboxes
+    # Get Records
+    # TODO use record model
     $sql = "SELECT id,local_part,name,is_active FROM mailboxes WHERE domain_id = ? ORDER BY local_part";
     $sth = $dbh->prepare($sql);
     $sth->execute($domain_id);
@@ -879,29 +726,17 @@ sub show_domain {
     }
     $sth->finish();
 
-    # Get Domain Aliases
-    $sql = "SELECT id,name,is_active FROM domain_aliases WHERE domain_id = ? ORDER BY name";
-    $sth = $dbh->prepare($sql);
-    $sth->execute($domain_id);
-    my @domain_aliases = ();
-    while ( my ( $id, $name, $is_active ) = $sth->fetchrow_array() ) {
-        push( @domain_aliases, { id => $id, name => $name, is_active => $is_active, } );
-    }
-    $sth->finish();
-
     my @bc = ();
     push( @bc, { 'rm' => 'welcome',                        caption => 'Overview', } );
     push( @bc, { 'rm' => 'domains',                        caption => 'Domains', } );
     push( @bc, { 'rm' => 'domain&domain_id=' . $domain_id, caption => 'View Domain ' . $domain_name, } );
 
     my %params = (
-        'title'          => $self->{lh}->maketext( 'VBoxAdm Domain: [_1]', $domain_name ),
-        'current'        => 'domains',
-        'domain'         => $domain_name,
-        'aliases'        => \@aliases,
-        'mailboxes'      => \@mailboxes,
-        'domain_aliases' => \@domain_aliases,
-        'breadcrumb'     => \@bc,
+        'title'      => $self->{lh}->maketext( 'VBoxAdm Domain: [_1]', $domain_name ),
+        'current'    => 'domains',
+        'domain'     => $domain_name,
+        'mailboxes'  => \@mailboxes,
+        'breadcrumb' => \@bc,
     );
 
     return $self->tt_process( 'domain/show.tpl', \%params );
@@ -932,13 +767,9 @@ sub show_add_domain {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $domain             = &VBoxAdm::Utils::trim( lc( $q->param('domain') ) );
-    my $create_domainadmin = $q->param('create_domainadmin');
+    my $domain = &VBoxAdm::Utils::trim( lc( $q->param('domain') ) );
 
-    if ( $self->{'Domain'}->create($domain) && $create_domainadmin ) {
-        my $domain_id = $self->{'Domain'}->get_id($domain);
-        $self->{'Mailbox'}->create( 'domainadmin', $domain_id );
-    }
+    $self->{'Domain'}->create($domain);
 
     $self->redirect( $self->{base_url} . '?rm=domains' );
     return;
@@ -965,6 +796,8 @@ sub show_update_domain {
     my $q = $self->query();
 
     my $domain_id = $q->param('domain_id');
+
+    # TODO set params
     my %params = ( 'IsActive' => $q->param('is_active'), );
 
     $self->{'Domain'}->update( $domain_id, \%params );
@@ -974,343 +807,10 @@ sub show_update_domain {
 }
 
 #
-# Domain Aliases
+# Records
 #
 
-sub show_domain_aliases {
-    my $self = shift;
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $search = $q->param('search');
-    my %params = ( 'Search' => $search, );
-
-    my @domains = $self->{'DomainAlias'}->list( \%params );
-
-    %params = (
-        'title'   => $self->{lh}->maketext('VBoxAdm Domain-Aliases'),
-        'current' => 'domain_aliases',
-        'domains' => \@domains,
-        'search'  => $search,
-    );
-
-    return $self->tt_process( 'domain_alias/list.tpl', \%params );
-}
-
-sub show_create_domain_alias {
-    my $self = shift;
-
-    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
-    my @args  = ();
-    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-        $query .= "AND id = ? ";
-        push( @args, $self->user->get_domain_id() );
-    }
-    $query .= "ORDER BY name";
-    my $sth = $dbh->prepare($query)
-      or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, level => 'warning', );
-    $sth->execute(@args)
-      or $self->{'logger'}
-      ->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, level => 'warning', );
-
-    my @domains = ();
-    while ( my @row = $sth->fetchrow_array() ) {
-        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], } );
-    }
-
-    my %params = (
-        'title'   => $self->{lh}->maketext('Add Domain Alias'),
-        'domains' => \@domains,
-        'current' => 'domain_aliases',
-    );
-
-    return $self->tt_process( 'domain_alias/create.tpl', \%params );
-}
-
-sub show_add_domain_alias {
-    my $self = shift;
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $domain_alias = &VBoxAdm::Utils::trim( lc( $q->param('domain_alias') ) );
-    my $domain_id    = $q->param('domain');
-
-    $self->{'DomainAlias'}->create( $domain_alias, $domain_id );
-
-    $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
-    return;
-}
-
-sub show_remove_domain_alias {
-    my $self = shift;
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $domain_alias_id = $q->param('domain_alias_id');
-
-    $self->{'DomainAlias'}->delete($domain_alias_id);
-
-    $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
-    return;
-}
-
-sub show_edit_domain_alias {
-    my $self = shift;
-
-    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $domain_alias_id = $q->param('domain_alias_id');
-
-    my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
-    my @args  = ();
-
-    # Authorization
-    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-        $query .= "AND id = ?";
-        push( @args, $self->user->get_domain_id() );
-    }
-    $query .= " ORDER BY name";
-    my $sth = $dbh->prepare($query)
-      or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, level => 'warning', );
-    $sth->execute(@args)
-      or $self->{'logger'}
-      ->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, level => 'warning', );
-
-    my @domains = ();
-    while ( my @row = $sth->fetchrow_array() ) {
-        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], } );
-    }
-    $sth->finish();
-
-    $query = "SELECT da.id, da.name, da.domain_id, da.is_active, d.name FROM domain_aliases AS da ";
-    $query .= "LEFT JOIN domains AS d ON da.domain_id = d.id WHERE da.id = ?";
-    @args = ();
-    push( @args, $domain_alias_id );
-    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-        $query .= "AND da.domain_id = ?";
-        push( @args, $self->user->get_domain_id() );
-    }
-    $sth = $dbh->prepare($query);
-    $sth->execute(@args);
-    my @row = $sth->fetchrow_array();
-    $sth->finish();
-
-    my %params = (
-        'title'           => $self->{lh}->maketext('Edit Domain Alias'),
-        'current'         => 'domain_aliases',
-        'domain_name'     => $row[1],
-        'is_active'       => $row[3],
-        'target'          => $row[2],
-        'domain_alias_id' => $domain_alias_id,
-        'domains'         => \@domains,
-    );
-
-    return $self->tt_process( 'domain_alias/edit.tpl', \%params );
-}
-
-sub show_update_domain_alias {
-    my $self = shift;
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $domain_alias_id = $q->param('domain_alias_id');
-    my %params          = (
-        'IsActive' => ( $q->param('is_active') ? 1 : 0 ),
-        'Goto' => $q->param('target'),
-    );
-
-    $self->{'DomainAlias'}->update( $domain_alias_id, \%params );
-
-    $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
-    return;
-}
-
-#
-# Aliases
-#
-
-sub show_aliases {
-    my $self = shift;
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $search = $q->param('search');
-    my %params = ( 'Search' => $search, );
-
-    my @aliases = $self->{'Alias'}->list( \%params );
-
-    %params = (
-        'title'   => $self->{lh}->maketext('VBoxAdm Aliases'),
-        'current' => 'aliases',
-        'aliases' => \@aliases,
-        'domains' => [ $self->{'Domain'}->list() ],
-        'search'  => $search,
-    );
-
-    return $self->tt_process( 'alias/list.tpl', \%params );
-}
-
-sub show_create_alias {
-    my $self = shift;
-
-    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
-    my @args  = ();
-    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-        $query .= "AND id = ? ";
-        push( @args, $self->user->get_domain_id() );
-    }
-    $query .= "ORDER BY name";
-    my $sth = $dbh->prepare($query)
-      or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, level => 'warning', );
-    $sth->execute(@args)
-      or $self->{'logger'}
-      ->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, level => 'warning', );
-
-    my @domains = ();
-    while ( my @row = $sth->fetchrow_array() ) {
-        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], } );
-    }
-
-    my %params = (
-        'title'   => $self->{lh}->maketext('Add Alias'),
-        'current' => 'aliases',
-        'domains' => \@domains,
-    );
-
-    return $self->tt_process( 'alias/create.tpl', \%params );
-}
-
-sub show_add_alias {
-    my $self = shift;
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $local_part = &VBoxAdm::Utils::trim( lc( $q->param('local_part') ) );
-    my $domain_id  = $q->param('domain');
-    my $goto       = $q->param('goto');
-
-    $self->{'Alias'}->create( $local_part, $domain_id, $goto );
-
-    $self->redirect( $self->{base_url} . '?rm=aliases' );
-    return;
-}
-
-sub show_remove_alias {
-    my $self = shift;
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $alias_id = $q->param('alias_id');
-
-    $self->{'Alias'}->delete($alias_id);
-
-    $self->redirect( $self->{base_url} . '?rm=aliases' );
-    return;
-}
-
-sub show_edit_alias {
-    my $self = shift;
-
-    if ( !$self->user->is_siteadmin() && !$self->user->is_domainadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $alias_id  = $q->param('alias_id');
-    my $alias_ref = $self->{'Alias'}->read($alias_id);
-
-    my %params = (
-        'title'    => $self->{lh}->maketext('Edit Alias'),
-        'alias_id' => $alias_id,
-        'current'  => 'aliases',
-    );
-
-    foreach my $key ( keys %{$alias_ref} ) {
-        $params{$key} = $alias_ref->{$key};
-    }
-
-    return $self->tt_process( 'alias/edit.tpl', \%params );
-}
-
-sub show_update_alias {
-    my $self = shift;
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my %params = ();
-    $params{'IsActive'} = $q->param('is_active');
-    $params{'Goto'}     = &VBoxAdm::Utils::trim( $q->param('goto') );
-
-    my $alias_id = $q->param('alias_id');
-
-    $self->{'Alias'}->update( $alias_id, \%params );
-
-    $self->redirect( $self->{base_url} . '?rm=aliases' );
-    return;
-}
-
-#
-# Mailboxes
-#
-
-sub show_mailboxes {
+sub show_records {
     my $self = shift;
 
     # Get our database connection
@@ -1323,20 +823,20 @@ sub show_mailboxes {
     my $search = $q->param('search');
     my %params = ( 'Search' => $search, );
 
-    my @mailboxes = $self->{'Mailbox'}->list( \%params );
+    my @records = $self->{'Record'}->list( \%params );
 
     %params = (
-        'title'     => $self->{lh}->maketext('VBoxAdm Mailboxes'),
-        'current'   => 'mailboxes',
-        'mailboxes' => \@mailboxes,
-        'domains'   => [ $self->{'Domain'}->list() ],
-        'search'    => $search,
+        'title'   => $self->{lh}->maketext('VDnsAdm Records'),
+        'current' => 'records',
+        'records' => \@records,
+        'domains' => [ $self->{'Domain'}->list() ],
+        'search'  => $search,
     );
 
-    return $self->tt_process( 'mailbox/list.tpl', \%params );
+    return $self->tt_process( 'record/list.tpl', \%params );
 }
 
-sub show_create_mailbox {
+sub show_create_record {
     my $self = shift;
 
     if ( !$self->user->is_admin() ) {
@@ -1350,6 +850,7 @@ sub show_create_mailbox {
     # Get our database connection
     my $dbh = $self->dbh();
 
+    # TODO use domain model
     my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
     my @args  = ();
 
@@ -1378,52 +879,45 @@ sub show_create_mailbox {
     return $self->tt_process( 'mailbox/create.tpl', \%params );
 }
 
-sub show_add_mailbox {
+sub show_add_record {
     my $self = shift;
 
     # Get CGI Query object
     my $q = $self->query();
 
-    my $domain_id  = $q->param('domain');
-    my $local_part = &VBoxAdm::Utils::trim( lc( $q->param('username') ) );
-    my %params     = (
-        'Password'        => $q->param('password'),
-        'PasswordAgain'   => $q->param('password_2'),
-        'Name'            => $q->param('name'),
-        'IsActive'        => $q->param('is_active'),
-        'SendWelcomeMail' => $q->param('send_welcome_mail'),
-        'MaxMsgSize'      => $q->param('max_msg_size_mb'),
-        'SAActive'        => $q->param('sa_active'),
-        'SAKillScore'     => $q->param('sa_kill_score') || $self->{'config'}{'cgi'}{'sa_default_block_score'} || 6.31,
-        'IsSiteadmin'     => 0,
-        'IsDomainadmin'   => 0,
+    my $domain_id = $q->param('domain');
+    my $name      = $q->param('name');
+    my $type      = $q->param('type');
+    my $content   = $q->param('content');
+    my $ttl       = $q->param('ttl');
+    my %params    = (
+        'Prio'       => $q->param('prio'),
+        'ChangeDate' => $q->param('changedate'),
+        'Ordername'  => $q->param('ordername'),
+        'Auth'       => $q->param('auth'),
     );
 
-    if ( $params{'IsActive'} && $params{'IsActive'} eq 'on' ) {
-        $params{'IsActive'} = 1;
-    }
+    $self->{'Record'}->create( $domain_id, $name, $type, $content, $ttl, \%params );
 
-    $self->{'Mailbox'}->create( $local_part, $domain_id, \%params );
-
-    $self->redirect( $self->{base_url} . '?rm=mailboxes' );
+    $self->redirect( $self->{base_url} . '?rm=records' );
     return;
 }
 
-sub show_remove_mailbox {
+sub show_remove_record {
     my $self = shift;
 
     # Get CGI Query object
     my $q = $self->query();
 
-    my $mailbox_id = $q->param('mailbox_id');
+    my $record_id = $q->param('record_id');
 
-    $self->{'Mailbox'}->delete($mailbox_id);
+    $self->{'Record'}->delete($record_id);
 
-    $self->redirect( $self->{base_url} . '?rm=mailboxes' );
+    $self->redirect( $self->{base_url} . '?rm=records' );
     return;
 }
 
-sub show_edit_mailbox {
+sub show_edit_record {
     my $self = shift;
 
     if ( !$self->user->is_admin() ) {
@@ -1440,76 +934,41 @@ sub show_edit_mailbox {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $mailbox_id  = $q->param('mailbox_id');
-    my $mailbox_ref = $self->{'Mailbox'}->read($mailbox_id);
-    my $domain_id   = $mailbox_ref->{'domain_id'};
-
-    # show aliases pointing to this mbox, don't forget domain aliases!
-    # show cc (aliases w/ the same name as this mailbox)
-    my $query = "SELECT id,goto FROM aliases WHERE local_part = (SELECT local_part FROM mailboxes WHERE id = ?) AND domain_id = ? ";
-    my @args  = ();
-    push( @args, $mailbox_id );
-    push( @args, $domain_id );
-    if ( !$self->user->is_siteadmin() ) {
-        $query .= "AND domain_id = ?";
-        push( @args, $self->user->get_domain_id() );
-    }
-    my $sth = $dbh->prepare($query);
-    $sth->execute(@args);
-    my ( $cc_id, $cc_goto ) = $sth->fetchrow_array();
-    $sth->finish();
+    my $record_id  = $q->param('record_id');
+    my $record_ref = $self->{'Mailbox'}->read($record_id);
+    my $domain_id  = $record_ref->{'domain_id'};
 
     my %params = (
-        'title'             => $self->{lh}->maketext('Edit Mailbox'),
-        'mailbox_id'        => $mailbox_id,
-        'user_is_siteadmin' => $self->user->is_siteadmin(),
-        'current'           => 'mailboxes',
-        'cc_goto'           => $cc_goto,
-        'cc_id'             => $cc_id,
-        'mb_is_domainadmin' => $mailbox_ref->{'is_domainadmin'},
-        'mb_is_siteadmin'   => $mailbox_ref->{'is_siteadmin'},
-        'pw_lock'           => $mailbox_ref->{'pw_lock'},
+        'title'     => $self->{lh}->maketext('Edit Record'),
+        'record_id' => $record_id,
+        'current'   => 'records',
     );
-    foreach my $key ( keys %{$mailbox_ref} ) {
-        $params{$key} = $mailbox_ref->{$key};
+    foreach my $key ( keys %{$record_ref} ) {
+        $params{$key} = $record_ref->{$key};
     }
 
-    if ( $params{'vacation_start'} && $params{'vacation_start'} =~ m/^\s*(\d\d\d\d)-(\d\d)-(\d\d)\s*$/ ) {
-        $params{'vacation_start'} = "$3.$2.$1";
-    }
-    if ( $params{'vacation_end'} && $params{'vacation_end'} =~ m/^\s*(\d\d\d\d)-(\d\d)-(\d\d)\s*$/ ) {
-        $params{'vacation_end'} = "$3.$2.$1";
-    }
-
-    return $self->tt_process( 'mailbox/edit.tpl', \%params );
+    return $self->tt_process( 'record/edit.tpl', \%params );
 }
 
-sub show_update_mailbox {
+sub show_update_record {
     my $self = shift;
 
     # Get CGI Query object
     my $q = $self->query();
 
-    my $mailbox_id = $q->param('mailbox_id');
-    my $params     = {};
+    my $record_id = $q->param('record_id');
+    my $params    = {};
 
     # TODO name keys in tempaltes acordingly and remove key translatation ... everywhere
     my %keys = (
-        'password'        => 'Password',
-        'password_2'      => 'PasswordAgain',
-        'name'            => 'Name',
-        'is_active'       => 'IsActive',
-        'max_msg_size_mb' => 'MaxMsgSize',
-        'sa_active'       => 'SAActive',
-        'sa_kill_score'   => 'SAKillScore',
-        'is_siteadmin'    => 'IsSiteadmin',
-        'is_domainadmin'  => 'IsDomainadmin',
-        'is_on_vacation'  => 'IsOnVacation',
-        'vacation_msg'    => 'VacationMessage',
-        'vacation_subj'   => 'VacationSubject',
-        'vacation_start'  => 'VacationStart',
-        'vacation_end'    => 'VacationEnd',
-        'quota'           => 'Quota',
+        'name'        => 'Name',
+        'type'        => 'Type',
+        'content'     => 'Content',
+        'ttl'         => 'TTL',
+        'prio'        => 'Prio',
+        'change_date' => 'ChangeDate',
+        'ordername'   => 'Ordername',
+        'auth'        => 'Auth',
     );
     foreach my $key ( keys %keys ) {
         my $tkey = $keys{$key};
@@ -1518,8 +977,8 @@ sub show_update_mailbox {
         }
     }
 
-    $self->{'Mailbox'}->update( $mailbox_id, $params );
-    $self->redirect( $self->{base_url} . '?rm=mailboxes' );
+    $self->{'Record'}->update( $record_id, $params );
+    $self->redirect( $self->{base_url} . '?rm=records' );
     return;
 }
 
@@ -1580,249 +1039,6 @@ sub show_log {
 }
 
 #
-# Vacation Blacklist
-#
-sub show_vacation_blacklist {
-    my $self = shift;
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $page   = $q->param('page') || 1;
-    my $search = $q->param('search');
-    my %params = (
-        'Search' => $search,
-        'Order'  => 'domain',
-    );
-
-    my @blacklist = $self->{'VacationBlacklist'}->list( \%params );
-
-    %params = (
-        'title'     => $self->{lh}->maketext('VBoxAdm Vacation Blacklist'),
-        'current'   => 'vacation',
-        'blacklist' => \@blacklist,
-        'search'    => $search,
-    );
-
-    return $self->tt_process( 'vacation_blacklist/list.tpl', \%params );
-}
-
-sub show_create_vacbl_entry {
-    my $self = shift;
-
-    if ( !$self->user->is_siteadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my %params = (
-        'title'   => $self->{lh}->maketext('VBoxAdm Vacation Blacklist - Create Entry'),
-        'current' => 'vacation',
-    );
-
-    return $self->tt_process( 'vacation_blacklist/create.tpl', \%params );
-}
-
-sub show_add_vacbl_entry {
-    my $self = shift;
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $email = $q->param('email') || undef;
-
-    $self->{'VacationBlacklist'}->create($email);
-
-    $self->redirect( $self->{base_url} . '?rm=vac_bl' );
-    return;
-}
-
-sub show_remove_vacbl_entry {
-    my $self = shift;
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $entry_id = $q->param('entry_id') || undef;
-
-    $self->{'VacationBlacklist'}->delete($entry_id);
-
-    $self->redirect( $self->{base_url} . '?rm=vac_bl' );
-    return;
-}
-
-sub show_vacation_replies {
-    my $self = shift;
-
-    if ( !$self->user->is_siteadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $search = $q->param('search') || undef;
-
-    my @args  = ();
-    my $query = "SELECT on_vacation,notified,notified_at FROM vacation_notify ";
-    if ($search) {
-        $query .= "WHERE on_vacation LIKE ? OR notified LIKE ? ";
-        $search =~ s/%//g;
-        my $search_arg = "%" . $search . "%";
-        push( @args, $search_arg );
-        push( @args, $search_arg );
-    }
-    $query .= "ORDER BY on_vacation,notified,notified_at";
-    my $sth = $dbh->prepare($query)
-      or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr );
-    $sth->execute(@args)
-      or $self->{'logger'}->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr );
-    my @notifies = ();
-    while ( my ( $on_vacation, $notified, $notified_at ) = $sth->fetchrow_array() ) {
-        push(
-            @notifies,
-            {
-                'on_vacation' => $on_vacation,
-                'notified'    => $notified,
-                'notified_at' => $notified_at,
-            }
-        );
-    }
-    $sth->finish();
-
-    my %params = (
-        'title'    => $self->{lh}->maketext('VBoxAdm Vacation Notifications'),
-        'current'  => 'vacation',
-        'notifies' => \@notifies,
-        'search'   => $search,
-    );
-
-    return $self->tt_process( 'vacation_notify/list.tpl', \%params );
-}
-
-#
-# RFC Notify
-#
-
-sub show_rfc_notify {
-    my $self = shift;
-
-    if ( !$self->user->is_siteadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $search = $q->param('search') || undef;
-
-    my @args  = ();
-    my $query = "SELECT id,email,ts FROM rfc_notify ";
-    if ($search) {
-        $query .= "WHERE email LIKE ? ";
-        $search =~ s/%//g;
-        my $search_arg = "%" . $search . "%";
-        push( @args, $search_arg );
-    }
-    $query .= "ORDER BY ts";
-    my $sth = $dbh->prepare($query);
-    $sth->execute(@args);
-    my @notifies = ();
-    while ( my ( $id, $email, $ts ) = $sth->fetchrow_array() ) {
-        push(
-            @notifies,
-            {
-                'id'    => $id,
-                'email' => $email,
-                'ts'    => $ts,
-            }
-        );
-    }
-    $sth->finish();
-
-    my %params = (
-        'title'    => $self->{lh}->maketext('VBoxAdm RFC Notifications'),
-        'current'  => 'notify',
-        'notifies' => \@notifies,
-        'search'   => $search,
-    );
-
-    return $self->tt_process( 'rfc_notify/list.tpl', \%params );
-}
-
-#
-# Auto-Whitelist
-#
-sub show_awl {
-    my $self = shift;
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $page   = $q->param('page') || 1;
-    my $search = $q->param('search');
-    my %params = (
-        'Search' => $search,
-        'Order'  => 'email',
-    );
-
-    my @awl = $self->{'AWL'}->list( \%params );
-
-    %params = (
-        'title'   => $self->{lh}->maketext('VBoxAdm Auto-Whitelist'),
-        'current' => 'awl',
-        'awl'     => \@awl,
-        'search'  => $search,
-    );
-
-    return $self->tt_process( 'awl/list.tpl', \%params );
-}
-
-sub show_update_awl {
-    my $self = shift;
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $entry_id = $q->param('entry_id') || undef;
-    my %params = ( 'Disabled' => $q->param('disabled'), );
-
-    $self->{'AWL'}->update( $entry_id, \%params );
-
-    $self->redirect( $self->{base_url} . '?rm=awl' );
-    return;
-}
-
-#
 # Admins
 #
 
@@ -1850,147 +1066,16 @@ sub show_admins {
         'IsAdmin' => 1,
     );
 
-    my @mailboxes = $self->{'Mailbox'}->list( \%params );
+    my @mailboxes = $self->{'User'}->list( \%params );
 
     %params = (
-        'title'   => $self->{lh}->maketext('VBoxAdm Admins'),
+        'title'   => $self->{lh}->maketext('VDnsAdm Admins'),
         'current' => 'admins',
         'admins'  => \@mailboxes,
         'search'  => $search,
     );
 
-    return $self->tt_process( 'mailbox/admins.tpl', \%params );
-}
-
-#
-# RoleAccounts
-#
-sub show_role_accounts {
-    my $self = shift;
-
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $search = $q->param('search');
-    my %params = (
-        'Search' => $search,
-        'Order'  => 'domain',
-    );
-
-    my @roleacc = $self->{'RoleAccount'}->list( \%params );
-
-    %params = (
-        'title'    => $self->{lh}->maketext('VBoxAdm Role Accounts'),
-        'current'  => 'vacation',
-        'roleaccs' => \@roleacc,
-        'search'   => $search,
-    );
-
-    return $self->tt_process( 'role_account/list.tpl', \%params );
-}
-
-sub show_add_role_account {
-    my $self = shift;
-
-    if ( !$self->user->is_siteadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $role = $q->param('role');
-    my $goto = &VBoxAdm::Utils::trim( lc( $q->param('goto') ) );
-
-    $self->{'RoleAccount'}->create( $role, $goto );
-
-    $self->redirect( $self->{base_url} . '?rm=role_accounts' );
-    return;
-}
-
-sub show_create_role_account {
-    my $self = shift;
-
-    if ( !$self->user->is_siteadmin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    my %params = (
-        'title'   => $self->{lh}->maketext('VBoxAdm Role Accounts - Create Entry'),
-        'current' => 'roleacc',
-    );
-
-    return $self->tt_process( 'role_account/create.tpl', \%params );
-}
-
-sub show_edit_role_account {
-    my $self = shift;
-
-    if ( !$self->user->is_admin() ) {
-        my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( 'error', $self->{lh}->maketext($msg) );
-        $self->redirect( $self->{base_url} . '?rm=welcome' );
-        return;
-    }
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $roleacc_id  = $q->param('roleacc_id');
-    my $roleacc_ref = $self->{'RoleAccount'}->read($roleacc_id);
-
-    my %params = (
-        'title'      => $self->{lh}->maketext('Edit Alias'),
-        'roleacc_id' => $roleacc_id,
-        'current'    => 'roleaccs',
-    );
-
-    foreach my $key ( keys %{$roleacc_ref} ) {
-        $params{$key} = $roleacc_ref->{$key};
-    }
-
-    return $self->tt_process( 'role_account/edit.tpl', \%params );
-}
-
-sub show_remove_role_account {
-    my $self = shift;
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $roleacc_id = $q->param('roleacc_id');
-
-    $self->{'RoleAccount'}->delete($roleacc_id);
-
-    $self->redirect( $self->{base_url} . '?rm=roleaccs' );
-    return;
-}
-
-sub show_update_role_account {
-    my $self = shift;
-
-    # Get CGI Query object
-    my $q = $self->query();
-
-    my $roleacc_id = $q->param('roleacc_id');
-    my %params = ( 'Goto' => $q->param('goto'), );
-
-    $self->{'RoleAccount'}->update( $roleacc_id, \%params );
-
-    $self->redirect( $self->{base_url} . '?rm=roleaccs' );
-    return;
+    return $self->tt_process( 'user/admins.tpl', \%params );
 }
 
 1;
@@ -1999,22 +1084,22 @@ __END__
 
 =head1 NAME
 
-VBoxAdm::Controller::Frontend - Frontend for VBoxAdm
+VDnsAdm::Controller::Frontend - Frontend for VDnsAdm
 
 =head1 VERSION
 
-This documentation refers to VBoxAdm::Controller::Frontend version @VERSION@
+This documentation refers to VDnsAdm::Controller::Frontend version @VERSION@
 built on @BUILDDATE@.
 
 =head1 SYNOPSIS
 
-    use VBoxAdm::Controller::Frontend;
-		my $vadm = VBoxAdm::Controller::Frontend->new();
+    use VDnsAdm::Controller::Frontend;
+		my $vadm = VDnsAdm::Controller::Frontend->new();
 		$vadm->run();
 
 =head1 DESCRIPTION
 
-This module implements the controller for the webinterface of VBoxAdm.
+This module implements the controller for the webinterface of VDnsAdm.
 
 =head1 SUBROUTINES/METHODS
 

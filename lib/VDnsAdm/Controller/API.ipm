@@ -129,10 +129,10 @@ sub setup {
     # L10N
     #
     # the user handle, will try to determine the appropriate language ... look at the docs of Locale::Maketext
-    $self->{lh} = VBoxAdm::L10N::->get_handle();
+    $self->{lh} = VDnsAdm::L10N::->get_handle();
 
     # this handle is used for logging. logged messages should always be in english
-    $self->{lh_en} = VBoxAdm::L10N::->get_handle('en');
+    $self->{lh_en} = VDnsAdm::L10N::->get_handle('en');
 
     # to make perlcritic happy
     return 1;

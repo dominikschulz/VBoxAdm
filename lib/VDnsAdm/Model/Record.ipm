@@ -11,138 +11,430 @@ use VWebAdm::Utils '@VERSION@';
 extends 'VWebAdm::Model';
 
 sub _init_fields {
-    return [qw(id name is_active)];
+    return [qw(id domain_id name type content ttl prio change_date ordername auth)];
 }
 
-sub create {
-    my ( $self, $domain ) = @_;
+sub _valid_type {
+    my $self = shift;
+    my $type = shift;
 
-    # Authorization - No access for regular users
-    if ( !$self->user->is_siteadmin() ) {
-        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-        return;
+    if ( $type =~ m/(?:A|AAAA|AFSDB|CERT|CNAME|DNSKEY|DS|HINFO|KEY|LOC|MX|NAPTR|NS|NSEC|PTR|RP|RRSIG|SOA|SPF|SSHFP|SRV|TXT)/ ) {
+        return 1;
     }
+    return;
+}
 
-    $domain = &VBoxAdm::Utils::trim( lc($domain) );
+sub _valid_content {
+    my $self    = shift;
+    my $type    = shift;
+    my $content = shift;
 
-    if ( $domain && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain) ) {
-        $self->msg->push( 'error', 'Invalid syntax. Domain is not RFC822 compliant!' );
-        return;
-    }
-    elsif ($domain) {
-        my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
-
-        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain ) ) {
-            $self->msg->push( 'information', "Domain '[_1]' added", $domain );
-            $sth->finish();
+    # TODO validate
+    if ( $type eq 'A' ) {
+        if ( $content =~ m/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/ ) {
             return 1;
         }
         else {
-            $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . $domain . ', Error: ' . $self->dbh()->errstr() );
-            $self->msg->push( 'error', "Failed to add Domain '[_1]'. Database error.", $domain );
             return;
         }
-
     }
-    else {
-        $self->msg->add( 'error', "Failed to add Domain [_1]. Insufficient parameters.", $domain );
-        return;
+    elsif ( $type eq 'AAAA' ) {
+        return;    # TODO validate IPv6
     }
-}
-
-sub delete {
-    my ( $self, $domain_id ) = @_;
-
-    # Authorization - No access for regular users
-    if ( !$self->user->is_siteadmin() ) {
-        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-        return;
+    elsif ( $type eq 'AFSDB' ) {
+        return;    # TODO validate AFSDB
     }
-
-    my $sql = "DELETE FROM domains WHERE id = ? LIMIT 1";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $domain_id );
-
-    if ( !$sth ) {
-        $self->msg->push( 'error', 'Database error.' );
-        return;
+    elsif ( $type eq 'CERT' ) {
+        return;    # TODO validate CERT
     }
-
-    $sth->finish();
+    elsif ( $type eq 'CNAME' ) {
+        return;    # TODO validate CNAME
+    }
+    elsif ( $type eq 'DNSKEY' ) {
+        return;    # TODO validate DNSKEY
+    }
+    elsif ( $type eq 'DS' ) {
+        return;    # TODO validate DS
+    }
+    elsif ( $type eq 'HINFO' ) {
+        return;    # TODO validate HINFO
+    }
+    elsif ( $type eq 'KEY' ) {
+        return;    # TODO validate KEY
+    }
+    elsif ( $type eq 'LOC' ) {
+        return;    # TODO validate LOC
+    }
+    elsif ( $type eq 'MX' ) {
+        return;    # TODO validate MX
+    }
+    elsif ( $type eq 'NAPTR' ) {
+        return;    # TODO validate NAPTR
+    }
+    elsif ( $type eq 'NS' ) {
+        return;    # TODO validate NS
+    }
+    elsif ( $type eq 'NSEC' ) {
+        return;    # TODO validate NSEC
+    }
+    elsif ( $type eq 'PTR' ) {
+        return;    # TODO validate PTR
+    }
+    elsif ( $type eq 'RP' ) {
+        return;    # TODO validate RP
+    }
+    elsif ( $type eq 'RRSIG' ) {
+        return;    # TODO validate RRSIG
+    }
+    elsif ( $type eq 'SOA' ) {
+        return;    # TODO validate SOA
+    }
+    elsif ( $type eq 'SPF' ) {
+        return;    # TODO validate SPF
+    }
+    elsif ( $type eq 'SSHFP' ) {
+        return;    # TODO validate SSHFP
+    }
+    elsif ( $type eq 'SRV' ) {
+        return;    # TODO validate SRV
+    }
+    elsif ( $type eq 'TXT' ) {
+        return;    # TODO validate TXT
+    }
 
     return;
 }
 
-sub update {
-    my ( $self, $domain_id, $params ) = @_;
+sub create {
+    my ( $self, $domain_id, $name, $type, $content, $ttl, $params ) = @_;
 
     # Authorization - No access for regular users
-    if ( !$self->user->is_siteadmin() ) {
+    if ( !$self->user->is_admin() ) {
         $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
 
-    my $domain_name = $self->get_name($domain_id);
+    $name = &VBoxAdm::Utils::trim( lc($name) );
 
-    my $sql  = "UPDATE domains SET ";
+    my $Domain      = VDnsAdm::Model::Domain->new( { 'Model' => $self, } );
+    my $domain_name = $Domain->get_name($domain_id);
+    my $record_name = $self->_get_record_name( $name, $type, $ttl, $content );
+
+    my %args = (
+        'name'        => $name,
+        'domain_id'   => $domain_id,
+        'type'        => $type,
+        'content'     => $content,
+        'ttl'         => $ttl,
+        'prio'        => undef,
+        'change_date' => undef,
+        'ordername'   => undef,
+        'auth'        => undef,
+    );
+
+    #
+    # Name
+    #
+    # Nop
+
+    #
+    # Type
+    #
+    if ( !$self->_valid_type($type) ) {
+        $self->msg->push( 'error', 'Invalid Record Type. Can not add!' );
+        return;
+    }
+
+    #
+    # Content
+    #
+    if ( !$self->_valid_content( $type, $content ) ) {
+        $self->msg->push( 'error', 'Invalid content for type!' );
+        return;
+    }
+
+    #
+    # TTL
+    #
+    if ( $ttl !~ m/^\d+$/ || length($ttl) > 11 ) {
+        $self->msg->push( 'error', 'Invalid data for ttl!' );
+        return;
+    }
+
+    #
+    # Prio
+    #
+    if ( $params->{'MaxMsgSize'} ) {
+        $args{'max_msg_size'} = $params->{'MaxMsgSize'} * 1024;
+    }
+
+    #
+    # ChangeDate
+    #
+    if ( defined( $params->{'SAActive'} ) ) {
+        if ( $params->{'SAActive'} ) {
+            $args{'sa_active'} = 1;
+        }
+        else {
+            $args{'sa_active'} = 0;
+        }
+    }
+    if ( $params->{'SAKillScore'} ) {
+        $args{'sa_kill_score'} = $params->{'SAKillScore'};
+    }
+
+    #
+    # Ordername
+    #
+
+    #
+    # Auth
+    #
+
+    # Check authorization, syntax and create mailbox
+    if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get_domain_id() ) {
+
+        # if domainadmin, verify that its his domain
+        $self->msg->push( 'error', "You are not authorized to modify this domain!" );
+    }
+    else {
+        my $query = "INSERT INTO records (" . join( ",", keys %args ) . ") VALUES(";
+        $query .= "?," x ( scalar( keys %args ) - 1 );
+        $query .= "?)";
+
+        foreach my $key ( keys %args ) {
+            $args{$key} = 0 unless defined( $args{$key} );
+            $args{$key} = Encode::decode( 'UTF-8', $args{$key} );
+        }
+        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, values %args ) ) {
+            $sth->finish();
+            $self->msg->push( 'information', "Added Record [_1] for [_2].", $record_name, $domain_name );
+        }
+        else {
+            $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", (%args) ) . ', Error: ' . $self->dbh()->errstr() );
+            $self->msg->push( 'error', "Failed to add Record [_1] for [_2]. Database Error: " . $sth->dbh()->err(), $record_name, $domain_name );
+        }
+    }
+    return;
+}
+
+sub delete {
+    my ( $self, $record_id ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    if ( !$record_id || $record_id !~ m/^\d+$/ ) {
+        $self->msg->push( 'error', "Failed to remove record. Insufficient parameters." );
+        return;
+    }
+    my $query = "SELECT name, type, content, ttl FROM records WHERE id = ?";
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $record_id );
+    my ( $name, $type, $content, $ttl ) = $sth->fetchrow_array();
+    my $record_name = $self->_get_record_name( $name, $type, $ttl, $content );
+    $sth->finish();
+
+    $query = "DELETE FROM records WHERE id = ?";
+    my @args = ();
+    push( @args, $record_id );
+    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
+        $query .= "AND domain_id = ?";
+        push( @args, $self->user->get_domain_id() );
+    }
+    if ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+        $self->msg->push( 'information', "Record [_1] (#[_2]) removed.", $record_name, $record_id );
+    }
+    else {
+        $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh()->errstr() );
+        $self->msg->push( 'error', "Failed to remove Record [_1] (#[_2]). Database Error: " . $self->dbh()->err(), $record_name, $record_id );
+    }
+
+    return 1;
+}
+
+sub _get_record_name {
+    my $self    = shift;
+    my $name    = shift;
+    my $type    = shift;
+    my $ttl     = shift;
+    my $content = shift;
+
+    return $name . ' IN ' . $type . ' ' . $ttl . ' ' . $content;
+}
+
+sub update {
+    my ( $self, $record_id, $params ) = @_;
+
+    # Authorization - Regular Users may access this method!
+
+    if ( !$record_id || $record_id !~ m/^\d+$/ ) {
+        $self->msg->push( 'error', 'Failed to update record. Need a numeric record id.' );
+        return;
+    }
+
+    my $query = "SELECT name, type, content, ttl FROM records WHERE id = ?";
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $record_id );
+    my ( $name, $type, $content, $ttl ) = $sth->fetchrow_array();
+    my $record_name = $self->_get_record_name( $name, $type, $ttl, $content );
+    $sth->finish();
+
+    my $msg_loc = '';
+    my $msg_en  = '';
+
+    $query = "UPDATE records SET ";
+
+    # only execute query if scalar(@params) > 0, i.e. at least on valid option
     my @args = ();
 
-    if ( defined( $params->{'IsActive'} ) ) {
-        $sql .= "is_active = ? ";
-        if ( $params->{'IsActive'} ) {
-            push( @args, 1 );
-        }
-        else {
-            push( @args, 0 );
+    foreach my $key ( keys %{$params} ) {
+        $params->{$key} = Encode::decode( 'UTF-8', $params->{$key} );
+    }
+
+    #
+    # Name
+    #
+    if ( $params->{'Name'} ) {
+        $query .= "name = ?, ";
+        push( @args, $params->{'Name'} );
+    }
+
+    #
+    # Type
+    #
+    if ( defined( $params->{'Type'} ) ) {
+        if ( $self->_valid_type( $params->{'Type'} ) ) {
+            $query .= "type = ?, ";
+            push( @args, $params->{'Type'} );
         }
     }
 
-    if ( scalar(@args) > 0 ) {
-        $sql .= "WHERE id = ?";
-        push( @args, $domain_id );
-        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args ) ) {
-            $sth->finish();
-            $self->msg->push( 'information', 'Updated Domain [_1].', $domain_name );
-            return 1;
-        }
-        else {
-            $self->log( 'Could not execute Query: ' . $sql . ', Args: ' . join( ',', @args ) . ', Error: ' . $self->dbh->errstr );
-            $self->msg->push( 'error', 'Failed to update Domain [_1]. Database error.', $domain_name );
-            return;
+    #
+    # Content
+    #
+    if ( defined( $params->{'Content'} ) ) {
+        my $t = $params->{'Type'} || $type;
+        if ( $self->_valid_content( $t, $params->{'Content'} ) ) {
+            $query .= "content = ?, ";
+            push( @args, $params->{'Content'} );
         }
     }
+
+    #
+    # TTL
+    #
+    if ( defined( $params->{'TTL'} ) && $params->{'TTL'} =~ m/^\d+$/ ) {
+        $query .= "ttl = ?, ";
+        push( @args, $params->{'TTL'} );
+    }
+
+    #
+    # Prio
+    #
+    if ( defined( $params->{'Prio'} ) && $params->{'Prio'} =~ m/^\d+$/ ) {
+        $query .= "prio = ?, ";
+        push( @args, $params->{'Prio'} );
+    }
+
+    #
+    # ChangeDate
+    #
+    if ( defined( $params->{'ChangeDate'} ) && $params->{'ChangeDate'} =~ m/^\d+$/ ) {
+        $query .= "change_date = ?, ";
+        push( @args, $params->{'ChangeDate'} );
+    }
+
+    # Ordername
+    # TODO
+    # Auth
+    # TODO
+
+    # at least on option has changed
+    if ( scalar(@args) > 1 ) {
+
+        # remove (possible) trailing ,
+        $query =~ s/,\s*$//;
+
+        # finialize query
+        $query .= " WHERE id = ?";
+        push( @args, $record_id );
+
+        # if domainadmin, verify that its his domain
+        if ( $self->user->is_siteadmin() ) {
+
+            # Siteadmin? - OK, go ahead. Do anything you want ...
+        }
+        elsif ( $self->user->is_domainadmin() ) {
+
+            # Domainadmin? - Only your domain please!
+            $query .= "AND domain_id = ?";
+            push( @args, $self->user->get_domain_id() );
+        }
+        else {
+            $self->msg->push( 'error', 'Sorry, no access for you!' );
+            return;
+        }
+
+        #$self->log( "Record::update - SQL: ".$query. " - Args: ".join(',',@args));
+        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+            $self->msg->push( 'information', "Updated Record [_1] (#[_2]).", $record_name, $record_id );
+        }
+        else {
+            $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh()->errstr() );
+            $self->msg->push( 'error', "Failed to update Record [_1] (#[_2]). Database Error.", $record_name, $record_id );
+        }
+    }
+    else {
+        $self->msg->push( 'warning', 'No Parameter changed.' );
+    }
+
+    return;
 }
 
 sub read {
-    my ( $self, $id ) = @_;
+    my ( $self, $mailbox_id ) = @_;
 
-    # Authorization - No access for regular users
+    my $sql = "SELECT " . join( ",", @{ $self->fields() } ) . " FROM records WHERE id = ?";
+    my @args = ($mailbox_id);
+
     if ( !$self->user->is_siteadmin() ) {
-        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        $sql .= " AND domain_id = ?";
+        push( @args, $self->user->get_domain_id() );
+    }
+    else {
+        $self->msg->push( 'error', 'Sorry, no access for you!' );
         return;
     }
 
-    return $self->_read( 'domains', $id, );
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    my %result;
+    @result{ @{ $self->fields() } } = $sth->fetchrow_array();
+    $sth->finish();
+
+    # get domain_name
+    $sql = "SELECT name FROM domains WHERE id = ?";
+    $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $result{'domain_id'} );
+    if ($sth) {
+        $result{'domain'} = $sth->fetchrow_array();
+    }
+
+    foreach my $key ( keys %result ) {
+        $result{$key} = Encode::decode( 'UTF-8', $result{$key} ) unless Encode::is_utf8( $result{$key} );
+    }
+
+    return \%result;
 }
 
 sub list {
-    my ( $self, $params ) = @_;
-
-    # Authorization - No access for regular users
-    if ( !$self->user->is_admin() ) {
-        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
-        return;
-    }
-    elsif ( $self->user->is_domainadmin() ) {
-
-        # limit to this domain
-        $params->{'id'} = $self->user->get_domain_id();
-    }
-
-    return $self->_list( 'domains', $params );
-}
-
-sub get_name {
-    my ( $self, $id ) = @_;
+    my ( $self, $param ) = @_;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -150,22 +442,57 @@ sub get_name {
         return;
     }
 
-    my $query = "SELECT name FROM domains WHERE id = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $id );
+    my @fields = @{ $self->fields() };
+    my $sql    = "SELECT r." . join( ",r.", @fields ) . ",d.name FROM records AS r LEFT JOIN domains AS d ON r.domain_id = d.id WHERE 1";
+    my @args   = ();
+    if ( $param->{'Search'} ) {
+        $sql .= " AND name LIKE ? OR content LIKE ?";
+        my $term = $param->{'Search'};
+        $term =~ s/[*%]+//g;
+        $term = '%' . $term . '%';
+        push( @args, $term );
+        push( @args, $term );
+    }
+    if ( $param->{'domain_id'} ) {
+        $sql .= " AND domain_id = ?";
+        push( @args, $param->{'domain_id'} );
+    }
+
+    # domain admins may only see their own domain
+    if ( !$self->user->is_siteadmin() ) {
+        $sql .= " AND domain_id = ?";
+        push( @args, $self->user->get_domain_id() );
+    }
+
+    # regular users are kicked out above
+
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
 
     if ( !$sth ) {
         $self->msg->push( 'error', 'Database error.' );
+        $self->log( 'Database Error during query ' . $sql . ': ' . $self->dbh->errstr );
         return;
     }
 
-    my $domain_name = $sth->fetchrow_array();
+    my @entries = ();
+
+    # domain name was not in the field list 'coz it is prefixed with d., not r.
+    push( @fields, 'domain' );
+    while ( my @row = $sth->fetchrow_array() ) {
+        my %h;
+        @h{@fields} = @row;
+        foreach my $field ( keys %h ) {
+            $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8( $h{$field} );
+        }
+        push( @entries, \%h );
+    }
     $sth->finish();
 
-    return $domain_name;
+    return @entries;
 }
 
 sub get_id {
-    my ( $self, $name ) = @_;
+    my ( $self, $email ) = @_;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -173,42 +500,49 @@ sub get_id {
         return;
     }
 
-    my $query = "SELECT id FROM domains WHERE name = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $name );
+    if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+        return;
+    }
+
+    my ( $local_part, $domain ) = split /@/, $email;
+
+    my $query = "SELECT m.id FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
+    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain );
 
     if ( !$sth ) {
         $self->msg->push( 'error', 'Database error.' );
         return;
     }
 
-    my $domain_id = $sth->fetchrow_array();
+    my $id = $sth->fetchrow_array();
     $sth->finish();
 
-    return $domain_id;
+    return $id;
 }
 
 no Moose;
 __PACKAGE__->meta->make_immutable;
 
 1;
+
 __END__
 
 =head1 NAME
 
-VBoxAdm::Model::Domain - Class for Domains
+VDnsAdm::Model::Records - Class for Records
 
 =head1 VERSION
 
-This documentation refers to VBoxAdm::Model::Domain version @VERSION@
+This documentation refers to VDnsAdm::Model::Record version @VERSION@
 built on @BUILDDATE@.
 
 =head1 SYNOPSIS
 
-    use VBoxAdm::Model::Domain;
+    use VDnsAdm::Model::Record;
 
 =head1 DESCRIPTION
 
-This class provides common DB methods.
+TODO
 
 =head1 DEPENDENCIES
 

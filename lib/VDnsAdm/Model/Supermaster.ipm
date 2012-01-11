@@ -11,11 +11,11 @@ use VWebAdm::Utils '@VERSION@';
 extends 'VWebAdm::Model';
 
 sub _init_fields {
-    return [qw(id name is_active)];
+    return [qw(id ip nameserver account)];
 }
 
 sub create {
-    my ( $self, $domain ) = @_;
+    my ( $self, $ip, $nameserver, $account ) = @_;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_siteadmin() ) {
@@ -23,29 +23,27 @@ sub create {
         return;
     }
 
-    $domain = &VBoxAdm::Utils::trim( lc($domain) );
-
-    if ( $domain && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain) ) {
-        $self->msg->push( 'error', 'Invalid syntax. Domain is not RFC822 compliant!' );
+    if ( $ip && !&VBoxAdm::Utils::is_valid_ip($ip) ) {
+        $self->msg->push( 'error', 'Invalid syntax for IP!' );
         return;
     }
-    elsif ($domain) {
-        my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
+    elsif ($ip) {
+        my $query = "INSERT INTO supermasters (ip,nameserver,account) VALUES(?,?,?)";
 
-        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain ) ) {
-            $self->msg->push( 'information', "Domain '[_1]' added", $domain );
+        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $ip, $nameserver, $account ) ) {
+            $self->msg->push( 'information', "Supermaster '[_1]' added", $ip );
             $sth->finish();
             return 1;
         }
         else {
-            $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . $domain . ', Error: ' . $self->dbh()->errstr() );
-            $self->msg->push( 'error', "Failed to add Domain '[_1]'. Database error.", $domain );
+            $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . $ip . ', Error: ' . $self->dbh()->errstr() );
+            $self->msg->push( 'error', "Failed to add Supermaster '[_1]'. Database error.", $ip );
             return;
         }
 
     }
     else {
-        $self->msg->add( 'error', "Failed to add Domain [_1]. Insufficient parameters.", $domain );
+        $self->msg->add( 'error', "Failed to add Supermaster [_1]. Insufficient parameters.", $ip );
         return;
     }
 }

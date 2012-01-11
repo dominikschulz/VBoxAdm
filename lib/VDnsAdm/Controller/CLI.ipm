@@ -1,11 +1,9 @@
-package VBoxAdm::Controller::CLI;
+package VDnsAdm::Controller::CLI;
 
 use lib '@LIBDIR@';
 
 use Moose;
 use namespace::autoclean;
-
-# TODO allow changing the pw_lock flag on mailboxes
 
 use English qw(-no_match_vars);
 use Carp;
@@ -15,9 +13,6 @@ use Getopt::Long;
 use File::Temp;
 use Config::Std;    # TODO use config class
 use Net::Domain;
-use Net::SMTP;
-use Net::POP3;
-use Net::IMAP::Client;
 use Text::Levenshtein qw(distance);
 
 use VWebAdm::DB '@VERSION@';
@@ -25,15 +20,11 @@ use VWebAdm::Utils '@VERSION@';
 use VBoxAdm::Migration '@VERSION@';
 use VWebAdm::SaltedHash '@VERSION@';
 use VWebAdm::Password '@VERSION@';
-use VBoxAdm::Model::Alias '@VERSION@';
-use VBoxAdm::Model::AWL '@VERSION@';
-use VBoxAdm::Model::Domain '@VERSION@';
-use VBoxAdm::Model::DomainAlias '@VERSION@';
-use VBoxAdm::Model::Mailbox '@VERSION@';
-use VBoxAdm::Model::User '@VERSION@';
-use VBoxAdm::Model::VacationBlacklist '@VERSION@';
+use VDnsAdm::Model::Domain '@VERSION@';
+use VDnsAdm::Model::Record '@VERSION@';
+use VDnsAdm::Model::Supermaster '@VERSION@';
 use VWebAdm::Model::MessageQueue '@VERSION@';
-use VBoxAdm::L10N '@VERSION@';
+use VDnsAdm::L10N '@VERSION@';
 use VWebAdm::Logger '@VERSION@';
 
 binmode( STDIN, ':utf8' );
@@ -45,7 +36,7 @@ has 'config' => (
 
 has 'logger' => (
     'is'      => 'ro',
-    'isa'     => 'VBoxAdm::Logger',
+    'isa'     => 'VWebAdm::Logger',
     'lazy'    => 1,
     'builder' => '_init_logger',
 );
@@ -59,7 +50,7 @@ has 'dbh' => (
 
 has 'msgq' => (
     'is'      => 'ro',
-    'isa'     => 'VBoxAdm::Model::MessageQueue',
+    'isa'     => 'VWebAdm::Model::MessageQueue',
     'lazy'    => 1,
     'builder' => '_init_msgq',
 );
@@ -80,7 +71,7 @@ has 'actions' => (
 
 has 'domain' => (
     'is'      => 'ro',
-    'isa'     => 'VBoxAdm::Model::Domain',
+    'isa'     => 'VDnsAdm::Model::Domain',
     'lazy'    => 1,
     'builder' => '_init_domain',
 );
@@ -88,7 +79,7 @@ has 'domain' => (
 sub _init_domain {
     my $self = shift;
 
-    my $Domain = VBoxAdm::Model::Domain::->new(
+    my $Domain = VDnsAdm::Model::Domain::->new(
         {
             'dbh'    => $self->dbh(),
             'logger' => $self->logger(),
@@ -101,17 +92,17 @@ sub _init_domain {
     return $Domain;
 }
 
-has 'alias' => (
+has 'record' => (
     'is'      => 'ro',
-    'isa'     => 'VBoxAdm::Model::Alias',
+    'isa'     => 'VDnsAdm::Model::Record',
     'lazy'    => 1,
-    'builder' => '_init_alias',
+    'builder' => '_init_record',
 );
 
-sub _init_alias {
+sub _init_record {
     my $self = shift;
 
-    my $Alias = VBoxAdm::Model::Alias::->new(
+    my $Record = VDnsAdm::Model::Record::->new(
         {
             'dbh'    => $self->dbh(),
             'logger' => $self->logger(),
@@ -121,168 +112,7 @@ sub _init_alias {
         }
     );
 
-    return $Alias;
-}
-
-has 'awl' => (
-    'is'      => 'ro',
-    'isa'     => 'VBoxAdm::Model::AWL',
-    'lazy'    => 1,
-    'builder' => '_init_awl',
-);
-
-sub _init_awl {
-    my $self = shift;
-
-    my $AWL = VBoxAdm::Model::AWL::->new(
-        {
-            'dbh'    => $self->dbh(),
-            'logger' => $self->logger(),
-            'config' => $self->config(),
-            'user'   => $self->user(),
-            'msgq'   => $self->msgq(),
-        }
-    );
-
-    return $AWL;
-}
-
-has 'domainalias' => (
-    'is'      => 'ro',
-    'isa'     => 'VBoxAdm::Model::DomainAlias',
-    'lazy'    => 1,
-    'builder' => '_init_domainalias',
-);
-
-sub _init_domainalias {
-    my $self = shift;
-
-    my $DomainAlias = VBoxAdm::Model::DomainAlias::->new(
-        {
-            'dbh'    => $self->dbh(),
-            'logger' => $self->logger(),
-            'config' => $self->config(),
-            'user'   => $self->user(),
-            'msgq'   => $self->msgq(),
-        }
-    );
-
-    return $DomainAlias;
-}
-
-has 'mailbox' => (
-    'is'      => 'ro',
-    'isa'     => 'VBoxAdm::Model::Mailbox',
-    'lazy'    => 1,
-    'builder' => '_init_mailbox',
-);
-
-sub _init_mailbox {
-    my $self = shift;
-
-    my $Mailbox = VBoxAdm::Model::Mailbox::->new(
-        {
-            'dbh'    => $self->dbh(),
-            'logger' => $self->logger(),
-            'config' => $self->config(),
-            'user'   => $self->user(),
-            'msgq'   => $self->msgq(),
-        }
-    );
-
-    return $Mailbox;
-}
-
-has 'rfcnotify' => (
-    'is'      => 'ro',
-    'isa'     => 'VBoxAdm::Model::RFCNotify',
-    'lazy'    => 1,
-    'builder' => '_init_rfcnotify',
-);
-
-sub _init_rfcnotify {
-    my $self = shift;
-
-    my $RFCN = VBoxAdm::Model::RFCNotify::->new(
-        {
-            'dbh'    => $self->dbh(),
-            'logger' => $self->logger(),
-            'config' => $self->config(),
-            'user'   => $self->user(),
-            'msgq'   => $self->msgq(),
-        }
-    );
-
-    return $RFCN;
-}
-
-has 'roleaccount' => (
-    'is'      => 'ro',
-    'isa'     => 'VBoxAdm::Model::RoleAccount',
-    'lazy'    => 1,
-    'builder' => '_init_roleaccount',
-);
-
-sub _init_roleaccount {
-    my $self = shift;
-
-    my $RA = VBoxAdm::Model::RoleAccount::->new(
-        {
-            'dbh'    => $self->dbh(),
-            'logger' => $self->logger(),
-            'config' => $self->config(),
-            'user'   => $self->user(),
-            'msgq'   => $self->msgq(),
-        }
-    );
-
-    return $RA;
-}
-
-has 'vacationblacklist' => (
-    'is'      => 'ro',
-    'isa'     => 'VBoxAdm::Model::VacationBlacklist',
-    'lazy'    => 1,
-    'builder' => '_init_vacationblacklist',
-);
-
-sub _init_vacationblacklist {
-    my $self = shift;
-
-    my $VB = VBoxAdm::Model::VacationBlacklist::->new(
-        {
-            'dbh'    => $self->dbh(),
-            'logger' => $self->logger(),
-            'config' => $self->config(),
-            'user'   => $self->user(),
-            'msgq'   => $self->msgq(),
-        }
-    );
-
-    return $VB;
-}
-
-has 'vacationnotify' => (
-    'is'      => 'ro',
-    'isa'     => 'VBoxAdm::Model::VacationNotify',
-    'lazy'    => 1,
-    'builder' => '_init_vacationnotify',
-);
-
-sub _init_vacationnotify {
-    my $self = shift;
-
-    my $VN = VBoxAdm::Model::VacationNotify::->new(
-        {
-            'dbh'    => $self->dbh(),
-            'logger' => $self->logger(),
-            'config' => $self->config(),
-            'user'   => $self->user(),
-            'msgq'   => $self->msgq(),
-        }
-    );
-
-    return $VN;
+    return $Record;
 }
 
 sub _init_logger {
@@ -320,8 +150,8 @@ sub _init_msgq {
     my $self = shift;
     my $MQ   = VWebAdm::Model::MessageQueue::->new(
         {
-            'lh'    => VBoxAdm::L10N::->get_handle(),
-            'lh_en' => VBoxAdm::L10N::->get_handle('en'),
+            'lh'    => VDnsAdm::L10N::->get_handle(),
+            'lh_en' => VDnsAdm::L10N::->get_handle('en'),
         }
     );
     return $MQ;

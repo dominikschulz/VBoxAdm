@@ -118,6 +118,7 @@ LIBFILES = \
 	lib/VDnsAdm/Model/Supermaster.pm \
 	lib/VDnsAdm/L10N.pm \
 	lib/VWebAdm/Model/MessageQueue.pm \
+	lib/VWebAdm/Model/User.pm \
 	lib/VWebAdm/API.pm \
 	lib/VWebAdm/DB.pm \
 	lib/VWebAdm/DNS.pm \
@@ -170,6 +171,7 @@ MANFILES = \
 	lib/VDnsAdm/Model/Record.3 \
 	lib/VDnsAdm/Model/Supermaster.3 \
 	lib/VWebAdm/Model/MessageQueue.3 \
+	lib/VWebAdm/Model/User.3 \
 	lib/VWebAdm/API.3 \
 	lib/VWebAdm/DB.3 \
 	lib/VWebAdm/DNS.3 \
@@ -211,6 +213,7 @@ TESTFILES = \
 	t/VDnsAdm/Model/Supermaster.t \
 	t/VDnsAdm/L10N.t \
 	t/VWebAdm/Model/MessageQueue.t \
+	t/VWebAdm/Model/User.t \
 	t/VWebAdm/API.t \
 	t/VWebAdm/DB.t \
 	t/VWebAdm/DNS.t \
@@ -286,6 +289,7 @@ TPLFILES = \
 	tpl/vdnsadm/supermaster/edit.tpl \
 	tpl/vdnsadm/supermaster/list.tpl \
 	tpl/vdnsadm/supermaster/show.tpl \
+	tpl/vdnsadm/welcome.tpl \
 	tpl/vwebadm/log.tpl \
 	tpl/vwebadm/login.tpl
 

@@ -515,7 +515,7 @@ sub list {
     my $sql    = "SELECT m." . join( ",m.", @fields ) . ",d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE 1";
     my @args   = ();
     if ( $param->{'Search'} ) {
-        $sql .= " AND local_part LIKE ? OR domain LIKE ? OR name LIKE ?";
+        $sql .= " AND m.local_part LIKE ? OR d.name LIKE ? OR m.name LIKE ?";
         my $term = $param->{'Search'};
         $term =~ s/[*%]+//g;
         $term = '%' . $term . '%';

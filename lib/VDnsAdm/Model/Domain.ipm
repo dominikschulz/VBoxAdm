@@ -11,7 +11,7 @@ use VWebAdm::Utils '@VERSION@';
 extends 'VWebAdm::Model';
 
 sub _init_fields {
-    return [qw(id name is_active)];
+    return [qw(id name master last_check type notified_serial account)];
 }
 
 sub create {
@@ -30,7 +30,7 @@ sub create {
         return;
     }
     elsif ($domain) {
-        my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
+        my $query = "INSERT INTO domains (name,master,last_check,type,notified_serial,account) VALUES(?,'',1,'MASTER',1,'')";
 
         if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain ) ) {
             $self->msg->push( 'information', "Domain '[_1]' added", $domain );
@@ -86,17 +86,31 @@ sub update {
     my $sql  = "UPDATE domains SET ";
     my @args = ();
 
-    if ( defined( $params->{'IsActive'} ) ) {
-        $sql .= "is_active = ? ";
-        if ( $params->{'IsActive'} ) {
-            push( @args, 1 );
-        }
-        else {
-            push( @args, 0 );
-        }
+    if ( defined( $params->{'Master'} ) ) {
+        $sql .= "master = ?, ";
+        push( @args, $params->{'Master'} );
+    }
+    if ( defined( $params->{'LastCheck'} ) ) {
+        $sql .= "last_check = ?, ";
+        push( @args, $params->{'LastCheck'} );
+    }
+    if ( defined( $params->{'Type'} ) && $params->{'Type'} =~ m/^(?:MASTER|SLAVE)$/ ) {
+        $sql .= "type = ?, ";
+        push( @args, $params->{'Type'} );
+    }
+    if ( defined( $params->{'NotifiedSerial'} ) && $params->{'NotifiedSerial'} =~ m/^\d+$/ ) {
+        $sql .= "notified_serial = ?, ";
+        push( @args, $params->{'NotifiedSerial'} );
+    }
+    if ( defined( $params->{'Account'} ) ) {
+        $sql .= "account = ?, ";
+        push( @args, $params->{'Account'} );
     }
 
     if ( scalar(@args) > 0 ) {
+
+        # remove (possible) trailing ,
+        $sql =~ s/,\s*$//;
         $sql .= "WHERE id = ?";
         push( @args, $domain_id );
         if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args ) ) {
@@ -116,8 +130,12 @@ sub read {
     my ( $self, $id ) = @_;
 
     # Authorization - No access for regular users
-    if ( !$self->user->is_siteadmin() ) {
+    if ( !$self->user->is_admin() ) {
         $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+    elsif ( $self->user->is_domainadmin() && $self->user->get_domain_id() != $id ) {
+        $self->msg->push( 'error', 'Sorry. Not your domain.' );
         return;
     }
 
@@ -195,11 +213,11 @@ __END__
 
 =head1 NAME
 
-VBoxAdm::Model::Domain - Class for Domains
+VDnsAdm::Model::Domain - Class for Domains
 
 =head1 VERSION
 
-This documentation refers to VBoxAdm::Model::Domain version @VERSION@
+This documentation refers to VDnsAdm::Model::Domain version @VERSION@
 built on @BUILDDATE@.
 
 =head1 SYNOPSIS
