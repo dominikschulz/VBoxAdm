@@ -317,7 +317,8 @@ sub setup {
             $User = VWebAdm::Model::User::->new(
                 {
                     'dbh'      => $self->dbh,
-                    'username' => $self->authen->username,
+                    # TODO DEVEL 'username' => $self->authen->username,
+                    'username' => 'admin',
                     'force'    => 1,
                     'msgq'     => $Messages,
                     'logger'   => $Logger,

@@ -1,4 +1,4 @@
-package VBoxAdm::Utils;
+package VWebAdm::Utils;
 
 use strict;
 use warnings;

@@ -13,13 +13,13 @@ has 'messages' => (
 
 has 'lh' => (
     'is'       => 'ro',
-    'isa'      => 'VBoxAdm::L10N',
+    'isa'      => 'VWebAdm::L10N',
     'required' => 1,
 );
 
 has 'lh_en' => (
     'is'       => 'ro',
-    'isa'      => 'VBoxAdm::L10N',
+    'isa'      => 'VWebAdm::L10N',
     'required' => 1,
 );
 

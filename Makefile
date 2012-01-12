@@ -122,6 +122,7 @@ LIBFILES = \
 	lib/VWebAdm/API.pm \
 	lib/VWebAdm/DB.pm \
 	lib/VWebAdm/DNS.pm \
+	lib/VWebAdm/L10N.pm \
 	lib/VWebAdm/Logger.pm \
 	lib/VWebAdm/Model.pm \
 	lib/VWebAdm/Password.pm \
@@ -175,6 +176,7 @@ MANFILES = \
 	lib/VWebAdm/API.3 \
 	lib/VWebAdm/DB.3 \
 	lib/VWebAdm/DNS.3 \
+	lib/VWebAdm/L10N.3 \
 	lib/VWebAdm/Logger.3 \
 	lib/VWebAdm/Model.3 \
 	lib/VWebAdm/Password.3 \

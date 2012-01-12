@@ -15,7 +15,7 @@ has 'dbh' => (
 
 has 'logger' => (
     'is'       => 'ro',
-    'isa'      => 'VBoxAdm::Logger',
+    'isa'      => 'VWebAdm::Logger',
     'required' => 1,
 );
 

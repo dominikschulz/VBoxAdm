@@ -1,13 +1,29 @@
-package VDnsAdm::L10N;
+package VWebAdm::L10N;
 
 use strict;
 use warnings;
 
-use base qw(VWebAdm::L10N);
+use base qw(Locale::Maketext);
 
 our $VERSION = '@VERSION@';
 
 our %Lexicon = ( '_AUTO' => 1, );
+
+sub encoding {
+    return "utf-8";
+}
+
+sub left {
+    return 'left';
+}
+
+sub right {
+    return 'right';
+}
+
+sub direction {
+    return 'ltr';
+}
 
 1;
 
