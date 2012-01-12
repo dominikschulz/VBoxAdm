@@ -43,6 +43,3 @@
     <!--<header>
      <div id="logo">VBoxAdm</div>
     </header>-->
-    [% IF nonavigation != 1 %]
-	[% INCLUDE includes/navigation.tpl %]
-	[% END %]

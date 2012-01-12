@@ -161,7 +161,8 @@ sub setup {
 
     # only enable authen if called as CGI, this helps with testing and debugging from the commandline
     if ( !$self->is_shell() ) {
-        $self->authen->protected_runmodes(qr/^(?!public_|api)/);
+        # TODO DEVEL # $self->authen->protected_runmodes(qr/^(?!public_|api)/);
+        $self->authen->protected_runmodes(qr/WHATEVER/);
     }
 
     #
@@ -254,7 +255,7 @@ sub setup {
     # Short version: they allow filters with more than one argument.
     # highlight provides syntax highlightning for the search
     # l10n provides localization via Locale::Maketext
-    my @include_path = qw(tpl/vdnsadm ../tpl/vdnsadm /usr/lib/vdnsadm/tpl);
+    my @include_path = qw(tpl/ ../tpl/ /usr/lib/vwebadm/tpl);
     if ( $config{'cgi'}{'template_path'} && -d $config{'cgi'}{'template_path'} ) {
         unshift( @include_path, $config{'cgi'}{'template_path'} );
     }
@@ -616,7 +617,7 @@ sub show_login {
         nonavigation => 1,
     );
 
-    return $self->tt_process( 'login.tpl', \%params );
+    return $self->tt_process( 'vwebadm/login.tpl', \%params );
 }
 
 #
@@ -634,7 +635,7 @@ sub show_welcome {
         'current' => 'welcome',
     );
 
-    return $self->tt_process( 'welcome.tpl', \%params );
+    return $self->tt_process( 'vdnsadm/welcome.tpl', \%params );
 }
 
 #
@@ -674,7 +675,7 @@ sub show_domains {
         'search'  => $search,
     );
 
-    return $self->tt_process( 'domain/list.tpl', \%params );
+    return $self->tt_process( 'vdnsadm/domain/list.tpl', \%params );
 }
 
 sub show_domain {
@@ -739,7 +740,7 @@ sub show_domain {
         'breadcrumb' => \@bc,
     );
 
-    return $self->tt_process( 'domain/show.tpl', \%params );
+    return $self->tt_process( 'vdnsadm/domain/show.tpl', \%params );
 }
 
 sub show_create_domain {
@@ -758,7 +759,7 @@ sub show_create_domain {
         'current' => 'domains',
     );
 
-    return $self->tt_process( 'domain/create.tpl', \%params );
+    return $self->tt_process( 'vdnsadm/domain/create.tpl', \%params );
 }
 
 sub show_add_domain {
@@ -833,7 +834,7 @@ sub show_records {
         'search'  => $search,
     );
 
-    return $self->tt_process( 'record/list.tpl', \%params );
+    return $self->tt_process( 'vdnsadm/record/list.tpl', \%params );
 }
 
 sub show_create_record {
@@ -876,7 +877,7 @@ sub show_create_record {
         'current' => 'mailboxes',
     );
 
-    return $self->tt_process( 'mailbox/create.tpl', \%params );
+    return $self->tt_process( 'vdnsadm/record/create.tpl', \%params );
 }
 
 sub show_add_record {
@@ -947,7 +948,7 @@ sub show_edit_record {
         $params{$key} = $record_ref->{$key};
     }
 
-    return $self->tt_process( 'record/edit.tpl', \%params );
+    return $self->tt_process( 'vdnsadm/record/edit.tpl', \%params );
 }
 
 sub show_update_record {
@@ -1035,7 +1036,7 @@ sub show_log {
         'search'  => $search,
     );
 
-    return $self->tt_process( 'log.tpl', \%params );
+    return $self->tt_process( 'vwebadm/log.tpl', \%params );
 }
 
 #
@@ -1075,7 +1076,7 @@ sub show_admins {
         'search'  => $search,
     );
 
-    return $self->tt_process( 'user/admins.tpl', \%params );
+    return $self->tt_process( 'vdnsadm/user/admins.tpl', \%params );
 }
 
 1;

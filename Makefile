@@ -249,8 +249,6 @@ TPLFILES = \
 	tpl/vboxadm/domain_alias/edit_partial.tpl \
 	tpl/vboxadm/domain_alias/edit.tpl \
 	tpl/vboxadm/domain_alias/list.tpl \
-	tpl/vboxadm/includes/footer.tpl \
-	tpl/vboxadm/includes/header.tpl \
 	tpl/vboxadm/includes/navigation.tpl \
 	tpl/vboxadm/mailbox/admins.tpl \
 	tpl/vboxadm/mailbox/create_partial.tpl \
@@ -277,6 +275,7 @@ TPLFILES = \
 	tpl/vdnsadm/domain/edit.tpl \
 	tpl/vdnsadm/domain/list.tpl \
 	tpl/vdnsadm/domain/show.tpl \
+	tpl/vdnsadm/includes/navigation.tpl \
 	tpl/vdnsadm/record/create_partial.tpl \
 	tpl/vdnsadm/record/create.tpl \
 	tpl/vdnsadm/record/edit_partial.tpl \
@@ -290,6 +289,8 @@ TPLFILES = \
 	tpl/vdnsadm/supermaster/list.tpl \
 	tpl/vdnsadm/supermaster/show.tpl \
 	tpl/vdnsadm/welcome.tpl \
+	tpl/vwebadm/includes/footer.tpl \
+	tpl/vwebadm/includes/header.tpl \
 	tpl/vwebadm/log.tpl \
 	tpl/vwebadm/login.tpl
 

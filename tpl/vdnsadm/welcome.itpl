@@ -1,4 +1,7 @@
-[% INCLUDE includes/header.tpl %]
+[% INCLUDE vwebadm/includes/header.tpl %]
+[% IF nonavigation != 1 %]
+[% INCLUDE vdnsadm/includes/navigation.tpl %]
+[% END %]
     <div id="main">
     	<div id="accordion">
 	    	<h3><a href="#">Domains</a></h3>
@@ -21,4 +24,4 @@
     	<hr />
     	[% extra %]
     </div>
-[% INCLUDE includes/footer.tpl %]
+[% INCLUDE vwebadm/includes/footer.tpl %]
