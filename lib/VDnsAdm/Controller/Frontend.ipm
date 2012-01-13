@@ -161,6 +161,7 @@ sub setup {
 
     # only enable authen if called as CGI, this helps with testing and debugging from the commandline
     if ( !$self->is_shell() ) {
+
         # TODO DEVEL # $self->authen->protected_runmodes(qr/^(?!public_|api)/);
         $self->authen->protected_runmodes(qr/WHATEVER/);
     }
@@ -316,7 +317,8 @@ sub setup {
         eval {
             $User = VWebAdm::Model::User::->new(
                 {
-                    'dbh'      => $self->dbh,
+                    'dbh' => $self->dbh,
+
                     # TODO DEVEL 'username' => $self->authen->username,
                     'username' => 'admin',
                     'force'    => 1,

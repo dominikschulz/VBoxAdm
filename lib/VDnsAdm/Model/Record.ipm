@@ -206,7 +206,7 @@ sub create {
             $args{$key} = 0 unless defined( $args{$key} );
             $args{$key} = Encode::decode( 'UTF-8', $args{$key} );
         }
-        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, values %args ) ) {
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, values %args ) ) {
             $sth->finish();
             $self->msg->push( 'information', "Added Record [_1] for [_2].", $record_name, $domain_name );
         }
@@ -232,7 +232,7 @@ sub delete {
         return;
     }
     my $query = "SELECT name, type, content, ttl FROM records WHERE id = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $record_id );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $record_id );
     my ( $name, $type, $content, $ttl ) = $sth->fetchrow_array();
     my $record_name = $self->_get_record_name( $name, $type, $ttl, $content );
     $sth->finish();
@@ -244,7 +244,7 @@ sub delete {
         $query .= "AND domain_id = ?";
         push( @args, $self->user->get_domain_id() );
     }
-    if ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+    if ( $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
         $self->msg->push( 'information', "Record [_1] (#[_2]) removed.", $record_name, $record_id );
     }
     else {
@@ -276,7 +276,7 @@ sub update {
     }
 
     my $query = "SELECT name, type, content, ttl FROM records WHERE id = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $record_id );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $record_id );
     my ( $name, $type, $content, $ttl ) = $sth->fetchrow_array();
     my $record_name = $self->_get_record_name( $name, $type, $ttl, $content );
     $sth->finish();
@@ -378,7 +378,7 @@ sub update {
         }
 
         #$self->log( "Record::update - SQL: ".$query. " - Args: ".join(',',@args));
-        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
             $self->msg->push( 'information', "Updated Record [_1] (#[_2]).", $record_name, $record_id );
         }
         else {
@@ -408,7 +408,7 @@ sub read {
         return;
     }
 
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
 
     if ( !$sth ) {
         $self->msg->push( 'error', 'Database error.' );
@@ -421,7 +421,7 @@ sub read {
 
     # get domain_name
     $sql = "SELECT name FROM domains WHERE id = ?";
-    $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $result{'domain_id'} );
+    $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $result{'domain_id'} );
     if ($sth) {
         $result{'domain'} = $sth->fetchrow_array();
     }
@@ -466,7 +466,7 @@ sub list {
 
     # regular users are kicked out above
 
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
 
     if ( !$sth ) {
         $self->msg->push( 'error', 'Database error.' );
@@ -492,7 +492,7 @@ sub list {
 }
 
 sub get_id {
-    my ( $self, $email ) = @_;
+    my ( $self, $record ) = @_;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -500,14 +500,10 @@ sub get_id {
         return;
     }
 
-    if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
-        return;
-    }
+    my ( $local_part, $domain );
 
-    my ( $local_part, $domain ) = split /@/, $email;
-
-    my $query = "SELECT m.id FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain );
+    my $query = "SELECT m.id FROM records AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain );
 
     if ( !$sth ) {
         $self->msg->push( 'error', 'Database error.' );

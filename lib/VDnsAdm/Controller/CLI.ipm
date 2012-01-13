@@ -24,7 +24,7 @@ use VDnsAdm::Model::Domain '@VERSION@';
 use VDnsAdm::Model::Record '@VERSION@';
 use VDnsAdm::Model::Supermaster '@VERSION@';
 use VWebAdm::Model::MessageQueue '@VERSION@';
-use VWebAdm::Model::User '@VERSION@';
+use VDnsAdm::Model::User '@VERSION@';
 use VDnsAdm::L10N '@VERSION@';
 use VWebAdm::Logger '@VERSION@';
 
@@ -119,7 +119,7 @@ sub _init_record {
 sub _init_logger {
     my $self = shift;
 
-    return VWebAdm::Logger::->new('vboxadm/cli');
+    return VWebAdm::Logger::->new('vdnsadm/cli');
 }
 
 sub _init_dbh {
@@ -129,9 +129,9 @@ sub _init_dbh {
     # Database connection
     #
     my $hostname = $self->config()->{'default'}->{'dbhost'} || 'localhost';
-    my $database = $self->config()->{'default'}->{'dbdb'}   || 'vboxadm';
-    my $username = $self->config()->{'default'}->{'dbuser'} || 'vboxadm';
-    my $password = $self->config()->{'default'}->{'dbpass'} || 'vboxadm';
+    my $database = $self->config()->{'default'}->{'dbdb'}   || 'vdnsadm';
+    my $username = $self->config()->{'default'}->{'dbuser'} || 'vdnsadm';
+    my $password = $self->config()->{'default'}->{'dbpass'} || 'vdnsadm';
     my $port     = $self->config()->{'default'}->{'dbport'} || 3306;
 
     my $dsn = "DBI:mysql:host=$hostname;database=$database;port=$port;user=$username;password=$password";
@@ -143,6 +143,7 @@ sub _init_dbh {
     else {
 
         #print "Connected to DB\n";
+        $self->logger()->log( message => "Connected to DB w/ DSN $dsn", level => 'debug', );
         return $dbh;
     }
 }
@@ -182,10 +183,10 @@ sub _init_config_locs {
 
     # Valid config file locations to try
     my @conffile_locations = qw(
-      vboxadm.conf
-      conf/vboxadm.conf
-      /etc/vboxadm/vboxadm.conf
-      @CFGDIR@/vboxadm/vboxadm.conf
+      vdnsadm.conf
+      conf/vdnsadm.conf
+      /etc/vdnsadm/vdnsadm.conf
+      @CFGDIR@/vdnsadm/vdnsadm.conf
     );
 
     return \@conffile_locations;
@@ -303,8 +304,8 @@ sub _init_help {
 
     my %help = (
         'help' => "Invocation: $0 <Module> <Action> <Parameter(s)> <Options>
-VBoxAdm CLI Client, Version @VERSION@
-Enter 'vboxadm help <module>' to get help for a module.
+VDnsAdm CLI Client, Version @VERSION@
+Enter 'vdnsadm help <module>' to get help for a module.
 Available subcommands:
 \talias - Manage Aliases
 \tawl - Manage Auto-Whitelist
@@ -320,35 +321,6 @@ Options:
 -q - Quiet
 -f - Force
 -n - Name
--s - Source-DB
--d - Destination-DB
---truncate - Truncate Destination before migration
---config - Location of config file
--a - Is active?
--g - Goto/Target
--p - Password
--m - Max. Msg. Size in MB
---siteadmin - Is Siteadmin?
---domainadmin - Is Domainadmin?
--k - SA Kill Score
---saactive - SA active?
---vacation - Is on vacation?
---vacsubj - Subject of Vacation reply
---vacmsg - Message of Vacation reply
---vacstart - Start of Vacation
---vacend - End of Vacation
---forcepass - Allow changing of locked passwords",
-        'alias' => "Alias - Manage Aliases
-Available subcommands:
-\tadd <email> <goto>
-\tdelete <email>
-\tupdate <email> -a 1|0 -g <email>
-\tlist",
-        'awl' => "AWL - Manage Auto-Whitelist
-Available subcommands:
-\tadd <email>
-\tupdate <email> -a 1|0
-\t list
 ",
         'domain' => "Domain - Manage Domains
 Available subcommands:
@@ -357,30 +329,12 @@ Available subcommands:
 \tupdate
 \tlist
 ",
-        'domainalias' => "DomainAlias - Manage alias domains
-Available subcommands:
-\tadd
-\tdelete
-\tupdate
-\tlist",
         'mailbox' => "Mailbox - Manage users and mailboxes
 Available subcommands:
 \tadd
 \tdelete
 \tupdate
 \tlist",
-        'vacbl' => "Vacation Blacklist - Manage Vacation Blacklist
-Available subcommands:
-\tadd
-\tdelete
-\tlist",
-        'migrate' => "Migrate Debmin1, Debmin2, Vexim or Postfix.Admin to VBoxAdm
-Available subcommands:
-\tnone
-Available options:
-\t--source - Specify source type, either debmin1, debmin2, vexim or postfixadmin
-\t--source-db - Specify source db.
-",
     );
 
     return \%help;
@@ -461,7 +415,7 @@ sub _init_actions {
                     $mailbox_id = $email;
                 }
                 else {
-                    $mailbox_id = $self->mailbox()->get_id($email);
+                    $mailbox_id = $self->record()->get_id($email);
                 }
                 my $params;
                 foreach my $key (
@@ -489,18 +443,28 @@ sub _init_actions {
                     $record_id = $record;
                 }
                 else {
+
                     # TODO throw error
                 }
                 $self->record()->delete($record_id);
                 $self->display_messages();
             },
             'list' => sub {
+                my $domain = shift;
+                my $domain_id;
+                if ( $domain =~ m/^\d+$/ ) {
+                    $domain_id = $domain;
+                }
+                else {
+                    $domain_id = $self->domain()->get_id($domain);
+                }
                 print "Listing Records:\n";
-                my $format = "%i\t%s\@%s\t%s\t%i\t%f\t%i\t%i\t%i\n";
-                print "ID\tDomain\tName\tType\tContent\tTTL\tPrio\n";
+
+                # sub IN type ttl prio content
+                my $format = "%i) %s IN %s %i %i %s\n";
+                print "ID\tSubdomain\tIN\tType\tTTL\tPrio\tContent\n";
                 foreach my $record ( $self->record()->list() ) {
-                    printf( $format,
-                        @{$record}{qw(id local_part domain sa_kill_score sa_active max_msg_size is_active is_siteadmin is_domainadmin is_on_vacation)} );
+                    printf( $format, @{$record}{qw(id name type ttl prio content)} );
                 }
                 $self->display_messages();
             },
@@ -564,7 +528,7 @@ sub migrate {
 
 has 'user' => (
     'is'      => 'rw',
-    'isa'     => 'VBoxAdm::Model::User',
+    'isa'     => 'VWebAdm::Model::User',
     'lazy'    => 1,
     'builder' => '_init_user',
 );
@@ -574,7 +538,7 @@ sub _init_user {
     my $opts = shift || {};
 
     if ( $self->opts()->{'Bootstrap'} && $EUID == 0 ) {
-        my $User = VWebAdm::Model::User::->new(
+        my $User = VDnsAdm::Model::User::->new(
             {
                 'dbh'        => $self->dbh(),
                 'logger'     => $self->logger(),
@@ -606,7 +570,7 @@ sub _init_user {
         print "Invalid email address given.\n" unless $self->opts()->{'Quiet'};
         return;
     }
-    my $User = VWebAdm::Model::User::->new(
+    my $User = VDnsAdm::Model::User::->new(
         {
             'dbh'      => $self->dbh(),
             'logger'   => $self->logger(),

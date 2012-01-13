@@ -6,6 +6,7 @@ use namespace::autoclean;
 use Carp;
 use Encode;
 use Data::Dumper;
+use VWebAdm::DB '@VERSION@';
 
 has 'dbh' => (
     'is'       => 'ro',
@@ -77,7 +78,7 @@ sub _read {
     my ( $self, $table, $id ) = @_;
 
     my $sql = "SELECT " . join( ",", @{ $self->fields() } ) . " FROM $table WHERE id = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $id );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $id );
 
     if ( !$sth ) {
         $self->msg->push( 'error', 'Database error.' );
@@ -131,7 +132,7 @@ sub _list {
         $sql .= ' LIMIT ' . $param->{'Limit'};
     }
 
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
 
     if ( !$sth ) {
         $self->msg->push( 'error', 'Database error.' );

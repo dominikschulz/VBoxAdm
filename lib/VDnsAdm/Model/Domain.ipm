@@ -32,7 +32,7 @@ sub create {
     elsif ($domain) {
         my $query = "INSERT INTO domains (name,master,last_check,type,notified_serial,account) VALUES(?,'',1,'MASTER',1,'')";
 
-        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain ) ) {
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $domain ) ) {
             $self->msg->push( 'information', "Domain '[_1]' added", $domain );
             $sth->finish();
             return 1;
@@ -60,7 +60,7 @@ sub delete {
     }
 
     my $sql = "DELETE FROM domains WHERE id = ? LIMIT 1";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $domain_id );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $domain_id );
 
     if ( !$sth ) {
         $self->msg->push( 'error', 'Database error.' );
@@ -113,7 +113,7 @@ sub update {
         $sql =~ s/,\s*$//;
         $sql .= "WHERE id = ?";
         push( @args, $domain_id );
-        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args ) ) {
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args ) ) {
             $sth->finish();
             $self->msg->push( 'information', 'Updated Domain [_1].', $domain_name );
             return 1;
@@ -169,7 +169,7 @@ sub get_name {
     }
 
     my $query = "SELECT name FROM domains WHERE id = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $id );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $id );
 
     if ( !$sth ) {
         $self->msg->push( 'error', 'Database error.' );
@@ -192,7 +192,7 @@ sub get_id {
     }
 
     my $query = "SELECT id FROM domains WHERE name = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $name );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $name );
 
     if ( !$sth ) {
         $self->msg->push( 'error', 'Database error.' );

@@ -1,0 +1,108 @@
+package VDnsAdm::Model::User;
+
+use Moose;
+use namespace::autoclean;
+
+use Carp;
+
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::SaltedHash '@VERSION@';
+
+extends 'VWebAdm::Model::User';
+
+sub login {
+    my $self     = shift;
+    my $password = shift;
+
+    $self->{'siteadmin'}   = 1;
+    $self->{'domain_id'}   = 1;
+    $self->{'user'}        = 1;
+    $self->{'id'}          = 1;
+    $self->{'domainadmin'} = 1;
+    return 1;    # TODO DEVEL
+
+    # check if login works
+    my $sql =
+"SELECT m.id,m.password,m.is_domainadmin,m.is_siteadmin,d.id FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh(), $sql, $self->local_part(), $self->domain() );
+
+    if ( !$sth ) {
+        $self->logger()->log( message => "Database error during query ($sql): " . $self->dbh()->errstr(), level => 'error', );
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    my ( $id, $pw, $is_da, $is_sa, $domain_id ) = $sth->fetchrow_array();
+    $sth->finish();
+    if ( !$self->force && !&VWebAdm::SaltedHash::verify_pass( $password, $pw ) ) {
+        $self->logger()->log( message => "Password invalid!", level => 'warning', );
+        return;
+    }
+    $self->{'domainadmin'} = $is_da;
+    $self->{'siteadmin'}   = $is_sa;
+    $self->{'id'}          = $id;
+    $self->{'domain_id'}   = $domain_id;
+    $self->{'user'}        = 1;
+
+    return 1;
+}
+
+no Moose;
+__PACKAGE__->meta->make_immutable;
+
+1;
+__END__
+
+=head1 NAME
+
+VBoxAdm::Model::User - Class for Users.
+
+=head1 VERSION
+
+This documentation refers to VBoxAdm::Model::User version @VERSION@
+built on @BUILDDATE@.
+
+=head1 SYNOPSIS
+
+    use VBoxAdm::Model::User;
+
+=head1 DESCRIPTION
+
+TODO
+
+=head1 DEPENDENCIES
+
+DBI.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut

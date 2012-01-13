@@ -116,6 +116,7 @@ LIBFILES = \
 	lib/VDnsAdm/Model/Domain.pm \
 	lib/VDnsAdm/Model/Record.pm \
 	lib/VDnsAdm/Model/Supermaster.pm \
+	lib/VDnsAdm/Model/User.pm \
 	lib/VDnsAdm/L10N.pm \
 	lib/VWebAdm/Model/MessageQueue.pm \
 	lib/VWebAdm/Model/User.pm \
