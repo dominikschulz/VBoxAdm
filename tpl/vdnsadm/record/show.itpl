@@ -1,4 +1,4 @@
-[% INCLUDE includes/header.tpl %]
+[% INCLUDE vwebadm/includes/header.tpl %]
     <div id="main" role="main">
     	<h2>Viewing Domain: [% domain %]</h2>
 		[% FOREACH line IN domain_aliases %]
@@ -106,4 +106,4 @@
 		[% END %]
 		<br />
     </div>
-[% INCLUDE includes/footer.tpl %]
+[% INCLUDE vwebadm/includes/footer.tpl %]

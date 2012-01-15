@@ -39,8 +39,8 @@ use VWebAdm::SaltedHash '@VERSION@';
 use VWebAdm::Logger '@VERSION@';
 
 use VWebAdm::Model::MessageQueue '@VERSION@';
-use VWebAdm::Model::User '@VERSION@';
 
+use VDnsAdm::Model::User '@VERSION@';
 use VDnsAdm::Model::Domain '@VERSION@';
 use VDnsAdm::Model::Record '@VERSION@';
 use VDnsAdm::Model::Supermaster '@VERSION@';
@@ -61,7 +61,7 @@ Readonly my $ENTRIES_PER_PAGE => 20;
 sub setup {
     my $self = shift;
 
-    my $Logger = VWebAdm::Logger::->new( { 'facility' => 'VDnsAdm/Frontend', } );
+    my $Logger = VWebAdm::Logger::->new('VDnsAdm/Frontend');
     $self->{'logger'} = $Logger;
 
     # define the default run mode
@@ -303,7 +303,8 @@ sub setup {
     $self->tt_params( media_prefix => $self->{media_prefix} );
 
     # setup classes if the user is logged in
-    if ( $self->authen->is_authenticated && $self->authen->username ) {
+    # TODO DEVEL if ( $self->authen->is_authenticated && $self->authen->username ) {
+    if (1) {
         my $Messages = VWebAdm::Model::MessageQueue::->new(
             {
                 'lh'      => $self->{'lh'},
@@ -315,7 +316,7 @@ sub setup {
         # if we can not create a new user object we MUST NOT die but redirect to login page instead
         my $User;
         eval {
-            $User = VWebAdm::Model::User::->new(
+            $User = VDnsAdm::Model::User::->new(
                 {
                     'dbh' => $self->dbh,
 
