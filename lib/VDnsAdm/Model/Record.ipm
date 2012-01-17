@@ -88,7 +88,7 @@ sub _valid_content {
 }
 
 sub create {
-    my ( $self, $domain_id, $name, $type, $content, $ttl, $params ) = @_;
+    my ( $self, $domain_id, $params ) = @_;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
@@ -96,23 +96,9 @@ sub create {
         return;
     }
 
-    $name = &VBoxAdm::Utils::trim( lc($name) );
-
     my $Domain      = VDnsAdm::Model::Domain->new( { 'Model' => $self, } );
     my $domain_name = $Domain->get_name($domain_id);
-    my $record_name = $self->_get_record_name( $name, $type, $ttl, $content );
-
-    my %args = (
-        'name'        => $name,
-        'domain_id'   => $domain_id,
-        'type'        => $type,
-        'content'     => $content,
-        'ttl'         => $ttl,
-        'prio'        => undef,
-        'change_date' => undef,
-        'ordername'   => undef,
-        'auth'        => undef,
-    );
+    my $record_name = $self->_get_record_name($params);
 
     #
     # Name
@@ -122,7 +108,7 @@ sub create {
     #
     # Type
     #
-    if ( !$self->_valid_type($type) ) {
+    if ( !$self->_valid_type( $params->{'type'} ) ) {
         $self->msg->push( 'error', 'Invalid Record Type. Can not add!' );
         return;
     }
@@ -130,7 +116,7 @@ sub create {
     #
     # Content
     #
-    if ( !$self->_valid_content( $type, $content ) ) {
+    if ( !$self->_valid_content( $params->{'$type'}, $params->{'content'} ) ) {
         $self->msg->push( 'error', 'Invalid content for type!' );
         return;
     }
@@ -138,7 +124,7 @@ sub create {
     #
     # TTL
     #
-    if ( $ttl !~ m/^\d+$/ || length($ttl) > 11 ) {
+    if ( $params->{'ttl'} !~ m/^\d+$/ || length( $params->{'ttl'} ) > 11 ) {
         $self->msg->push( 'error', 'Invalid data for ttl!' );
         return;
     }
@@ -146,32 +132,22 @@ sub create {
     #
     # Prio
     #
-    if ( $params->{'MaxMsgSize'} ) {
-        $args{'max_msg_size'} = $params->{'MaxMsgSize'} * 1024;
-    }
+    # TODO validate prio
 
     #
     # ChangeDate
     #
-    if ( defined( $params->{'SAActive'} ) ) {
-        if ( $params->{'SAActive'} ) {
-            $args{'sa_active'} = 1;
-        }
-        else {
-            $args{'sa_active'} = 0;
-        }
-    }
-    if ( $params->{'SAKillScore'} ) {
-        $args{'sa_kill_score'} = $params->{'SAKillScore'};
-    }
+    # TODO validate change_date
 
     #
     # Ordername
     #
+    # TODO validate ordername
 
     #
     # Auth
     #
+    # TODO validate auth
 
     # Check authorization, syntax and create mailbox
     if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get_domain_id() ) {
@@ -180,20 +156,20 @@ sub create {
         $self->msg->push( 'error', "You are not authorized to modify this domain!" );
     }
     else {
-        my $query = "INSERT INTO records (" . join( ",", keys %args ) . ") VALUES(";
-        $query .= "?," x ( scalar( keys %args ) - 1 );
+        my $query = "INSERT INTO records (" . join( ",", keys %{$params} ) . ") VALUES(";
+        $query .= "?," x ( scalar( keys %{$params} ) - 1 );
         $query .= "?)";
 
-        foreach my $key ( keys %args ) {
-            $args{$key} = 0 unless defined( $args{$key} );
-            $args{$key} = Encode::decode( 'UTF-8', $args{$key} );
+        foreach my $key ( keys %{$params} ) {
+            $params->{$key} = 0 unless defined( $params->{$key} );
+            $params->{$key} = Encode::decode( 'UTF-8', $params->{$key} );
         }
-        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, values %args ) ) {
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, values %{$params} ) ) {
             $sth->finish();
             $self->msg->push( 'information', "Added Record [_1] for [_2].", $record_name, $domain_name );
         }
         else {
-            $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", (%args) ) . ', Error: ' . $self->dbh()->errstr() );
+            $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", ( %{$params} ) ) . ', Error: ' . $self->dbh()->errstr() );
             $self->msg->push( 'error', "Failed to add Record [_1] for [_2]. Database Error: " . $sth->dbh()->err(), $record_name, $domain_name );
         }
     }

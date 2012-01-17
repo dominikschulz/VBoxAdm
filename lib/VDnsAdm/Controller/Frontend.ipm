@@ -880,19 +880,16 @@ sub show_add_record {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $domain_id = $q->param('domain');
-    my $name      = $q->param('name');
-    my $type      = $q->param('type');
-    my $content   = $q->param('content');
-    my $ttl       = $q->param('ttl');
-    my %params    = (
-        'Prio'       => $q->param('prio'),
-        'ChangeDate' => $q->param('changedate'),
-        'Ordername'  => $q->param('ordername'),
-        'Auth'       => $q->param('auth'),
-    );
+    my $domain_id = $q->param('domain_id');
 
-    $self->{'Record'}->create( $domain_id, $name, $type, $content, $ttl, \%params );
+    # set params
+    my $params = {};
+    foreach my $field ( @{ $self->{'Domain'}->fields() } ) {
+        next if $field eq 'id';
+        $params->{$field} = $q->param($field) if defined( $q->param($field) );
+    }
+
+    $self->{'Record'}->create( $domain_id, $params );
 
     $self->redirect( $self->{base_url} . '?rm=records' );
     return;
