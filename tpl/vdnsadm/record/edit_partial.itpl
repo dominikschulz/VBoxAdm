@@ -1,46 +1,57 @@
 <div class="forms">
-	<form name="create_domain" method="POST">
-		<input type="hidden" name="rm" value="update_domain_alias" />
-		<h1>[% "Modify a domain alias" | l10n %]</h1>
+	<form name="create_record" method="POST">
+		<input type="hidden" name="rm" value="update_record" />
+		<h1>[% "Modify a record" | l10n %]</h1>
 		
-		<label for="domain_name">
-			[% "Alias-Domain:" | l10n %]
-			<span class="small"></span>
+		<label for="name">
+			[% "Subdomain:" | l10n %]
+			<span class="small">Subdomain</span>
 		</label>
-		[% domain_name %]
-		
-		<div class="spacer"></div>
-		
-		<label for="target">
-			[% "Target:" | l10n %]
-			<span class="small"></span>
-		</label>
-		
-		[% FOREACH line IN domains %]
-			[% IF loop.first %]
-			<select name="target">
+		<input type="text" name="name" value="[% name %]" />.<select name="domain_id">
+			[% FOREACH line IN domains %]
+			<option value="[% line.id %]"[% IF line.id == domain_id %] selected[% END %]>[% line.name %]</option>
 			[% END %]
-			<option value="[% line.id %]"[% IF line.id == target %] selected[% END %]>[% line.name %]</option>
-			[% IF loop.last %]
-			</select>
-			[% END %]
-		[% END %]
+		</select>
 		
 		<div class="spacer"></div>
 		
-		<label for="is_active">
-			[% "Enabled:" | l10n %]
-			<span class="small"></span>
+		<label for="type">
+			[% "Type:" | l10n %]
+			<span class="small">Record-Type</span>
 		</label>
-		<input type="checkbox" name="is_active" [% IF is_active %]checked[% END %] />
+		<select name="type">
+			[% FOREACH line IN types %]
+			<option[% IF line == type %] selected[% END %]>[% line %]</option>
+			[% END %]
+		</select>
 		
 		<div class="spacer"></div>
+		
+		<label for="content">
+			[% "Content:" | l10n %]
+			<span class="small">RR-Content</span>
+		</label>
+		<input type="text" name="content" value="[% content %]" />
+		
+		<div class="spacer"></div>
+		
+		<label for="ttl">
+			[% "TTL:" | l10n %]
+			<span class="small">TTL</span>
+		</label>
+		<input type="text" name="ttl" value="[% ttl %]" />
+		
+		<div class="spacer"></div>
+		
+		<label for="prio">
+			[% "Priority:" | l10n %]
+			<span class="small">Priority</span>
+		</label>
+		<input type="text" name="prio" value="[% prio %]" />
 		
 		<button class="button" type="submit" name="submit">
-			<img src="[% media_prefix %]/icons/fffsilk/accept.png" border="0" />
-			[% "Modify Domain-Alias" | l10n %]
+			<img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" />
+			[% "Add Record" | l10n %]
 		</button>
-		
-		<input type="hidden" name="domain_alias_id" value="[% domain_alias_id %]" />
 	</form>
 </div>

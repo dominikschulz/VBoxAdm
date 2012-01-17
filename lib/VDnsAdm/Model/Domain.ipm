@@ -11,7 +11,7 @@ use VWebAdm::Utils '@VERSION@';
 extends 'VWebAdm::Model';
 
 sub _init_fields {
-    return [qw(id name master last_check type notified_serial account)];
+    return [qw(id name master last_check type notified_serial is_active)];
 }
 
 sub create {

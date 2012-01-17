@@ -1,5 +1,5 @@
     <footer>
-	<a href="http://www.vboxadm.net/?version=[% version %]" target="_blank">VBoxAdm [% version %]</a>
+	<a href="[% product_url %]?version=[% version %]" target="_blank">[% product %] [% version %]</a>
 	&nbsp;|&nbsp;
 	[% IF username %]
 	[% "Logged in as [_1]" | l10n(username) %]

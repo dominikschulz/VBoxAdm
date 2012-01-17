@@ -92,12 +92,12 @@ sub setup {
         'update_domain' => 'show_update_domain',
 
         # Mailboxes
-        'mailboxes'      => 'show_mailboxes',
-        'create_mailbox' => 'show_create_mailbox',
-        'add_mailbox'    => 'show_add_mailbox',
-        'remove_mailbox' => 'show_remove_mailbox',
-        'edit_mailbox'   => 'show_edit_mailbox',
-        'update_mailbox' => 'show_update_mailbox',
+        'records'       => 'show_records',
+        'create_record' => 'show_create_record',
+        'add_record'    => 'show_add_record',
+        'remove_record' => 'show_remove_record',
+        'edit_record'   => 'show_edit_record',
+        'update_record' => 'show_update_record',
 
         # Log
         'log' => 'show_log',
@@ -128,18 +128,18 @@ sub setup {
     $self->authen->config(
         DRIVER => [
             'DBI',
-            TABLES      => [ 'mailboxes', 'domains' ],
+            TABLES      => [ 'users', 'domains' ],
             CONSTRAINTS => {
-                "CONCAT(mailboxes.local_part,'\@',domains.name)" => '__CREDENTIAL_1__',
-                'mailboxes.is_active'                            => '1',
-                'domains.is_active'                              => '1',
+                "CONCAT(users.local_part,'\@',domains.name)" => '__CREDENTIAL_1__',
+                'users.is_active'                            => '1',
+                'domains.is_active'                          => '1',
 
                 # WARNING: This contraint relies on an implementation detail of Plugin::Authentication!
                 # This is bad style, but there is no other way right now.
                 # The correct way would probably to create a custom Authen plugin.
-                '(mailboxes.is_siteadmin OR mailboxes.is_domainadmin) AND 1' => '1',
+                '(users.is_siteadmin OR users.is_domainadmin) AND 1' => '1',
             },
-            COLUMNS => { 'dovecotpw:mailboxes.password' => '__CREDENTIAL_2__', },
+            COLUMNS => { 'dovecotpw:users.password' => '__CREDENTIAL_2__', },
             FILTERS => {
                 'dovecotpw' => sub {
 
@@ -148,8 +148,8 @@ sub setup {
                     my $param   = shift;    # unused, always empty
                     my $plain   = shift;    # password from user
                     my $pwentry = shift;    # password hash from db
-                    my ( $pwscheme, undef, $salt ) = &VBoxAdm::SaltedHash::split_pass($pwentry);
-                    my $passh = &VBoxAdm::SaltedHash::make_pass( $plain, $pwscheme, $salt );
+                    my ( $pwscheme, undef, $salt ) = &VWebAdm::SaltedHash::split_pass($pwentry);
+                    my $passh = &VWebAdm::SaltedHash::make_pass( $plain, $pwscheme, $salt );
                     return $passh;
                 },
             }
@@ -303,8 +303,7 @@ sub setup {
     $self->tt_params( media_prefix => $self->{media_prefix} );
 
     # setup classes if the user is logged in
-    # TODO DEVEL if ( $self->authen->is_authenticated && $self->authen->username ) {
-    if (1) {
+    if ( $self->authen->is_authenticated && $self->authen->username ) {
         my $Messages = VWebAdm::Model::MessageQueue::->new(
             {
                 'lh'      => $self->{'lh'},
@@ -412,6 +411,8 @@ sub tt_pre_process {
     $vars->{messages}       = $self->get_messages();
     $vars->{is_siteadmin}   = $self->user->is_siteadmin() if $self->user();
     $vars->{is_domainadmin} = $self->user->is_domainadmin() if $self->user();
+    $vars->{product}        = 'VDnsAdm';
+    $vars->{product_url}    = 'http://www.vdnsadm.net/';
 
     return;
 }
@@ -709,39 +710,33 @@ sub show_domain {
         return;
     }
 
+    my $params = {};
+
+    # Authorization
+    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
+        $params->{'domain_id'} = $self->user->get_domain_id();
+    }
+
     my $sql = undef;
     my $sth = undef;
 
     # Get Domain name
-    # TODO use Domain model
-    $sql = "SELECT name FROM domains WHERE id = ?";
-    $sth = $dbh->prepare($sql);
-    $sth->execute($domain_id);
-    my $domain_name = $sth->fetchrow_array();
-    $sth->finish();
+    my $domain_ref  = $self->{'Domain'}->read($domain_id);
+    my $domain_name = $domain_ref->{'name'};
 
     # Get Records
-    # TODO use record model
-    $sql = "SELECT id,local_part,name,is_active FROM mailboxes WHERE domain_id = ? ORDER BY local_part";
-    $sth = $dbh->prepare($sql);
-    $sth->execute($domain_id);
-    my @mailboxes = ();
-    while ( my ( $id, $local_part, $name, $is_active ) = $sth->fetchrow_array() ) {
-        push( @mailboxes, { id => $id, local_part => $local_part, name => $name, is_active => $is_active, } );
-    }
-    $sth->finish();
+    my @records = $self->{'Record'}->list( { 'domain_id' => $domain_id, }, );
 
-    my @bc = ();
-    push( @bc, { 'rm' => 'welcome',                        caption => 'Overview', } );
-    push( @bc, { 'rm' => 'domains',                        caption => 'Domains', } );
-    push( @bc, { 'rm' => 'domain&domain_id=' . $domain_id, caption => 'View Domain ' . $domain_name, } );
+    my @types   = $self->{'Record'}->types();
+    my @domains = $self->{'Domain'}->list($params);
 
     my %params = (
-        'title'      => $self->{lh}->maketext( 'VBoxAdm Domain: [_1]', $domain_name ),
-        'current'    => 'domains',
-        'domain'     => $domain_name,
-        'mailboxes'  => \@mailboxes,
-        'breadcrumb' => \@bc,
+        'title'   => $self->{lh}->maketext( 'VDnsAdm Domain: [_1]', $domain_name ),
+        'current' => 'domains',
+        'domain'  => $domain_name,
+        'records' => \@records,
+        'types'   => \@types,
+        'domains' => \@domains,
     );
 
     return $self->tt_process( 'vdnsadm/domain/show.tpl', \%params );
@@ -772,7 +767,7 @@ sub show_add_domain {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $domain = &VBoxAdm::Utils::trim( lc( $q->param('domain') ) );
+    my $domain = &VWebAdm::Utils::trim( lc( $q->param('domain') ) );
 
     $self->{'Domain'}->create($domain);
 
@@ -802,10 +797,14 @@ sub show_update_domain {
 
     my $domain_id = $q->param('domain_id');
 
-    # TODO set params
-    my %params = ( 'IsActive' => $q->param('is_active'), );
+    # set params
+    my $params = {};
+    foreach my $field ( @{ $self->{'Domain'}->fields() } ) {
+        next if $field eq 'id';
+        $params->{$field} = $q->param($field) if defined( $q->param($field) );
+    }
 
-    $self->{'Domain'}->update( $domain_id, \%params );
+    $self->{'Domain'}->update( $domain_id, $params );
 
     $self->redirect( $self->{base_url} . '?rm=domains' );
     return;
@@ -855,30 +854,21 @@ sub show_create_record {
     # Get our database connection
     my $dbh = $self->dbh();
 
-    # TODO use domain model
-    my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
-    my @args  = ();
+    my $params = {};
 
     # Authorization
     if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-        $query .= "AND id = ? ";
-        push( @args, $self->user->get_domain_id() );
+        $params->{'domain_id'} = $self->user->get_domain_id();
     }
-    $query .= "ORDER BY name";
-    my $sth = $dbh->prepare($query)
-      or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr );
-    $sth->execute(@args)
-      or $self->{'logger'}->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr );
 
-    my @domains = ();
-    while ( my @row = $sth->fetchrow_array() ) {
-        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], } );
-    }
+    my @domains = $self->{'Domain'}->list($params);
+    my @types   = keys %{ $self->{'Record'}->valid_types() };
 
     my %params = (
-        'title'   => $self->{lh}->maketext('Add Mailbox'),
+        'title'   => $self->{lh}->maketext('Add Record'),
         'domains' => \@domains,
-        'current' => 'mailboxes',
+        'current' => 'records',
+        'types'   => \@types,
     );
 
     return $self->tt_process( 'vdnsadm/record/create.tpl', \%params );
@@ -940,13 +930,15 @@ sub show_edit_record {
     my $q = $self->query();
 
     my $record_id  = $q->param('record_id');
-    my $record_ref = $self->{'Mailbox'}->read($record_id);
+    my $record_ref = $self->{'Record'}->read($record_id);
     my $domain_id  = $record_ref->{'domain_id'};
+    my @types      = $self->{'Record'}->types();
 
     my %params = (
         'title'     => $self->{lh}->maketext('Edit Record'),
         'record_id' => $record_id,
         'current'   => 'records',
+        'types'     => \@types,
     );
     foreach my $key ( keys %{$record_ref} ) {
         $params{$key} = $record_ref->{$key};
@@ -962,24 +954,12 @@ sub show_update_record {
     my $q = $self->query();
 
     my $record_id = $q->param('record_id');
-    my $params    = {};
 
-    # TODO name keys in tempaltes acordingly and remove key translatation ... everywhere
-    my %keys = (
-        'name'        => 'Name',
-        'type'        => 'Type',
-        'content'     => 'Content',
-        'ttl'         => 'TTL',
-        'prio'        => 'Prio',
-        'change_date' => 'ChangeDate',
-        'ordername'   => 'Ordername',
-        'auth'        => 'Auth',
-    );
-    foreach my $key ( keys %keys ) {
-        my $tkey = $keys{$key};
-        if ( defined( $q->param($key) ) ) {
-            $params->{$tkey} = $q->param($key);
-        }
+    # set params
+    my $params = {};
+    foreach my $field ( @{ $self->{'Domain'}->fields() } ) {
+        next if $field eq 'id';
+        $params->{$field} = $q->param($field) if defined( $q->param($field) );
     }
 
     $self->{'Record'}->update( $record_id, $params );
@@ -1034,7 +1014,7 @@ sub show_log {
     $sth->finish();
 
     my %params = (
-        'title'   => $self->{lh}->maketext('VBoxAdm Log'),
+        'title'   => $self->{lh}->maketext('VDnsAdm Log'),
         'current' => 'log',
         'log'     => \@log,
         'search'  => $search,
@@ -1071,12 +1051,12 @@ sub show_admins {
         'IsAdmin' => 1,
     );
 
-    my @mailboxes = $self->{'User'}->list( \%params );
+    my @users = $self->{'User'}->list( \%params );
 
     %params = (
         'title'   => $self->{lh}->maketext('VDnsAdm Admins'),
         'current' => 'admins',
-        'admins'  => \@mailboxes,
+        'admins'  => \@users,
         'search'  => $search,
     );
 

@@ -252,7 +252,7 @@ sub make_pass {
 # Comments   : none
 # See Also   : http://wiki.dovecot.org/Authentication/PasswordSchemes
 sub make_salt {
-    return VBoxAdm::Password::pwgen(4);
+    return VWebAdm::Password::pwgen(4);
 }
 
 ############################################

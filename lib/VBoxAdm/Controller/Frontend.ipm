@@ -465,6 +465,8 @@ sub tt_pre_process {
     $vars->{messages}       = $self->get_messages();
     $vars->{is_siteadmin}   = $self->user->is_siteadmin() if $self->user();
     $vars->{is_domainadmin} = $self->user->is_domainadmin() if $self->user();
+    $vars->{product}        = 'VDnsAdm';
+    $vars->{product_url}    = 'http://www.vboxadm.net/';
 
     return;
 }

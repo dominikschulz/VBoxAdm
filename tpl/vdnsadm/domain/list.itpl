@@ -11,6 +11,7 @@
 				<th>[% "Alias-Domains" | l10n %]</th>
 				<th>[% "Active" | l10n %]</th>
 				<th></th>
+				<th></th>
 			</tr>
 			</thead>
 			<tbody>
@@ -34,6 +35,9 @@
 					[% ELSE %]
 					<a href="[% base_url %]?rm=update_domain&domain_id=[% line.id %]&is_active=1">[% "No" | l10n %]</a>
 					[% END %]
+				</td>
+				<td>
+					<a href="[% base_url %]?rm=edit_domain&domain_id=[% line.id %]">[% "edit" | l10n %]</a>
 				</td>
 				<td>
 					<a onClick="if(confirm('[% "Do you really want to delete the Domain [_1]?" | l10n(line.name) %]')) return true; else return false;" href="[% base_url %]?rm=remove_domain&domain_id=[% line.id %]">[% "del" | l10n %]</a>

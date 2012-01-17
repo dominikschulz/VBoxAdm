@@ -43,3 +43,7 @@
     <!--<header>
      <div id="logo">VBoxAdm</div>
     </header>-->
+[% IF nonavigation != 1 %]
+[% nav_tpl = "$product/includes/navigation.tpl" | lower %]
+[% INCLUDE $nav_tpl %]
+[% END %]

@@ -11,6 +11,41 @@
 		
 		<div class="spacer"></div>
 		
+		<label for="master">
+			[% "Master:" | l10n %]
+			<span class="small"></span>
+		</label>
+		<input type="text" name="master" value="[% master %]" />
+		
+		<div class="spacer"></div>
+		
+		<label for="last_check">
+			[% "Last Check:" | l10n %]
+			<span class="small"></span>
+		</label>
+		<input type="text" name="last_check" value="[% last_check %] />
+		
+		<div class="spacer"></div>
+		
+		<label for="type">
+			[% "Type:" | l10n %]
+			<span class="small"></span>
+		</label>
+		<select name="type">
+			<option[% IF type == 'MASTER' %] selected[% END %]>MASTER</option>
+			<option[% IF type == 'SLAVE' %] selected[% END %]>SLAVE</option>
+		</select>
+		
+		<div class="spacer"></div>
+		
+		<label for="notified_serial">
+			[% "Notified Serial:" | l10n %]
+			<span class="small"></span>
+		</label>
+		<input type="text" name="notified_serial" value="[% notified_serial %]" />
+		
+		<div class="spacer"></div>
+		
 		<label for="is_active">
 			[% "Enabled:" | l10n %]
 			<span class="small"></span>

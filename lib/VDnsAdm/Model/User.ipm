@@ -23,7 +23,7 @@ sub login {
 
     # check if login works
     my $sql =
-"SELECT m.id,m.password,m.is_domainadmin,m.is_siteadmin,d.id FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
+"SELECT u.id,u.password,u.is_domainadmin,u.is_siteadmin,d.id FROM users AS m LEFT JOIN domains AS d ON u.domain_id = d.id WHERE u.local_part = ? AND d.name = ?";
     my $sth = &VWebAdm::DB::prepexec( $self->dbh(), $sql, $self->local_part(), $self->domain() );
 
     if ( !$sth ) {
@@ -45,6 +45,215 @@ sub login {
     $self->{'user'}        = 1;
 
     return 1;
+}
+
+sub _init_fields {
+    return [qw(id domain_id local_part password name is_active is_domainadmin is_siteadmin)];
+}
+
+sub create {
+
+    # TODO HIGH ADOPT
+    my ( $self, $domain ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    $domain = &VBoxAdm::Utils::trim( lc($domain) );
+
+    if ( $domain && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain) ) {
+        $self->msg->push( 'error', 'Invalid syntax. Domain is not RFC822 compliant!' );
+        return;
+    }
+    elsif ($domain) {
+        my $query = "INSERT INTO domains (name,master,last_check,type,notified_serial,account) VALUES(?,'',1,'MASTER',1,'')";
+
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $domain ) ) {
+            $self->msg->push( 'information', "Domain '[_1]' added", $domain );
+            $sth->finish();
+            return 1;
+        }
+        else {
+            $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . $domain . ', Error: ' . $self->dbh()->errstr() );
+            $self->msg->push( 'error', "Failed to add Domain '[_1]'. Database error.", $domain );
+            return;
+        }
+
+    }
+    else {
+        $self->msg->add( 'error', "Failed to add Domain [_1]. Insufficient parameters.", $domain );
+        return;
+    }
+}
+
+sub delete {
+
+    # TODO HIGH ADOPT
+    my ( $self, $domain_id ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $sql = "DELETE FROM domains WHERE id = ? LIMIT 1";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $domain_id );
+
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    $sth->finish();
+
+    return;
+}
+
+sub update {
+
+    # TODO HIGH ADOPT
+    my ( $self, $domain_id, $params ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $domain_name = $self->get_name($domain_id);
+
+    my $sql  = "UPDATE domains SET ";
+    my @args = ();
+
+    if ( defined( $params->{'Master'} ) ) {
+        $sql .= "master = ?, ";
+        push( @args, $params->{'Master'} );
+    }
+    if ( defined( $params->{'LastCheck'} ) ) {
+        $sql .= "last_check = ?, ";
+        push( @args, $params->{'LastCheck'} );
+    }
+    if ( defined( $params->{'Type'} ) && $params->{'Type'} =~ m/^(?:MASTER|SLAVE)$/ ) {
+        $sql .= "type = ?, ";
+        push( @args, $params->{'Type'} );
+    }
+    if ( defined( $params->{'NotifiedSerial'} ) && $params->{'NotifiedSerial'} =~ m/^\d+$/ ) {
+        $sql .= "notified_serial = ?, ";
+        push( @args, $params->{'NotifiedSerial'} );
+    }
+    if ( defined( $params->{'Account'} ) ) {
+        $sql .= "account = ?, ";
+        push( @args, $params->{'Account'} );
+    }
+
+    if ( scalar(@args) > 0 ) {
+
+        # remove (possible) trailing ,
+        $sql =~ s/,\s*$//;
+        $sql .= "WHERE id = ?";
+        push( @args, $domain_id );
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args ) ) {
+            $sth->finish();
+            $self->msg->push( 'information', 'Updated Domain [_1].', $domain_name );
+            return 1;
+        }
+        else {
+            $self->log( 'Could not execute Query: ' . $sql . ', Args: ' . join( ',', @args ) . ', Error: ' . $self->dbh->errstr );
+            $self->msg->push( 'error', 'Failed to update Domain [_1]. Database error.', $domain_name );
+            return;
+        }
+    }
+}
+
+sub read {
+
+    # TODO HIGH ADOPT
+    my ( $self, $id ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+    elsif ( $self->user->is_domainadmin() && $self->user->get_domain_id() != $id ) {
+        $self->msg->push( 'error', 'Sorry. Not your domain.' );
+        return;
+    }
+
+    return $self->_read( 'domains', $id, );
+}
+
+sub list {
+
+    # TODO HIGH ADOPT
+    my ( $self, $params ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+    elsif ( $self->user->is_domainadmin() ) {
+
+        # limit to this domain
+        $params->{'id'} = $self->user->get_domain_id();
+    }
+
+    return $self->_list( 'domains', $params );
+}
+
+sub get_name {
+
+    # TODO HIGH ADOPT
+    my ( $self, $id ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $query = "SELECT name FROM domains WHERE id = ?";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $id );
+
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    my $domain_name = $sth->fetchrow_array();
+    $sth->finish();
+
+    return $domain_name;
+}
+
+sub get_id {
+
+    # TODO HIGH ADOPT
+    my ( $self, $name ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $query = "SELECT id FROM domains WHERE name = ?";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $name );
+
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    my $domain_id = $sth->fetchrow_array();
+    $sth->finish();
+
+    return $domain_id;
 }
 
 no Moose;

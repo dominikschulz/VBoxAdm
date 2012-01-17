@@ -135,7 +135,9 @@ sub _list {
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
 
     if ( !$sth ) {
-        $self->msg->push( 'error', 'Database error.' );
+
+        # TODO log these errors!
+        $self->msg->push( 'error', 'Database error: ' . $self->dbh()->errstr );
         return;
     }
 
