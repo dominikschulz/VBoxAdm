@@ -76,6 +76,8 @@ sub _read_config {
             last;
         }
     }
+    
+    $self->config( \%config );
 
     $self->config()->{'default'}{'dbhost'}   ||= 'localhost';
     $self->config()->{'default'}{'dbuser'}   ||= 'vboxadm';
@@ -83,8 +85,6 @@ sub _read_config {
     $self->config()->{'default'}{'dbport'}   ||= 3306;
     $self->config()->{'default'}{'dbdb'}     ||= 'vboxadm';
     $self->config()->{'default'}{'pwscheme'} ||= 'sha256';
-
-    $self->config( \%config );
 
     return 1;
 }
