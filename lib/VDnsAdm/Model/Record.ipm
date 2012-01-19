@@ -34,18 +34,22 @@ sub _init_valid_types {
         },
         'AAAA' => sub {
             my ( $content, $ttl, $prio ) = @_;
-
-            return;    # TODO impl
+            if ( $content =~ m/^[a-f0-9:]+$/i ) {
+                return 1;
+            }
+            return;
         },
         'AFSDB' => sub {
             my ( $content, $ttl, $prio ) = @_;
-
-            return;    # TODO impl
+            if ( $content =~ m/^\d+ \w+$/i ) {
+                return 1;
+            }
+            return;
         },
         'CERT' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO impl
+            return;    # TODO see RFC2538
         },
         'CNAME' => sub {
             my ( $content, $ttl, $prio ) = @_;
@@ -58,87 +62,103 @@ sub _init_valid_types {
         'DNSKEY' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO impl
+            return;    # TODO see RFC3757
         },
         'DS' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO impl
+            return;    # TODO see RFC3757
         },
         'HINFO' => sub {
             my ( $content, $ttl, $prio ) = @_;
+            if ( $content =~ m/^(?:i386 x64 alpha)\s\w+/i ) {    # TODO this does cover everything for sure
+                return 1;
+            }
 
-            return;    # TODO impl
+            return;
         },
         'KEY' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO impl
+            return;                                              # TODO see RFC2535
         },
         'LOC' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO impl
+            return;                                              # TODO see RFC1876
         },
         'MX' => sub {
             my ( $content, $ttl, $prio ) = @_;
-
-            return;    # TODO impl
+            if ( $prio =~ m/^\d+$/ && $prio > 0 && $content =~ m/^\w+$/i ) {
+                return 1;
+            }
+            return;
         },
         'NAPTR' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO impl
+            return;                                              # TODO see RFC2916
         },
         'NS' => sub {
             my ( $content, $ttl, $prio ) = @_;
+            if ( $content =~ m/^\w+$/ ) {
+                return 1;
+            }
 
-            return;    # TODO impl
+            return;                                              # TODO impl
         },
         'NSEC' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO impl
+            return;                                              # TODO see RFC3757
         },
         'PTR' => sub {
             my ( $content, $ttl, $prio ) = @_;
-
-            return;    # TODO impl
+            if ( $content =~ m/^\w+$/ ) {
+                return 1;
+            }
+            return;
         },
         'RP' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO impl
+            return;                                              # TODO see RFC1183
         },
         'RRSIG' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO impl
+            return;                                              # TODO see RFC3757
         },
         'SOA' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO impl
+            # content format: primary_ns hostmaster serial refresh retry expire default_ttl
+            # see http://doc.powerdns.com/types.html
+
+            return;                                              # TODO impl
         },
         'SPF' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO impl
+            return;                                              # TODO see RFC4408
         },
         'SSHFP' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO impl
+            return;                                              # TODO see RFC4255
         },
         'SRV' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO impl
+            return;                                              # TODO impl
         },
         'TXT' => sub {
             my ( $content, $ttl, $prio ) = @_;
+            if ( $content =~ m/^\w+$/i ) {
+                return 1;
+            }
 
-            return;    # TODO impl
+            return;                                              # TODO impl
         },
     };
 
@@ -167,6 +187,8 @@ sub _valid_content {
     my $content = shift;
     my $ttl     = shift;
     my $prio    = shift;
+
+    $self->logger()->log( message => "Checking $type, $content, $ttl, $prio", level => 'debug', );
 
     if ( defined( $self->valid_types()->{$type} ) && ref( $self->valid_types()->{$type} ) eq 'CODE' ) {
         return &{ $self->valid_types()->{$type} }( $content, $ttl, $prio );
