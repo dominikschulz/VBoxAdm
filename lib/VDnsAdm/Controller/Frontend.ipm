@@ -823,17 +823,27 @@ sub show_records {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $page   = $q->param('page') || 1;
+    my $page = $q->param('page') || 1;
     my $search = $q->param('search');
-    my %params = ( 'Search' => $search, );
 
-    my @records = $self->{'Record'}->list( \%params );
+    my $params = {};
 
-    %params = (
+    # Authorization
+    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
+        $params->{'domain_id'} = $self->user->get_domain_id();
+    }
+
+    my @types   = $self->{'Record'}->types();
+    my @domains = $self->{'Domain'}->list($params);
+    $params->{'Search'} = $search if $search;
+    my @records = $self->{'Record'}->list($params);
+
+    my %params = (
         'title'   => $self->{lh}->maketext('VDnsAdm Records'),
         'current' => 'records',
         'records' => \@records,
-        'domains' => [ $self->{'Domain'}->list() ],
+        'domains' => \@domains,
+        'types'   => \@types,
         'search'  => $search,
     );
 
@@ -891,7 +901,7 @@ sub show_add_record {
 
     $self->{'Record'}->create( $domain_id, $params );
 
-    $self->redirect( $self->{base_url} . '?rm=records' );
+    $self->redirect( $self->{base_url} . '?rm=domain&domain_id=' . $domain_id );
     return;
 }
 

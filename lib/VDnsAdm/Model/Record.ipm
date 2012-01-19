@@ -27,31 +27,119 @@ sub _init_valid_types {
     my $tref = {
         'A' => sub {
             my ( $content, $ttl, $prio ) = @_;
-
-            # TODO validate
+            if ( $content =~ m/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/i ) {
+                return 1;
+            }
             return;
         },
-        'AAAA'   => '',
-        'AFSDB'  => '',
-        'CERT'   => '',
-        'CNAME'  => '',
-        'DNSKEY' => '',
-        'DS'     => '',
-        'HINFO'  => '',
-        'KEY'    => '',
-        'LOC'    => '',
-        'MX'     => '',
-        'NAPTR'  => '',
-        'NS'     => '',
-        'NSEC'   => '',
-        'PTR'    => '',
-        'RP'     => '',
-        'RRSIG'  => '',
-        'SOA'    => '',
-        'SPF'    => '',
-        'SSHFP'  => '',
-        'SRV'    => '',
-        'TXT'    => '',
+        'AAAA' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'AFSDB' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'CERT' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'CNAME' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+            if ( $content =~ m/^\w+$/ ) {
+                return 1;
+            }
+
+            return;    # TODO impl
+        },
+        'DNSKEY' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'DS' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'HINFO' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'KEY' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'LOC' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'MX' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'NAPTR' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'NS' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'NSEC' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'PTR' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'RP' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'RRSIG' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'SOA' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'SPF' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'SSHFP' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'SRV' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
+        'TXT' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;    # TODO impl
+        },
     };
 
     return $tref;
@@ -81,7 +169,7 @@ sub _valid_content {
     my $prio    = shift;
 
     if ( defined( $self->valid_types()->{$type} ) && ref( $self->valid_types()->{$type} ) eq 'CODE' ) {
-        &{ $self->valid_types()->{$type} }( $content, $ttl, $prio );
+        return &{ $self->valid_types()->{$type} }( $content, $ttl, $prio );
     }
 
     return;
@@ -106,33 +194,12 @@ sub create {
     # Nop
 
     #
-    # Type
+    # Content, TTL, Prio
     #
-    if ( !$self->_valid_type( $params->{'type'} ) ) {
-        $self->msg->push( 'error', 'Invalid Record Type. Can not add!' );
-        return;
-    }
-
-    #
-    # Content
-    #
-    if ( !$self->_valid_content( $params->{'$type'}, $params->{'content'} ) ) {
+    if ( !$self->_valid_content( $params->{'$type'}, $params->{'content'}, $params->{'ttl'}, $params->{'prio'} ) ) {
         $self->msg->push( 'error', 'Invalid content for type!' );
         return;
     }
-
-    #
-    # TTL
-    #
-    if ( $params->{'ttl'} !~ m/^\d+$/ || length( $params->{'ttl'} ) > 11 ) {
-        $self->msg->push( 'error', 'Invalid data for ttl!' );
-        return;
-    }
-
-    #
-    # Prio
-    #
-    # TODO validate prio
 
     #
     # ChangeDate
