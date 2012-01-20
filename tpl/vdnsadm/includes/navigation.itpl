@@ -1,7 +1,7 @@
 <nav id="topNav">
 	<!-- <h1>Navigation</h1> -->
 	<ul>
-		<li><a[% IF current == 'welcome' %] class="current"[% END %] href="[% base_url %]?rm=welcome">VBoxAdm</a></li>
+		<li><a[% IF current == 'welcome' %] class="current"[% END %] href="[% base_url %]?rm=welcome">VDnsAdm</a></li>
 		[% IF is_siteadmin %]
 		<li><a[% IF current == 'admins' %] class="current"[% END %] href="[% base_url %]?rm=admins">[% "Admin List" | l10n %]</a></li>
 		[% END %]

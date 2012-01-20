@@ -115,7 +115,6 @@ LIBFILES = \
 	lib/VDnsAdm/L10N/en.pm \
 	lib/VDnsAdm/Model/Domain.pm \
 	lib/VDnsAdm/Model/Record.pm \
-	lib/VDnsAdm/Model/Supermaster.pm \
 	lib/VDnsAdm/Model/User.pm \
 	lib/VDnsAdm/L10N.pm \
 	lib/VWebAdm/Model/MessageQueue.pm \
@@ -171,7 +170,6 @@ MANFILES = \
 	lib/VDnsAdm/Controller/Frontend.3 \
 	lib/VDnsAdm/Model/Domain.3 \
 	lib/VDnsAdm/Model/Record.3 \
-	lib/VDnsAdm/Model/Supermaster.3 \
 	lib/VWebAdm/Model/MessageQueue.3 \
 	lib/VWebAdm/Model/User.3 \
 	lib/VWebAdm/API.3 \
@@ -213,7 +211,6 @@ TESTFILES = \
 	t/VDnsAdm/Controller/Frontend.t \
 	t/VDnsAdm/Model/Domain.t \
 	t/VDnsAdm/Model/Record.t \
-	t/VDnsAdm/Model/Supermaster.t \
 	t/VDnsAdm/L10N.t \
 	t/VWebAdm/Model/MessageQueue.t \
 	t/VWebAdm/Model/User.t \
@@ -285,12 +282,6 @@ TPLFILES = \
 	tpl/vdnsadm/record/edit.tpl \
 	tpl/vdnsadm/record/list.tpl \
 	tpl/vdnsadm/record/show.tpl \
-	tpl/vdnsadm/supermaster/create_partial.tpl \
-	tpl/vdnsadm/supermaster/create.tpl \
-	tpl/vdnsadm/supermaster/edit_partial.tpl \
-	tpl/vdnsadm/supermaster/edit.tpl \
-	tpl/vdnsadm/supermaster/list.tpl \
-	tpl/vdnsadm/supermaster/show.tpl \
 	tpl/vdnsadm/welcome.tpl \
 	tpl/vwebadm/includes/footer.tpl \
 	tpl/vwebadm/includes/header.tpl \

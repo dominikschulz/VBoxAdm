@@ -22,7 +22,6 @@ use VWebAdm::SaltedHash '@VERSION@';
 use VWebAdm::Password '@VERSION@';
 use VDnsAdm::Model::Domain '@VERSION@';
 use VDnsAdm::Model::Record '@VERSION@';
-use VDnsAdm::Model::Supermaster '@VERSION@';
 use VWebAdm::Model::MessageQueue '@VERSION@';
 use VDnsAdm::Model::User '@VERSION@';
 use VDnsAdm::L10N '@VERSION@';

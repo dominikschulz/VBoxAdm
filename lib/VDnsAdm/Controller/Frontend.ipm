@@ -43,7 +43,6 @@ use VWebAdm::Model::MessageQueue '@VERSION@';
 use VDnsAdm::Model::User '@VERSION@';
 use VDnsAdm::Model::Domain '@VERSION@';
 use VDnsAdm::Model::Record '@VERSION@';
-use VDnsAdm::Model::Supermaster '@VERSION@';
 
 our $VERSION = '@VERSION@';
 
@@ -342,9 +341,8 @@ sub setup {
                 'logger' => $Logger,
                 'config' => $self->{'config'},
             };
-            $self->{'Domain'}      = VDnsAdm::Model::Domain::->new($arg_ref);
-            $self->{'Record'}      = VDnsAdm::Model::Record::->new($arg_ref);
-            $self->{'Supermaster'} = VDnsAdm::Model::Supermaster::->new($arg_ref);
+            $self->{'Domain'} = VDnsAdm::Model::Domain::->new($arg_ref);
+            $self->{'Record'} = VDnsAdm::Model::Record::->new($arg_ref);
         }
     }
 
@@ -753,9 +751,15 @@ sub show_create_domain {
         return;
     }
 
+    my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime(time);
+    $year += 1900;
+    $mon++;
+    my $serial = sprintf( "%4d%02d%02d%02d", $year, $mon, $mday, 1 );
+
     my %params = (
-        'title'   => $self->{lh}->maketext('Add Domain'),
-        'current' => 'domains',
+        'title'      => $self->{lh}->maketext('Add Domain'),
+        'soa_serial' => $serial,
+        'current'    => 'domains',
     );
 
     return $self->tt_process( 'vdnsadm/domain/create.tpl', \%params );
@@ -769,7 +773,9 @@ sub show_add_domain {
 
     my $domain = &VWebAdm::Utils::trim( lc( $q->param('domain') ) );
 
-    $self->{'Domain'}->create($domain);
+    $self->{'Domain'}->create( { 'name' => $domain, 'type' => 'MASTER', 'last_check' => 1, 'notified_serial' => 1, 'is_active' => 1, }, );
+
+    # TODO HIGH create SOA
 
     $self->redirect( $self->{base_url} . '?rm=domains' );
     return;

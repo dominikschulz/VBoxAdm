@@ -46,6 +46,13 @@ sub _init_valid_types {
             }
             return;
         },
+        'APL' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC3123
+            return;
+        },
         'CERT' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
@@ -59,15 +66,36 @@ sub _init_valid_types {
 
             return;    # TODO impl
         },
+        'DHCID' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC4701
+            return;
+        },
+        'DLV' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC2672
+            return;
+        },
+        'DNAME' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC2672
+            return;
+        },
         'DNSKEY' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO see RFC3757
+            return;    # TODO see RFC3757, RFC4034
         },
         'DS' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO see RFC3757
+            return;    # TODO see RFC3757, RFC4034
         },
         'HINFO' => sub {
             my ( $content, $ttl, $prio ) = @_;
@@ -77,18 +105,39 @@ sub _init_valid_types {
 
             return;
         },
+        'HIP' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC5205
+            return;
+        },
+        'IPSECKEY' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC4025
+            return;
+        },
         'KEY' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;                                              # TODO see RFC2535
+            return;    # TODO see RFC2535
+        },
+        'KX' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC2230
+            return;
         },
         'LOC' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;                                              # TODO see RFC1876
+            return;    # TODO see RFC1876
         },
         'MX' => sub {
-            my ( $content, $ttl, $prio ) = @_;
+            my ( $content, $ttl, $prio ) = @_;    # see RFC1035
             if ( $prio =~ m/^\d+$/ && $prio > 0 && $content =~ m/^\w+$/i ) {
                 return 1;
             }
@@ -97,23 +146,37 @@ sub _init_valid_types {
         'NAPTR' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;                                              # TODO see RFC2916
+            return;                               # TODO see RFC2916, RFC3403
         },
         'NS' => sub {
-            my ( $content, $ttl, $prio ) = @_;
+            my ( $content, $ttl, $prio ) = @_;    # see RFC1035
             if ( $content =~ m/^\w+$/ ) {
                 return 1;
             }
 
-            return;                                              # TODO impl
+            return;                               # TODO impl
         },
         'NSEC' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;                                              # TODO see RFC3757
+            return;                               # TODO see RFC3757. RFC4034
+        },
+        'NSEC3' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC5155
+            return;
+        },
+        'NSEC3PARAM' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC5155
+            return;
         },
         'PTR' => sub {
-            my ( $content, $ttl, $prio ) = @_;
+            my ( $content, $ttl, $prio ) = @_;    # see RFC1035
             if ( $content =~ m/^\w+$/ ) {
                 return 1;
             }
@@ -122,35 +185,63 @@ sub _init_valid_types {
         'RP' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;                                              # TODO see RFC1183
+            return;                               # TODO see RFC1183
         },
         'RRSIG' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;                                              # TODO see RFC3757
+            return;                               # TODO see RFC3757
+        },
+        'SIG' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC2535
+            return;
         },
         'SOA' => sub {
-            my ( $content, $ttl, $prio ) = @_;
+            my ( $content, $ttl, $prio ) = @_;    # see RFC1035
 
             # content format: primary_ns hostmaster serial refresh retry expire default_ttl
             # see http://doc.powerdns.com/types.html
 
-            return;                                              # TODO impl
+            return;                               # TODO impl
         },
         'SPF' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;                                              # TODO see RFC4408
-        },
-        'SSHFP' => sub {
-            my ( $content, $ttl, $prio ) = @_;
-
-            return;                                              # TODO see RFC4255
+            return;                               # TODO see RFC4408
         },
         'SRV' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;                                              # TODO impl
+            return;                               # TODO see RFC2782
+        },
+        'SSHFP' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return;                               # TODO see RFC4255
+        },
+        'TA' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC n/a
+            return;
+        },
+        'TKEY' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC2930
+            return;
+        },
+        'TSIG' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC2845
+            return;
         },
         'TXT' => sub {
             my ( $content, $ttl, $prio ) = @_;
@@ -158,7 +249,7 @@ sub _init_valid_types {
                 return 1;
             }
 
-            return;                                              # TODO impl
+            return;    # TODO impl
         },
     };
 
@@ -197,6 +288,62 @@ sub _valid_content {
     return;
 }
 
+sub _validate_params {
+    my $self   = shift;
+    my $params = shift;
+
+    #
+    # Name
+    #
+    # Nop
+
+    #
+    # Content, TTL, Prio
+    #
+    if ( !defined( $params->{'type'} ) ) {
+        $self->msg->push( 'error', 'Mandatory field type missing!' );
+        return;
+    }
+    if ( !defined( $params->{'content'} ) ) {
+        $self->msg->push( 'error', 'Mandatoy field content missing!' );
+        return;
+    }
+    if ( !defined( $params->{'ttl'} ) || $params->{'ttl'} < 1800 || $params->{'ttl'} > 2_592_000 ) {
+        $self->msg->push( 'error', 'Mandatory field TTL missing or out of range!' );
+        return;
+    }
+    if ( !$self->_valid_content( $params->{'$type'}, $params->{'content'}, $params->{'ttl'}, $params->{'prio'} ) ) {
+        $self->msg->push( 'error', 'Invalid content for type!' );
+        return;
+    }
+
+    #
+    # ChangeDate
+    #
+    if ( defined( $params->{'change_date'} ) && $params->{'change_date'} !~ m/^\d{1,11}$/ ) {
+        $self->msg->push( 'error', 'Invalid content for change_date!' );
+        return;
+    }
+
+    #
+    # Ordername
+    #
+    if ( defined( $params->{'ordername'} ) && $params->{'ordername'} !~ m/^\w{1,255}$/i ) {
+        $self->msg->push( 'error', 'Invalid content for odername!' );
+        return;
+    }
+
+    #
+    # Auth
+    #
+    if ( defined( $params->{'auth'} ) && $params->{'auth'} !~ m/^\d$/ ) {
+        $self->msg->push( 'error', 'Invalid content for auth!' );
+        return;
+    }
+
+    return 1;
+}
+
 sub create {
     my ( $self, $domain_id, $params ) = @_;
 
@@ -210,33 +357,9 @@ sub create {
     my $domain_name = $Domain->get_name($domain_id);
     my $record_name = $self->_get_record_name($params);
 
-    #
-    # Name
-    #
-    # Nop
-
-    #
-    # Content, TTL, Prio
-    #
-    if ( !$self->_valid_content( $params->{'$type'}, $params->{'content'}, $params->{'ttl'}, $params->{'prio'} ) ) {
-        $self->msg->push( 'error', 'Invalid content for type!' );
+    if ( !$self->_validate_params($params) ) {
         return;
     }
-
-    #
-    # ChangeDate
-    #
-    # TODO validate change_date
-
-    #
-    # Ordername
-    #
-    # TODO validate ordername
-
-    #
-    # Auth
-    #
-    # TODO validate auth
 
     # Check authorization, syntax and create mailbox
     if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get_domain_id() ) {
@@ -331,6 +454,10 @@ sub update {
     my $msg_loc = '';
     my $msg_en  = '';
 
+    if ( !$self->_validate_params($params) ) {
+        return;
+    }
+
     $query = "UPDATE records SET ";
 
     # only execute query if scalar(@params) > 0, i.e. at least on valid option
@@ -338,68 +465,12 @@ sub update {
 
     foreach my $key ( keys %{$params} ) {
         $params->{$key} = Encode::decode( 'UTF-8', $params->{$key} );
+        $query .= $key . ' = ?, ';
+        push( @args, $params->{$key} );
     }
-
-    #
-    # Name
-    #
-    if ( $params->{'Name'} ) {
-        $query .= "name = ?, ";
-        push( @args, $params->{'Name'} );
-    }
-
-    #
-    # Type
-    #
-    if ( defined( $params->{'Type'} ) ) {
-        if ( $self->_valid_type( $params->{'Type'} ) ) {
-            $query .= "type = ?, ";
-            push( @args, $params->{'Type'} );
-        }
-    }
-
-    #
-    # Content
-    #
-    if ( defined( $params->{'Content'} ) ) {
-        my $t = $params->{'Type'} || $type;
-        if ( $self->_valid_content( $t, $params->{'Content'} ) ) {
-            $query .= "content = ?, ";
-            push( @args, $params->{'Content'} );
-        }
-    }
-
-    #
-    # TTL
-    #
-    if ( defined( $params->{'TTL'} ) && $params->{'TTL'} =~ m/^\d+$/ ) {
-        $query .= "ttl = ?, ";
-        push( @args, $params->{'TTL'} );
-    }
-
-    #
-    # Prio
-    #
-    if ( defined( $params->{'Prio'} ) && $params->{'Prio'} =~ m/^\d+$/ ) {
-        $query .= "prio = ?, ";
-        push( @args, $params->{'Prio'} );
-    }
-
-    #
-    # ChangeDate
-    #
-    if ( defined( $params->{'ChangeDate'} ) && $params->{'ChangeDate'} =~ m/^\d+$/ ) {
-        $query .= "change_date = ?, ";
-        push( @args, $params->{'ChangeDate'} );
-    }
-
-    # Ordername
-    # TODO
-    # Auth
-    # TODO
 
     # at least on option has changed
-    if ( scalar(@args) > 1 ) {
+    if ( scalar(@args) > 0 ) {
 
         # remove (possible) trailing ,
         $query =~ s/,\s*$//;

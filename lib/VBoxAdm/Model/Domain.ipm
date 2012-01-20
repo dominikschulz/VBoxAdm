@@ -132,7 +132,7 @@ sub list {
         $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
-    elsif ( $self->user->is_domainadmin() ) {
+    elsif ( !$self->user->is_siteadmin() ) {
 
         # limit to this domain
         $params->{'id'} = $self->user->get_domain_id();
