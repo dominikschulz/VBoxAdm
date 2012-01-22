@@ -1686,12 +1686,12 @@ sub show_log {
     if ( !$sth ) {
         $self->add_message('Database Error!');
         $self->log( 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, 'warning', );
-        return $self->tt_process( 'vboxadm/vwebadm/log.tpl', \%params );
+        return $self->tt_process( 'vwebadm/log.tpl', \%params );
     }
     if ( !$sth->execute(@args) ) {
         $self->add_message('Database Error!');
         $self->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, 'warning', );
-        return $self->tt_process( 'vboxadm/vwebadm/log.tpl', \%params );
+        return $self->tt_process( 'vwebadm/log.tpl', \%params );
     }
 
     my @log = ();
@@ -1701,7 +1701,7 @@ sub show_log {
     $sth->finish();
     $params{'log'} = \@log;
 
-    return $self->tt_process( 'vboxadm/vwebadm/log.tpl', \%params );
+    return $self->tt_process( 'vwebadm/log.tpl', \%params );
 }
 
 #

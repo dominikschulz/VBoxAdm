@@ -379,6 +379,9 @@ sub create {
         if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, values %{$params} ) ) {
             $sth->finish();
             $self->msg->push( 'information', "Added Record [_1] for [_2].", $record_name, $domain_name );
+            if ( $params->{'type'} ne 'SOA' ) {
+                $self->bump_serial($domain_id);
+            }
         }
         else {
             $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", ( %{$params} ) ) . ', Error: ' . $self->dbh()->errstr() );
@@ -401,9 +404,9 @@ sub delete {
         $self->msg->push( 'error', "Failed to remove record. Insufficient parameters." );
         return;
     }
-    my $query = "SELECT name, type, content, ttl FROM records WHERE id = ?";
+    my $query = "SELECT name, type, content, ttl, domain_id FROM records WHERE id = ?";
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $record_id );
-    my ( $name, $type, $content, $ttl ) = $sth->fetchrow_array();
+    my ( $name, $type, $content, $ttl, $domain_id ) = $sth->fetchrow_array();
     my $record_name = $self->_get_record_name( $name, $type, $ttl, $content );
     $sth->finish();
 
@@ -416,6 +419,9 @@ sub delete {
     }
     if ( $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
         $self->msg->push( 'information', "Record [_1] (#[_2]) removed.", $record_name, $record_id );
+        if ( $type ne 'SOA' ) {
+            $self->bump_serial($domain_id);
+        }
     }
     else {
         $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh()->errstr() );
@@ -445,9 +451,9 @@ sub update {
         return;
     }
 
-    my $query = "SELECT name, type, content, ttl FROM records WHERE id = ?";
+    my $query = "SELECT name, type, content, ttl, domain_id FROM records WHERE id = ?";
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $record_id );
-    my ( $name, $type, $content, $ttl ) = $sth->fetchrow_array();
+    my ( $name, $type, $content, $ttl, $domain_id ) = $sth->fetchrow_array();
     my $record_name = $self->_get_record_name( $name, $type, $ttl, $content );
     $sth->finish();
 
@@ -498,6 +504,9 @@ sub update {
         #$self->log( "Record::update - SQL: ".$query. " - Args: ".join(',',@args));
         if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
             $self->msg->push( 'information', "Updated Record [_1] (#[_2]).", $record_name, $record_id );
+            if ( $params->{'type'} ne 'SOA' ) {
+                $self->bump_serial($domain_id);
+            }
         }
         else {
             $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh()->errstr() );
@@ -512,10 +521,10 @@ sub update {
 }
 
 sub read {
-    my ( $self, $mailbox_id ) = @_;
+    my ( $self, $record_id ) = @_;
 
     my $sql = "SELECT " . join( ",", @{ $self->fields() } ) . " FROM records WHERE id = ?";
-    my @args = ($mailbox_id);
+    my @args = ($record_id);
 
     if ( !$self->user->is_siteadmin() ) {
         $sql .= " AND domain_id = ?";
@@ -529,6 +538,7 @@ sub read {
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
 
     if ( !$sth ) {
+        $self->logger()->log( message => 'Failed to execute SQL ' . $sql . ' due to Database Error: ' . $self->dbh()->errstr, level => 'error', );
         $self->msg->push( 'error', 'Database error.' );
         return;
     }
@@ -549,6 +559,72 @@ sub read {
     }
 
     return \%result;
+}
+
+sub bump_serial {
+    my $self      = shift;
+    my $domain_id = shift;
+
+    my $rec = $self->list(
+        {
+            'Type'      => 'SOA',
+            'domain_id' => $domain_id,
+        }
+    );
+
+    if ( !$rec ) {
+        $self->logger()->log( message => 'No SOA-Record found for Domain #' . $domain_id, level => 'error', );
+        return;
+    }
+
+    my $record_id = $rec->{'id'};
+    my $content   = $rec->{'content'};
+    my ( $pri_ns, $contact, $serial, $refresh, $retry, $expire, $minimum ) = split /\s+/, $content;
+    if ( !$serial || $serial !~ m/^\d+$/ ) {
+        $self->logger()->log( message => 'Invalid SOA-Record for Domain #' . $domain_id . ': ' . $content, level => 'error', );
+        return;
+    }
+
+    my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime(time);
+    $year += 1900;
+    $mon++;
+    if ( $serial =~ m/^(\d{4})(\d{2})(\d{2})(\d{2})$/ ) {
+        my ( $oyear, $omonth, $oday, $ocount ) = ( $1, $2, $3, $4 );
+
+        # remove leading zeros for proper comparison
+        $oyear  =~ s/^0+//g;
+        $omonth =~ s/^0+//g;
+        $oday   =~ s/^0+//g;
+        $ocount =~ s/^0+//g;
+        my $count = 0;
+
+        # if last updated today we only increase the counter
+        if ( $oyear == $year && $omonth == $mon && $oday == $mday ) {
+            $count = $ocount + 1;
+        }
+
+        # in all other cases we create a new serial with a counter of zero
+        $serial = sprintf( '%4d%02d%02d%02d', $year, $mon, $mday, $count );
+    }
+    elsif ( $serial =~ m/^\d+$/ ) {
+        $serial++;
+    }
+    else {
+
+        # should be impossible, caught above
+        $self->logger()->log( message => 'Invalid SOA-Record for Domain #' . $domain_id . ' at impossible execution path!', level => 'error', );
+    }
+
+    my $new_content = join( ' ', ( $pri_ns, $contact, $serial, $refresh, $retry, $expire, $minimum ) );
+
+    if ( $self->update( $record_id, { 'content' => $new_content, } ) ) {
+        $self->logger()->log( message => 'Raised SOA serial for Domain #' . $domain_id . ' to ' . $serial, level => 'debug', );
+        return 1;
+    }
+    else {
+        $self->logger()->log( message => 'Failed to raise SOA serial for Domain #' . $domain_id, level => 'error', );
+        return;
+    }
 }
 
 sub list {
@@ -574,6 +650,10 @@ sub list {
     if ( $param->{'domain_id'} ) {
         $sql .= " AND domain_id = ?";
         push( @args, $param->{'domain_id'} );
+    }
+    if ( $param->{'Type'} ) {
+        $sql .= ' AND type = ?';
+        push( @args, $param->{'Type'} );
     }
 
     # domain admins may only see their own domain

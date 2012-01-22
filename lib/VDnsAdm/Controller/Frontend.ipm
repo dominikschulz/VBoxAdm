@@ -774,7 +774,13 @@ sub show_add_domain {
 
     my $domain = &VWebAdm::Utils::trim( lc( $q->param('domain') ) );
 
-    $self->{'Domain'}->create( { 'name' => $domain, 'type' => 'MASTER', 'last_check' => 1, 'notified_serial' => 1, 'is_active' => 1, }, );
+    if ( $self->{'Domain'}->create( { 'name' => $domain, 'type' => 'MASTER', 'last_check' => 1, 'notified_serial' => 1, 'is_active' => 1, }, ) ) {
+        $self->log( 'Added Domain ' . $domain );
+    }
+    else {
+        $self->log( 'Failed to add Domain ' . $domain );
+        $self->add_message('Database Error!');
+    }
 
     # TODO HIGH create SOA
 
@@ -790,7 +796,13 @@ sub show_remove_domain {
 
     my $domain_id = $q->param('domain_id');
 
-    $self->{'Domain'}->delete($domain_id);
+    if ( $self->{'Domain'}->delete($domain_id) ) {
+        $self->log( 'Deleted Domain #' . $domain_id );
+    }
+    else {
+        $self->log( 'Failed to delete Domain #' . $domain_id );
+        $self->add_message('Database Error!');
+    }
 
     $self->redirect( $self->{base_url} . '?rm=domains' );
     return;
@@ -811,7 +823,13 @@ sub show_update_domain {
         $params->{$field} = $q->param($field) if defined( $q->param($field) );
     }
 
-    $self->{'Domain'}->update( $domain_id, $params );
+    if ( $self->{'Domain'}->update( $domain_id, $params ) ) {
+        $self->log( 'Updated Domain #' . $domain_id );
+    }
+    else {
+        $self->log( 'Failed to update Domain #' . $domain_id );
+        $self->add_message('Database Error!');
+    }
 
     $self->redirect( $self->{base_url} . '?rm=domains' );
     return;
@@ -906,7 +924,13 @@ sub show_add_record {
         $params->{$field} = $q->param($field) if defined( $q->param($field) );
     }
 
-    $self->{'Record'}->create( $domain_id, $params );
+    if ( $self->{'Record'}->create( $domain_id, $params ) ) {
+        $self->log( 'Added Record for Domain #' . $domain_id );
+    }
+    else {
+        $self->log( 'Failed to add Record for Domain #' . $domain_id );
+        $self->add_message('Database Error!');
+    }
 
     $self->redirect( $self->{base_url} . '?rm=domain&domain_id=' . $domain_id );
     return;
@@ -920,7 +944,13 @@ sub show_remove_record {
 
     my $record_id = $q->param('record_id');
 
-    $self->{'Record'}->delete($record_id);
+    if ( $self->{'Record'}->delete($record_id) ) {
+        $self->log( 'Deleted Record #' . $record_id );
+    }
+    else {
+        $self->log( 'Failed to delete Record #' . $record_id );
+        $self->add_message('Database Error!');
+    }
 
     $self->redirect( $self->{base_url} . '?rm=records' );
     return;
@@ -976,7 +1006,13 @@ sub show_update_record {
         $params->{$field} = $q->param($field) if defined( $q->param($field) );
     }
 
-    $self->{'Record'}->update( $record_id, $params );
+    if ( $self->{'Record'}->update( $record_id, $params ) ) {
+        $self->log( 'Update Record #' . $record_id );
+    }
+    else {
+        $self->log( 'Failed to update Record #' . $record_id );
+        $self->add_message('Database Error!');
+    }
     $self->redirect( $self->{base_url} . '?rm=records' );
     return;
 }
@@ -1002,11 +1038,18 @@ sub show_log {
     # Get our database connection
     my $dbh = $self->dbh();
 
-    my $search = $q->param('search') || undef;
+    my $search = $q->param('search') || '';
     my $page   = $q->param('page')   || 1;
 
+    # TT Params
+    my %params = (
+        'title'   => $self->{lh}->maketext('VDnsAdm Log'),
+        'current' => 'log',
+        'search'  => $search,
+    );
+
     my @args  = ();
-    my $query = "FROM log ";
+    my $query = "SELECT ts,msg FROM log ";
     if ($search) {
         $query .= "WHERE msg LIKE ? ";
         $search =~ s/%//g;
@@ -1016,23 +1059,24 @@ sub show_log {
     $query .= "ORDER BY ts DESC";
 
     # Get the actual data
-    my $sth = $dbh->prepare( 'SELECT ts,msg ' . $query )
-      or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr );
-    $sth->execute(@args)
-      or $self->{'logger'}->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr );
+    my $sth = $dbh->prepare($query);
+    if ( !$sth ) {
+        $self->add_message('Database Error!');
+        $self->log( 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, 'warning', );
+        return $self->tt_process( 'vwebadm/log.tpl', \%params );
+    }
+    if ( !$sth->execute(@args) ) {
+        $self->add_message('Database Error!');
+        $self->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, 'warning', );
+        return $self->tt_process( 'vwebadm/log.tpl', \%params );
+    }
 
     my @log = ();
-    while ( my @row = $sth->fetchrow_array() ) {
-        push( @log, { ts => $row[0], msg => $row[1], } );
+    while ( my ( $ts, $msg ) = $sth->fetchrow_array() ) {
+        push( @log, { ts => $ts, msg => $msg, } );
     }
     $sth->finish();
-
-    my %params = (
-        'title'   => $self->{lh}->maketext('VDnsAdm Log'),
-        'current' => 'log',
-        'log'     => \@log,
-        'search'  => $search,
-    );
+    $params{'log'} = \@log;
 
     return $self->tt_process( 'vwebadm/log.tpl', \%params );
 }

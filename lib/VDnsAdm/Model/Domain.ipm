@@ -120,7 +120,6 @@ sub create {
         $self->msg->push( 'error', "Failed to add Domain '[_1]'. Database error.", $params->{'name'} );
         return;
     }
-
 }
 
 sub delete {
