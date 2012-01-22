@@ -45,7 +45,7 @@ our $VERSION = '@VERSION@';
 sub setup {
     my $self = shift;
 
-    my $Logger = VWebAdm::Logger::->new( { 'facility' => 'VBoxAdm/Frontend', } );
+    my $Logger = VWebAdm::Logger::->new( { 'facility' => 'VBoxAdm/API', } );
     $self->{'logger'} = $Logger;
 
     # define the default run mode

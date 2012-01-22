@@ -7,11 +7,35 @@ use Carp;
 
 use VWebAdm::DB '@VERSION@';
 use VWebAdm::Utils '@VERSION@';
+use VDnsAdm::Model::Record '@VERSION@';
 
 extends 'VWebAdm::Model';
 
+has 'records' => (
+    'is'      => 'rw',
+    'isa'     => 'VDnsAdm::Model::Record',
+    'lazy'    => 1,
+    'builder' => '_init_records',
+);
+
 sub _init_fields {
     return [qw(id name master last_check type notified_serial is_active)];
+}
+
+sub _init_records {
+    my $self = shift;
+
+    my $Record = VDnsAdm::Model::Record::->new(
+        {
+            'dbh'    => $self->dbh(),
+            'user'   => $self->user(),
+            'msgq'   => $self->msgq(),
+            'logger' => $self->logger(),
+            'config' => $self->config(),
+        }
+    );
+
+    retrun $Record;
 }
 
 sub _validate_params {
@@ -79,6 +103,8 @@ sub create {
     if ( !$self->_validate_params($params) ) {
         return;
     }
+
+    # TODO HIGH create SOA record
 
     my $query = "INSERT INTO domains (" . join( ',', keys %{$params} ) . ") VALUES(";
     $query .= "?," x ( scalar( keys %{$params} ) - 1 );

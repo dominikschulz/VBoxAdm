@@ -194,8 +194,7 @@ sub setup {
         }
     }
     if ( !$conffile_used ) {
-        $self->{'logger'}
-          ->log( message => "setup - Warning: No readable config file found in search path! (" . join( ':', @conffile_locations ) . ")", level => 'warning', );
+        $self->log( "Warning: No readable config file found in search path! (" . join( ':', @conffile_locations ) . ")", 'warning', );
     }
     $self->{config} = \%config;
 
@@ -234,7 +233,7 @@ sub setup {
         }
     );
     if ( !$self->dbh ) {
-        $self->{'logger'}->log( message => "setup - Failed to establish DB connection with DSN $dsn and error message: " . DBI->errstr, level => 'error', );
+        $self->log( "Failed to establish DB connection with DSN $dsn and error message: " . DBI->errstr, 'error', );
         die("Could not connect to DB.");
     }
 
@@ -308,6 +307,7 @@ sub setup {
                 'lh'      => $self->{'lh'},
                 'lh_en'   => $self->{'lh_en'},
                 'session' => $self->session,
+                'logger'  => $Logger,
             }
         );
 
@@ -341,8 +341,9 @@ sub setup {
                 'logger' => $Logger,
                 'config' => $self->{'config'},
             };
-            $self->{'Domain'} = VDnsAdm::Model::Domain::->new($arg_ref);
-            $self->{'Record'} = VDnsAdm::Model::Record::->new($arg_ref);
+            $self->{'Record'}     = VDnsAdm::Model::Record::->new($arg_ref);
+            $arg_ref->{'records'} = $self->{'Record'};
+            $self->{'Domain'}     = VDnsAdm::Model::Domain::->new($arg_ref);
         }
     }
 
@@ -428,14 +429,15 @@ sub tt_pre_process {
 # Comments   : none
 # See Also   : n/a
 sub log {
-    my $self = shift;
-    my $msg  = shift;
+    my $self     = shift;
+    my $msg      = shift;
+    my $severity = shift || 'debug';
 
     # Get our database connection
     my $dbh = $self->dbh();
 
     if ($msg) {
-        $self->{'logger'}->log( message => $msg, level => 'debug', );
+        $self->{'logger'}->log( message => $msg, level => $severity, );
         my $query = "INSERT INTO log (ts,msg) VALUES(NOW(),?)";
         my $sth   = $dbh->prepare($query)
           or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr );
@@ -724,7 +726,6 @@ sub show_domain {
 
     # Get Records
     my @records = $self->{'Record'}->list( { 'domain_id' => $domain_id, }, );
-
     my @types   = $self->{'Record'}->types();
     my @domains = $self->{'Domain'}->list($params);
 

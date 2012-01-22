@@ -243,7 +243,7 @@ sub handle_v1 {
     my $User;
     if ( $hash_ref->{'user'}->{'username'} && $hash_ref->{'user'}->{'password'} ) {
         eval {
-            $User = VBoxAdm::Model::User::->new(
+            $User = VWebAdm::Model::User::->new(
                 {
                     'dbh'          => $cgiapp->dbh,
                     'MessageQueue' => $Messages,
@@ -267,20 +267,16 @@ sub handle_v1 {
     }
     $cgiapp->{'User'} = $User;
     my $arg_ref = {
-        'dbh'          => $cgiapp->dbh,
-        'User'         => $User,
-        'MessageQueue' => $Messages,
-        'Logger'       => \&syslog,
-        'Config'       => $cgiapp->{'config'},
+        'dbh'    => $cgiapp->dbh,
+        'user'   => $User,
+        'msgq'   => $Messages,
+        'logger' => \&syslog,
+        'config' => $cgiapp->{'config'},
     };
     my $c = {};
-    $c->{alias}             = VBoxAdm::Model::Alias::->new($arg_ref);
-    $c->{awl}               = VBoxAdm::Model::AWL::->new($arg_ref);
-    $c->{domain}            = VBoxAdm::Model::Domain::->new($arg_ref);
-    $c->{domainalias}       = VBoxAdm::Model::DomainAlias::->new($arg_ref);
-    $c->{mailbox}           = VBoxAdm::Model::Mailbox::->new($arg_ref);
-    $c->{rfcnotify}         = VBoxAdm::Model::RFCNotify::->new($arg_ref);
-    $c->{vacationblacklist} = VBoxAdm::Model::VacationBlacklist::->new($arg_ref);
+    $c->{'Record'}        = VDnsAdm::Model::Record::->new($arg_ref);
+    $arg_ref->{'records'} = $c->{'Record'};
+    $c->{'Domain'}        = VDnsAdm::Model::Domain::->new($arg_ref);
 
     $answer_ref->{'auth'} = 'ok';
 
