@@ -310,6 +310,7 @@ sub migrate {
                 my $is_alias         = 0;
                 my $is_local         = 0;
                 my $alias_is_enabled = 0;
+                $localpart = lc($localpart);
                 $vacation_msg ||= '';
                 $vacation_msg = &VBoxAdm::Utils::trim($vacation_msg);
 
@@ -393,6 +394,7 @@ sub migrate {
               or die( "Could not execute query $sql_mailboxes: " . $sth_mailboxes->errstr );
             while ( my @row = $sth_mailboxes->fetchrow_array() ) {
                 my ( $local_part, $password, $name, $quota, $is_active ) = @row;
+                $local_part = lc($local_part);
                 my $is_on_vacation = 0;
                 my $vacation_subj  = '';
                 my $vacation_msg   = '';
