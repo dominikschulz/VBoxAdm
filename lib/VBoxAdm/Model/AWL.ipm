@@ -27,6 +27,7 @@ sub create {
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $email );
 
     if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
         $self->msg->push( 'error', 'Database error.' );
         return;
     }
@@ -54,6 +55,7 @@ sub get_id {
     my $id  = $sth->fetchrow_array();
 
     if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
         $self->msg->push( 'error', 'Database error.' );
         return;
     }
@@ -90,6 +92,7 @@ sub update {
             }
         }
         else {
+            $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
             $self->msg->push( 'error', "Unable to update awl. Database Error." );
             return;
         }

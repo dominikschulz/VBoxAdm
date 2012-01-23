@@ -273,7 +273,7 @@ sub max_msg_size {
     my $self      = shift;
     my $recipient = shift;
 
-    my $email = &VBoxAdm::Utils::extract_recipients($recipient);
+    my $email = &VWebAdm::Utils::extract_recipients($recipient);
 
     # check the max msg size for this recipient
     my $max_msg_size = $self->{server}->{vbox}->{max_msg_size};
@@ -316,7 +316,7 @@ sub sa_block_score {
 
     my $delim = $self->{server}->{vbox}->{recipient_delimiter} || undef;
 
-    foreach my $email ( &VBoxAdm::Utils::extract_recipients( $recipients, $delim ) ) {
+    foreach my $email ( &VWebAdm::Utils::extract_recipients( $recipients, $delim ) ) {
         if ( $self->{server}->{vbox}->{caching} && $self->{cache}->{sa_block_score}->{$email} ) {
 
             # try cached result first
@@ -368,7 +368,7 @@ sub want_sa {
     my $delim = $self->{server}->{vbox}->{recipient_delimiter} || undef;
 
     # iterate over all recipients, if one wants sa checking, the message will be checked
-    foreach my $email ( &VBoxAdm::Utils::extract_recipients( $recipients, $delim ) ) {
+    foreach my $email ( &VWebAdm::Utils::extract_recipients( $recipients, $delim ) ) {
         if ( $self->{server}->{vbox}->{caching} && defined( $self->{cache}->{want_sa} ) ) {
             $want_sa = $want_sa || $self->{cache}->{want_sa}->{$email} || 0;
         }
@@ -758,7 +758,7 @@ max_requests - Each children will complete this much requests and than exit.
 
 =head1 DEPENDENCIES
 
-VBoxAdm::Utils, VBoxAdm::SMTP::Proxy, VBoxAdm::SMTP::Client, VBoxAdm::SMTP::Server.
+VWebAdm::Utils, VBoxAdm::SMTP::Proxy, VBoxAdm::SMTP::Client, VBoxAdm::SMTP::Server.
 
 =head1 INCOMPATIBILITIES
 

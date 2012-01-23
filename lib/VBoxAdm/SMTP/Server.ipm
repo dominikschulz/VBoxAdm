@@ -25,7 +25,7 @@ sub new {
     my $class = ref($this) || $this;
     my $self = bless {@opts}, $class;
     if ( !$self->{sock} ) {
-        $self->{sock} = IO::Socket::INET6->new(
+        $self->{sock} = IO::Socket::INET6::->new(
             LocalAddr => $self->{interface},
             LocalPort => $self->{port},
             Proto     => 'tcp',

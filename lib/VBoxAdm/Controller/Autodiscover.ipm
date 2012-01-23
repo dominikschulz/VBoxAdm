@@ -174,7 +174,7 @@ sub run {
         # TB will try to GET http://autoconfig.domain.tld/mail/config-v1.1.xml?emailaddress=user@domain.tld
         # Thunderbird, Evolution, Kmail, et. al.
         print $self->_cgi()->header( -type => 'text/xml', -charset => 'UTF-8', );
-        $self->_tt()->process( 'autoconfig/mozilla-xml.tpl', \%params )
+        $self->_tt()->process( 'vboxadm/autoconfig/mozilla-xml.tpl', \%params )
           or die $self->_tt()->error() . "\n";
         $self->logger()->log( message => "Delivered mozilla autoconfiguration for $email", level => 'debug', );
     }
@@ -184,7 +184,7 @@ sub run {
         #########################################################################
         # Outlook will try to POST to https://autodiscover.domain.tld/autodiscover/autodiscover.xml
         print $self->_cgi()->header( -type => 'text/xml', -status => '405 Microsoft Outlook Autoconfiguration', -charset => 'UTF-8', );
-        $self->_tt()->process( 'autoconfig/outlook-xml.tpl', \%params )
+        $self->_tt()->process( 'vboxadm/autoconfig/outlook-xml.tpl', \%params )
           or die $self->_tt()->error() . "\n";
         $self->logger()->log( message => "Delivered microsoft autoconfiguration for $email", level => 'debug', );
     }

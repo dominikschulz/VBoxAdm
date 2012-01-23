@@ -41,6 +41,14 @@
       <username>[% username %]</username>
     </incomingServer>
 [% END %]
+[% IF smtp_plain %]
+    <outgoingServer type="smtp">
+      <hostname>[% smtp_hostname %]</hostname>
+      <port>25</port>
+      <authentication>[% IF pwenc %]password-encrypted[% ELSE %]plain[% END %]</authentication>
+      <username>[% username %]</username>
+    </outgoingServer>
+[% END %]
 [% IF smtp_ssl %]
     <outgoingServer type="smtp">
       <hostname>[% smtp_hostname %]</hostname>

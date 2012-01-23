@@ -9,6 +9,8 @@ use Encode;
 use VWebAdm::DB '@VERSION@';
 use VWebAdm::Utils '@VERSION@';
 
+use VBoxAdm::Model::Domain '@VERSION@';
+
 extends 'VWebAdm::Model';
 
 sub get_id {
@@ -21,6 +23,7 @@ sub get_id {
     }
 
     if ( !&VWebAdm::Utils::is_valid_address_rfc822($email) ) {
+        $self->logger()->log( message => 'Invalid email address passed to get_id: ' . $email, level => 'error', );
         return;
     }
 
@@ -36,6 +39,7 @@ sub get_id {
     }
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
     if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
         $self->msg->push( 'error', 'Database error.' );
         return;
     }
@@ -57,7 +61,7 @@ sub create {
     $goto       = &VWebAdm::Utils::trim( lc($goto) );
     my $delim = $self->config()->{'smtpproxy'}->{'recipient_delimiter'};
 
-    my $Domain = VBoxAdm::Model::Domain->new( { 'Model' => $self, } );
+    my $Domain = VBoxAdm::Model::Domain::->new( { 'Model' => $self, } );
     my $domain_name = $Domain->get_name($domain_id);
 
     if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin && $domain_id != $self->user->get_domain_id() ) {
@@ -115,6 +119,7 @@ sub delete {
         my $query = 'SELECT CONCAT(a.local_part,\'@\',d.name) AS alias,a.goto FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?';
         my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $alias_id );
         if ( !$sth ) {
+            $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
             $self->msg->push( 'error', 'Database error.' );
             return;
         }
@@ -163,6 +168,7 @@ sub update {
         my $query = "SELECT a.local_part,d.name FROM aliases AS a LEFT JOIN domains AS d ON a.domain_id = d.id WHERE a.id = ?";
         my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $alias_id );
         if ( !$sth ) {
+            $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
             $self->msg->push( 'error', 'Database error.' );
             return;
         }
@@ -253,6 +259,7 @@ sub read {
     }
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
     if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
         $self->msg->push( 'error', 'Database error.' );
         return;
     }
@@ -294,7 +301,8 @@ sub list {
     }
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
     if ( !$sth ) {
-        $self->msg->push( 'error', 'Database error: ' . $self->dbh()->err() );
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
+        $self->msg->push( 'error', 'Database error' );
         return;
     }
     my @results = ();

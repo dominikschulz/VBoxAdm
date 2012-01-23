@@ -8,6 +8,7 @@ use Encode;
 
 use VWebAdm::SaltedHash '@VERSION@';
 use VWebAdm::Password '@VERSION@';
+use VBoxAdm::Model::Domain '@VERSION@';
 
 extends 'VWebAdm::Model';
 
@@ -30,9 +31,9 @@ sub create {
         return;
     }
 
-    $local_part = &VBoxAdm::Utils::trim( lc($local_part) );
+    $local_part = &VWebAdm::Utils::trim( lc($local_part) );
 
-    my $Domain = VBoxAdm::Model::Domain->new( { 'Model' => $self, } );
+    my $Domain = &VBoxAdm::Model::Domain::->new( { 'Model' => $self, } );
     my $domain_name = $Domain->get_name($domain_id);
 
     my $system_domain = $self->config->{'default'}{'domain'}   || 'localhost';
@@ -121,7 +122,7 @@ sub create {
     #
     # No Passwords given, generate one
     if ( !$params->{'Password'} && !$params->{'PasswordAgain'} ) {
-        $args{'password'} = &VBoxAdm::Password::pwgen(16);
+        $args{'password'} = &VWebAdm::Password::pwgen(16);
         $self->msg->push( 'information', 'Generated Password: [_1]', $args{'password'} );
     }
 
@@ -136,11 +137,11 @@ sub create {
         # if domainadmin, verify that its his domain
         $self->msg->push( 'error', "You are not authorized to modify this domain!" );
     }
-    elsif ( $local_part && !&VBoxAdm::Utils::is_valid_localpart_rfc822($local_part) ) {
+    elsif ( $local_part && !&VWebAdm::Utils::is_valid_localpart_rfc822($local_part) ) {
         $self->msg->push( 'error', "Invalid local part. This address is not RFC822 compliant!" );
     }
     else {
-        $args{'password'} = &VBoxAdm::SaltedHash::make_pass( $args{'password'}, $pwscheme );
+        $args{'password'} = &VWebAdm::SaltedHash::make_pass( $args{'password'}, $pwscheme );
         my $query = "INSERT INTO mailboxes (" . join( ",", keys %args ) . ") VALUES(";
         $query .= "?," x ( scalar( keys %args ) - 1 );
         $query .= "?)";
@@ -149,7 +150,7 @@ sub create {
             $args{$key} = 0 unless defined( $args{$key} );
             $args{$key} = Encode::decode( 'UTF-8', $args{$key} );
         }
-        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, values %args ) ) {
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, values %args ) ) {
             $sth->finish();
             $self->msg->push( 'information', "Added Mailbox [_1] for [_2].", "$local_part\@$domain_name", $args{'name'} );
 
@@ -162,7 +163,7 @@ sub create {
                 $emsg .= "To: <$local_part\@$domain_name>\r\n";
                 $emsg .= "\r\n";
                 $emsg .= $self->msg->maketext("Welcome to your new mailbox.");
-                &VBoxAdm::Utils::sendmail( 'vboxadm@' . $system_domain, $emsg );
+                &VWebAdm::Utils::sendmail( 'vboxadm@' . $system_domain, $emsg );
             }
         }
         else {
@@ -188,7 +189,7 @@ sub delete {
         return;
     }
     my $query        = "SELECT CONCAT(m.local_part,'\@',d.name) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
-    my $sth          = &VBoxAdm::DB::prepexec( $self->dbh, $query, $mailbox_id );
+    my $sth          = &VWebAdm::DB::prepexec( $self->dbh, $query, $mailbox_id );
     my $mailbox_name = $sth->fetchrow_array();
     $sth->finish();
 
@@ -199,7 +200,7 @@ sub delete {
         $query .= "AND domain_id = ?";
         push( @args, $self->user->get_domain_id() );
     }
-    if ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+    if ( $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
         $self->msg->push( 'information', "Mailbox [_1] (#[_2]) removed.", $mailbox_name, $mailbox_id );
     }
     else {
@@ -221,7 +222,7 @@ sub update {
     }
 
     my $query        = "SELECT CONCAT(m.local_part,'\@',d.name) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
-    my $sth          = &VBoxAdm::DB::prepexec( $self->dbh, $query, $mailbox_id );
+    my $sth          = &VWebAdm::DB::prepexec( $self->dbh, $query, $mailbox_id );
     my $mailbox_name = $sth->fetchrow_array();
     $sth->finish();
 
@@ -252,7 +253,7 @@ sub update {
             }
 
             # Check password strength
-            my $strength = &VBoxAdm::Password::strength( $params->{'Password'} );
+            my $strength = &VWebAdm::Password::strength( $params->{'Password'} );
             if ( $strength < 2 ) {
                 $self->msg->push( 'warning', 'Weak password - Strength: [_1].', $strength );
             }
@@ -263,7 +264,7 @@ sub update {
             }
             else {
                 $query .= "password = ?, ";
-                push( @args, VBoxAdm::SaltedHash::make_pass( $params->{'Password'}, $pwscheme ) );
+                push( @args, &VWebAdm::SaltedHash::make_pass( $params->{'Password'}, $pwscheme ) );
             }
         }
     }
@@ -437,7 +438,7 @@ sub update {
         }
 
         #$self->log( "Mailox::update - SQL: ".$query. " - Args: ".join(',',@args));
-        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
             $self->msg->push( 'information', "Updated Mailbox [_1] (#[_2]).", $mailbox_name, $mailbox_id );
         }
         else {
@@ -467,9 +468,10 @@ sub read {
         push( @args, $self->user->get_id() );
     }
 
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
 
     if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
         $self->msg->push( 'error', 'Database error.' );
         return;
     }
@@ -480,9 +482,12 @@ sub read {
 
     # get domain_name
     $sql = "SELECT name FROM domains WHERE id = ?";
-    $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $result{'domain_id'} );
+    $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $result{'domain_id'} );
     if ($sth) {
         $result{'domain'} = $sth->fetchrow_array();
+    }
+    else {
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
     }
 
     # convert {max_msg_size,quota} to MB
@@ -539,11 +544,11 @@ sub list {
 
     # regular users are kicked out above
 
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
 
     if ( !$sth ) {
         $self->msg->push( 'error', 'Database error.' );
-        $self->log( 'Database Error during query ' . $sql . ': ' . $self->dbh->errstr );
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
         return;
     }
 
@@ -575,9 +580,10 @@ sub get_email {
     }
 
     my $query = "SELECT m.local_part,d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.id = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $id );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $id );
 
     if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
         $self->msg->push( 'error', 'Database error.' );
         return;
     }
@@ -597,16 +603,17 @@ sub get_id {
         return;
     }
 
-    if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+    if ( !&VWebAdm::Utils::is_valid_address_rfc822($email) ) {
         return;
     }
 
     my ( $local_part, $domain ) = split /@/, $email;
 
     my $query = "SELECT m.id FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain );
 
     if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
         $self->msg->push( 'error', 'Database error.' );
         return;
     }

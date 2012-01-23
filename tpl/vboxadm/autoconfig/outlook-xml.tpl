@@ -29,6 +29,35 @@
 				<AuthRequired>on</AuthRequired>
 			</Protocol>
 [% END %]
+[% IF smtp_plain %]
+			<Protocol>
+				<Type>SMTP</Type>
+				<Server>[% smtp_hostname %]</Server>
+				<LoginName>[% username %]</LoginName>
+				<Port>25</Port>
+				<DomainRequired>off</DomainRequired>
+				<SPA>off</SPA>
+				<SSL>off</SSL>
+				<AuthRequired>on</AuthRequired>
+				<UsePOPAuth>off</UsePOPAuth>
+				<SMTPLast>off</SMTPLast>
+			</Protocol>
+[% END %]
+[% IF smtp_ssl %]
+			<Protocol>
+				<Type>SMTP</Type>
+				<Server>[% smtp_hostname %]</Server>
+				<LoginName>[% username %]</LoginName>
+				<Port>465</Port>
+				<DomainRequired>off</DomainRequired>
+				<SPA>off</SPA>
+				<SSL>on</SSL>
+				<AuthRequired>on</AuthRequired>
+				<UsePOPAuth>off</UsePOPAuth>
+				<SMTPLast>off</SMTPLast>
+			</Protocol>
+[% END %]
+[% IF smtp_sma %]
 			<Protocol>
 				<Type>SMTP</Type>
 				<Server>[% smtp_hostname %]</Server>
@@ -41,6 +70,7 @@
 				<UsePOPAuth>off</UsePOPAuth>
 				<SMTPLast>off</SMTPLast>
 			</Protocol>
+[% END %]
 		</Account>
 	</Response>
 </Autodiscover>

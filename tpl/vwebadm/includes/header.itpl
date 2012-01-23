@@ -14,8 +14,8 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 
   <title>[% title | l10n %]</title>
-  <meta name="description" content="VBoxAdm Mailserver Web Management Interface">
-  <meta name="author" content="VBoxAdm by Dominik Schulz">
+  <meta name="description" content="[% product %] Web Management Interface">
+  <meta name="author" content="[% product %] by Dominik Schulz">
 
   <!--  Mobile viewport optimized: j.mp/bplateviewport -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">

@@ -7,6 +7,7 @@ use Carp;
 
 use VWebAdm::DB '@VERSION@';
 use VWebAdm::Utils '@VERSION@';
+use VDnsAdm::Model::Domain '@VERSION@';
 
 extends 'VWebAdm::Model';
 
@@ -353,7 +354,7 @@ sub create {
         return;
     }
 
-    my $Domain      = VDnsAdm::Model::Domain->new( { 'Model' => $self, } );
+    my $Domain      = VDnsAdm::Model::Domain::->new( { 'Model' => $self, } );
     my $domain_name = $Domain->get_name($domain_id);
     my $record_name = $self->_get_record_name($params);
 
@@ -406,6 +407,11 @@ sub delete {
     }
     my $query = "SELECT name, type, content, ttl, domain_id FROM records WHERE id = ?";
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $record_id );
+    if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
+        $self->msg->push( 'error', 'Database error' );
+        return;
+    }
     my ( $name, $type, $content, $ttl, $domain_id ) = $sth->fetchrow_array();
     my $record_name = $self->_get_record_name( $name, $type, $ttl, $content );
     $sth->finish();
@@ -453,6 +459,11 @@ sub update {
 
     my $query = "SELECT name, type, content, ttl, domain_id FROM records WHERE id = ?";
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $record_id );
+    if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
+        $self->msg->push( 'error', 'Database error' );
+        return;
+    }
     my ( $name, $type, $content, $ttl, $domain_id ) = $sth->fetchrow_array();
     my $record_name = $self->_get_record_name( $name, $type, $ttl, $content );
     $sth->finish();

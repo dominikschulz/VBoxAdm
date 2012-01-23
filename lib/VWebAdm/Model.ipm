@@ -81,6 +81,7 @@ sub _read {
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $id );
 
     if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
         $self->msg->push( 'error', 'Database error.' );
         return;
     }
@@ -135,9 +136,8 @@ sub _list {
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
 
     if ( !$sth ) {
-
-        # TODO log these errors!
-        $self->msg->push( 'error', 'Database error: ' . $self->dbh()->errstr );
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
+        $self->msg->push( 'error', 'Database error' );
         return;
     }
 
@@ -162,8 +162,11 @@ sub msg {
 }
 
 sub log {
-    my ( $self, @opts ) = @_;
-    return $self->logger()->log(@opts);
+    my $self     = shift;
+    my $message  = shift;
+    my $severity = shift || 'debug';
+
+    return $self->logger()->log( message => $message, level => $severity, );
 }
 
 no Moose;
