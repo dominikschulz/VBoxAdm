@@ -52,12 +52,12 @@ sub _init_valid_types {
 
             # not supported by PowerDNS
             # see RFC3123
-            return;
+            return 1;
         },
         'CERT' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO see RFC2538
+            return 1;    # TODO see RFC2538
         },
         'CNAME' => sub {
             my ( $content, $ttl, $prio ) = @_;
@@ -65,38 +65,38 @@ sub _init_valid_types {
                 return 1;
             }
 
-            return;    # TODO impl
+            return;      # TODO impl
         },
         'DHCID' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
             # not supported by PowerDNS
             # see RFC4701
-            return;
+            return 1;
         },
         'DLV' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
             # not supported by PowerDNS
             # see RFC2672
-            return;
+            return 1;
         },
         'DNAME' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
             # not supported by PowerDNS
             # see RFC2672
-            return;
+            return 1;
         },
         'DNSKEY' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO see RFC3757, RFC4034
+            return 1;    # TODO see RFC3757, RFC4034
         },
         'DS' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO see RFC3757, RFC4034
+            return 1;    # TODO see RFC3757, RFC4034
         },
         'HINFO' => sub {
             my ( $content, $ttl, $prio ) = @_;
@@ -111,31 +111,31 @@ sub _init_valid_types {
 
             # not supported by PowerDNS
             # see RFC5205
-            return;
+            return 1;
         },
         'IPSECKEY' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
             # not supported by PowerDNS
             # see RFC4025
-            return;
+            return 1;
         },
         'KEY' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO see RFC2535
+            return 1;    # TODO see RFC2535
         },
         'KX' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
             # not supported by PowerDNS
             # see RFC2230
-            return;
+            return 1;
         },
         'LOC' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;    # TODO see RFC1876
+            return 1;    # TODO see RFC1876
         },
         'MX' => sub {
             my ( $content, $ttl, $prio ) = @_;    # see RFC1035
@@ -147,7 +147,7 @@ sub _init_valid_types {
         'NAPTR' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;                               # TODO see RFC2916, RFC3403
+            return 1;                             # TODO see RFC2916, RFC3403
         },
         'NS' => sub {
             my ( $content, $ttl, $prio ) = @_;    # see RFC1035
@@ -155,43 +155,43 @@ sub _init_valid_types {
                 return 1;
             }
 
-            return;                               # TODO impl
+            return 1;                             # TODO impl
         },
         'NSEC' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;                               # TODO see RFC3757. RFC4034
+            return 1;                             # TODO see RFC3757. RFC4034
         },
         'NSEC3' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
             # not supported by PowerDNS
             # see RFC5155
-            return;
+            return 1;
         },
         'NSEC3PARAM' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
             # not supported by PowerDNS
             # see RFC5155
-            return;
+            return 1;
         },
         'PTR' => sub {
             my ( $content, $ttl, $prio ) = @_;    # see RFC1035
             if ( $content =~ m/^\w+$/ ) {
                 return 1;
             }
-            return;
+            return 1;
         },
         'RP' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;                               # TODO see RFC1183
+            return 1;                             # TODO see RFC1183
         },
         'RRSIG' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;                               # TODO see RFC3757
+            return 1;                             # TODO see RFC3757
         },
         'SIG' => sub {
             my ( $content, $ttl, $prio ) = @_;
@@ -206,43 +206,43 @@ sub _init_valid_types {
             # content format: primary_ns hostmaster serial refresh retry expire default_ttl
             # see http://doc.powerdns.com/types.html
 
-            return;                               # TODO impl
+            return 1;                             # TODO impl
         },
         'SPF' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;                               # TODO see RFC4408
+            return 1;                             # TODO see RFC4408
         },
         'SRV' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;                               # TODO see RFC2782
+            return 1;                             # TODO see RFC2782
         },
         'SSHFP' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
-            return;                               # TODO see RFC4255
+            return 1;                             # TODO see RFC4255
         },
         'TA' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
             # not supported by PowerDNS
             # see RFC n/a
-            return;
+            return 1;
         },
         'TKEY' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
             # not supported by PowerDNS
             # see RFC2930
-            return;
+            return 1;
         },
         'TSIG' => sub {
             my ( $content, $ttl, $prio ) = @_;
 
             # not supported by PowerDNS
             # see RFC2845
-            return;
+            return 1;
         },
         'TXT' => sub {
             my ( $content, $ttl, $prio ) = @_;
@@ -313,7 +313,8 @@ sub _validate_params {
         $self->msg->push( 'error', 'Mandatory field TTL missing or out of range!' );
         return;
     }
-    if ( !$self->_valid_content( $params->{'$type'}, $params->{'content'}, $params->{'ttl'}, $params->{'prio'} ) ) {
+    if ( !$self->_valid_content( $params->{'type'}, $params->{'content'}, $params->{'ttl'}, $params->{'prio'} ) ) {
+        $self->logger()->log( message => "Record " . $self->_get_record_name($params) . " is invalid.", level => 'debug', );
         $self->msg->push( 'error', 'Invalid content for type!' );
         return;
     }
@@ -357,6 +358,14 @@ sub create {
     my $Domain      = VDnsAdm::Model::Domain::->new( { 'Model' => $self, } );
     my $domain_name = $Domain->get_name($domain_id);
     my $record_name = $self->_get_record_name($params);
+
+    # append domain name
+    if ( $params->{'name'} ) {
+        $params->{'name'} = $params->{'name'} . '.' . $domain_name;
+    }
+    else {
+        $params->{'name'} = $domain_name;
+    }
 
     if ( !$self->_validate_params($params) ) {
         return;
@@ -413,7 +422,7 @@ sub delete {
         return;
     }
     my ( $name, $type, $content, $ttl, $domain_id ) = $sth->fetchrow_array();
-    my $record_name = $self->_get_record_name( $name, $type, $ttl, $content );
+    my $record_name = $self->_get_record_name( { 'name' => $name, 'type' => $type, 'ttl' => $ttl, 'content' => $content, }, );
     $sth->finish();
 
     $query = "DELETE FROM records WHERE id = ?";
@@ -438,13 +447,10 @@ sub delete {
 }
 
 sub _get_record_name {
-    my $self    = shift;
-    my $name    = shift;
-    my $type    = shift;
-    my $ttl     = shift;
-    my $content = shift;
+    my $self   = shift;
+    my $params = shift;
 
-    return $name . ' IN ' . $type . ' ' . $ttl . ' ' . $content;
+    return $params->{'name'} . ' IN ' . $params->{'type'} . ' ' . $params->{'ttl'} . ' ' . $params->{'content'};
 }
 
 sub update {
@@ -453,6 +459,7 @@ sub update {
     # Authorization - Regular Users may access this method!
 
     if ( !$record_id || $record_id !~ m/^\d+$/ ) {
+        $self->logger()->log( message => 'Failed to update record. Id is not numeric: ' . $record_id, level => 'error', );
         $self->msg->push( 'error', 'Failed to update record. Need a numeric record id.' );
         return;
     }
@@ -465,7 +472,9 @@ sub update {
         return;
     }
     my ( $name, $type, $content, $ttl, $domain_id ) = $sth->fetchrow_array();
-    my $record_name = $self->_get_record_name( $name, $type, $ttl, $content );
+    my $record_name = $self->_get_record_name( { 'name' => $name, 'type' => $type, 'ttl' => $ttl, 'content' => $content, }, );
+
+    #$self->logger()->log( message => 'Record-Name: '.$record_name, level => 'debug', );
     $sth->finish();
 
     my $msg_loc = '';
@@ -518,6 +527,7 @@ sub update {
             if ( $params->{'type'} ne 'SOA' ) {
                 $self->bump_serial($domain_id);
             }
+            return 1;
         }
         else {
             $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh()->errstr() );
@@ -576,20 +586,25 @@ sub bump_serial {
     my $self      = shift;
     my $domain_id = shift;
 
-    my $rec = $self->list(
+    my @rec = $self->list(
         {
             'Type'      => 'SOA',
             'domain_id' => $domain_id,
         }
     );
 
-    if ( !$rec ) {
+    if ( !@rec ) {
         $self->logger()->log( message => 'No SOA-Record found for Domain #' . $domain_id, level => 'error', );
         return;
     }
 
-    my $record_id = $rec->{'id'};
-    my $content   = $rec->{'content'};
+    my $record_id = $rec[0]->{'id'};
+    my $content   = $rec[0]->{'content'};
+    my $ttl       = $rec[0]->{'ttl'};
+    my $name      = $rec[0]->{'name'};
+
+    #$self->logger()->log( message => 'SOA-Record found. ID: '.$record_id.' - Content: '.$content, level => 'debug', );
+
     my ( $pri_ns, $contact, $serial, $refresh, $retry, $expire, $minimum ) = split /\s+/, $content;
     if ( !$serial || $serial !~ m/^\d+$/ ) {
         $self->logger()->log( message => 'Invalid SOA-Record for Domain #' . $domain_id . ': ' . $content, level => 'error', );
@@ -628,7 +643,9 @@ sub bump_serial {
 
     my $new_content = join( ' ', ( $pri_ns, $contact, $serial, $refresh, $retry, $expire, $minimum ) );
 
-    if ( $self->update( $record_id, { 'content' => $new_content, } ) ) {
+    #$self->logger()->log( message => 'new content: '.$new_content, level => 'debug', );
+
+    if ( $self->update( $record_id, { 'name' => $name, 'content' => $new_content, 'type' => 'SOA', 'ttl' => $ttl, } ) ) {
         $self->logger()->log( message => 'Raised SOA serial for Domain #' . $domain_id . ' to ' . $serial, level => 'debug', );
         return 1;
     }
@@ -663,7 +680,7 @@ sub list {
         push( @args, $param->{'domain_id'} );
     }
     if ( $param->{'Type'} ) {
-        $sql .= ' AND type = ?';
+        $sql .= ' AND r.type = ?';
         push( @args, $param->{'Type'} );
     }
 
@@ -723,6 +740,26 @@ sub get_id {
     $sth->finish();
 
     return $id;
+}
+
+sub get_domain_id {
+    my $self      = shift;
+    my $record_id = shift;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $rec_ref = $self->read($record_id);
+
+    if ( $rec_ref && ref($rec_ref) eq 'HASH' ) {
+        return $rec_ref->{'domain_id'};
+    }
+    else {
+        return;
+    }
 }
 
 no Moose;

@@ -828,7 +828,7 @@ sub show_update_domain {
     }
     else {
         $self->log( 'Failed to update Domain #' . $domain_id );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
 
     $self->redirect( $self->{base_url} . '?rm=domains' );
@@ -919,9 +919,11 @@ sub show_add_record {
 
     # set params
     my $params = {};
-    foreach my $field ( @{ $self->{'Domain'}->fields() } ) {
+    foreach my $field ( @{ $self->{'Record'}->fields() } ) {
         next if $field eq 'id';
-        $params->{$field} = $q->param($field) if defined( $q->param($field) );
+        if ( defined( $q->param($field) ) ) {
+            $params->{$field} = $q->param($field);
+        }
     }
 
     if ( $self->{'Record'}->create( $domain_id, $params ) ) {
@@ -929,7 +931,7 @@ sub show_add_record {
     }
     else {
         $self->log( 'Failed to add Record for Domain #' . $domain_id );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
 
     $self->redirect( $self->{base_url} . '?rm=domain&domain_id=' . $domain_id );
@@ -943,6 +945,7 @@ sub show_remove_record {
     my $q = $self->query();
 
     my $record_id = $q->param('record_id');
+    my $domain_id = $self->{'Record'}->get_domain_id($record_id);
 
     if ( $self->{'Record'}->delete($record_id) ) {
         $self->log( 'Deleted Record #' . $record_id );
@@ -952,7 +955,7 @@ sub show_remove_record {
         $self->add_message('Database Error!');
     }
 
-    $self->redirect( $self->{base_url} . '?rm=records' );
+    $self->redirect( $self->{base_url} . '?rm=domain&domain_id=' . $domain_id );
     return;
 }
 
@@ -1001,7 +1004,7 @@ sub show_update_record {
 
     # set params
     my $params = {};
-    foreach my $field ( @{ $self->{'Domain'}->fields() } ) {
+    foreach my $field ( @{ $self->{'Record'}->fields() } ) {
         next if $field eq 'id';
         $params->{$field} = $q->param($field) if defined( $q->param($field) );
     }
