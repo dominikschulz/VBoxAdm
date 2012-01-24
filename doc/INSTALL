@@ -110,6 +110,7 @@ mysql> GRANT ALL ON roundcube.* TO 'roundcube'@'localhost' IDENTIFIED BY '<PASSW
 - vboxadm_user (for vacation and pw change)
 mysql> GRANT SELECT,UPDATE ON vboxadm.mailboxes TO 'vboxadm_user'@'localhost' IDENTIFIED BY '<PASSWORD>';
 mysql> GRANT SELECT ON vboxadm.domains TO 'vboxadm_user'@'localhost' IDENTIFIED BY '<PASSWORD>';
+mysql> GRANT SELECT ON vboxadm.aliases TO 'vboxadm_user'@'localhost' IDENTIFIED BY '<PASSWORD>';
 mysql> FLUSH PRIVILEGES;
 
 Leave the mysql client and connect as each of the newly created users to see if they are working:

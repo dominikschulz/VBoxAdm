@@ -76,7 +76,7 @@ sub _read_config {
             last;
         }
     }
-    
+
     $self->config( \%config );
 
     $self->config()->{'default'}{'dbhost'}   ||= 'localhost';

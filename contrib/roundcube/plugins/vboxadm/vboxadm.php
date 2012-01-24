@@ -95,95 +95,94 @@ class vboxadm extends rcube_plugin
 	function vboxadm_save()
 	{
 		$this->add_texts('localization/');
-		$this->register_handler(
-			'plugin.body',
-		array(
-		$this,
-				'vboxadm_form'
-				)
-				);
+		$this->register_handler('plugin.body', array($this,'vboxadm_form'));
 
-				$rcmail = rcmail::get_instance();
-				$this->_load_config();
-				$rcmail->output->set_pagetitle($this->gettext('accountadministration'));
+		$rcmail = rcmail::get_instance();
+		$this->_load_config();
+		$rcmail->output->set_pagetitle($this->gettext('accountadministration'));
 
-				// Set variables and make them ready to be put into DB
-				$user = $rcmail->user->data['username'];
+		// Set variables and make them ready to be put into DB
+		$user = $rcmail->user->data['username'];
 
-				$sa_active = get_input_value('sa_active', RCUBE_INPUT_POST);
-				if(!$sa_active)
-				$sa_active = 0;
+		$sa_active = get_input_value('sa_active', RCUBE_INPUT_POST);
+		if(!$sa_active) {
+			$sa_active = 0;
+		}
 
-				$sa_kill_score = get_input_value('sa_kill_score', RCUBE_INPUT_POST);
-				if (!preg_match('/^\d{1,3}[,.]\d{0,2}$/',$sa_kill_score)) {
-					$error[] = $this->gettext('spamscorerefuseformat');
-				}
+		$sa_kill_score = get_input_value('sa_kill_score', RCUBE_INPUT_POST);
+		if (!preg_match('/^\d{1,3}[,.]\d{0,2}$/',$sa_kill_score)) {
+			$error[] = $this->gettext('spamscorerefuseformat');
+		}
 
-				# turn , into . (metric vs. imperial)
-				$sa_kill_score = str_replace(",",".",$sa_kill_score);
+		# turn , into . (metric vs. imperial)
+		$sa_kill_score = str_replace(",",".",$sa_kill_score);
 
-				$is_on_vacation = get_input_value('is_on_vacation', RCUBE_INPUT_POST);
-				if(!$is_on_vacation)
-				$is_on_vacation = 0;
+		$is_on_vacation = get_input_value('is_on_vacation', RCUBE_INPUT_POST);
+		if(!$is_on_vacation) {
+			$is_on_vacation = 0;
+		}
 
-				$vacation_start = get_input_value('vacation_start', RCUBE_INPUT_POST);
-				$vacation_start = preg_replace('/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/','$3-$2-$1',$vacation_start,-1,$subst_count);
-				if ($subst_count == 0 && trim($vacation_start) != '') {
-					$error[] = $this->gettext('autoresponderdateformat');
-				}
+		$vacation_start = get_input_value('vacation_start', RCUBE_INPUT_POST);
+		$vacation_start = preg_replace('/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/','$3-$2-$1',$vacation_start,-1,$subst_count);
+		if ($subst_count == 0 && trim($vacation_start) != '') {
+			$error[] = $this->gettext('autoresponderdateformat');
+		}
 
-				$vacation_end = get_input_value('vacation_end', RCUBE_INPUT_POST);
-				$vacation_end = preg_replace('/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/','$3-$2-$1',$vacation_end,-1,$subst_count);
-				if ($subst_count == 0 && trim($vacation_end) != '') {
-					$error[] = $this->gettext('autoresponderdateformat');
-				}
+		$vacation_end = get_input_value('vacation_end', RCUBE_INPUT_POST);
+		$vacation_end = preg_replace('/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/','$3-$2-$1',$vacation_end,-1,$subst_count);
+		if ($subst_count == 0 && trim($vacation_end) != '') {
+			$error[] = $this->gettext('autoresponderdateformat');
+		}
 
-				$vacation_subj = get_input_value('vacation_subj', RCUBE_INPUT_POST);
-				$vacation_msg = get_input_value('vacation_msg', RCUBE_INPUT_POST);
+		$vacation_subj = get_input_value('vacation_subj', RCUBE_INPUT_POST);
+		$vacation_msg = get_input_value('vacation_msg', RCUBE_INPUT_POST);
 
-				// In case someone bypass the javascript maxlength, we make vacation message
-				// shorter if above treshold
-				if (strlen($vacation_subj) > $this->config['vboxadm_vacation_maxlength']) {
-					$vacation_subj = substr($vacation_subj, 0, $this->config['vboxadm_vacation_maxlength']);
-				}
+		// In case someone bypass the javascript maxlength, we make vacation message
+		// shorter if above treshold
+		if (strlen($vacation_subj) > $this->config['vboxadm_vacation_maxlength']) {
+			$vacation_subj = substr($vacation_subj, 0, $this->config['vboxadm_vacation_maxlength']);
+		}
 
-				$max_msg_size = get_input_value('max_msg_size', RCUBE_INPUT_POST);
-				if (!ctype_digit($max_msg_size)) {
-					$error[] = $this->gettext('messagesizeformat');
-				}
+		$max_msg_size = get_input_value('max_msg_size', RCUBE_INPUT_POST);
+		if (!ctype_digit($max_msg_size)) {
+			$error[] = $this->gettext('messagesizeformat');
+		}
 
-				if ($this->config['user_managed_aliases']) {
-					// user can edit aliases for his mail address
-					$alias_active = get_input_value('alias_active', RCUBE_INPUT_POST);
-					if(!$alias_active)
-					$alias_active = 0;
+		// The admin can decide whether his users can edit their own aliases
+		// allowing this has some security impact so you should avoid it if you
+		// don't trust your users.
+		if ($this->config['user_managed_aliases']) {
+			// user can edit aliases for his mail address
+			$alias_active = get_input_value('alias_active', RCUBE_INPUT_POST);
+			if(!$alias_active) {
+				$alias_active = 0;
+			}
 
-					$alias_goto = get_input_value('alias_goto', RCUBE_INPUT_POST);
-					if ( ( (!empty($alias_goto)) || ($alias_active) ) && (!$this->_is_valid_addresses_rfc822($alias_goto)) ) {
-						$error[] = $this->gettext('emailformat');
-					}
-				}
-				else {
-					$alias_active = NULL;
-					$alias_goto = NULL;
-				}
+			$alias_goto = get_input_value('alias_goto', RCUBE_INPUT_POST);
+			if ( ( (!empty($alias_goto)) || ($alias_active) ) && (!$this->_is_valid_addresses_rfc822($alias_goto)) ) {
+				$error[] = $this->gettext('emailformat');
+			}
+		}
+		else {
+			$alias_active = NULL;
+			$alias_goto = NULL;
+		}
 
-				if (empty($error)) {
-					$res = $this->_save($user,$sa_active,$sa_kill_score,$is_on_vacation,$vacation_start,$vacation_end,              $vacation_subj,$vacation_msg,$max_msg_size,$alias_active,$alias_goto);
-				}
-				else {
-					$res = implode("\n",$error);
-				}
+		if (empty($error)) {
+			$res = $this->_save($user,$sa_active,$sa_kill_score,$is_on_vacation,$vacation_start,$vacation_end,              $vacation_subj,$vacation_msg,$max_msg_size,$alias_active,$alias_goto);
+		}
+		else {
+			$res = implode("\n",$error);
+		}
 
-				if (!$res) {
-					$rcmail->output->command('display_message', $this->gettext('savesuccess-config'), 'confirmation');
-				} else {
-					$rcmail->output->command('display_message', $res, 'error');
-				}
+		if (!$res) {
+			$rcmail->output->command('display_message', $this->gettext('savesuccess-config'), 'confirmation');
+		} else {
+			$rcmail->output->command('display_message', $res, 'error');
+		}
 
-				rcmail_overwrite_action('plugin.vboxadm');
-
-				$this->vboxadm_init();
+		rcmail_overwrite_action('plugin.vboxadm');
+		$this->vboxadm_init();
 	}
 
 	function _is_valid_addresses_rfc822($list)
@@ -210,397 +209,384 @@ class vboxadm extends rcube_plugin
 			'vboxadm.autoresponderlong',
 			'vboxadm.autoresponderlongnum',
 			'vboxadm.autoresponderlongmax'
-			);
+		);
 
-			$rcmail->output->set_env('product_name', $rcmail->config->get('product_name'));
+		$rcmail->output->set_env('product_name', $rcmail->config->get('product_name'));
 
-			$settings = $this->_get_configuration();
+		$settings = $this->_get_configuration();
 
-			$sa_active		= $settings['sa_active'];
-			$sa_kill_score	= $settings['sa_kill_score'];
-			$is_on_vacation	= $settings['is_on_vacation'];
-			$vacation_subj 	= $settings['vacation_subj'];
-			$vacation_msg	= $settings['vacation_msg'];
-			$vacation_start = $settings['vacation_start'];
-			$vacation_end   = $settings['vacation_end'];
-			$max_msg_size_mb = $settings['max_msg_size']/1024;
-			$user_id		= $settings['id'];
-			$domain_id		= $settings['domain_id'];
-			$alias_active   = $settings['alias_active'];
-			$alias_goto     = $settings['alias_goto'];
+		$sa_active			= $settings['sa_active'];
+		$sa_kill_score		= $settings['sa_kill_score'];
+		$is_on_vacation		= $settings['is_on_vacation'];
+		$vacation_subj		= $settings['vacation_subj'];
+		$vacation_msg		= $settings['vacation_msg'];
+		$vacation_start		= $settings['vacation_start'];
+		$vacation_end		= $settings['vacation_end'];
+		$max_msg_size_mb	= $settings['max_msg_size']/(1024*1024);
+		$user_id			= $settings['id'];
+		$domain_id			= $settings['domain_id'];
+		$alias_active		= $settings['alias_active'];
+		$alias_goto			= $settings['alias_goto'];
 
-			$domain_settings = $this->_get_domain_configuration($domain_id);
+		$domain_settings = $this->_get_domain_configuration($domain_id);
 
-			$active_domain	= $domain_settings['name'];
+		$active_domain	= $domain_settings['name'];
 
-			$rcmail->output->set_env('vacation_maxlength', $this->config['vboxadm_vacation_maxlength']);
+		$rcmail->output->set_env('vacation_maxlength', $this->config['vboxadm_vacation_maxlength']);
 
-			$out .= '<p class="introtext">' . $this->gettext('introtext') . '</p>' . "\n";
+		$out .= '<p class="introtext">' . $this->gettext('introtext') . '</p>' . "\n";
 
-			if ($this->config['show_admin_link'] == true && ( $settings['is_domainadmin'] == true || $settings['is_siteadmin'])) {
-				$out .= '<p class="adminlink">';
-				$out .= sprintf($this->gettext('adminlinktext'), '<a href="' . $this->config['vboxadm_url'] . '" target="_blank">', '</a>');
-				$out .= "</p>\n";
-			}
+		if ($this->config['show_admin_link'] == true && ( $settings['is_domainadmin'] == true || $settings['is_siteadmin'])) {
+			$out .= '<p class="adminlink">';
+			$out .= sprintf($this->gettext('adminlinktext'), '<a href="' . $this->config['vboxadm_url'] . '" target="_blank">', '</a>');
+			$out .= "</p>\n";
+		}
 
-			// =====================================================================================================
-			// Password
-			$out .= '<fieldset><legend>' . $this->gettext('password') . '</legend>' . "\n";
+		// =====================================================================================================
+		// Password
+		$out .= '<fieldset><legend>' . $this->gettext('password') . '</legend>' . "\n";
+		$out .= '<div class="fieldset-content">';
+		$out .= '<p>' . $this->gettext('passwordcurrentexplanation') . '</p>';
+		$out .= '<table class="vboxadm-settings" cellpadding="0" cellspacing="0">';
+
+		$field_id = 'curpasswd';
+		$input_passwordcurrent = new html_passwordfield(
+			array(
+				'name' => '_curpasswd',
+				'id' => $field_id,
+				'class' => 'text-long',
+				'autocomplete' => 'off'
+				)
+		);
+
+		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+			$field_id,
+			rep_specialchars_output($this->gettext('passwordcurrent')),
+			$input_passwordcurrent->show(),
+			''
+		);
+
+		$field_id = 'newpasswd';
+		$input_passwordnew = new html_passwordfield(
+			array(
+				'name' => '_newpasswd',
+				'id' => $field_id,
+				'class' => 'text-long',
+				'autocomplete' => 'off'
+			)
+		);
+
+		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+			$field_id,
+			rep_specialchars_output($this->gettext('passwordnew')),
+			$input_passwordnew->show(),
+			''
+		);
+
+		$field_id = 'confpasswd';
+		$input_passwordconf = new html_passwordfield(
+			array(
+				'name' => '_confpasswd',
+				'id' => $field_id,
+				'class' => 'text-long',
+				'autocomplete' => 'off'
+			)
+		);
+
+		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+			$field_id,
+			rep_specialchars_output($this->gettext('passwordconfirm')),
+			$input_passwordconf->show(),
+			''
+		);
+
+		$out .= '</table>';
+		$out .= '</div></fieldset>'."\n\n";
+
+		// =====================================================================================================
+		// SpamAssassin
+		$out .= '<fieldset><legend>' . $this->gettext('spam') . '</legend>' . "\n";
+		$out .= '<div class="fieldset-content">';
+		$out .= '<table class="vboxadm-settings" cellpadding="0" cellspacing="0">';
+
+		$field_id = 'sa_active';
+		$input_spamenabled = new html_checkbox(
+			array(
+				'name' => 'sa_active',
+				'id' => $field_id,
+				'value' => 1
+			)
+		);
+
+		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+			$field_id,
+			rep_specialchars_output($this->gettext('spamenabled')),
+			$input_spamenabled->show($sa_active ? 1 : 0 ),
+			'<br /><span class="vboxadm-explanation">' . $this->gettext('spamenabledexplanation') . '</span>'
+		);
+
+		$field_id = 'sa_kill_score';
+		$input_spamscorerefuse = new html_inputfield(
+			array(
+				'name' => 'sa_kill_score',
+				'id' => $field_id,
+				'maxlength' => 8,
+				'size' => 8,
+			)
+		);
+
+		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+			$field_id,
+			rep_specialchars_output($this->gettext('spamscorerefuse')),
+			$input_spamscorerefuse->show($sa_kill_score),
+			'<br /><span class="vboxadm-explanation">' . $this->gettext('spamscorerefuseexplanation') . '. <span class="sameline">' . $this->gettext('domaindefault') . ': ' . $default_sa_refuse . '.</span></span>'
+		);
+
+		$out .= '</table>';
+		$out .= '</div></fieldset>'."\n\n";
+
+		// =====================================================================================================
+		// Autoresponder
+		$out .= '<fieldset><legend>' . $this->gettext('autoresponder') . '</legend>' . "\n";
+		$out .= '<div class="fieldset-content">';
+		$out .= '<table class="vboxadm-settings" cellpadding="0" cellspacing="0">';
+
+		$field_id = 'is_on_vacation';
+		$input_autoresponderenabled = new html_checkbox(
+			array(
+				'name' => 'is_on_vacation',
+				'id' => $field_id,
+				'value' => 1
+			)
+		);
+
+		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+			$field_id,
+			rep_specialchars_output($this->gettext('autoresponderenabled')),
+			$input_autoresponderenabled->show($is_on_vacation ? 1 : 0),
+			''
+		);
+					
+		$field_id = 'vacation_start';
+		$input_vacation_start = new html_inputfield(
+			array(
+				'name' => 'vacation_start',
+				'id' => $field_id,
+				'maxlength' => 10,
+				'class' => 'text-long'
+			)
+		);
+
+		if ($vacation_start == '0000-00-00') {
+			$vacation_start = '';
+		}
+		else {
+			$vacation_start = preg_replace('/^(\d\d\d\d)-(\d\d)-(\d\d)$/','$3.$2.$1',$vacation_start);
+		}
+
+		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+			$field_id,
+			rep_specialchars_output($this->gettext('autoresponderstartdate')),
+			$input_vacation_start->show($vacation_start),
+			''
+		);
+
+		$field_id = 'vacation_end';
+		$input_vacation_end = new html_inputfield(
+			array(
+				'name' => 'vacation_end',
+				'id' => $field_id,
+				'maxlength' => 10,
+				'class' => 'text-long'
+			)
+		);
+
+		if ($vacation_end == '0000-00-00') {
+			$vacation_end = '';
+		}
+		else {
+			$vacation_end = preg_replace('/^(\d\d\d\d)-(\d\d)-(\d\d)$/','$3.$2.$1',$vacation_end);
+		}
+
+		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+			$field_id,
+			rep_specialchars_output($this->gettext('autoresponderenddate')),
+			$input_vacation_end->show($vacation_end),
+			''
+		);
+
+		$field_id = 'vacation_subj';
+		$input_vacation_subj = new html_inputfield(
+			array(
+				'name' => 'vacation_subj',
+				'id' => $field_id,
+				'maxlength' => 255,
+				'class' => 'text-long'
+			)
+		);
+
+		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+			$field_id,
+			rep_specialchars_output($this->gettext('autorespondersubject')),
+			$input_vacation_subj->show($vacation_subj),
+			'<br /><span class="vboxadm-explanation">' . $this->gettext('autorespondersubjectexplanation') . '.</span>'
+		);
+
+		$field_id = 'vacation_msg';
+		$input_vacation_msg = new html_textarea(
+			array(
+				'name' => 'vacation_msg',
+				'id' => $field_id,
+				'class' => 'textarea'
+			)
+		);
+
+		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+			$field_id,
+			rep_specialchars_output($this->gettext('autorespondermessage')),
+			$input_vacation_msg->show($vacation_msg),
+			'<br /><span class="vboxadm-explanation">' . $this->gettext('autorespondermessageexplanation') . '</span>'
+		);
+
+		$out .= '</table>';
+		$out .= '</div></fieldset>' . "\n\n";
+
+		// ============================================================
+		// Parameters
+		$out .= '<fieldset><legend>' . $this->gettext('parameters') . '</legend>' . "\n";
+
+		$out .= '<div class="fieldset-content">';
+		$out .= '<table class="vboxadm-settings" cellpadding="0" cellspacing="0">';
+
+		$field_id = 'max_msg_size';
+		$input_messagesize = new html_inputfield(
+			array(
+				'name' => 'max_msg_size',
+				'id' => $field_id,
+				'maxlength' => 16,
+				'class' => 'text-long',
+			)
+		);
+
+		if ($default_maxmsgsize == 0) {
+			$default_maxmsgsize = $this->gettext('unlimited');
+		} else {
+			$default_maxmsgsize = $default_maxmsgsize . ' MB';
+		}
+
+		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+			$field_id,
+			rep_specialchars_output($this->gettext('messagesize')),
+			$input_messagesize->show($max_msg_size_mb),
+			'<br /><span class="vboxadm-explanation">'.
+			str_replace('%d',$active_domain,
+				str_replace('%m',
+					$default_maxmsgsize,
+					$this->gettext('messagesizeexplanation')
+				)
+			).
+			'</span>'
+		);
+
+		$out .= '</table>';
+		$out .= '</div></fieldset>' . "\n\n";
+
+		// ============================================================
+		// Aliases
+		if ($this->config['user_managed_aliases']) {
+			// user can edit aliases for his mail address
+
+			$out .= '<fieldset><legend>' . $this->gettext('aliases') . '</legend>' . "\n";
+
 			$out .= '<div class="fieldset-content">';
-			$out .= '<p>' . $this->gettext('passwordcurrentexplanation') . '</p>';
+			$out .= '<span class="vboxadm-explanation">'.$this->gettext('aliasesexplanation').'</span>';
 			$out .= '<table class="vboxadm-settings" cellpadding="0" cellspacing="0">';
 
-			$field_id = 'curpasswd';
-			$input_passwordcurrent = new html_passwordfield(
-			array(
-					'name' => '_curpasswd',
-					'id' => $field_id,
-					'class' => 'text-long',
-					'autocomplete' => 'off'
-					)
-					);
-
-					$out .= sprintf(
-				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
-					$field_id,
-					rep_specialchars_output($this->gettext('passwordcurrent')),
-					$input_passwordcurrent->show(),
-				''
-				);
-
-				$field_id = 'newpasswd';
-				$input_passwordnew = new html_passwordfield(
+			$field_id = 'alias_active';
+			$input_alias_active = new html_checkbox(
 				array(
-					'name' => '_newpasswd',
-					'id' => $field_id,
-					'class' => 'text-long',
-					'autocomplete' => 'off'
-					)
-					);
-
-					$out .= sprintf(
-				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
-					$field_id,
-					rep_specialchars_output($this->gettext('passwordnew')),
-					$input_passwordnew->show(),
-				''
-				);
-
-				$field_id = 'confpasswd';
-				$input_passwordconf = new html_passwordfield(
-				array(
-					'name' => '_confpasswd',
-					'id' => $field_id,
-					'class' => 'text-long',
-					'autocomplete' => 'off'
-					)
-					);
-
-					$out .= sprintf(
-				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
-					$field_id,
-					rep_specialchars_output($this->gettext('passwordconfirm')),
-					$input_passwordconf->show(),
-				''
-				);
-
-				$out .= '</table>';
-				$out .= '</div></fieldset>'."\n\n";
-
-				// =====================================================================================================
-				// SpamAssassin
-				$out .= '<fieldset><legend>' . $this->gettext('spam') . '</legend>' . "\n";
-				$out .= '<div class="fieldset-content">';
-				$out .= '<table class="vboxadm-settings" cellpadding="0" cellspacing="0">';
-
-				$field_id = 'sa_active';
-				$input_spamenabled = new html_checkbox(
-				array(
-					'name' => 'sa_active',
+					'name' => 'alias_active',
 					'id' => $field_id,
 					'value' => 1
 				)
-				);
+			);
 
-				$out .= sprintf(
-				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+			$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
 				$field_id,
-				rep_specialchars_output($this->gettext('spamenabled')),
-				$input_spamenabled->show($sa_active ? 1 : 0 ),
-				'<br /><span class="vboxadm-explanation">' . $this->gettext('spamenabledexplanation') . '</span>'
-				);
-
-				$field_id = 'sa_kill_score';
-				$input_spamscorerefuse = new html_inputfield(
-				array(
-					'name' => 'sa_kill_score',
-					'id' => $field_id,
-					'maxlength' => 8,
-					'size' => 8,
-				)
-				);
-
-				$out .= sprintf(
-				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
-				$field_id,
-				rep_specialchars_output($this->gettext('spamscorerefuse')),
-				$input_spamscorerefuse->show($sa_kill_score),
-				'<br /><span class="vboxadm-explanation">' . $this->gettext('spamscorerefuseexplanation') . '. <span class="sameline">' . $this->gettext('domaindefault') . ': ' . $default_sa_refuse . '.</span></span>'
-				);
-
-				$out .= '</table>';
-				$out .= '</div></fieldset>'."\n\n";
-
-				// =====================================================================================================
-				// Autoresponder
-				$out .= '<fieldset><legend>' . $this->gettext('autoresponder') . '</legend>' . "\n";
-				$out .= '<div class="fieldset-content">';
-				$out .= '<table class="vboxadm-settings" cellpadding="0" cellspacing="0">';
-
-				$field_id = 'is_on_vacation';
-				$input_autoresponderenabled = new html_checkbox(
-				array(
-					'name' => 'is_on_vacation',
-					'id' => $field_id,
-					'value' => 1
-				)
-				);
-
-				$out .= sprintf(
-				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
-				$field_id,
-				rep_specialchars_output($this->gettext('autoresponderenabled')),
-				$input_autoresponderenabled->show($is_on_vacation ? 1 : 0),
+				rep_specialchars_output($this->gettext('aliasesenabled')),
+				$input_alias_active->show($alias_active ? 1 : 0),
 				''
-				);
-					
-				$field_id = 'vacation_start';
-				$input_vacation_start = new html_inputfield(
+			);
+
+			$field_id = 'alias_goto';
+			$input_alias_goto = new html_inputfield(
 				array(
-					'name' => 'vacation_start',
-					'id' => $field_id,
-					'maxlength' => 10,
-					'class' => 'text-long'
-					)
-					);
-
-					if ($vacation_start == '0000-00-00') {
-						$vacation_start = '';
-					}
-					else {
-						$vacation_start = preg_replace('/^(\d\d\d\d)-(\d\d)-(\d\d)$/','$3.$2.$1',$vacation_start);
-					}
-
-					$out .= sprintf(
-				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
-					$field_id,
-					rep_specialchars_output($this->gettext('autoresponderstartdate')),
-					$input_vacation_start->show($vacation_start),
-				''
-				);
-
-				$field_id = 'vacation_end';
-				$input_vacation_end = new html_inputfield(
-				array(
-					'name' => 'vacation_end',
-					'id' => $field_id,
-					'maxlength' => 10,
-					'class' => 'text-long'
-					)
-					);
-
-					if ($vacation_end == '0000-00-00') {
-						$vacation_end = '';
-					}
-					else {
-						$vacation_end = preg_replace('/^(\d\d\d\d)-(\d\d)-(\d\d)$/','$3.$2.$1',$vacation_end);
-					}
-
-					$out .= sprintf(
-				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
-					$field_id,
-					rep_specialchars_output($this->gettext('autoresponderenddate')),
-					$input_vacation_end->show($vacation_end),
-				''
-				);
-
-				$field_id = 'vacation_subj';
-				$input_vacation_subj = new html_inputfield(
-				array(
-					'name' => 'vacation_subj',
+					'name' => 'alias_goto',
 					'id' => $field_id,
 					'maxlength' => 255,
-					'class' => 'text-long'
-					)
-					);
-
-					$out .= sprintf(
-				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
-					$field_id,
-					rep_specialchars_output($this->gettext('autorespondersubject')),
-					$input_vacation_subj->show($vacation_subj),
-				'<br /><span class="vboxadm-explanation">' . $this->gettext('autorespondersubjectexplanation') . '.</span>'
-				);
-
-				$field_id = 'vacation_msg';
-				$input_vacation_msg = new html_textarea(
-				array(
-					'name' => 'vacation_msg',
-					'id' => $field_id,
-					'class' => 'textarea'
-					)
-					);
-
-					$out .= sprintf(
-				"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
-					$field_id,
-					rep_specialchars_output($this->gettext('autorespondermessage')),
-					$input_vacation_msg->show($vacation_msg),
-				'<br /><span class="vboxadm-explanation">' . $this->gettext('autorespondermessageexplanation') . '</span>'
-				);
-
-				$out .= '</table>';
-				$out .= '</div></fieldset>' . "\n\n";
-
-				// ============================================================
-				// Parameters
-				$out .= '<fieldset><legend>' . $this->gettext('parameters') . '</legend>' . "\n";
-
-				$out .= '<div class="fieldset-content">';
-				$out .= '<table class="vboxadm-settings" cellpadding="0" cellspacing="0">';
-
-				$field_id = 'max_msg_size';
-				$input_messagesize = new html_inputfield(
-				array(
-					'name' => 'max_msg_size',
-					'id' => $field_id,
-					'maxlength' => 16,
 					'class' => 'text-long',
 				)
-				);
+			);
 
-				if ($default_maxmsgsize == 0) {
-					$default_maxmsgsize = $this->gettext('unlimited');
-				} else {
-					$default_maxmsgsize = $default_maxmsgsize . ' MB';
-				}
-
-				$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+			$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
 				$field_id,
-				rep_specialchars_output($this->gettext('messagesize')),
-				$input_messagesize->show($max_msg_size_mb),
-				'<br /><span class="vboxadm-explanation">'.
-				str_replace(
-					'%d',
-				$active_domain,
-				str_replace(
-						'%m',
-				$default_maxmsgsize,
-				$this->gettext('messagesizeexplanation')
+				rep_specialchars_output($this->gettext('aliasaddresses')),
+				$input_alias_goto->show($alias_goto),
+				''
+			);
+
+			$out .= '</table>';
+			$out .= '</div></fieldset>' . "\n\n";
+		}
+		// ============================================================
+
+		$out .= html::p(
+			null,
+			$rcmail->output->button(
+				array(
+					'command' => 'plugin.vboxadm-save',
+					'type' => 'input',
+					'class' => 'button mainaction',
+					'label' => 'save'
 				)
-				).
-				'</span>'
-				);
+			)
+		);
 
-				$out .= '</table>';
-				$out .= '</div></fieldset>' . "\n\n";
-
-				// ============================================================
-				// Aliases
-				if ($this->config['user_managed_aliases']) {
-					// user can edit aliases for his mail address
-
-					$out .= '<fieldset><legend>' . $this->gettext('aliases') . '</legend>' . "\n";
-
-					$out .= '<div class="fieldset-content">';
-					$out .= '<span class="vboxadm-explanation">'.$this->gettext('aliasesexplanation').'</span>';
-					$out .= '<table class="vboxadm-settings" cellpadding="0" cellspacing="0">';
-
-					$field_id = 'alias_active';
-					$input_alias_active = new html_checkbox(
-					array(
-						'name' => 'alias_active',
-						'id' => $field_id,
-						'value' => 1
-					)
-					);
-
-					$out .= sprintf(
-					"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
-					$field_id,
-					rep_specialchars_output($this->gettext('aliasesenabled')),
-					$input_alias_active->show($alias_active ? 1 : 0),
-					''
-					);
-
-					$field_id = 'alias_goto';
-					$input_alias_goto = new html_inputfield(
-					array(
-						'name' => 'alias_goto',
-						'id' => $field_id,
-						'maxlength' => 255,
-						'class' => 'text-long',
-					)
-					);
-
-					$out .= sprintf(
-					"<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
-					$field_id,
-					rep_specialchars_output($this->gettext('aliasaddresses')),
-					$input_alias_goto->show($alias_goto),
-					''
-					);
-
-					$out .= '</table>';
-					$out .= '</div></fieldset>' . "\n\n";
-				}
-				// ============================================================
-
-				$out .= html::p(
-				null,
-				$rcmail->output->button(
+		$rcmail->output->add_gui_object(
+			'vboxadmform',
+			'vboxadmform'
+		);
+		
+		$out = $rcmail->output->form_tag(
+			array(
+				'id' => 'vboxadmform',
+				'name' => 'vboxadmform',
+				'method' => 'post',
+				'action' => './?_task=settings&_action=plugin.vboxadm-save'
+			),
+			$out
+		);
+		
+		$out = html::div(
+			array(
+				'class' => 'settingsbox',
+				'style' => 'margin:0 0 15px 0;'
+			),
+			html::div(
 				array(
-						'command' => 'plugin.vboxadm-save',
-						'type' => 'input',
-						'class' => 'button mainaction',
-						'label' => 'save'
-						)
-						)
-						);
-
-						$rcmail->output->add_gui_object(
-				'vboxadmform',
-				'vboxadmform'
-				);
-				$out = $rcmail->output->form_tag(
+					'class' => 'boxtitle'
+				),
+				$this->gettext('accountadministration')
+				) .
+			html::div(
 				array(
-					'id' => 'vboxadmform',
-					'name' => 'vboxadmform',
-					'method' => 'post',
-					'action' => './?_task=settings&_action=plugin.vboxadm-save'
-					),
-					$out
-					);
-					$out = html::div(
-					array(
-					'class' => 'settingsbox',
-					'style' => 'margin:0 0 15px 0;'
-					),
-					html::div(
-					array(
-						'class' => 'boxtitle'
-						),
-						$this->gettext('accountadministration')
-						) .
-						html::div(
-						array(
-						'style' => 'padding:15px'
-						),
-						$outtop . "\n" . $out . "\n" . $outbottom
-						)
-						);
+					'style' => 'padding:15px'
+				),
+				$outtop . "\n" . $out . "\n" . $outbottom
+			)
+		);
 
-						return $out;
+		return $out;
 
 	}
 
@@ -612,14 +598,15 @@ class vboxadm extends rcube_plugin
 		$this->_db_connect('r');
 
 		$sql = 'SELECT m.id AS user_id, d.id AS domain_id, m.local_part AS local_part,d.name AS ';
-		$sql .= 'domain,m.name AS username,m.max_msg_size,m.is_on_vacation,m.vacation_subj,';
-		$sql .= 'm.vacation_msg,m.vacation_start,m.vacation_end,m.is_domainadmin,m.is_siteadmin,';
-		$sql .= 'm.sa_active,m.sa_kill_score,a.goto AS alias_goto,a.is_active AS alias_active ';
+		$sql .= 'domain,m.name AS username,m.max_msg_size AS max_msg_size,m.is_on_vacation AS is_on_vacation,m.vacation_subj AS vacation_subj,';
+		$sql .= 'm.vacation_msg AS vacation_msg,m.vacation_start AS vacation_start,m.vacation_end AS vacation_end,m.is_domainadmin AS is_domainadmin,m.is_siteadmin AS is_siteadmin,';
+		$sql .= 'm.sa_active AS sa_active,m.sa_kill_score AS sa_kill_score,a.goto AS alias_goto,a.is_active AS alias_active ';
 		$sql .= 'FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id LEFT JOIN ';
 		$sql .= 'aliases AS a ON a.domain_id = d.id AND a.local_part = m.local_part WHERE ';
 		$sql .= 'CONCAT(m.local_part,\'@\',d.name) = ';
 		$sql .= $this->db->quote($rcmail->user->data['username'],'text');
 		$sql .= ' AND m.is_active AND d.is_active LIMIT 1';
+		
 		$res = $this->db->query($sql);
 
 		if ($err = $this->db->is_error()){
@@ -649,9 +636,9 @@ class vboxadm extends rcube_plugin
 	}
 
 	private function _save(
-	$user,$sa_active,$sa_kill_score,
-	$is_on_vacation,$vacation_start,$vacation_end,$vacation_subj,$vacation_msg,
-	$max_msg_size_mb,$alias_active,$alias_goto
+		$user,$sa_active,$sa_kill_score,
+		$is_on_vacation,$vacation_start,$vacation_end,$vacation_subj,$vacation_msg,
+		$max_msg_size_mb,$alias_active,$alias_goto
 	)
 	{
 		$rcmail = rcmail::get_instance();
@@ -663,7 +650,7 @@ class vboxadm extends rcube_plugin
 		$domain_id			= $settings['domain_id'];
 		$local_part			= $settings['local_part'];
 
-		$max_msg_size = $max_msg_size_mb * 1024;
+		$max_msg_size = $max_msg_size_mb * 1024 * 1024;
 
 		$sql = 'UPDATE mailboxes SET ';
 		$sql .= 'sa_active = '.$this->db->quote($sa_active,'text').', ';
@@ -714,7 +701,6 @@ class vboxadm extends rcube_plugin
 		/* write_log('vboxadm','_save invoked'); */
 
 		if ($curpwd != '' and $newpwd != '') {
-
 			$trytochangepass = 1;
 			$password_change_error = 0;
 
@@ -758,7 +744,7 @@ class vboxadm extends rcube_plugin
 					}
 				}
 			}
-		}
+		} // if pw changed - end
 
 		// This error handling is a bit messy, should be improved!
 		// We may also want to check for $res and $res_pass to see if changes were done or not
@@ -816,7 +802,7 @@ class vboxadm extends rcube_plugin
 	}
 
 }
-
+// dovecot compatible password handling
 class DovecotPW {
 	
 	private $config;

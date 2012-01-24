@@ -50,6 +50,7 @@ sub prepare_queries {
     # - an alias on an alias domain
     # This is a pretty huge and expensive query. I haven't found a better way to do this yet.
     my $sql_userinfo = <<'SQL';
+/* vboxadm-sa userinfo query */
 SELECT m.id,d.id,m.max_msg_size,m.sa_active,m.sa_kill_score
 FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id 
 WHERE CONCAT(m.local_part,'@',d.name) IN 
@@ -369,13 +370,15 @@ sub want_sa {
 
     # iterate over all recipients, if one wants sa checking, the message will be checked
     foreach my $email ( &VBoxAdm::Utils::extract_recipients( $recipients, $delim ) ) {
-        if ( $self->{server}->{vbox}->{caching} && defined( $self->{cache}->{want_sa} ) ) {
+        if ( $self->{server}->{vbox}->{caching} && defined( $self->{cache}->{want_sa}->{$email} ) ) {
             $want_sa = $want_sa || $self->{cache}->{want_sa}->{$email} || 0;
+            $self->logger()->log( message => 'Using want_sa = ' . $want_sa . ' from cache for user ' . $email, level => 'debug', );
         }
         elsif ( $self->{server}->{vbox}->{sth}->{userinfo}->execute( $email, $email, $email, $email ) ) {
             my @userinfo = $self->{server}->{vbox}->{sth}->{userinfo}->fetchrow_array();
             $want_sa = $want_sa || $userinfo[3] || 0;
             $self->{cache}->{want_sa}->{$email} = $userinfo[3] if $self->{server}->{vbox}->{caching};
+            $self->logger()->log( message => 'Using want_sa = ' . $want_sa . ' from DB for user ' . $email, level => 'debug', );
         }
         else {
             $self->logger()->log(
