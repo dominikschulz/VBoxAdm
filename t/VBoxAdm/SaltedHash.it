@@ -11,6 +11,8 @@ Then the salt was extracted using the method described in the Dovecot Wiki
 at http://wiki.dovecot.org/Authentication/PasswordSchemes#Salting.
 
   $> echo ZVtWBxu5DZfomKKiR5R+TYYemzsMpjfR | base64 -d | dd bs=1 skip=20 | hexdump -C
+  
+The value for skip must match the hashing scheme, i.e. MD5=16, SHA=20, SHA256=32, SHA512=64.
 
 The output
   00000000  0c a6 37 d1                                       |..7.|
@@ -94,6 +96,18 @@ BEGIN { use_ok( 'VBoxAdm::SaltedHash', '@VERSION@' ); }
     foreach my $i ( 1 .. 20 ) {
         ok( VBoxAdm::SaltedHash::verify_pass( 'pw' . $i, VBoxAdm::SaltedHash::make_pass( 'pw' . $i, 'ssha256' ) ), 'Test ssha256 #' . $i );
     }
+    # pwgen -snc 32 1
+    is( VBoxAdm::SaltedHash::ssha256( 'Xw1S7cBNpwTdoypo2WmzVqs0XYykVRel', pack( 'C*', ( 0x0a, 0xdf, 0x2e, 0x45 ) ) ),
+        '{SSHA256}m7b51ofSx3WRsnf1hBSO660uEyBdDwTKlu3vl+eHavsK3y5F', 'SSHA256' );
+    # wrong salt
+    isnt( VBoxAdm::SaltedHash::ssha256( 'Xw1S7cBNpwTdoypo2WmzVqs0XYykVRel', pack( 'C*', ( 0x0b, 0xdf, 0x2e, 0x45 ) ) ),
+        '{SSHA256}m7b51ofSx3WRsnf1hBSO660uEyBdDwTKlu3vl+eHavsK3y5F', 'SSHA256' );
+    # wrong hash
+    isnt( VBoxAdm::SaltedHash::ssha256( 'Xw1S7cBNpwTdoypo2WmzVqs0XYykVRel', pack( 'C*', ( 0x0b, 0xdf, 0x2e, 0x45 ) ) ),
+        '{SSHA256}m7b51ofSx3WRsnf1hBSO660uEyBdDwTKlu3vl+eHavsK3y5f', 'SSHA256' );
+    # pwgen -snc 32 1
+    is( VBoxAdm::SaltedHash::ssha256( 'OUU1LPe3p6ZkK9Oz', pack( 'C*', ( 0x7c, 0x3a, 0x62, 0xb1 ) ) ),
+        '{SSHA256}Ak4I8sTg2fbAbTtF3QU4MnsyB17bJBHo5F3BZroGhAJ8OmKx', 'SSHA256' );
 }
 
 # Test sha512
