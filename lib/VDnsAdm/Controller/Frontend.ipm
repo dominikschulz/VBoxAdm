@@ -102,7 +102,13 @@ sub setup {
         'log' => 'show_log',
 
         # Admins
-        'admins' => 'show_admins',
+        'users'       => 'show_users',
+        'user'        => 'show_user',
+        'create_user' => 'show_create_user',
+        'add_user'    => 'show_add_user',
+        'remove_user' => 'show_remove_user',
+        'edit_user'   => 'show_edit_user',
+        'update_user' => 'show_update_user',
     );
 
     # Authentication
@@ -316,10 +322,8 @@ sub setup {
         eval {
             $User = VDnsAdm::Model::User::->new(
                 {
-                    'dbh' => $self->dbh,
-
-                    # TODO DEVEL 'username' => $self->authen->username,
-                    'username' => 'admin',
+                    'dbh'      => $self->dbh,
+                    'username' => $self->authen->username,
                     'force'    => 1,
                     'msgq'     => $Messages,
                     'logger'   => $Logger,
@@ -345,6 +349,9 @@ sub setup {
             $arg_ref->{'records'} = $self->{'Record'};
             $self->{'Domain'}     = VDnsAdm::Model::Domain::->new($arg_ref);
         }
+    }
+    else {
+        $Logger->log( message => 'User is not authenticated.', level => 'error', );
     }
 
     # to make perlcritic happy
@@ -916,8 +923,10 @@ sub show_create_record {
         return;
     }
 
-    # Get our database connection
-    my $dbh = $self->dbh();
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $large_content = $q->param('large') || 0;
 
     my $params = {};
 
@@ -930,10 +939,11 @@ sub show_create_record {
     my @types   = keys %{ $self->{'Record'}->valid_types() };
 
     my %params = (
-        'title'   => $self->{lh}->maketext('Add Record'),
-        'domains' => \@domains,
-        'current' => 'records',
-        'types'   => \@types,
+        'title'         => $self->{lh}->maketext('Add Record'),
+        'domains'       => \@domains,
+        'current'       => 'records',
+        'types'         => \@types,
+        'large_content' => $large_content,
     );
 
     return $self->tt_process( 'vdnsadm/record/create.tpl', \%params );
@@ -1006,6 +1016,8 @@ sub show_edit_record {
     # Get CGI Query object
     my $q = $self->query();
 
+    my $large_content = $q->param('large') || 0;
+
     my $record_id   = $q->param('record_id');
     my $record_ref  = $self->{'Record'}->read($record_id);
     my $domain_id   = $record_ref->{'domain_id'};
@@ -1015,14 +1027,19 @@ sub show_edit_record {
     $record_ref->{'name'} =~ s/\.$domain_name$//;
 
     my %params = (
-        'title'       => $self->{lh}->maketext('Edit Record'),
-        'record_id'   => $record_id,
-        'domain_name' => $domain_name,
-        'current'     => 'records',
-        'types'       => \@types,
+        'title'         => $self->{lh}->maketext('Edit Record'),
+        'record_id'     => $record_id,
+        'domain_name'   => $domain_name,
+        'current'       => 'records',
+        'types'         => \@types,
+        'large_content' => $large_content,
     );
+
     foreach my $key ( keys %{$record_ref} ) {
         $params{$key} = $record_ref->{$key};
+    }
+    if ( length( $params{'content'} ) > 20 ) {
+        $params{'large_content'} = 1;
     }
 
     return $self->tt_process( 'vdnsadm/record/edit.tpl', \%params );
@@ -1030,6 +1047,14 @@ sub show_edit_record {
 
 sub show_update_record {
     my $self = shift;
+
+    if ( !$self->user->is_admin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
 
     # Get CGI Query object
     my $q = $self->query();
@@ -1124,7 +1149,7 @@ sub show_log {
 # Admins
 #
 
-sub show_admins {
+sub show_users {
     my $self = shift;
 
     if ( !$self->user->is_siteadmin() ) {
@@ -1157,7 +1182,153 @@ sub show_admins {
         'search'  => $search,
     );
 
-    return $self->tt_process( 'vdnsadm/user/admins.tpl', \%params );
+    return $self->tt_process( 'vdnsadm/user/list.tpl', \%params );
+}
+
+sub show_create_user {
+    my $self = shift;
+
+    if ( !$self->user->is_siteadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $params = {};
+
+    my @users = $self->{'User'}->list($params);
+
+    my %params = (
+        'title'   => $self->{lh}->maketext('Add User'),
+        'users'   => \@users,
+        'current' => 'records',
+    );
+
+    return $self->tt_process( 'vdnsadm/user/create.tpl', \%params );
+}
+
+sub show_add_user {
+    my $self = shift;
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $domain_id = $q->param('domain_id');
+
+    # set params
+    my $params = {};
+    foreach my $field ( @{ $self->{'User'}->fields() } ) {
+        next if $field eq 'id';
+        if ( defined( $q->param($field) ) ) {
+            $params->{$field} = $q->param($field);
+        }
+    }
+
+    if ( $self->{'User'}->create( $domain_id, $params ) ) {
+        $self->log( 'Added User for Domain #' . $domain_id );
+    }
+    else {
+        $self->log( 'Failed to add User for Domain #' . $domain_id, 'error' );
+        $self->add_message( 'error', 'Database Error!' );
+    }
+
+    $self->redirect( $self->{base_url} . '?rm=users' );
+    return;
+}
+
+sub show_remove_user {
+    my $self = shift;
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $user_id = $q->param('user_id');
+
+    if ( $self->{'User'}->delete($user_id) ) {
+        $self->log( 'Deleted User #' . $user_id );
+    }
+    else {
+        $self->log( 'Failed to delete User #' . $user_id );
+        $self->add_message( 'error', 'Database Error!' );
+    }
+
+    $self->redirect( $self->{base_url} . '?rm=users' );
+    return;
+}
+
+sub show_edit_user {
+    my $self = shift;
+
+    if ( !$self->user->is_admin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $large_content = $q->param('large') || 0;
+
+    my $user_id = $q->param('user_id');
+
+    # Authorization
+    if ( !$self->is_siteadmin() ) {
+        $user_id = $self->id();
+    }
+
+    my $record_ref  = $self->{'User'}->read($user_id);
+    my $domain_id   = $record_ref->{'domain_id'};
+    my $domain_name = $record_ref->{'domain'};
+
+    my %params = (
+        'title'       => $self->{lh}->maketext('Edit User'),
+        'user_id'     => $user_id,
+        'domain_name' => $domain_name,
+        'current'     => 'admins',
+    );
+    foreach my $key ( keys %{$record_ref} ) {
+        $params{$key} = $record_ref->{$key};
+    }
+
+    return $self->tt_process( 'vdnsadm/user/edit.tpl', \%params );
+}
+
+sub show_update_user {
+    my $self = shift;
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $user_id = $q->param('user_id');
+
+    # set params
+    my $params = {};
+    foreach my $field ( @{ $self->{'Record'}->fields() } ) {
+        next if $field eq 'id';
+        $params->{$field} = $q->param($field) if defined( $q->param($field) );
+    }
+
+    if ( $self->{'User'}->update( $user_id, $params ) ) {
+        $self->log( 'Updated User #' . $user_id );
+    }
+    else {
+        $self->log( 'Failed to update User #' . $user_id );
+        $self->add_message( 'error', 'Database Error!' );
+    }
+
+    $self->redirect( $self->{base_url} . '?rm=users' );
+    return;
 }
 
 1;

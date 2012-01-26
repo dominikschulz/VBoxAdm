@@ -3,7 +3,7 @@
 	<ul>
 		<li><a[% IF current == 'welcome' %] class="current"[% END %] href="[% base_url %]?rm=welcome">VDnsAdm</a></li>
 		[% IF is_siteadmin %]
-		<li><a[% IF current == 'admins' %] class="current"[% END %] href="[% base_url %]?rm=admins">[% "Admin List" | l10n %]</a></li>
+		<li><a[% IF current == 'admins' %] class="current"[% END %] href="[% base_url %]?rm=users">[% "Admin List" | l10n %]</a></li>
 		[% END %]
 		<li><a[% IF current == 'domains' %] class="current"[% END %] href="[% base_url %]?rm=domains">[% "Domain List" | l10n %]</a>
 			<ul>
