@@ -96,15 +96,19 @@ BEGIN { use_ok( 'VBoxAdm::SaltedHash', '@VERSION@' ); }
     foreach my $i ( 1 .. 20 ) {
         ok( VBoxAdm::SaltedHash::verify_pass( 'pw' . $i, VBoxAdm::SaltedHash::make_pass( 'pw' . $i, 'ssha256' ) ), 'Test ssha256 #' . $i );
     }
+
     # pwgen -snc 32 1
     is( VBoxAdm::SaltedHash::ssha256( 'Xw1S7cBNpwTdoypo2WmzVqs0XYykVRel', pack( 'C*', ( 0x0a, 0xdf, 0x2e, 0x45 ) ) ),
         '{SSHA256}m7b51ofSx3WRsnf1hBSO660uEyBdDwTKlu3vl+eHavsK3y5F', 'SSHA256' );
+
     # wrong salt
     isnt( VBoxAdm::SaltedHash::ssha256( 'Xw1S7cBNpwTdoypo2WmzVqs0XYykVRel', pack( 'C*', ( 0x0b, 0xdf, 0x2e, 0x45 ) ) ),
         '{SSHA256}m7b51ofSx3WRsnf1hBSO660uEyBdDwTKlu3vl+eHavsK3y5F', 'SSHA256' );
+
     # wrong hash
     isnt( VBoxAdm::SaltedHash::ssha256( 'Xw1S7cBNpwTdoypo2WmzVqs0XYykVRel', pack( 'C*', ( 0x0b, 0xdf, 0x2e, 0x45 ) ) ),
         '{SSHA256}m7b51ofSx3WRsnf1hBSO660uEyBdDwTKlu3vl+eHavsK3y5f', 'SSHA256' );
+
     # pwgen -snc 32 1
     is( VBoxAdm::SaltedHash::ssha256( 'OUU1LPe3p6ZkK9Oz', pack( 'C*', ( 0x7c, 0x3a, 0x62, 0xb1 ) ) ),
         '{SSHA256}Ak4I8sTg2fbAbTtF3QU4MnsyB17bJBHo5F3BZroGhAJ8OmKx', 'SSHA256' );

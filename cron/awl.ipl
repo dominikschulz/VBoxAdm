@@ -9,6 +9,7 @@ use Getopt::Long;
 use Config::Std;
 
 use VBoxAdm::DB '@VERSION@';
+use VBoxAdm::Logger '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 
 use Data::Dumper;
@@ -41,6 +42,8 @@ foreach my $loc (@conffile_locations) {
         last;
     }
 }
+
+my $Logger = VBoxAdm::Logger::->new('vboxadm-awl');
 
 # Determine options
 my $dbhost = $config{'default'}{'dbhost'} || 'localhost';
@@ -80,30 +83,32 @@ my $dsn = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;passw
 my $dbh = &VBoxAdm::DB::connect( $dsn, undef, undef, { RaiseError => 1, } );
 
 if ( !$dbh ) {
-    syslog( 2, 'Could not connect to database with DSN $dsn - From: %s - To: %s - Exiting', $config{'sender'}, $config{'recipient'} );
-    closelog();
+    $Logger->log(
+        message => 'Could not connect to database with DSN $dsn - From: %s - To: %s - Exiting',
+        $config{'sender'}, $config{'recipient'}, level => 'error',
+    );
     die("Could not connect to database with DSN $dsn");
 }
 
 my $whitelist = {};    # unique whitelist
 
 if ( $config{'awl'}{'mailserver'} eq 'exim' ) {
-    &parse_exim( $dbh, \%config );
+    &parse_exim( $dbh, \%config, $Logger );
 }
 elsif ( $config{'awl'}{'mailserver'} eq 'postfix' ) {
-    &parse_postfix( $dbh, \%config );
+    &parse_postfix( $dbh, \%config, $Logger );
 }
 else {
     die("Unknown logfile format");
 }
 &store_whitelist( $whitelist, $dbh );
 if ( $config{'awl'}{'mailserver'} eq 'exim' ) {
-    &write_exim_whitelist( $dbh, \%config );
+    &write_exim_whitelist( $dbh, \%config, $Logger );
 }
 elsif ( $config{'awl'}{'mailserver'} eq 'postfix' ) {
-    &write_postfix_whitelist( $dbh, \%config );
+    &write_postfix_whitelist( $dbh, \%config, $Logger );
 }
-&reload_postgrey();
+&reload_postgrey($Logger);
 exit 0;
 ###########################################################################
 # SUBS
@@ -118,6 +123,7 @@ exit 0;
 # See Also   : n/a
 # We must HUP to tell postgrey to reload its whitelist
 sub reload_postgrey {
+    my $Logger  = shift;
     my $pidfile = '/var/run/postgrey.pid';
     if ( -f $pidfile ) {
         my $pid = &VBoxAdm::Utils::slurp($pidfile);
@@ -144,6 +150,7 @@ sub reload_postgrey {
 sub store_whitelist {
     my $whitelist = shift;
     my $dbh       = shift;
+    my $Logger    = shift;
 
     my $query = "INSERT INTO awl (email,last_seen,disabled) VALUES(?,NOW(),0) ON DUPLICATE KEY UPDATE last_seen=NOW()";
     my $sth   = $dbh->prepare($query)
@@ -167,6 +174,7 @@ sub store_whitelist {
 sub write_exim_whitelist {
     my $dbh    = shift;
     my $config = shift;
+    my $Logger = shift;
 
     if ( open( my $FH, ">", $config->{'awl'}{'whitelist'} ) ) {
         my $query = "SELECT email FROM awl WHERE NOT disabled ORDER BY email";
@@ -191,6 +199,7 @@ sub write_exim_whitelist {
 sub write_postfix_whitelist {
     my $dbh    = shift;
     my $config = shift;
+    my $Logger = shift;
 
     if ( open( my $FH, ">", $config->{'awl'}{'whitelist'} ) ) {
         my $query = "SELECT email FROM awl WHERE NOT disabled ORDER BY email";
@@ -215,9 +224,10 @@ sub write_postfix_whitelist {
 sub parse_exim {
     my $dbh    = shift;
     my $config = shift;
+    my $Logger = shift;
 
     my %msgs = ();
-    open( my $IN, "<", $config->{'awl'}{'logfile'} ) or die("Could not open file $config->{'awl'}{'logfile'}: $!");
+    open( my $IN, "<", $config->{'awl'}{'logfile'} ) or die( "Could not open file " . $config->{'awl'}{'logfile'} . ": $!" );
   LINE: while (<$IN>) {
         chomp;
 
@@ -287,6 +297,7 @@ sub parse_exim {
 sub is_valid_domain {
     my $from   = shift;
     my $config = shift;
+    my $Logger = shift;
 
     if ( scalar( @{ $config->{'awl'}{'only_domains'} } ) > 0 ) {
         foreach my $domain ( @{ $config->{'awl'}{'only_domains'} } ) {
@@ -311,8 +322,9 @@ sub is_valid_domain {
 # Comments   : none
 # See Also   : n/a
 sub is_local_domain {
-    my $dbh  = shift;
-    my $from = shift;
+    my $dbh    = shift;
+    my $from   = shift;
+    my $Logger = shift;
 
     my ( $local_part, $domain ) = split /@/, $from;
 
@@ -337,6 +349,7 @@ sub is_local_domain {
 sub is_ignored_network {
     my $ip     = shift;
     my $config = shift;
+    my $Logger = shift;
 
     foreach my $net ( @{ $config->{'awl'}{'ignore_nets'} } ) {
         return 1;
@@ -354,6 +367,7 @@ sub is_ignored_network {
 sub parse_postfix {
     my $dbh    = shift;
     my $config = shift;
+    my $Logger = shift;
 
     my %pids = ();
     my %qids = ();
@@ -365,8 +379,6 @@ sub parse_postfix {
     open( my $IN, "<", $config->{'awl'}{'logfile'} ) or die("Could not open file $config->{'awl'}{'logfile'}: $!");
     while ( my $line = <$IN> ) {
         chomp($line);
-
-        #print "parse_postfix - Candidate Line: $_\n";
         if ( $line =~ m/postfix\/smtpd\[(\d+)\]: NOQUEUE: client=(\S+)\[([\d\.]+)\], sasl_method=([A-Z]+), sasl_username=(\S+)\b/ ) {
             print "\tnew client connects: $line\n" if $config->{'awl'}{'verbose'};
 

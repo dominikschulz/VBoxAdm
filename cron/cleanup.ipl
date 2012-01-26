@@ -7,9 +7,9 @@ use lib '@LIBDIR@';
 use DBI;
 use Config::Std;
 use Getopt::Long;
-use Sys::Syslog;
 
 use VBoxAdm::DB '@VERSION@';
+use VBoxAdm::Logger '@VERSION@';
 
 my ( $conffile_used, @hooks, %hook, %config, );
 
@@ -41,7 +41,7 @@ foreach my $loc (@conffile_locations) {
     }
 }
 
-openlog( 'vboxadm-cleanup', 'ndelay,nofatal', 'mail' );
+my $Logger = VBoxAdm::Logger::->new('vboxadm-cleanup');
 
 # Determine options
 my $dbhost = $config{'default'}{'dbhost'} || 'localhost';
@@ -56,27 +56,25 @@ my $dsn = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;passw
 my $dbh = &VBoxAdm::DB::connect($dsn);
 
 if ( !$dbh ) {
-    syslog( 2, 'Could not connect to database with DSN $dsn - Exiting' );
-    closelog();
+    $Logger->log( message => 'Could not connect to database with DSN $dsn - Exiting', level => 'error', );
     die("Could not connect to database with DSN $dsn");
 }
 
 # cronjob which does this:
 # - remove deleted mailboxes
-&purge_mailboxes( $dbh, \%config );
+&purge_mailboxes( $dbh, \%config, $Logger );
 
 # - remove expired vacation_notify entries
-&clean_vacation( $dbh, \%config );
+&clean_vacation( $dbh, \%config, $Logger );
 
 # remove mails marked as deleted
-&purge_mails( $config{'default'}{'mail_location'}, 0 );
+&purge_mails( $config{'default'}{'mail_location'}, 0, $Logger );
 
 # remove expired AWL entries
-&clean_awl( $dbh, \%config );
+&clean_awl( $dbh, \%config, $Logger );
 
 $dbh->disconnect();
 
-closelog();
 exit 0;
 
 ###########################################################################
@@ -92,7 +90,9 @@ exit 0;
 # See Also   : n/av
 # See Also: http://cr.yp.to/proto/maildir.html
 sub purge_mails {
-    my $dir = shift;
+    my $dir    = shift;
+    my $Logger = shift;
+
     my $is_maildir = shift || 0;
 
     if ( $dir && -d $dir && opendir( my $DH, $dir ) ) {
@@ -102,7 +102,7 @@ sub purge_mails {
             my $full_dir = $dir . '/' . $dir_entry;
             if ( $dir_entry =~ m/^Maildir/ && -d $full_dir ) {
                 $is_maildir = 1;
-                &purge_mails( $full_dir, $is_maildir );
+                &purge_mails( $full_dir, $is_maildir, $Logger );
             }
             elsif ( -d $full_dir ) {
                 push( @dirs, $full_dir );
@@ -113,12 +113,12 @@ sub purge_mails {
         }
         closedir($DH);
         foreach my $d (@dirs) {
-            &purge_mails( $d, $is_maildir );
+            &purge_mails( $d, $is_maildir, $Logger );
         }
         return 1;
     }
     else {
-        syslog( 2, "purge_mails - default/mail_location not set or no directory. Aborting." );
+        $Logger->log( message => "purge_mails - default/mail_location not set or no directory. Aborting.", level => 'error', );
         return;
     }
 }
@@ -137,17 +137,18 @@ sub purge_mailboxes {
     # -- traverse over maildirs and remove all maildirs not in hash
     my $dbh    = shift;
     my $config = shift;
+    my $Logger = shift;
 
     if ( !$config->{'default'}{'mail_location'} ) {
         my $msg = 'purge_mailboxes - mail_location is not set. Aborting!';
-        syslog( 2, $msg );
+        $Logger->log( message => $msg, level => 'error', );
 
         #print STDERR $msg . "\n";
         return;
     }
     elsif ( !-d $config->{'default'}{'mail_location'} ) {
         my $msg = 'purge_mailboxes - mail_location (' . $config->{'default'}{'mail_location'} . ') is no directory. Aborting!';
-        syslog( 2, $msg );
+        $Logger->log( message => $msg, level => 'error', );
 
         #print STDERR $msg . "\n";
         return;
@@ -176,15 +177,14 @@ sub purge_mailboxes {
                     next if $mailboxes{$domain}{$mailbox};
                     my $cmd = 'rm -rf ' . $mailbox_dir;
                     my $rv  = 0;
-                    print "purge_mailboxes - CMD: $cmd\n" if $config->{'cleanup'}{'verbose'};
+                    $Logger->log( message => "purge_mailboxes - CMD: $cmd", level => 'debug', );
                     $rv = system($cmd) >> 8 unless $config->{'cleanup'}{'dry'};
 
                     if ( $rv != 0 ) {
-
-                        #print STDERR "$0 - Could not execute '$cmd': $!\n";
+                        $Logger->log( message => "Could not execute CMD: " . $cmd, level => 'error', );
                     }
                     else {
-                        syslog( 2, "Purged Mailbox $mailbox\@$domain" );
+                        $Logger->log( message => "Purged Mailbox $mailbox\@$domain", level => 'debug', );
                     }
                 }
                 closedir($MH);
@@ -206,8 +206,10 @@ sub purge_mailboxes {
 sub clean_vacation {
     my $dbh    = shift;
     my $config = shift;
-    my $sql    = "DELETE FROM vacation_notify WHERE notified_at < NOW() - ?";
-    my $sth    = $dbh->prepare($sql);
+    my $Logger = shift;
+
+    my $sql = "DELETE FROM vacation_notify WHERE notified_at < NOW() - ?";
+    my $sth = $dbh->prepare($sql);
     $sth->execute( $config->{'vacation'}{'notify_interval'} * 2 );
     $sth->finish();
 
@@ -224,6 +226,7 @@ sub clean_vacation {
 sub clean_awl {
     my $dbh    = shift;
     my $config = shift;
+    my $Logger = shift;
 
     my $query = "DELETE FROM awl WHERE last_seen <= NOW() - INTERVAL ? DAY";
     my $sth   = $dbh->prepare($query)

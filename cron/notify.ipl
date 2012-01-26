@@ -7,11 +7,11 @@ use lib '@LIBDIR@';
 use DBI;
 use Config::Std;
 use Getopt::Long;
-use Sys::Syslog;
 use Template;
 
 use VBoxAdm::DB '@VERSION@';
 use VBoxAdm::DNS '@VERSION@';
+use VBoxAdm::Logger '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::Controller::Notify '@VERSION@';
 

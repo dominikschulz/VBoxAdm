@@ -322,17 +322,21 @@ sub sa_block_score {
 
             # try cached result first
             my $sa_kill_score = $self->{cache}->{sa_block_score}->{$email};
+            my $sa_active     = $self->{cache}->{sa_active}->{$email};
 
-            if ( $sa_kill_score && $sa_kill_score < $lowest_kill_score ) {
+            if ( $sa_kill_score && $sa_active && $sa_kill_score > 1.0 && $sa_kill_score < $lowest_kill_score ) {
                 $lowest_kill_score = $sa_kill_score;
             }
         }
         elsif ( $self->{server}->{vbox}->{sth}->{userinfo}->execute( $email, $email, $email, $email ) ) {
             my @userinfo      = $self->{server}->{vbox}->{sth}->{userinfo}->fetchrow_array();
+            my $sa_active     = $userinfo[3];
             my $sa_kill_score = $userinfo[4];
-            $self->{cache}->{sa_block_score}->{$email} = $sa_kill_score if $self->{server}->{vbox}->{caching};
 
-            if ( $sa_kill_score && $sa_kill_score < $lowest_kill_score ) {
+            $self->{cache}->{sa_block_score}->{$email} = $sa_kill_score if $self->{server}->{vbox}->{caching};
+            $self->{cache}->{sa_active}->{$email}      = $sa_active     if $self->{server}->{vbox}->{caching};
+
+            if ( $sa_kill_score && $sa_active && $sa_kill_score > 1.0 && $sa_kill_score < $lowest_kill_score ) {
                 $lowest_kill_score = $sa_kill_score;
             }
         }
@@ -460,9 +464,9 @@ sub is_spam {
     # Add Envelope-To/From and calculated checksum for caching
     my $envto       = 0;
     my $envfrom     = 0;
-    my $in_header   = 1;                       # still inside the header?
-    my $added_envto = 0;                       # did we add an envelope-to?
-    my $digest      = Digest::SHA->new(256);
+    my $in_header   = 1;                         # still inside the header?
+    my $added_envto = 0;                         # did we add an envelope-to?
+    my $digest      = Digest::SHA::->new(256);
     while ( my $line = <$fh> ) {
         ## no critic (ProhibitCascadingIfElse)
         if ( $line =~ m/^(?:X-)?Envelope-To:/i ) {
