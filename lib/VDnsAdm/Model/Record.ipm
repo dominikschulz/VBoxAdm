@@ -392,6 +392,7 @@ sub create {
             if ( $params->{'type'} ne 'SOA' ) {
                 $self->bump_serial($domain_id);
             }
+            return 1;
         }
         else {
             $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", ( %{$params} ) ) . ', Error: ' . $self->dbh()->errstr() );
@@ -437,13 +438,14 @@ sub delete {
         if ( $type ne 'SOA' ) {
             $self->bump_serial($domain_id);
         }
+        return 1;
     }
     else {
         $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh()->errstr() );
         $self->msg->push( 'error', "Failed to remove Record [_1] (#[_2]). Database Error: " . $self->dbh()->err(), $record_name, $record_id );
     }
 
-    return 1;
+    return;
 }
 
 sub _get_record_name {
@@ -547,13 +549,13 @@ sub read {
     my $sql = "SELECT " . join( ",", @{ $self->fields() } ) . " FROM records WHERE id = ?";
     my @args = ($record_id);
 
-    if ( !$self->user->is_siteadmin() ) {
-        $sql .= " AND domain_id = ?";
-        push( @args, $self->user->get_domain_id() );
-    }
-    else {
+    if ( !$self->user->is_admin() ) {
         $self->msg->push( 'error', 'Sorry, no access for you!' );
         return;
+    }
+    elsif ( !$self->user->is_siteadmin() ) {
+        $sql .= " AND domain_id = ?";
+        push( @args, $self->user->get_domain_id() );
     }
 
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
@@ -758,6 +760,7 @@ sub get_domain_id {
         return $rec_ref->{'domain_id'};
     }
     else {
+        $self->logger()->log( message => "Found no domain_id for Record #" . $record_id, level => 'debug', );
         return;
     }
 }

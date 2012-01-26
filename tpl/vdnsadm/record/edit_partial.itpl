@@ -7,11 +7,7 @@
 			[% "Subdomain:" | l10n %]
 			<span class="small">Subdomain</span>
 		</label>
-		<input type="text" name="name" value="[% name %]" />.<select name="domain_id">
-			[% FOREACH line IN domains %]
-			<option value="[% line.id %]"[% IF line.id == domain_id %] selected[% END %]>[% line.name %]</option>
-			[% END %]
-		</select>
+		<input type="text" name="name" value="[% name %]" />.[% domain_name %]
 		
 		<div class="spacer"></div>
 		
@@ -51,7 +47,7 @@
 		
 		<button class="button" type="submit" name="submit">
 			<img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" />
-			[% "Add Record" | l10n %]
+			[% "Update Record" | l10n %]
 		</button>
 	</form>
 </div>

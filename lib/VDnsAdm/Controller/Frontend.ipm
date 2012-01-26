@@ -779,7 +779,7 @@ sub show_add_domain {
     }
     else {
         $self->log( 'Failed to add Domain ' . $domain );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
 
     # TODO HIGH create SOA
@@ -801,7 +801,7 @@ sub show_remove_domain {
     }
     else {
         $self->log( 'Failed to delete Domain #' . $domain_id );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
 
     $self->redirect( $self->{base_url} . '?rm=domains' );
@@ -930,7 +930,7 @@ sub show_add_record {
         $self->log( 'Added Record for Domain #' . $domain_id );
     }
     else {
-        $self->log( 'Failed to add Record for Domain #' . $domain_id );
+        $self->log( 'Failed to add Record for Domain #' . $domain_id, 'error' );
         $self->add_message( 'error', 'Database Error!' );
     }
 
@@ -952,7 +952,7 @@ sub show_remove_record {
     }
     else {
         $self->log( 'Failed to delete Record #' . $record_id );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
 
     $self->redirect( $self->{base_url} . '?rm=domain&domain_id=' . $domain_id );
@@ -976,16 +976,20 @@ sub show_edit_record {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $record_id  = $q->param('record_id');
-    my $record_ref = $self->{'Record'}->read($record_id);
-    my $domain_id  = $record_ref->{'domain_id'};
-    my @types      = $self->{'Record'}->types();
+    my $record_id   = $q->param('record_id');
+    my $record_ref  = $self->{'Record'}->read($record_id);
+    my $domain_id   = $record_ref->{'domain_id'};
+    my $domain_name = $record_ref->{'domain'};
+    my @types       = $self->{'Record'}->types();
+
+    $record_ref->{'name'} =~ s/\.$domain_name$//;
 
     my %params = (
-        'title'     => $self->{lh}->maketext('Edit Record'),
-        'record_id' => $record_id,
-        'current'   => 'records',
-        'types'     => \@types,
+        'title'       => $self->{lh}->maketext('Edit Record'),
+        'record_id'   => $record_id,
+        'domain_name' => $domain_name,
+        'current'     => 'records',
+        'types'       => \@types,
     );
     foreach my $key ( keys %{$record_ref} ) {
         $params{$key} = $record_ref->{$key};
@@ -1010,11 +1014,11 @@ sub show_update_record {
     }
 
     if ( $self->{'Record'}->update( $record_id, $params ) ) {
-        $self->log( 'Update Record #' . $record_id );
+        $self->log( 'Updated Record #' . $record_id );
     }
     else {
         $self->log( 'Failed to update Record #' . $record_id );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
     $self->redirect( $self->{base_url} . '?rm=records' );
     return;
@@ -1064,12 +1068,12 @@ sub show_log {
     # Get the actual data
     my $sth = $dbh->prepare($query);
     if ( !$sth ) {
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
         $self->log( 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, 'warning', );
         return $self->tt_process( 'vwebadm/log.tpl', \%params );
     }
     if ( !$sth->execute(@args) ) {
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
         $self->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, 'warning', );
         return $self->tt_process( 'vwebadm/log.tpl', \%params );
     }
