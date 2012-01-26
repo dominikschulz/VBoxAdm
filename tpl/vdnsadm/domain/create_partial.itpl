@@ -37,6 +37,7 @@
 			[% "Serial:" | l10n %]
 			<span class="small">An auto-generated 32-bit integer version number</span>
 		</label>
+		<input type="hidden" name="soa_serial" value="[% soa_serial %]" />
 		[% soa_serial %]
 		
 		<div class="spacer"></div>
@@ -115,6 +116,27 @@
 			<option>86400</option>
 			<option>115200</option>
 		</select>
+		
+		<div class="spacer"></div>
+		
+		<label for="soa_ttl">
+			[% "TTL:" | l10n %]
+			<span class="small">The default TTL.</span>
+		</label>
+		<select name="soa_ttl">
+			<option>3600</option>
+			<option>7200</option>
+			<option selected>10800</option>
+			<option>14400</option>
+			<option>28800</option>
+			<option>32400</option>
+			<option>57600</option>
+			<option>64800</option>
+			<option>86400</option>
+			<option>115200</option>
+		</select>
+		
+		<div class="spacer"></div>
 		
 		<button class="button" type="submit" name="submit">
 			<img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" />

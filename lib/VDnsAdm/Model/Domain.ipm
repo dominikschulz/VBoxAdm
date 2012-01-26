@@ -80,16 +80,15 @@ sub create {
         return;
     }
 
-    # TODO HIGH create SOA record
-
     my $query = "INSERT INTO domains (" . join( ',', keys %{$params} ) . ") VALUES(";
     $query .= "?," x ( scalar( keys %{$params} ) - 1 );
     $query .= "?)";
 
     if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, values %{$params} ) ) {
+        my $domain_id = $self->dbh->last_insert_id( undef, undef, undef, undef );
         $self->msg->push( 'information', "Domain '[_1]' added", $params->{'name'} );
         $sth->finish();
-        return 1;
+        return $domain_id;
     }
     else {
         $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . $params->{'name'} . ', Error: ' . $self->dbh()->errstr() );
@@ -118,10 +117,8 @@ sub delete {
 
     $sth->finish();
 
-    return;
+    return 1;
 }
-
-# TODO implement sub bump_serial to increase the SOA record by one tick
 
 sub update {
     my ( $self, $domain_id, $params ) = @_;

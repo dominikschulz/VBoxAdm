@@ -367,6 +367,9 @@ sub create {
         $params->{'name'} = $domain_name;
     }
 
+    # make sure domain_id is set
+    $params->{'domain_id'} = $domain_id;
+
     if ( !$self->_validate_params($params) ) {
         return;
     }
@@ -481,6 +484,17 @@ sub update {
 
     my $msg_loc = '';
     my $msg_en  = '';
+
+    my $Domain = VDnsAdm::Model::Domain::->new( { 'Model' => $self, } );
+    my $domain_name = $Domain->get_name($domain_id);
+
+    # append domain name
+    if ( $params->{'name'} ) {
+        $params->{'name'} = $params->{'name'} . '.' . $domain_name;
+    }
+    else {
+        $params->{'name'} = $domain_name;
+    }
 
     if ( !$self->_validate_params($params) ) {
         return;
@@ -647,7 +661,7 @@ sub bump_serial {
 
     #$self->logger()->log( message => 'new content: '.$new_content, level => 'debug', );
 
-    if ( $self->update( $record_id, { 'name' => $name, 'content' => $new_content, 'type' => 'SOA', 'ttl' => $ttl, } ) ) {
+    if ( $self->update( $record_id, { 'content' => $new_content, 'type' => 'SOA', 'ttl' => $ttl, } ) ) {
         $self->logger()->log( message => 'Raised SOA serial for Domain #' . $domain_id . ' to ' . $serial, level => 'debug', );
         return 1;
     }
