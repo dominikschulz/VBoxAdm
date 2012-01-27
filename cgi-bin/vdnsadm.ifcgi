@@ -7,14 +7,14 @@ use lib '@LIBDIR@';
 use lib qw(../lib);
 
 use CGI::Fast();
-use VBoxAdm::Controller::Frontend '@VERSION@';
+use VDnsAdm::Controller::Frontend '@VERSION@';
 
 binmode STDIN,  ":utf8";
 binmode STDOUT, ":utf8";
 binmode STDERR, ":utf8";
 
 while ( my $q = CGI::Fast::->new() ) {
-    my $vbox = VBoxAdm::Controller::Frontend::->new(
+    my $vbox = VDnsAdm::Controller::Frontend::->new(
         PARAMS => {
             'require_ssl'    => 1,
             'rewrite_to_ssl' => 1,
@@ -28,20 +28,20 @@ __END__
 
 =head1 NAME
 
-vboxadm.fcgi- Frontend for VBoxAdm, FastCGI Version
+vdnsadm.fcgi- Frontend for VDnsAdm, FastCGI Version
 
 =head1 VERSION
 
-This documentation refers to vboxadm.pl version @VERSION@
+This documentation refers to vdnsadm.pl version @VERSION@
 built on @BUILDDATE@.
 
 =head1 DESCRIPTION
 
-This is the fcgi script for VBoxAdm.
+This is the fcgi script for VDnsAdm.
 
 =head1 DEPENDENCIES
 
-VBoxAdm::Frontend, CGI::Fast.
+VDnsAdm::Frontend, CGI::Fast.
 
 =head1 SEE ALSO
 

@@ -1,0 +1,14 @@
+[default]
+dbuser=vdnsadm
+dbpass=vdnsadm
+dbdb=vdnsadm
+dbhost=localhost
+
+[api]
+key=1234567890ab
+url=http://vdnsadm/cgi-bin/vdnsapi.pl
+
+[cgi]
+pwscheme=ssha256
+print_errors=1
+long_forms=1

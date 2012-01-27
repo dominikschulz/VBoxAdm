@@ -42,7 +42,11 @@ MANDIR=$(DESTDIR)/usr/share/man
 CFGDIR ?= $(DESTDIR)/etc
 LIBDIR=$(DESTDIR)/usr/share/perl5
 VBOXLIBDIR=$(DESTDIR)/usr/lib/vboxadm
-VHDIR=$(DESTDIR)/var/lib/vboxadm
+VDNSLIBDIR=$(DESTDIR)/usr/lib/vdnsadm
+VWEBLIBDIR=$(DESTDIR)/usr/lib/vwebadm
+VBOXVHDIR=$(DESTDIR)/var/lib/vboxadm
+VDNSVHDIR=$(DESTDIR)/var/lib/vdnsadm
+VWEBVHDIR=$(DESTDIR)/var/lib/vwebadm
 
 # Files
 BINFILES = \
@@ -57,6 +61,7 @@ BINFILES = \
 	cgi-bin/vboxadm.pl \
 	cgi-bin/vboxadm.fcgi \
 	cgi-bin/vboxapi.pl \
+	cgi-bin/vdnsadm.fcgi \
 	cgi-bin/vdnsadm.pl \
 	cgi-bin/vdnsapi.pl \
 	cron/cleanup.pl \
@@ -352,8 +357,10 @@ install: clean real-install
 
 real-install: all test rcvboxadm
 	$(INSTALL) -d $(BINDIR) $(SBINDIR) $(DESTDIR)/etc
-	$(INSTALL) -d $(CFGDIR)/vboxadm
-	$(INSTALL) -d $(LIBDIR)/VBoxAdm/L10N $(LIBDIR)/VBoxAdm/SMTP/Proxy $(LIBDIR)/VBoxAdm/Model $(LIBDIR)/VBoxAdm/Controller
+	$(INSTALL) -d $(CFGDIR)/vboxadm $(CFGDIR)/vdnsadm
+	$(INSTALL) -d $(LIBDIR)/VBoxAdm/Controller $(LIBDIR)/VBoxAdm/L10N $(LIBDIR)/VBoxAdm/Model $(LIBDIR)/VBoxAdm/SMTP/Proxy 
+	$(INSTALL) -d $(LIBDIR)/VDnsAdm/Controller $(LIBDIR)/VDnsAdm/L10N $(LIBDIR)/VDnsAdm/Model
+	$(INSTALL) -d $(LIBDIR)/VDnsAdm/Model
 	$(INSTALL) -d $(MANDIR)/man1 $(MANDIR)/man3 $(MANDIR)/man8
 	$(INSTALL) -d $(VBOXLIBDIR)/bin
 	$(INSTALL) -d $(VBOXLIBDIR)/tpl/alias $(VBOXLIBDIR)/tpl/autoconfig $(VBOXLIBDIR)/tpl/awl $(VBOXLIBDIR)/tpl/domain
@@ -362,22 +369,28 @@ real-install: all test rcvboxadm
 	$(INSTALL) -g $(WWWGROUP) -d $(VHDIR)/cgi-bin $(VHDIR)/htdocs/images/knob $(VHDIR)/htdocs/images/datatables
 	$(INSTALL) -g $(WWWGROUP) -d $(VHDIR)/htdocs/css/datatable $(VHDIR)/htdocs/css/themes/ui-darkness/images
 	$(INSTALL) -g $(WWWGROUP) -d $(VHDIR)/htdocs/js/libs $(VHDIR)/htdocs/js/mylibs $(VHDIR)/htdocs/js/profiling
-	$(INSTALL_PROGRAM) bin/vboxadm-ma.pl $(SBINDIR)/vboxadm-ma
 	$(INSTALL_PROGRAM) bin/vacation.pl $(VBOXLIBDIR)/bin/vacation
+	$(INSTALL_PROGRAM) bin/vboxadm-ma.pl $(SBINDIR)/vboxadm-ma
 	$(INSTALL_PROGRAM) bin/vboxadm-sa.pl $(SBINDIR)/vboxadm-sa
 	$(INSTALL_PROGRAM) bin/vboxadm.pl $(BINDIR)/vboxadm
 	$(INSTALL_PROGRAM) bin/vboxadmr.pl $(BINDIR)/vboxadmr
-	$(INSTALL_DATA) bin/*.8 $(MANDIR)/man8/
-	$(INSTALL_DATA) cgi-bin/*.1 $(MANDIR)/man1/
-	$(INSTALL_DATA) cron/*.8 $(MANDIR)/man8/
+	$(INSTALL_PROGRAM) bin/vdnsadm.pl $(BINDIR)/vdnsadm
 	$(INSTALL_WWW) cgi-bin/autodiscover.pl $(VHDIR)/cgi-bin/autodiscover.pl
-	$(INSTALL_WWW) cgi-bin/vboxadm.pl $(VHDIR)/cgi-bin/vboxadm.pl
 	$(INSTALL_WWW) cgi-bin/vboxadm.fcgi $(VHDIR)/cgi-bin/vboxadm.fcgi
+	$(INSTALL_WWW) cgi-bin/vboxadm.pl $(VHDIR)/cgi-bin/vboxadm.pl
 	$(INSTALL_WWW) cgi-bin/vboxapi.pl $(VHDIR)/cgi-bin/vboxapi.pl
-	$(INSTALL_PROGRAM) cron/cleanup.pl $(VBOXLIBDIR)/bin/cleanup
+	$(INSTALL_WWW) cgi-bin/vdnsadm.fcgi $(VHDIR)/cgi-bin/vdnsadm.fcgi
+	$(INSTALL_WWW) cgi-bin/vdnsadm.pl $(VHDIR)/cgi-bin/vdnsadm.pl
+	$(INSTALL_WWW) cgi-bin/vdnsapi.pl $(VHDIR)/cgi-bin/vdnsapi.pl
+	$(INSTALL_CONF) conf/vboxadm.conf.dist $(CFGDIR)/vboxadm/vboxadm.conf
+	$(INSTALL_CONF) conf/vdnsadm.conf.dist $(CFGDIR)/vdnsadm/vdnsadm.conf
 	$(INSTALL_PROGRAM) cron/awl.pl $(VBOXLIBDIR)/bin/awl
-	$(INSTALL_PROGRAM) cron/notify.pl $(VBOXLIBDIR)/bin/notify
+	$(INSTALL_PROGRAM) cron/cleanup.pl $(VBOXLIBDIR)/bin/cleanup
 	$(INSTALL_PROGRAM) cron/mailarchive.pl $(VBOXLIBDIR)/bin/mailarchive
+	$(INSTALL_PROGRAM) cron/notify.pl $(VBOXLIBDIR)/bin/notify
+	$(INSTALL_CONF) doc/vboxadm/apache/vboxadm.conf $(CFGDIR)/vboxadm/apache.conf
+	$(INSTALL_CONF) doc/vboxadm/lighttpd/50-vboxadm.conf $(CFGDIR)/vboxadm/lighttpd.conf
+	$(INSTALL_CONF) doc/vdnsadm/powerdns/pdns.local $(CFGDIR)/vboxadm/pdns.local
 	$(INSTALL_DATA) lib/VBoxAdm/Controller/*.pm $(LIBDIR)/VBoxAdm/Controller/
 	$(INSTALL_DATA) lib/VBoxAdm/Controller/VBoxAdm::*.3 $(MANDIR)/man3/
 	$(INSTALL_DATA) lib/VBoxAdm/L10N/*.pm $(LIBDIR)/VBoxAdm/L10N/
@@ -389,18 +402,36 @@ real-install: all test rcvboxadm
 	$(INSTALL_DATA) lib/VBoxAdm/SMTP/VBoxAdm::*.3 $(MANDIR)/man3/
 	$(INSTALL_DATA) lib/VBoxAdm/*.pm $(LIBDIR)/VBoxAdm/
 	$(INSTALL_DATA) lib/VBoxAdm/VBoxAdm::*.3 $(MANDIR)/man3/
-	$(INSTALL_DATA) tpl/*.tpl $(VBOXLIBDIR)/tpl/
-	$(INSTALL_DATA) tpl/alias/*.tpl $(VBOXLIBDIR)/tpl/alias/
-	$(INSTALL_DATA) tpl/autoconfig/*.tpl $(VBOXLIBDIR)/tpl/autoconfig/
-	$(INSTALL_DATA) tpl/awl/*.tpl $(VBOXLIBDIR)/tpl/awl/
-	$(INSTALL_DATA) tpl/domain/*.tpl $(VBOXLIBDIR)/tpl/domain/
-	$(INSTALL_DATA) tpl/domain_alias/*.tpl $(VBOXLIBDIR)/tpl/domain_alias/
-	$(INSTALL_DATA) tpl/includes/*.tpl $(VBOXLIBDIR)/tpl/includes/
-	$(INSTALL_DATA) tpl/mailbox/*.tpl $(VBOXLIBDIR)/tpl/mailbox/
-	$(INSTALL_DATA) tpl/notify/*.tpl $(VBOXLIBDIR)/tpl/notify/
-	$(INSTALL_DATA) tpl/rfc_notify/*.tpl $(VBOXLIBDIR)/tpl/rfc_notify/
-	$(INSTALL_DATA) tpl/vacation_blacklist/*.tpl $(VBOXLIBDIR)/tpl/vacation_blacklist/
-	$(INSTALL_DATA) tpl/vacation_notify/*.tpl $(VBOXLIBDIR)/tpl/vacation_notify/
+	$(INSTALL_DATA) lib/VDnsAdm/Controller/*.pm $(LIBDIR)/VDnsAdm/Controller/
+	$(INSTALL_DATA) lib/VDnsAdm/Controller/VDnsAdm::*.3 $(MANDIR)/man3/
+	$(INSTALL_DATA) lib/VDnsAdm/L10N/*.pm $(LIBDIR)/VDnsAdm/L10N/
+	$(INSTALL_DATA) lib/VDnsAdm/Model/*.pm $(LIBDIR)/VDnsAdm/Model/
+	$(INSTALL_DATA) lib/VDnsAdm/Model/VDnsAdm::*.3 $(MANDIR)/man3/
+	$(INSTALL_DATA) lib/VDnsAdm/*.pm $(LIBDIR)/VDnsAdm/
+	$(INSTALL_DATA) lib/VDnsAdm/VDnsAdm::*.3 $(MANDIR)/man3/
+	$(INSTALL_DATA) lib/VWebAdm/Model/*.pm $(LIBDIR)/VWebAdm/Model/
+	$(INSTALL_DATA) lib/VWebAdm/Model/VWebAdm::*.3 $(MANDIR)/man3/
+	$(INSTALL_DATA) lib/VWebAdm/*.pm $(LIBDIR)/VWebAdm/
+	$(INSTALL_DATA) lib/VWebAdm/VWebAdm::*.3 $(MANDIR)/man3/
+	$(INSTALL_DATA) tpl/vboxadm/*.tpl $(VBOXLIBDIR)/tpl/
+	$(INSTALL_DATA) tpl/vboxadm/alias/*.tpl $(VBOXLIBDIR)/tpl/alias/
+	$(INSTALL_DATA) tpl/vboxadm/autoconfig/*.tpl $(VBOXLIBDIR)/tpl/autoconfig/
+	$(INSTALL_DATA) tpl/vboxadm/awl/*.tpl $(VBOXLIBDIR)/tpl/awl/
+	$(INSTALL_DATA) tpl/vboxadm/domain/*.tpl $(VBOXLIBDIR)/tpl/domain/
+	$(INSTALL_DATA) tpl/vboxadm/domain_alias/*.tpl $(VBOXLIBDIR)/tpl/domain_alias/
+	$(INSTALL_DATA) tpl/vboxadm/includes/*.tpl $(VBOXLIBDIR)/tpl/includes/
+	$(INSTALL_DATA) tpl/vboxadm/mailbox/*.tpl $(VBOXLIBDIR)/tpl/mailbox/
+	$(INSTALL_DATA) tpl/vboxadm/notify/*.tpl $(VBOXLIBDIR)/tpl/notify/
+	$(INSTALL_DATA) tpl/vboxadm/rfc_notify/*.tpl $(VBOXLIBDIR)/tpl/rfc_notify/
+	$(INSTALL_DATA) tpl/vboxadm/vacation_blacklist/*.tpl $(VBOXLIBDIR)/tpl/vacation_blacklist/
+	$(INSTALL_DATA) tpl/vboxadm/vacation_notify/*.tpl $(VBOXLIBDIR)/tpl/vacation_notify/
+	$(INSTALL_DATA) tpl/vdnsadm/domain/*.tpl $(VDNSLIBDIR)/tpl/domain/
+	$(INSTALL_DATA) tpl/vdnsadm/includes/*.tpl $(VDNSLIBDIR)/tpl/includes/
+	$(INSTALL_DATA) tpl/vdnsadm/record/*.tpl $(VDNSLIBDIR)/tpl/record/
+	$(INSTALL_DATA) tpl/vdnsadm/user/*.tpl $(VDNSLIBDIR)/tpl/user/
+	$(INSTALL_DATA) tpl/vdnsadm/*.tpl $(VDNSLIBDIR)/tpl/
+	$(INSTALL_DATA) tpl/vwebadm/includes/*.tpl $(VWEBLIBDIR)/tpl/includes/
+	$(INSTALL_DATA) tpl/vwebadm/*.tpl $(VWEBLIBDIR)/tpl/
 	$(INSTALL_DATA) res/css/*.css $(VHDIR)/htdocs/css/
 	$(INSTALL_DATA) res/css/datatable/*.css $(VHDIR)/htdocs/css/datatable/
 	$(INSTALL_DATA) res/css/themes/ui-darkness/*.css $(VHDIR)/htdocs/css/themes/ui-darkness/
@@ -410,15 +441,14 @@ real-install: all test rcvboxadm
 	$(INSTALL_DATA) res/images/datatables/*.png $(VHDIR)/htdocs/images/datatables/
 	$(INSTALL_DATA) res/js/*.js $(VHDIR)/htdocs/js/
 	$(INSTALL_DATA) res/js/libs/*.js $(VHDIR)/htdocs/js/libs/
-#	$(INSTALL_DATA) res/js/mylibs/*.js $(VHDIR)/htdocs/js/mylibs/
 	$(INSTALL_DATA) res/js/profiling/*.js $(VHDIR)/htdocs/js/profiling/
 	$(INSTALL_DATA) res/apple-touch-icon.png $(VHDIR)/htdocs/apple-touch-icon.png
 	$(INSTALL_DATA) res/crossdomain.xml $(VHDIR)/htdocs/crossdomain.xml
 	$(INSTALL_DATA) res/favicon.ico $(VHDIR)/htdocs/favicon.ico
 	$(INSTALL_DATA) res/robots.txt $(VHDIR)/htdocs/robots.txt
-	$(INSTALL_CONF) conf/vboxadm.conf.dist $(CFGDIR)/vboxadm/vboxadm.conf
-	$(INSTALL_CONF) doc/apache/vboxadm.conf $(CFGDIR)/vboxadm/apache.conf
-	$(INSTALL_CONF) doc/lighttpd/50-vboxadm.conf $(CFGDIR)/vboxadm/lighttpd.conf
+	$(INSTALL_DATA) bin/*.8 $(MANDIR)/man8/
+	$(INSTALL_DATA) cgi-bin/*.1 $(MANDIR)/man1/
+	$(INSTALL_DATA) cron/*.8 $(MANDIR)/man8/
 
 tidy:
 	$(FIND) . -name "*.ipl" -exec $(PERLTIDY) {} \;
@@ -431,17 +461,24 @@ clean:
 	$(FIND) cgi-bin/ -name "*.pl" -exec $(RM) {} \;
 	$(FIND) cron/ -name "*.pl" -exec $(RM) {} \;
 	$(FIND) t/ -name "*.t" -exec $(RM) {} \;
-	$(RM) -f tpl/alias/*.tpl
-	$(RM) -f tpl/awl/*.tpl
-	$(RM) -f tpl/domain/*.tpl
-	$(RM) -f tpl/domain_alias/*.tpl
-	$(RM) -f tpl/includes/*.tpl
-	$(RM) -f tpl/mailbox/*.tpl
-	$(RM) -f tpl/rfc_notify/*.tpl
-	$(RM) -f tpl/role_account/*.tpl
-	$(RM) -f tpl/vacation_blacklist/*.tpl
-	$(RM) -f tpl/vacation_notify/*.tpl
-	$(RM) -f tpl/*.tpl
+	$(RM) -f tpl/vboxadm/alias/*.tpl
+	$(RM) -f tpl/vboxadm/awl/*.tpl
+	$(RM) -f tpl/vboxadm/domain/*.tpl
+	$(RM) -f tpl/vboxadm/domain_alias/*.tpl
+	$(RM) -f tpl/vboxadm/includes/*.tpl
+	$(RM) -f tpl/vboxadm/mailbox/*.tpl
+	$(RM) -f tpl/vboxadm/rfc_notify/*.tpl
+	$(RM) -f tpl/vboxadm/role_account/*.tpl
+	$(RM) -f tpl/vboxadm/vacation_blacklist/*.tpl
+	$(RM) -f tpl/vboxadm/vacation_notify/*.tpl
+	$(RM) -f tpl/vboxadm/*.tpl
+	$(RM) -f tpl/vdnsadm/domain/*.tpl
+	$(RM) -f tpl/vdnsadm/includes/*.tpl
+	$(RM) -f tpl/vdnsadm/record/*.tpl
+	$(RM) -f tpl/vdnsadm/user/*.tpl
+	$(RM) -f tpl/vdnsadm/*.tpl
+	$(RM) -f tpl/vwebadm/includes/*.tpl
+	$(RM) -f tpl/vwebadm/*.tpl
 	$(FIND) . -name "*.bak" -exec $(RM) {} \;
 	$(FIND) . -name "*.ERR" -exec $(RM) {} \;
 	$(FIND) . -name "*.LOG" -exec $(RM) {} \;
