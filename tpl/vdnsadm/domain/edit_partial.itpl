@@ -1,0 +1,64 @@
+<div class="forms">
+	<form name="create_domain" method="POST">
+		<input type="hidden" name="rm" value="update_domain" />
+		<h1>[% "Modify a domain" | l10n %]</h1>
+		
+		<label for="domain_name">
+			[% "Domain:" | l10n %]
+			<span class="small"></span>
+		</label>
+		[% domain_name %]
+		
+		<div class="spacer"></div>
+		
+		<label for="master">
+			[% "Master:" | l10n %]
+			<span class="small"></span>
+		</label>
+		<input type="text" name="master" value="[% master %]" />
+		
+		<div class="spacer"></div>
+		
+		<label for="last_check">
+			[% "Last Check:" | l10n %]
+			<span class="small"></span>
+		</label>
+		<input type="text" name="last_check" value="[% last_check %] />
+		
+		<div class="spacer"></div>
+		
+		<label for="type">
+			[% "Type:" | l10n %]
+			<span class="small"></span>
+		</label>
+		<select name="type">
+			<option[% IF type == 'MASTER' %] selected[% END %]>MASTER</option>
+			<option[% IF type == 'SLAVE' %] selected[% END %]>SLAVE</option>
+		</select>
+		
+		<div class="spacer"></div>
+		
+		<label for="notified_serial">
+			[% "Notified Serial:" | l10n %]
+			<span class="small"></span>
+		</label>
+		<input type="text" name="notified_serial" value="[% notified_serial %]" />
+		
+		<div class="spacer"></div>
+		
+		<label for="is_active">
+			[% "Enabled:" | l10n %]
+			<span class="small"></span>
+		</label>
+		<input type="checkbox" name="is_active" [% IF is_active %]checked[% END %] />
+		
+		<div class="spacer"></div>
+		
+		<button class="button" type="submit" name="submit">
+			<img src="[% media_prefix %]/icons/fffsilk/accept.png" border="0" />
+			[% "Modify Domain-Alias" | l10n %]
+		</button>
+		
+		<input type="hidden" name="domain_id" value="[% domain_id %]" />
+	</form>
+</div>

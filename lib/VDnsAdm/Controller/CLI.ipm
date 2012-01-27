@@ -1,0 +1,703 @@
+package VDnsAdm::Controller::CLI;
+
+use lib '@LIBDIR@';
+
+use Moose;
+use namespace::autoclean;
+
+use English qw(-no_match_vars);
+use Carp;
+use CPAN;
+use Data::Dumper;
+use Getopt::Long;
+use File::Temp;
+use Config::Std;    # TODO use config class
+use Net::Domain;
+use Text::Levenshtein qw(distance);
+
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
+use VBoxAdm::Migration '@VERSION@';
+use VWebAdm::SaltedHash '@VERSION@';
+use VWebAdm::Password '@VERSION@';
+use VDnsAdm::Model::Domain '@VERSION@';
+use VDnsAdm::Model::Record '@VERSION@';
+use VWebAdm::Model::MessageQueue '@VERSION@';
+use VDnsAdm::Model::User '@VERSION@';
+use VDnsAdm::L10N '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
+
+binmode( STDIN, ':utf8' );
+
+has 'config' => (
+    'is'  => 'rw',
+    'isa' => 'Object',
+);
+
+has 'logger' => (
+    'is'      => 'ro',
+    'isa'     => 'VWebAdm::Logger',
+    'lazy'    => 1,
+    'builder' => '_init_logger',
+);
+
+has 'dbh' => (
+    'is'      => 'ro',
+    'isa'     => 'Object',
+    'lazy'    => 1,
+    'builder' => '_init_dbh',
+);
+
+has 'msgq' => (
+    'is'      => 'ro',
+    'isa'     => 'VWebAdm::Model::MessageQueue',
+    'lazy'    => 1,
+    'builder' => '_init_msgq',
+);
+
+has 'help' => (
+    'is'      => 'ro',
+    'isa'     => 'HashRef',
+    'lazy'    => 1,
+    'builder' => '_init_help',
+);
+
+has 'actions' => (
+    'is'      => 'ro',
+    'isa'     => 'HashRef',
+    'lazy'    => 1,
+    'builder' => '_init_actions',
+);
+
+has 'domain' => (
+    'is'      => 'ro',
+    'isa'     => 'VDnsAdm::Model::Domain',
+    'lazy'    => 1,
+    'builder' => '_init_domain',
+);
+
+sub _init_domain {
+    my $self = shift;
+
+    my $Domain = VDnsAdm::Model::Domain::->new(
+        {
+            'dbh'    => $self->dbh(),
+            'logger' => $self->logger(),
+            'config' => $self->config(),
+            'user'   => $self->user(),
+            'msgq'   => $self->msgq(),
+        }
+    );
+
+    return $Domain;
+}
+
+has 'record' => (
+    'is'      => 'ro',
+    'isa'     => 'VDnsAdm::Model::Record',
+    'lazy'    => 1,
+    'builder' => '_init_record',
+);
+
+sub _init_record {
+    my $self = shift;
+
+    my $Record = VDnsAdm::Model::Record::->new(
+        {
+            'dbh'    => $self->dbh(),
+            'logger' => $self->logger(),
+            'config' => $self->config(),
+            'user'   => $self->user(),
+            'msgq'   => $self->msgq(),
+        }
+    );
+
+    return $Record;
+}
+
+sub _init_logger {
+    my $self = shift;
+
+    return VWebAdm::Logger::->new('vdnsadm/cli');
+}
+
+sub _init_dbh {
+    my $self = shift;
+
+    # TODO refactor config class
+    # Database connection
+    #
+    my $hostname = $self->config()->{'default'}->{'dbhost'} || 'localhost';
+    my $database = $self->config()->{'default'}->{'dbdb'}   || 'vdnsadm';
+    my $username = $self->config()->{'default'}->{'dbuser'} || 'vdnsadm';
+    my $password = $self->config()->{'default'}->{'dbpass'} || 'vdnsadm';
+    my $port     = $self->config()->{'default'}->{'dbport'} || 3306;
+
+    my $dsn = "DBI:mysql:host=$hostname;database=$database;port=$port;user=$username;password=$password";
+    my $dbh = &VWebAdm::DB::connect( $dsn, { RaiseError => 0, PrintError => 0, } );
+
+    if ( !$dbh ) {
+        die("Could not connect to DB!\n");
+    }
+    else {
+
+        #print "Connected to DB\n";
+        $self->logger()->log( message => "Connected to DB w/ DSN $dsn", level => 'debug', );
+        return $dbh;
+    }
+}
+
+sub _init_msgq {
+    my $self = shift;
+    my $MQ   = VWebAdm::Model::MessageQueue::->new(
+        {
+            'lh'    => VDnsAdm::L10N::->get_handle(),
+            'lh_en' => VDnsAdm::L10N::->get_handle('en'),
+        }
+    );
+    return $MQ;
+}
+
+has 'opts' => (
+    'is'      => 'ro',
+    'isa'     => 'HashRef',
+    'default' => sub { {} },
+);
+
+has 'modes' => (
+    'is'      => 'ro',
+    'isa'     => 'ArrayRef',
+    'default' => sub { [] },
+);
+
+has 'config_locations' => (
+    'is'      => 'ro',
+    'isa'     => 'ArrayRef',
+    'lazy'    => 1,
+    'builder' => '_init_config_locs',
+);
+
+sub _init_config_locs {
+    my $self = shift;
+
+    # Valid config file locations to try
+    my @conffile_locations = qw(
+      vdnsadm.conf
+      conf/vdnsadm.conf
+      /etc/vdnsadm/vdnsadm.conf
+      @CFGDIR@/vdnsadm/vdnsadm.conf
+    );
+
+    return \@conffile_locations;
+}
+
+# TODO allow changing the pw_lock flag on mailboxes
+
+sub _read_options {
+    my $self = shift;
+
+    GetOptions(
+        'verbose|v+'    => \$self->opts()->{Verbose},
+        'dry|d!'        => \$self->opts()->{Dry},
+        'quiet|q!'      => \$self->opts()->{Quiet},
+        'force|f!'      => \$self->opts()->{Force},
+        'name|n=s'      => \$self->opts()->{Name},
+        'source|s=s'    => \$self->opts()->{Source},
+        'source-db|d=s' => \$self->opts()->{SourceDb},
+        'truncate!'     => \$self->opts()->{Truncate},
+        'bootstrap!'    => \$self->opts()->{Bootstrap},
+        '<>'            => sub { my $m = shift; push( @{ $self->modes() }, lc($m) ); },
+
+        # shift removes name of the option (config) and leaves the value for unshift
+        # unshift prepends to the list of valid config files so it is tried first
+        'config=s' => sub { shift; unshift( @{ $self->config_locations() }, @_ ); },
+        'active|a=i'      => \$self->opts()->{IsActive},
+        'goto|g=s'        => \$self->opts()->{Goto},
+        'password|p=s'    => sub { shift; my $p = shift; $self->opts()->{Password} = $p; $self->opts()->{PasswordAgain} = $p; },
+        'maxmsgsize|m=i'  => \$self->opts()->{MaxMsgSize},
+        'siteadmin=s'     => \$self->opts()->{IsSiteadmin},
+        'domainadmin=s'   => \$self->opts()->{IsDomainadmin},
+        'sakillscore|k=i' => \$self->opts()->{SAKillScore},
+        'saactive=i'      => \$self->opts()->{SAActive},
+        'vacation=i'      => \$self->opts()->{IsOnVacation},
+        'vacsubj=s'       => \$self->opts()->{VacationSubject},
+        'vacmsg=s'        => \$self->opts()->{VacationMessage},
+        'vacstart=s'      => \$self->opts()->{VacationStart},
+        'vacend=s'        => \$self->opts()->{VacationEnd},
+        'forcepass!'      => \$self->opts()->{ForcePassword},
+    ) or confess "Unknown Command";
+
+    return 1;
+}
+
+has 'conffile_used' => (
+    'is'  => 'rw',
+    'isa' => 'Str',
+);
+
+sub _read_config {
+    my $self = shift;
+
+    my %config;
+
+    # Try all config file locations
+    foreach my $loc ( @{ $self->config_locations() } ) {
+        if ( -r $loc ) {
+            $self->conffile_used($loc);
+            read_config $loc => %config;
+            last;
+        }
+    }
+
+    $config{'default'}{'dbhost'}   ||= 'localhost';
+    $config{'default'}{'dbuser'}   ||= 'vboxadm';
+    $config{'default'}{'dbpass'}   ||= '';
+    $config{'default'}{'dbport'}   ||= 3306;
+    $config{'default'}{'dbdb'}     ||= 'vboxadm';
+    $config{'default'}{'pwscheme'} ||= 'sha256';
+
+    $self->config( \%config );
+
+    return 1;
+}
+
+sub run {
+    my $self = shift;
+
+    $self->_read_options();
+    $self->_read_config();
+
+    my $module = shift @{ $self->modes() };
+    my $action = shift @{ $self->modes() };
+
+    if ( $module && $module eq 'help' ) {
+        if ( $action && $self->help()->{$action} ) {
+            print $self->help()->{$action} . "\n";
+        }
+        else {
+            print $self->help()->{'help'} . "\n";
+        }
+    }
+    elsif ( $module && $module eq 'migrate' ) {
+        return $self->migrate();
+    }
+    elsif ( $module && $action && ref( $self->actions()->{$module}{$action} ) eq 'CODE' && ( $action eq 'list' || scalar( @{ $self->modes() } ) > 0 ) ) {
+        return &{ $self->actions()->{$module}{$action} }( @{ $self->modes() } );
+    }
+    else {
+        print "Invalid/Missing module and/or action.\n";
+        if ( $module && $action && $self->actions()->{$module} ) {
+            print "Did you mean " . $self->get_similar_action( $action, $module ) . "?\n";
+        }
+        elsif ( $module && !$self->actions()->{$module} ) {
+            print "Did you mean " . $self->get_similar_module($module) . "?\n";
+        }
+        return;
+    }
+
+    return;
+}
+
+sub _init_help {
+    my $self = shift;
+
+    my %help = (
+        'help' => "Invocation: $0 <Module> <Action> <Parameter(s)> <Options>
+VDnsAdm CLI Client, Version @VERSION@
+Enter 'vdnsadm help <module>' to get help for a module.
+Available subcommands:
+\talias - Manage Aliases
+\tawl - Manage Auto-Whitelist
+\tdomain - Manage Domains
+\tdomainalias - Manage alias domains
+\tmailbox - Manage users and mailboxes
+\tvacbl - Manage Vacation Blacklist
+\tmigrate - Migrate Debmin1, Debmin2, Vexim or Postfix.Admin to VBoxAdm
+
+Options:
+-v - Verbose
+-d - Dry
+-q - Quiet
+-f - Force
+-n - Name
+",
+        'domain' => "Domain - Manage Domains
+Available subcommands:
+\tadd
+\tdelete
+\tupdate
+\tlist
+",
+        'mailbox' => "Mailbox - Manage users and mailboxes
+Available subcommands:
+\tadd
+\tdelete
+\tupdate
+\tlist",
+    );
+
+    return \%help;
+}
+
+sub _init_actions {
+    my $self = shift;
+
+    my %actions = (
+        'domain' => {
+            'add' => sub {
+                my $domain = shift;
+                print "Add Domain.\n";
+                $self->domain()->create($domain);
+                $self->display_messages();
+            },
+            'update' => sub {
+                my $domain = shift;
+                my $params;
+                foreach my $key (qw(IsActive)) {
+                    $params->{$key} = $self->opts()->{$key} if defined( $self->opts()->{$key} );
+                }
+                print "Update Domain.\n";
+                $self->domain()->update( $self->domain()->get_id($domain), $params );
+                $self->display_messages();
+            },
+            'delete' => sub {
+                my $domain = shift;
+                print "Delete Domain.\n";
+                $self->domain()->delete( $self->domain()->get_id($domain) );
+                $self->display_messages();
+            },
+            'list' => sub {
+                print "Listing Domains:\n";
+                my $format = "%i\t%s\t%i\n";
+                print "ID\tDomain\tIs Active\n";
+                foreach my $domain ( $self->domain()->list() ) {
+                    printf( $format, @{$domain}{qw(id name is_active)} );
+                }
+                $self->display_messages();
+            },
+        },
+        'record' => {
+            'add' => sub {
+                my $email = shift;
+                my ( $local_part, $domain ) = split /@/, $email;
+                my $domain_id = $self->domain()->get_id($domain);
+                if ( !$domain_id ) {
+
+                    # Try to create domain first
+                    $self->domain()->create($domain);
+                    $domain_id = $self->domain()->get_id($domain);
+                }
+                if ( !$domain_id ) {
+                    print "Unknown Domain. Please create Domain first.\n";
+                    return;
+                }
+                my $params;
+                foreach my $key (
+                    qw(
+                    Password PasswordAgain
+                    Name IsActive MaxMsgSize IsSiteadmin IsDomainadmin
+                    SAKillScore SAActive
+                    IsOnVacation VacationSubject VacationMessage VacationStart VacationEnd
+                    )
+                  )
+                {
+                    $params->{$key} = $self->opts()->{$key} if defined( $self->opts()->{$key} );
+                }
+                print "Add User: $email\n";
+                $self->mailbox()->create( $local_part, $domain_id, $params );
+                $self->display_messages();
+            },
+            'update' => sub {
+                my $email = shift;
+                my $mailbox_id;
+                if ( $email =~ m/^\d+$/ ) {
+                    $mailbox_id = $email;
+                }
+                else {
+                    $mailbox_id = $self->record()->get_id($email);
+                }
+                my $params;
+                foreach my $key (
+                    qw(
+                    Password PasswordAgain
+                    Name IsActive MaxMsgSize IsSiteadmin IsDomainadmin
+                    SAKillScore SAActive
+                    IsOnVacation VacationSubject VacationMessage VacationStart VacationEnd
+                    ForcePassword
+                    )
+                  )
+                {
+                    $params->{$key} = $self->opts()->{$key} if defined( $self->opts()->{$key} );
+                }
+
+                print "Update User: $email\n";
+                $self->record()->update( $mailbox_id, $params );
+                $self->display_messages();
+            },
+            'delete' => sub {
+                my $record = shift;
+                print "Delete Record # $record\n";
+                my $record_id;
+                if ( $record =~ m/^\d+$/ ) {
+                    $record_id = $record;
+                }
+                else {
+
+                    # TODO throw error
+                }
+                $self->record()->delete($record_id);
+                $self->display_messages();
+            },
+            'list' => sub {
+                my $domain = shift;
+                my $domain_id;
+                if ( $domain =~ m/^\d+$/ ) {
+                    $domain_id = $domain;
+                }
+                else {
+                    $domain_id = $self->domain()->get_id($domain);
+                }
+                print "Listing Records:\n";
+
+                # sub IN type ttl prio content
+                my $format = "%i) %s IN %s %i %i %s\n";
+                print "ID\tSubdomain\tIN\tType\tTTL\tPrio\tContent\n";
+                foreach my $record ( $self->record()->list() ) {
+                    printf( $format, @{$record}{qw(id name type ttl prio content)} );
+                }
+                $self->display_messages();
+            },
+        },
+    );
+
+    return \%actions;
+}
+
+sub display_messages {
+    my $self = shift;
+
+    my $format = "[%10s] %s\n";
+    foreach my $msg ( $self->msgq()->pop() ) {
+        printf( $format, uc( $msg->{'severity'} ), $msg->{'en'} );
+    }
+
+    return 1;
+}
+
+sub get_similar_module {
+    my $self    = shift;
+    my $cmd     = shift;
+    my $actions = shift;
+    my @a       = sort { distance( $cmd, $a ) <=> distance( $cmd, $b ) } keys %{$actions};
+    return $a[0];
+}
+
+sub get_similar_action {
+    my $self    = shift;
+    my $cmd     = shift;
+    my $module  = shift;
+    my $actions = shift;
+    my @a       = sort { distance( $cmd, $a ) <=> distance( $cmd, $b ) } keys %{ $self->actions()->{$module} };
+    return $a[0];
+}
+
+sub migrate {
+    my $self = shift;
+
+    if ( !$self->opts()->{'Source'} ) {
+        print "Need source-type (--source).\n";
+        return;
+    }
+
+    if ( !$self->opts()->{'SourceDb'} ) {
+        $self->opts()->{'SourceDb'} = $self->config()->{'Source'};
+    }
+
+    if ( &VBoxAdm::Migration::migrate( $self->dbh(), $self->config(), $self->opts()->{'Source'}, $self->opts()->{'SourceDb'}, 'vboxadm', $self->opts() ) ) {
+
+        #print "Migration OK\n" unless $config->{'Quiet'};
+        return 1;
+    }
+    else {
+
+        #print "Migration FAILED\n" unless $config->{'Quiet'};
+        return;
+    }
+}
+
+has 'user' => (
+    'is'      => 'rw',
+    'isa'     => 'VWebAdm::Model::User',
+    'lazy'    => 1,
+    'builder' => '_init_user',
+);
+
+sub _init_user {
+    my $self = shift;
+    my $opts = shift || {};
+
+    if ( $self->opts()->{'Bootstrap'} && $EUID == 0 ) {
+        my $User = VDnsAdm::Model::User::->new(
+            {
+                'dbh'        => $self->dbh(),
+                'logger'     => $self->logger(),
+                'config'     => $self->config(),
+                'msgq'       => $self->msgq(),
+                'SystemUser' => 1,
+            }
+        );
+        return $User;
+    }
+
+    my $conf = $ENV{'HOME'} . '/.vboxadm.cnf';
+    my %user_config;
+    if ( -f $conf || $self->config()->{'quiet'} ) {
+        print "check_login - Reading config from $conf ...\n" if $self->opts()->{'Verbose'};
+        read_config $conf => %user_config;
+    }
+    else {
+        print "No .vboxadm.cnf found in your home.\n";
+        $user_config{'auth'}{'username'} = $self->ask_string('Please enter the email of an site-admin');
+        $user_config{'auth'}{'password'} = $self->ask_string('Please enter the password');
+        if ( $self->ask_yesno('Should I create a .vboxadm.cnf for you?') ) {
+            write_config %user_config => $conf;
+        }
+    }
+
+    # check if login works
+    if ( !&VWebAdm::Utils::is_valid_address_rfc822( $user_config{'auth'}{'username'} ) ) {
+        print "Invalid email address given.\n" unless $self->opts()->{'Quiet'};
+        return;
+    }
+    my $User = VDnsAdm::Model::User::->new(
+        {
+            'dbh'      => $self->dbh(),
+            'logger'   => $self->logger(),
+            'config'   => $self->config(),
+            'username' => $user_config{'auth'}{'username'},
+            'msgq'     => $self->msgq(),
+        }
+    );
+    if ( !$User ) {
+        confess("Could not create User object!\n");
+    }
+    if ( !$User->login( $user_config{'auth'}{'password'} ) ) {
+        confess("Password invalid!\n");
+    }
+    if ( !$User->is_siteadmin() ) {
+        confess("You are no siteadmin!\n");
+    }
+    print "Authorized as site-admin " . $user_config{'auth'}{'username'} . "\n" if $self->opts()->{'Verbose'};
+    return $User;
+}
+
+sub ask_select {
+    my ( $self, $msg, @options ) = @_;
+
+    # let user select on of the options provided
+    while (1) {
+        print $msg. "\n";
+        my $i = 0;
+        foreach my $opt (@options) {
+            print "[$i] $opt\n";
+            $i++;
+        }
+        my $num = $self->ask_number( 'Print enter any number between 0 and ' . $i . '. Press enter to abort' );
+        if ( defined($num) && $options[$num] ) {
+            return wantarray ? ( $num, $options[$num] ) : $options[$num];
+        }
+        else {
+            return;
+        }
+    }
+    return;
+}
+
+sub ask_yesno {
+    my ( $self, $msg ) = @_;
+    print $msg. " [y/N]: ";
+    ## no critic (ProhibitExplicitStdin)
+    my $resp = <STDIN>;
+    ## use critic
+    chomp($resp);
+    if ( $resp =~ m/(1|Yes|Ja|Y)/i ) {
+        return 1;
+    }
+    return;
+}
+
+sub ask_number {
+    my ( $self, $msg ) = @_;
+    print $msg. ": ";
+    ## no critic (ProhibitExplicitStdin)
+    my $resp = <STDIN>;
+    ## use critic
+    chomp($resp);
+    if ( $resp =~ m/^\s*(\d+)\s*$/ ) {
+        return $1;
+    }
+    return;
+}
+
+sub ask_string {
+    my ( $self, $msg ) = @_;
+    print $msg. ": ";
+    ## no critic (ProhibitExplicitStdin)
+    my $resp = <STDIN>;
+    ## use critic
+    chomp($resp);
+    return $resp;
+}
+
+no Moose;
+__PACKAGE__->meta->make_immutable;
+
+1;
+
+__END__
+
+Common opts:
+-f - force
+-q - quiet
+-v - verbose
+
+=head1 User
+
+user add [-p <password>] [-n <name>] <email> - Add a new user/mailbox
+user update [-p <password>] [-n <name>] [- ...] <email> - Modify mailbox
+user delete <email> - Delete mailbox
+
+=head1 Alias
+
+alias add <email> <goto>
+alias update <email> <goto>
+alias delete <email>
+
+=head1 Domain
+
+domain add <domain>
+domain update [...] <domain>
+domain delete <domain>
+
+=head1 Domain Alias
+
+domainalias add <domain> <goto>
+domainalias update [...] <domain>
+domainalias delete <domain>
+
+=head1 Vacation Blacklist
+
+vbl add <email>
+
+=head1 AWL
+
+awl add <email>
+awl lock <email>
+
+=head1 Setup
+
+setup - enter interactive setup
+
+=head1 migrate
+
+migrate -s <source-db> -t <source-type>

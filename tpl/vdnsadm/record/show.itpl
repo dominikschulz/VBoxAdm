@@ -1,0 +1,6 @@
+[% INCLUDE vwebadm/includes/header.tpl %]
+    <div id="main" role="main">
+    	<h2>Viewing Record: [% id %]</h2>
+    	[% name %].[% domain %] [% ttl %] IN [% type %] [% prio %] [% content %]<br />
+    </div>
+[% INCLUDE vwebadm/includes/footer.tpl %]

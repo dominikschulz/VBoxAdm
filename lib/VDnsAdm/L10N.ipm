@@ -1,0 +1,69 @@
+package VDnsAdm::L10N;
+
+use strict;
+use warnings;
+
+use base qw(VWebAdm::L10N);
+
+our $VERSION = '@VERSION@';
+
+our %Lexicon = ( '_AUTO' => 1, );
+
+1;
+
+__END__
+see http://search.cpan.org/~toddr/Locale-Maketext-1.17/lib/Locale/Maketext.pod
+
+=head1 NAME
+
+VDnsAdm::L10N - Local::Maketext baseclass for VBoxAdm
+
+=head1 VERSION
+
+This documentation refers to VDnsAdm::L10N version @VERSION@
+built on @BUILDDATE@.
+
+=head1 SYNOPSIS
+
+    use VDnsAdm::L10N;
+
+=head1 DESCRIPTION
+
+This class provides a base class for the loclization.
+
+=head1 DEPENDENCIES
+
+DBI.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut

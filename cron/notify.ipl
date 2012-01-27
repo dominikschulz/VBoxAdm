@@ -15,7 +15,7 @@ use VBoxAdm::Logger '@VERSION@';
 use VBoxAdm::Utils '@VERSION@';
 use VBoxAdm::Controller::Notify '@VERSION@';
 
-my $RN = VBoxAdm::Controller::Notify->new();
+my $RN = VBoxAdm::Controller::Notify::->new();
 $RN->run();
 
 =begin cut
@@ -59,7 +59,7 @@ my $dbdb   = $config{'default'}{'dbdb'}   || 'vboxadm';
 my $logfile = $config{'notify'}{'logfile'} || '/var/log/mail.log';
 
 my $dsn = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;password=$dbpass";
-my $dbh = &VBoxAdm::DB::connect($dsn);
+my $dbh = &VWebAdm::DB::connect($dsn);
 
 if ( !$dbh ) {
     syslog( 2, 'Could not connect to database with DSN $dsn - From: %s - To: %s - Exiting', $config{'sender'}, $config{'recipient'} );
@@ -125,12 +125,12 @@ sub parse_reject_line {
         $vars->{'to'}            = $to;
         $vars->{'from'}          = $from;
         $vars->{'rdns'}          = $rdns;
-        $vars->{'fdns'}          = &VBoxAdm::DNS::get_a($rdns) || 'not found';
+        $vars->{'fdns'}          = &VWebAdm::DNS::get_a($rdns) || 'not found';
         $vars->{'ip'}            = $ip;
         $vars->{'system_domain'} = $config{'default'}{'domain'};
         $vars->{'logline'}       = $line;
         $vars->{'helo'}          = $helo;
-        $vars->{'helo_ip'}       = &VBoxAdm::DNS::get_a($helo) || 'not found';
+        $vars->{'helo_ip'}       = &VWebAdm::DNS::get_a($helo) || 'not found';
 
         my $from_domain;
         if ( $from =~ m/@(.*)$/ ) {
@@ -151,12 +151,12 @@ sub parse_reject_line {
             return;
         }
 
-        if ( &VBoxAdm::Utils::is_local_domain( $dbh, $from_domain ) && !$config{'notify'}{'debug'} ) {
+        if ( &VWebAdm::Utils::is_local_domain( $dbh, $from_domain ) && !$config{'notify'}{'debug'} ) {
             print "\tSKIPPED: Forged localdomain in sender ($from_domain may not be a local domain)!\n" if $config{'notify'}{'verbose'};
             return;
         }
 
-        if ( !&VBoxAdm::Utils::is_local_mailbox( $dbh, $to ) && !$config{'notify'}{'debug'} ) {
+        if ( !&VWebAdm::Utils::is_local_mailbox( $dbh, $to ) && !$config{'notify'}{'debug'} ) {
             print "\tSKIPPED: Invalid recipient ($to is no local mailbox)!\n" if $config{'notify'}{'verbose'};
             return;
         }
@@ -201,7 +201,7 @@ sub parse_reject_line {
                     print "\tDRY - Would send message to POSTMASTER:\n" . $emsg . "\n" if $config{'notify'}{'verbose'};
                 }
                 else {
-                    &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
+                    &VWebAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
                 }
             }
 
@@ -223,7 +223,7 @@ sub parse_reject_line {
                     print "\tDRY - Would send message to RECIPIENT:\n" . $emsg . "\n" if $config{'notify'}{'verbose'};
                 }
                 else {
-                    &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
+                    &VWebAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
                 }
             }
 
@@ -245,7 +245,7 @@ sub parse_reject_line {
                     print "\tDRY - Would send message to SENDER:\n" . $emsg . "\n" if $config{'notify'}{'verbose'};
                 }
                 else {
-                    &VBoxAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
+                    &VWebAdm::Utils::sendmail( 'postmaster@' . $config{'default'}{'domain'}, $emsg );
                 }
             }
 
@@ -300,7 +300,7 @@ sub set_notified {
     }
 
     my $query = "INSERT IGNORE INTO rfc_notify (email,ts) VALUES(?,NOW())";
-    if ( my $sth = &VBoxAdm::DB::prepexec( $dbh, $query, $email ) ) {
+    if ( my $sth = &VWebAdm::DB::prepexec( $dbh, $query, $email ) ) {
         $sth->finish();
         return 1;
     }
@@ -328,7 +328,7 @@ sub is_notified {
     }
 
     my $query = "SELECT COUNT(*) FROM rfc_notify WHERE email = ?";
-    my $sth   = &VBoxAdm::DB::prepexec( $dbh, $query, $email );
+    my $sth   = &VWebAdm::DB::prepexec( $dbh, $query, $email );
     my $count = $sth->fetchrow_array();
     $sth->finish();
 
@@ -388,7 +388,7 @@ logfile - The logfile.
 
 =head1 DEPENDENCIES
 
-VBoxAdm::Utils, DBI.
+VWebAdm::Utils, DBI.
 
 =head1 INCOMPATIBILITIES
 

@@ -1,0 +1,427 @@
+package VBoxAdm::Controller::API;
+
+use base 'CGI::Application';
+
+use strict;
+use warnings;
+
+use CGI::Carp qw(fatalsToBrowser);
+
+# Needed for database connection
+use CGI::Application::Plugin::DBH (qw/dbh_config dbh/);
+
+use Carp;
+use Config::Std;
+use Data::Dumper;
+
+use VWebAdm::API '@VERSION@';
+use VDnsAdm::L10N '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
+
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
+use VBoxAdm::Migration '@VERSION@';
+use VWebAdm::SaltedHash '@VERSION@';
+use VWebAdm::Password '@VERSION@';
+use VDnsAdm::Model::Domain '@VERSION@';
+use VDnsAdm::Model::Record '@VERSION@';
+use VWebAdm::Model::MessageQueue '@VERSION@';
+use VDnsAdm::Model::User '@VERSION@';
+use VDnsAdm::L10N '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
+
+our $VERSION = '@VERSION@';
+
+############################################
+# Usage      : Invoked by CGIApp
+# Purpose    : Setup the Application
+# Returns    : Nothing
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+# setup is run right after cgiapp_init
+sub setup {
+    my $self = shift;
+
+    # define the default run mode
+    $self->start_mode('api');
+
+    # define the mappings between the rm parameter and the actual sub
+    $self->run_modes(
+        'api'  => 'show_api',
+        'test' => 'show_test',
+    );
+
+    #
+    # Configuration
+    #
+    # Valid config file locations to try
+    my @conffile_locations = qw(
+      vboxadm.conf
+      conf/vboxadm.conf
+      /etc/vboxadm/vboxadm.conf
+      @CFGDIR@/vboxadm/vboxadm.conf
+    );
+
+    # if the application if run as a FastCGI app, the server might
+    # provide an additional configuration location. if the points to file
+    # add it to the list of possible locations
+    if ( $ENV{CGIAPP_CONFIG_FILE} && -f $ENV{CGIAPP_CONFIG_FILE} ) {
+        unshift( @conffile_locations, $ENV{CGIAPP_CONFIG_FILE} );
+    }
+
+    my ( %config, $conffile_used );
+
+    # Try all config file locations
+    foreach my $loc (@conffile_locations) {
+        if ( -r $loc ) {
+            $conffile_used = $loc;
+            read_config $loc => %config;
+            last;
+        }
+    }
+    if ( !$conffile_used ) {
+        syslog( 2, "setup - Warning: No readable config file found in search path! (" . join( ':', @conffile_locations ) . ")" );
+    }
+    $config{'quiet'} = 1;
+    $self->{config} = \%config;
+
+    #
+    # Database
+    #
+    my $user = $config{'default'}{'dbuser'} || 'root';
+    my $pass = $config{'default'}{'dbpass'} || 'root';
+    my $db   = $config{'default'}{'dbdb'}   || 'vboxadm';
+    my $port = $config{'default'}{'dbport'} || 3306;
+    my $host = $config{'default'}{'dbhost'} || 'localhost';
+    my $dsn  = "DBI:mysql:database=$db;user=$user;password=$pass;host=$host;port=$port";
+    $self->{base_url}     = $config{'cgi'}{'base_url'}     || '/cgi-bin/vboxadm.pl';
+    $self->{media_prefix} = $config{'cgi'}{'media_prefix'} || '';
+
+    # Connect to DBI database, same args as DBI->connect();
+    # uses connect_cached for persistent connections
+    # this should have no effect for CGI and speed up FastCGI
+    $self->dbh_config(
+        sub {
+            DBI->connect_cached(
+                $dsn, undef, undef,
+                {
+                    PrintError => 0,
+                    RaiseError => 0,
+                }
+            );
+        }
+    );
+    if ( !$self->dbh ) {
+        syslog( 2, "setup - Failed to establish DB connection with DSN $dsn and error message: " . DBI->errstr );
+        die("Could not connect to DB.");
+    }
+
+    # Prepare connection for UTF-8
+    # Scripts, Database, Sourcecode, Userdata ... everything should be in UTF-8
+    # the only point were we could deal with non-UTF-8 is when we output data to
+    # non-utf-8 capable browsers (are there any?)
+    $self->dbh->do("SET NAMES utf8")
+      or syslog( 2, "setup - Failed to set DB connection to UTF-8!" );
+
+    #
+    # L10N
+    #
+    # the user handle, will try to determine the appropriate language ... look at the docs of Locale::Maketext
+    $self->{lh} = VDnsAdm::L10N::->get_handle();
+
+    # this handle is used for logging. logged messages should always be in english
+    $self->{lh_en} = VDnsAdm::L10N::->get_handle('en');
+
+    # to make perlcritic happy
+    return 1;
+}
+
+sub teardown {
+    my $self = shift;
+
+    # Disconnect when done
+    $self->dbh->disconnect();
+
+    # Close log
+    closelog();
+
+    # to make perlcritic happy
+    return 1;
+}
+
+#
+# CGI::Application Hooks
+#
+# cgiapp_init is run right before setup
+sub cgiapp_init {
+    my $self = shift;
+
+    # Everything should be in UTF-8!
+    $self->query->charset('UTF-8');
+
+    # Set up syslog
+    openlog( 'VBoxAdm/API', 'ndelay,nofatal', 'mail' );
+
+    # to make perlcritic happy
+    return 1;
+}
+
+sub show_api {
+    my $self = shift;
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $api_version = $q->param('v');
+
+    if ( $api_version == 1 ) {
+        return &handle_v1($self);
+    }
+    else {
+        $self->header_add( -status => 400 );
+        return "Unknown API Version.\n";
+    }
+}
+
+sub show_test {
+    my $self = shift;
+
+    my $hash_ref = {};
+    $hash_ref->{'user'}{'username'}                                           = 'admin@domain123.com';
+    $hash_ref->{'user'}{'password'}                                           = '123';
+    $hash_ref->{'mailbox'}->{'list'}                                          = 1;
+    $hash_ref->{'mailbox'}->{'read'}->{'fred@domain.com'}                     = 1;
+    $hash_ref->{'mailbox'}->{'update'}->{'fred@domain.com'}->{'IsOnVacation'} = 1;
+    my $ciphertext = &encrypt( $self, $hash_ref );
+
+    my $output = "Test Page<br />\n";
+    $output .= "Hash_ref: <pre>" . Dumper($hash_ref) . "</pre><br />\n";
+    $output .= "Ciphertext: $ciphertext<br />\n";
+    $output .= "<a href='/cgi-bin/vboxapi.pl?rm=api&v=1&p=$ciphertext'>Link</a><br />\n";
+
+    my $hash_again = &decrypt( $self, $ciphertext );
+    $output .= "Hash_again: <pre>" . Dumper($hash_again) . "</pre><br />\n";
+
+    return $output;
+}
+
+sub handle_v1 {
+    my $cgiapp = shift;
+
+    # Get CGI Query object
+    my $q = $cgiapp->query();
+
+    my $payload = $q->param('p');
+
+    if ( !$payload ) {
+        $cgiapp->header_add( -status => 491 );
+        return "Missing parameters.\n";
+    }
+
+    my $hash_ref = &VBoxAdm::API::decrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $payload );
+    my $answer_ref = {};
+
+    if ( !$hash_ref ) {
+        $cgiapp->header_add( -status => 492 );
+        return "Unable to decode. Check you API key.\n";
+    }
+
+    if ( ref($hash_ref) ne 'HASH' ) {
+        $cgiapp->header_add( -status => 493 );
+        return "Illegal request.\n";
+    }
+
+    my $Messages = VWebAdm::Model::MessageQueue::->new(
+        {
+            'LH'    => $cgiapp->{'lh'},
+            'LH_EN' => $cgiapp->{'lh_en'},
+        }
+    );
+    $cgiapp->{'Messages'} = $Messages;
+    my $User;
+    if ( $hash_ref->{'user'}->{'username'} && $hash_ref->{'user'}->{'password'} ) {
+        eval {
+            $User = VWebAdm::Model::User::->new(
+                {
+                    'dbh'          => $cgiapp->dbh,
+                    'MessageQueue' => $Messages,
+                    'Logger'       => \&syslog,
+                    'Config'       => $cgiapp->{'config'},
+                    'Username'     => $hash_ref->{'user'}->{'username'},
+                    'Password'     => $hash_ref->{'user'}->{'password'},
+                }
+            );
+        };
+        if ($@) {
+            $cgiapp->header_add( -status => 494 );
+            $answer_ref->{'auth'} = 'error';
+            return &VBoxAdm::API::encrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $answer_ref );
+        }
+    }
+    if ( !$User ) {
+        $cgiapp->header_add( -status => 495 );
+        $answer_ref->{'auth'} = 'error';
+        return &VBoxAdm::API::encrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $answer_ref );
+    }
+    $cgiapp->{'User'} = $User;
+    my $arg_ref = {
+        'dbh'    => $cgiapp->dbh,
+        'user'   => $User,
+        'msgq'   => $Messages,
+        'logger' => \&syslog,
+        'config' => $cgiapp->{'config'},
+    };
+    my $c = {};
+    $c->{'Record'}        = VDnsAdm::Model::Record::->new($arg_ref);
+    $arg_ref->{'records'} = $c->{'Record'};
+    $c->{'Domain'}        = VDnsAdm::Model::Domain::->new($arg_ref);
+
+    $answer_ref->{'auth'} = 'ok';
+
+    # process requests in hash_ref
+    # return response as crypted, json encoded string
+    foreach my $module ( keys %{$hash_ref} ) {
+        $module = lc($module);
+        next if ref( $hash_ref->{$module} ne 'HASH' );
+        next if $module eq 'user';
+        next unless $c->{$module};
+        foreach my $action ( keys %{ $hash_ref->{$module} } ) {
+
+            $action = lc($action);
+            if ( $action eq 'list' ) {
+                my $param_ref;
+                if ( ref( $hash_ref->{$module}->{$action} ) eq 'HASH' ) {
+                    $param_ref = $hash_ref->{$module}->{$action};
+                }
+                else {
+                    $param_ref = {};
+                }
+                $answer_ref->{$module}{$action}{'rv'}   = [ $c->{$module}->list($param_ref) ];
+                $answer_ref->{$module}{$action}{'msgs'} = [ $Messages->get() ];
+            }
+            else {
+                next if ref( $hash_ref->{$module}->{$action} ne 'HASH' );
+                foreach my $item ( keys %{ $hash_ref->{$module}->{$action} } ) {
+                    my $param_ref = $hash_ref->{$module}->{$action}->{$item};
+
+                    # item may either by numeric -> use directly
+                    # or non-numeric -> look up id and use it instead
+                    my $id;
+                    if ( $item =~ m/^\d+$/ ) {
+                        $id = $item;
+                    }
+                    else {
+                        $id = $c->{$module}->get_id($item);
+                        if ( !$id ) {
+                            $answer_ref->{$module}{$action}{$item}{'rv'}   = 0;
+                            $answer_ref->{$module}{$action}{$item}{'msgs'} = 'User not found!';
+                            next;
+                        }
+                    }
+                    if ( $action eq 'read' ) {
+                        $answer_ref->{$module}{$action}{$item}{'rv'}   = $c->{$module}->read($id);
+                        $answer_ref->{$module}{$action}{$item}{'msgs'} = [ $Messages->get() ];
+                    }
+                    elsif ( $action eq 'delete' ) {
+                        $answer_ref->{$module}{$action}{$item}{'rv'}   = $c->{$module}->delete($id);
+                        $answer_ref->{$module}{$action}{$item}{'msgs'} = [ $Messages->get() ];
+                    }
+                    elsif ( $action eq 'update' ) {
+                        $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->update( $id, $param_ref );
+                        $answer_ref->{$module}{$action}{$item}{'msgs'} = [ $Messages->get() ];
+                    }
+                    elsif ( $action eq 'create' ) {
+                        $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->create( $item, $param_ref );
+                        $answer_ref->{$module}{$action}{$item}{'msgs'} = [ $Messages->get() ];
+                    }
+                }
+            }
+        }
+    }
+
+    #my $ciphertext = &encrypt( $cgiapp, $answer_ref );
+    #my $output = '';
+    #$output .= "Request-Hashref: <pre>".Dumper($hash_ref)."</pre><br />\n";
+    #$output .= "Response-Ciphertext: ".$ciphertext."<br />\n";
+    #my $plaintext = &decrypt( $cgiapp, $ciphertext );
+    #$output .= "Response-Hashref: <pre>".Dumper($plaintext)."</pre><br />\n";
+    my $output = &VBoxAdm::API::encrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $answer_ref );
+    return $output;
+}
+
+1;
+__END__
+
+
+=head1 NAME
+
+VBoxAdm::Controller::API - HTTP-API for VBoxAdm
+
+=head1 VERSION
+
+This documentation refers to VBoxAdm::Controller::API version @VERSION@
+built on @BUILDDATE@.
+
+=head1 SYNOPSIS
+
+    use VBoxAdm::Controller::API;
+		my $vboxapi = VBoxAdm::Controller::API->new();
+		$vboxapi->run();
+
+=head1 DESCRIPTION
+
+This module implements a simple HTTP-API to remote controll VBoxAdm.
+
+=head1 SUBROUTINES/METHODS
+
+TODO
+
+=head1 DIAGNOSTICS
+
+TODO
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+TODO
+
+=head1 DEPENDENCIES
+
+A list of all the other modules that this module relies upon, including any
+restrictions on versions, and an indication of whether these required modules are
+part of the standard Perl distribution, part of the module's distribution,
+or must be installed separately.
+
+=head1 INCOMPATIBILITIES
+
+TODO
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut

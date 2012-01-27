@@ -1,0 +1,366 @@
+package VDnsAdm::Model::User;
+
+use Moose;
+use namespace::autoclean;
+
+use Carp;
+
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Password '@VERSION@';
+use VWebAdm::SaltedHash '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
+
+extends 'VWebAdm::Model::User';
+
+sub login {
+    my $self     = shift;
+    my $password = shift;
+
+    $self->{'siteadmin'}   = 1;
+    $self->{'domain_id'}   = 1;
+    $self->{'user'}        = 1;
+    $self->{'id'}          = 1;
+    $self->{'domainadmin'} = 1;
+    return 1;    # TODO DEVEL
+
+    # check if login works
+    my $sql =
+"SELECT u.id,u.password,u.is_domainadmin,u.is_siteadmin,d.id FROM users AS m LEFT JOIN domains AS d ON u.domain_id = d.id WHERE u.local_part = ? AND d.name = ?";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh(), $sql, $self->local_part(), $self->domain() );
+
+    if ( !$sth ) {
+        $self->logger()->log( message => "Database error during query ($sql): " . $self->dbh()->errstr(), level => 'error', );
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    my ( $id, $pw, $is_da, $is_sa, $domain_id ) = $sth->fetchrow_array();
+    $sth->finish();
+    if ( !$self->force && !&VWebAdm::SaltedHash::verify_pass( $password, $pw ) ) {
+        $self->logger()->log( message => "Password invalid!", level => 'warning', );
+        return;
+    }
+    $self->{'domainadmin'} = $is_da;
+    $self->{'siteadmin'}   = $is_sa;
+    $self->{'id'}          = $id;
+    $self->{'domain_id'}   = $domain_id;
+    $self->{'user'}        = 1;
+
+    return 1;
+}
+
+sub _init_fields {
+    return [qw(id domain_id local_part password name is_active is_domainadmin is_siteadmin)];
+}
+
+sub create {
+
+    # TODO HIGH ADOPT
+    my ( $self, $domain ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    $domain = &VBoxAdm::Utils::trim( lc($domain) );
+
+    if ( $domain && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain) ) {
+        $self->msg->push( 'error', 'Invalid syntax. Domain is not RFC822 compliant!' );
+        return;
+    }
+    elsif ($domain) {
+        my $query = "INSERT INTO domains (name,master,last_check,type,notified_serial,account) VALUES(?,'',1,'MASTER',1,'')";
+
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $domain ) ) {
+            $self->msg->push( 'information', "Domain '[_1]' added", $domain );
+            $sth->finish();
+            return 1;
+        }
+        else {
+            $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . $domain . ', Error: ' . $self->dbh()->errstr() );
+            $self->msg->push( 'error', "Failed to add Domain '[_1]'. Database error.", $domain );
+            return;
+        }
+
+    }
+    else {
+        $self->msg->add( 'error', "Failed to add Domain [_1]. Insufficient parameters.", $domain );
+        return;
+    }
+}
+
+sub delete {
+
+    # TODO HIGH ADOPT
+    my ( $self, $domain_id ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $sql = "DELETE FROM domains WHERE id = ? LIMIT 1";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $domain_id );
+
+    if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    $sth->finish();
+
+    return;
+}
+
+sub update {
+    my ( $self, $user_id, $params ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+    elsif ( !$self->user->is_siteadmin() && $user_id != $self->user->id() ) {
+        $self->msg->push( 'error', 'Sorry. Not your account.' );
+        return;
+    }
+
+    my $username = $self->get_name($user_id);
+
+    my $sql  = "UPDATE domains SET ";
+    my @args = ();
+
+    if ( defined( $params->{'name'} ) ) {
+        $sql .= "name = ?, ";
+        push( @args, $params->{'name'} );
+    }
+
+    #
+    # Password
+    #
+    if ( $params->{'password'} && $params->{'password_again'} ) {
+
+        # passwords must be equal and at least 8 chars long
+        if ( $params->{'password'} eq $params->{'password_again'} ) {
+
+            # Check password length
+            if ( length( $params->{'password'} ) < 8 ) {
+                $self->msg->push( 'warning', 'Bad password - Password too short. Need at least 8 characters.' );
+            }
+
+            # Check password strength
+            my $strength = &VWebAdm::Password::strength( $params->{'password'} );
+            if ( $strength < 2 ) {
+                $self->msg->push( 'warning', 'Weak password - Strength: [_1].', $strength );
+            }
+
+            $sql .= "password = ?, ";
+            push( @args, &VWebAdm::SaltedHash::make_pass( $params->{'password'}, 'ssha256' ) );
+        }
+        else {
+            $self->msg->push( 'warning', 'Your passwords do not match!' );
+        }
+    }
+
+    # Only a siteadmin may update these sensible flags ...
+    if ( $self->user->is_siteadmin() ) {
+        if ( defined( $params->{'is_active'} ) ) {
+            $sql .= "is_active = ?, ";
+            push( @args, $params->{'is_active'} );
+        }
+        if ( defined( $params->{'is_domainadmin'} ) ) {
+            $sql .= "is_domainadmin = ?, ";
+            push( @args, $params->{'is_domainadmin'} );
+        }
+        if ( defined( $params->{'is_siteadmin'} ) ) {
+            $sql .= "is_siteadmin = ?, ";
+            push( @args, $params->{'is_siteadmin'} );
+        }
+    }
+
+    if ( scalar(@args) > 0 ) {
+
+        # remove (possible) trailing ,
+        $sql =~ s/,\s*$//;
+        $sql .= "WHERE id = ?";
+        push( @args, $user_id );
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args ) ) {
+            $sth->finish();
+            $self->msg->push( 'information', 'Updated User [_1].', $username );
+            return 1;
+        }
+        else {
+            $self->log( 'Could not execute Query: ' . $sql . ', Args: ' . join( ',', @args ) . ', Error: ' . $self->dbh->errstr );
+            $self->msg->push( 'error', 'Failed to update User [_1]. Database error.', $username );
+            return;
+        }
+    }
+}
+
+sub read {
+    my ( $self, $id ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+    elsif ( $self->is_domainadmin() && $self->id() != $id ) {
+        $self->msg->push( 'error', 'Sorry. Not your account.' );
+        return;
+    }
+
+    return $self->_read( 'users', $id, );
+}
+
+sub list {
+    my ( $self, $params ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+    elsif ( !$self->is_siteadmin() ) {
+
+        # limit to this domain
+        $params->{'id'} = $self->get_domain_id();
+    }
+
+    my @users = $self->_list( 'users', $params );
+
+    my $sql = "SELECT name FROM domains WHERE id = ?";
+    my $sth = $self->dbh->prepare($sql);
+    if ( !$sth ) {
+        $self->logger()->log( message => "Could not prepare Query $sql due to error: " . $self->dbh->errstr, level => 'debug', );
+        $self->msg->push( 'error', 'Database error.' );
+        return @users;
+    }
+
+    foreach my $user (@users) {
+        $sth->execute( $user->{'domain_id'} );
+        $user->{'domain'} = $sth->fetchrow_array();
+    }
+    $sth->finish();
+
+    return @users;
+}
+
+sub get_name {
+    my ( $self, $id ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $query = "SELECT u.local_part,d.name FROM users AS u LEFT JOIN domains AS d ON u.domain_id = d.id WHERE u.id = ?";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $id );
+
+    if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    my ( $local_part, $domain_name ) = $sth->fetchrow_array();
+    $sth->finish();
+
+    return $local_part . '@' . $domain_name;
+}
+
+sub get_id {
+    my ( $self, $name ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    if ( !&VWebAdm::Utils::is_valid_address_rfc822($name) ) {
+        $self->msg->push( 'error', 'Invalid username syntax' );
+        return;
+    }
+
+    my ( $local_part, $domain_name ) = split /@/, $name;
+
+    my $query = "SELECT u.id FROM users AS u LEFT JOIN domains AS d ON u.domain_id = d.id WHERE u.local_part = ? AND d.name = ?";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain_name );
+
+    if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    my $user_id = $sth->fetchrow_array();
+    $sth->finish();
+
+    return $user_id;
+}
+
+no Moose;
+__PACKAGE__->meta->make_immutable;
+
+1;
+__END__
+
+=head1 NAME
+
+VBoxAdm::Model::User - Class for Users.
+
+=head1 VERSION
+
+This documentation refers to VBoxAdm::Model::User version @VERSION@
+built on @BUILDDATE@.
+
+=head1 SYNOPSIS
+
+    use VBoxAdm::Model::User;
+
+=head1 DESCRIPTION
+
+TODO
+
+=head1 DEPENDENCIES
+
+DBI.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut

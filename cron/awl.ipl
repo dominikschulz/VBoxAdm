@@ -80,7 +80,7 @@ if ( $config{'awl'}{'only_domain'} ) {
 $config{'awl'}{'only_domains'} = \@only_domains;
 
 my $dsn = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;password=$dbpass";
-my $dbh = &VBoxAdm::DB::connect( $dsn, undef, undef, { RaiseError => 1, } );
+my $dbh = &VWebAdm::DB::connect( $dsn, undef, undef, { RaiseError => 1, } );
 
 if ( !$dbh ) {
     $Logger->log(
@@ -178,7 +178,7 @@ sub write_exim_whitelist {
 
     if ( open( my $FH, ">", $config->{'awl'}{'whitelist'} ) ) {
         my $query = "SELECT email FROM awl WHERE NOT disabled ORDER BY email";
-        my $sth = &VBoxAdm::DB::prepexec( $dbh, $query );
+        my $sth = &VWebAdm::DB::prepexec( $dbh, $query );
         while ( my $email = $sth->fetchrow_array() ) {
             print $FH $email . "\n";
         }
@@ -203,7 +203,7 @@ sub write_postfix_whitelist {
 
     if ( open( my $FH, ">", $config->{'awl'}{'whitelist'} ) ) {
         my $query = "SELECT email FROM awl WHERE NOT disabled ORDER BY email";
-        my $sth = &VBoxAdm::DB::prepexec( $dbh, $query );
+        my $sth = &VWebAdm::DB::prepexec( $dbh, $query );
         while ( my $email = $sth->fetchrow_array() ) {
             print $FH $email . "\n";
         }

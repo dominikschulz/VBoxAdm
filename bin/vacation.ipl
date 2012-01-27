@@ -8,7 +8,7 @@ use VBoxAdm::Controller::Vacation '@VERSION@';
 
 binmode( STDIN, ':utf8' );
 
-my $Vacation = VBoxAdm::Controller::Vacation->new();
+my $Vacation = VBoxAdm::Controller::Vacation::->new();
 $Vacation->run();
 
 exit 0;

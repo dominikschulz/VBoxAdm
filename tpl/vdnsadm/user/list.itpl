@@ -1,0 +1,51 @@
+[% INCLUDE vwebadm/includes/header.tpl %]
+    <div id="main" role="main">
+		[% FOREACH line IN users %]
+		[% IF loop.first %]
+		<table class="datatable">
+			<thead>
+			<tr>
+				<th>[% "Username" | l10n %]</th>
+				<th>[% "Name" | l10n %]</th>
+				<th>[% "Domainadmin" | l10n %]</th>
+				<th>[% "Siteadmin" | l10n %]</th>
+				<th></th>
+				<th></th>
+			</tr>
+			</thead>
+			<tbody>
+		[% END %]
+			<tr class="[% loop.parity %] [% IF line.is_active %]enabled[% ELSE %]disabled[% END %]">
+				<td>
+					<a href="[% base_url %]?rm=edit_user&user_id=[% line.id %]">[% line.local_part | highlight(search) %]@[% line.domain %]</a>
+				</td>
+				<td>
+					[% line.name %]
+				</td>
+				<td>
+					[% line.is_domainadmin %]
+				</td>
+				<td>
+					[% line.is_siteadmin %]
+				</td>
+				<td>
+					<a href="[% base_url %]?rm=edit_user&userd_id=[% line.id %]">[% "edit" | l10n %]</a>
+				</td>
+				<td>
+					<a onClick="if(confirm('[% "Do you really want to delete the User [_1]?" | l10n(line.name) %]')) return true; else return false;" href="[% base_url %]?rm=remove_user&user_id=[% line.id %]">[% "del" | l10n %]</a>
+				</td>
+			</tr>
+		[% IF loop.last %]
+		</tbody>
+		<tfoot>
+		</tfoot>
+		</table>
+		[% END %]
+		[% END %]
+		<br />
+		<a href="[% base_url %]?rm=create_user#?w=500" rel="modal_new" class="modallight"><img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" /> [% "Add User" | l10n %]</a>
+    </div>
+    <div id="modal_new" class="modal_block">
+    	[% INCLUDE vdnsadm/user/create_partial.tpl %]
+    </div>
+[% INCLUDE vwebadm/includes/footer.tpl %]

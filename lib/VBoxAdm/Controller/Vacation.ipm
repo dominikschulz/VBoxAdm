@@ -6,9 +6,9 @@ use namespace::autoclean;
 use Config::Std;
 use Getopt::Long;
 
-use VBoxAdm::DB '@VERSION@';
-use VBoxAdm::Logger '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 
 has 'dbh' => (
     'is'      => 'ro',
@@ -30,7 +30,7 @@ sub _init_dbh {
     my $port     = $self->config()->{'default'}->{'dbport'} || 3306;
 
     my $dsn = "DBI:mysql:host=$hostname;database=$database;port=$port;user=$username;password=$password";
-    my $dbh = &VBoxAdm::DB::connect( $dsn, { RaiseError => 0, PrintError => 0, } );
+    my $dbh = &VWebAdm::DB::connect( $dsn, { RaiseError => 0, PrintError => 0, } );
 
     if ( !$dbh ) {
         die("Could not connect to DB!\n");
@@ -44,7 +44,7 @@ sub _init_dbh {
 
 has 'logger' => (
     'is'      => 'ro',
-    'isa'     => 'VBoxAdm::Logger',
+    'isa'     => 'VWebAdm::Logger',
     'lazy'    => 1,
     'builder' => '_init_logger',
 );
@@ -124,14 +124,14 @@ sub _init_notify_interval {
 sub _init_logger {
     my $self = shift;
 
-    return VBoxAdm::Logger->new('vboxadm-vacation');
+    return VWebAdm::Logger::->new('vboxadm-vacation');
 }
 
 sub _init_recipient {
     my $self = shift;
 
     # recipient must be "unrolled", it's smth. like "user#domain.tld@vacation.domain.tld" -> "user@domain.tld"
-    my $unrolled = &VBoxAdm::Utils::unroll_recipient( $self->orig_recipient() );
+    my $unrolled = &VWebAdm::Utils::unroll_recipient( $self->orig_recipient() );
     if ($unrolled) {
         $self->logger()->log( message => "Unrolled recipient to " . $unrolled, level => 'debug', );
         return $unrolled;
@@ -441,7 +441,7 @@ sub _is_blacklisted {
 
     # check vacation_blacklist which lists senders (or parts thereof) which are never notified although they pass the other tests before
     my $query = "SELECT COUNT(*) FROM vacation_blacklist WHERE domain = ? AND local_part = ?";
-    my $sth   = &VBoxAdm::DB::prepexec( $self->dbh(), $query, $domain, $local_part );
+    my $sth   = &VWebAdm::DB::prepexec( $self->dbh(), $query, $domain, $local_part );
     my $count = $sth->fetchrow_array();
 
     # add wildcard query count
@@ -475,7 +475,7 @@ sub _is_on_vacation {
     # this part of the where clause covers a) infinite vacations, b) finite vacations w/ a lower bound and no upper bound and c)
     # finite vacations w/ a lower and upper bound
     $query .= "AND (ma.vacation_start = '0000-00-00' OR NOW() >= ma.vacation_start) AND (ma.vacation_end = '0000-00-00' OR ma.vacation_end >= NOW())";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh(), $query, $self->recipient() );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh(), $query, $self->recipient() );
     my $count = $sth->fetchrow_array();
 
     $sth->finish();
@@ -504,7 +504,7 @@ sub _check_recipient {
         if ( $header_ref->{$hdr} ) {
 
             # Each header may consist of several recipients, so unfold it first ...
-            foreach my $dest ( &VBoxAdm::Utils::extract_recipients( $header_ref->{$hdr} ) ) {
+            foreach my $dest ( &VWebAdm::Utils::extract_recipients( $header_ref->{$hdr} ) ) {
                 if ( $self->recipient() =~ m/^$dest$/i ) {
                     return 1;
                 }
@@ -584,7 +584,7 @@ sub _send_vacation_mail {
         $mail .= "\r\n";
         $mail .= $msg;
 
-        if ( &VBoxAdm::Utils::sendmail( $header_ref->{'From'}, $mail ) ) {
+        if ( &VWebAdm::Utils::sendmail( $header_ref->{'From'}, $mail ) ) {
             $self->logger()->log( level => 'debug', message => "Sent vacation reply to " . $header_ref->{'To'} . " on behalf of " . $self->recipient() );
         }
         else {

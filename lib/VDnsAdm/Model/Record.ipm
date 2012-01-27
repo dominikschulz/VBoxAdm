@@ -1,0 +1,841 @@
+package VDnsAdm::Model::Record;
+
+use Moose;
+use namespace::autoclean;
+
+use Carp;
+
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
+use VDnsAdm::Model::Domain '@VERSION@';
+
+extends 'VWebAdm::Model';
+
+has 'valid_types' => (
+    'is'      => 'ro',
+    'isa'     => 'HashRef',
+    'lazy'    => 1,
+    'builder' => '_init_valid_types',
+);
+
+sub _init_fields {
+    return [qw(id domain_id name type content ttl prio change_date ordername auth)];
+}
+
+sub _init_valid_types {
+    my $self = shift;
+
+    my $tref = {
+        'A' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+            if ( $content =~ m/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/i ) {
+                return 1;
+            }
+            return;
+        },
+        'AAAA' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+            if ( $content =~ m/^[a-f0-9:]+$/i ) {
+                return 1;
+            }
+            return;
+        },
+        'AFSDB' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+            if ( $content =~ m/^\d+ \w+$/i ) {
+                return 1;
+            }
+            return;
+        },
+        'APL' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC3123
+            return 1;
+        },
+        'CERT' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return 1;    # TODO see RFC2538
+        },
+        'CNAME' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+            if ( $content =~ m/^\w+$/ ) {
+                return 1;
+            }
+
+            return;      # TODO impl
+        },
+        'DHCID' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC4701
+            return 1;
+        },
+        'DLV' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC2672
+            return 1;
+        },
+        'DNAME' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC2672
+            return 1;
+        },
+        'DNSKEY' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return 1;    # TODO see RFC3757, RFC4034
+        },
+        'DS' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return 1;    # TODO see RFC3757, RFC4034
+        },
+        'HINFO' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+            if ( $content =~ m/^(?:i386 x64 alpha)\s\w+/i ) {    # TODO this does cover everything for sure
+                return 1;
+            }
+
+            return;
+        },
+        'HIP' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC5205
+            return 1;
+        },
+        'IPSECKEY' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC4025
+            return 1;
+        },
+        'KEY' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return 1;    # TODO see RFC2535
+        },
+        'KX' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC2230
+            return 1;
+        },
+        'LOC' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return 1;    # TODO see RFC1876
+        },
+        'MX' => sub {
+            my ( $content, $ttl, $prio ) = @_;    # see RFC1035
+            if ( $prio =~ m/^\d+$/ && $prio > 0 && $content =~ m/^\w+$/i ) {
+                return 1;
+            }
+            return;
+        },
+        'NAPTR' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return 1;                             # TODO see RFC2916, RFC3403
+        },
+        'NS' => sub {
+            my ( $content, $ttl, $prio ) = @_;    # see RFC1035
+            if ( $content =~ m/^\w+$/ ) {
+                return 1;
+            }
+
+            return 1;                             # TODO impl
+        },
+        'NSEC' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return 1;                             # TODO see RFC3757. RFC4034
+        },
+        'NSEC3' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC5155
+            return 1;
+        },
+        'NSEC3PARAM' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC5155
+            return 1;
+        },
+        'PTR' => sub {
+            my ( $content, $ttl, $prio ) = @_;    # see RFC1035
+            if ( $content =~ m/^\w+$/ ) {
+                return 1;
+            }
+            return 1;
+        },
+        'RP' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return 1;                             # TODO see RFC1183
+        },
+        'RRSIG' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return 1;                             # TODO see RFC3757
+        },
+        'SIG' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC2535
+            return;
+        },
+        'SOA' => sub {
+            my ( $content, $ttl, $prio ) = @_;    # see RFC1035
+
+            # content format: primary_ns hostmaster serial refresh retry expire default_ttl
+            # see http://doc.powerdns.com/types.html
+
+            return 1;                             # TODO impl
+        },
+        'SPF' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return 1;                             # TODO see RFC4408
+        },
+        'SRV' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return 1;                             # TODO see RFC2782
+        },
+        'SSHFP' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            return 1;                             # TODO see RFC4255
+        },
+        'TA' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC n/a
+            return 1;
+        },
+        'TKEY' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC2930
+            return 1;
+        },
+        'TSIG' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+
+            # not supported by PowerDNS
+            # see RFC2845
+            return 1;
+        },
+        'TXT' => sub {
+            my ( $content, $ttl, $prio ) = @_;
+            if ( $content =~ m/^\w+$/i ) {
+                return 1;
+            }
+
+            return;    # TODO impl
+        },
+    };
+
+    return $tref;
+}
+
+sub types {
+    my $self = shift;
+
+    return sort keys %{ $self->valid_types() };
+}
+
+sub _valid_type {
+    my $self = shift;
+    my $type = shift;
+
+    if ( defined( $self->valid_types()->{$type} ) ) {
+        return 1;
+    }
+    return;
+}
+
+sub _valid_content {
+    my $self    = shift;
+    my $type    = shift;
+    my $content = shift;
+    my $ttl     = shift;
+    my $prio    = shift;
+
+    $self->logger()->log( message => "Checking $type, $content, $ttl, $prio", level => 'debug', );
+
+    if ( defined( $self->valid_types()->{$type} ) && ref( $self->valid_types()->{$type} ) eq 'CODE' ) {
+        return &{ $self->valid_types()->{$type} }( $content, $ttl, $prio );
+    }
+
+    return;
+}
+
+sub _validate_params {
+    my $self   = shift;
+    my $params = shift;
+
+    #
+    # Name
+    #
+    # Nop
+
+    #
+    # Content, TTL, Prio
+    #
+    if ( !defined( $params->{'type'} ) ) {
+        $self->msg->push( 'error', 'Mandatory field type missing!' );
+        return;
+    }
+    if ( !defined( $params->{'content'} ) ) {
+        $self->msg->push( 'error', 'Mandatoy field content missing!' );
+        return;
+    }
+    if ( !defined( $params->{'ttl'} ) || $params->{'ttl'} < 1800 || $params->{'ttl'} > 2_592_000 ) {
+        $self->msg->push( 'error', 'Mandatory field TTL missing or out of range!' );
+        return;
+    }
+    if ( !$self->_valid_content( $params->{'type'}, $params->{'content'}, $params->{'ttl'}, $params->{'prio'} ) ) {
+        $self->logger()->log( message => "Record " . $self->_get_record_name($params) . " is invalid.", level => 'debug', );
+        $self->msg->push( 'error', 'Invalid content for type!' );
+        return;
+    }
+
+    #
+    # ChangeDate
+    #
+    if ( defined( $params->{'change_date'} ) && $params->{'change_date'} !~ m/^\d{1,11}$/ ) {
+        $self->msg->push( 'error', 'Invalid content for change_date!' );
+        return;
+    }
+
+    #
+    # Ordername
+    #
+    if ( defined( $params->{'ordername'} ) && $params->{'ordername'} !~ m/^\w{1,255}$/i ) {
+        $self->msg->push( 'error', 'Invalid content for odername!' );
+        return;
+    }
+
+    #
+    # Auth
+    #
+    if ( defined( $params->{'auth'} ) && $params->{'auth'} !~ m/^\d$/ ) {
+        $self->msg->push( 'error', 'Invalid content for auth!' );
+        return;
+    }
+
+    return 1;
+}
+
+sub create {
+    my ( $self, $domain_id, $params ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $Domain      = VDnsAdm::Model::Domain::->new( { 'Model' => $self, } );
+    my $domain_name = $Domain->get_name($domain_id);
+    my $record_name = $self->_get_record_name($params);
+
+    # append domain name
+    if ( $params->{'name'} ) {
+        $params->{'name'} = $params->{'name'} . '.' . $domain_name;
+    }
+    else {
+        $params->{'name'} = $domain_name;
+    }
+
+    # make sure domain_id is set
+    $params->{'domain_id'} = $domain_id;
+
+    if ( !$self->_validate_params($params) ) {
+        return;
+    }
+
+    # Check authorization, syntax and create mailbox
+    if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get_domain_id() ) {
+
+        # if domainadmin, verify that its his domain
+        $self->msg->push( 'error', "You are not authorized to modify this domain!" );
+    }
+    else {
+        my $query = "INSERT INTO records (" . join( ",", keys %{$params} ) . ") VALUES(";
+        $query .= "?," x ( scalar( keys %{$params} ) - 1 );
+        $query .= "?)";
+
+        foreach my $key ( keys %{$params} ) {
+            $params->{$key} = 0 unless defined( $params->{$key} );
+            $params->{$key} = Encode::decode( 'UTF-8', $params->{$key} );
+        }
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, values %{$params} ) ) {
+            $sth->finish();
+            $self->msg->push( 'information', "Added Record [_1] for [_2].", $record_name, $domain_name );
+            if ( $params->{'type'} ne 'SOA' ) {
+                $self->bump_serial($domain_id);
+            }
+            return 1;
+        }
+        else {
+            $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", ( %{$params} ) ) . ', Error: ' . $self->dbh()->errstr() );
+            $self->msg->push( 'error', "Failed to add Record [_1] for [_2]. Database Error: " . $sth->dbh()->err(), $record_name, $domain_name );
+        }
+    }
+    return;
+}
+
+sub delete {
+    my ( $self, $record_id ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    if ( !$record_id || $record_id !~ m/^\d+$/ ) {
+        $self->msg->push( 'error', "Failed to remove record. Insufficient parameters." );
+        return;
+    }
+    my $query = "SELECT name, type, content, ttl, domain_id FROM records WHERE id = ?";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $record_id );
+    if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
+        $self->msg->push( 'error', 'Database error' );
+        return;
+    }
+    my ( $name, $type, $content, $ttl, $domain_id ) = $sth->fetchrow_array();
+    my $record_name = $self->_get_record_name( { 'name' => $name, 'type' => $type, 'ttl' => $ttl, 'content' => $content, }, );
+    $sth->finish();
+
+    $query = "DELETE FROM records WHERE id = ?";
+    my @args = ();
+    push( @args, $record_id );
+    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
+        $query .= "AND domain_id = ?";
+        push( @args, $self->user->get_domain_id() );
+    }
+    if ( $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+        $self->msg->push( 'information', "Record [_1] (#[_2]) removed.", $record_name, $record_id );
+        if ( $type ne 'SOA' ) {
+            $self->bump_serial($domain_id);
+        }
+        return 1;
+    }
+    else {
+        $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh()->errstr() );
+        $self->msg->push( 'error', "Failed to remove Record [_1] (#[_2]). Database Error: " . $self->dbh()->err(), $record_name, $record_id );
+    }
+
+    return;
+}
+
+sub _get_record_name {
+    my $self   = shift;
+    my $params = shift;
+
+    return $params->{'name'} . ' IN ' . $params->{'type'} . ' ' . $params->{'ttl'} . ' ' . $params->{'content'};
+}
+
+sub update {
+    my ( $self, $record_id, $params ) = @_;
+
+    # Authorization - Regular Users may access this method!
+
+    if ( !$record_id || $record_id !~ m/^\d+$/ ) {
+        $self->logger()->log( message => 'Failed to update record. Id is not numeric: ' . $record_id, level => 'error', );
+        $self->msg->push( 'error', 'Failed to update record. Need a numeric record id.' );
+        return;
+    }
+
+    my $query = "SELECT name, type, content, ttl, domain_id FROM records WHERE id = ?";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $record_id );
+    if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
+        $self->msg->push( 'error', 'Database error' );
+        return;
+    }
+    my ( $name, $type, $content, $ttl, $domain_id ) = $sth->fetchrow_array();
+    my $record_name = $self->_get_record_name( { 'name' => $name, 'type' => $type, 'ttl' => $ttl, 'content' => $content, }, );
+
+    #$self->logger()->log( message => 'Record-Name: '.$record_name, level => 'debug', );
+    $sth->finish();
+
+    my $msg_loc = '';
+    my $msg_en  = '';
+
+    my $Domain = VDnsAdm::Model::Domain::->new( { 'Model' => $self, } );
+    my $domain_name = $Domain->get_name($domain_id);
+
+    # append domain name
+    if ( $params->{'name'} ) {
+        $params->{'name'} = $params->{'name'} . '.' . $domain_name;
+    }
+    else {
+        $params->{'name'} = $domain_name;
+    }
+
+    if ( !$self->_validate_params($params) ) {
+        return;
+    }
+
+    $query = "UPDATE records SET ";
+
+    # only execute query if scalar(@params) > 0, i.e. at least on valid option
+    my @args = ();
+
+    foreach my $key ( keys %{$params} ) {
+        $params->{$key} = Encode::decode( 'UTF-8', $params->{$key} );
+        $query .= $key . ' = ?, ';
+        push( @args, $params->{$key} );
+    }
+
+    # at least on option has changed
+    if ( scalar(@args) > 0 ) {
+
+        # remove (possible) trailing ,
+        $query =~ s/,\s*$//;
+
+        # finialize query
+        $query .= " WHERE id = ?";
+        push( @args, $record_id );
+
+        # if domainadmin, verify that its his domain
+        if ( $self->user->is_siteadmin() ) {
+
+            # Siteadmin? - OK, go ahead. Do anything you want ...
+        }
+        elsif ( $self->user->is_domainadmin() ) {
+
+            # Domainadmin? - Only your domain please!
+            $query .= "AND domain_id = ?";
+            push( @args, $self->user->get_domain_id() );
+        }
+        else {
+            $self->msg->push( 'error', 'Sorry, no access for you!' );
+            return;
+        }
+
+        #$self->log( "Record::update - SQL: ".$query. " - Args: ".join(',',@args));
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+            $self->msg->push( 'information', "Updated Record [_1] (#[_2]).", $record_name, $record_id );
+            if ( $params->{'type'} ne 'SOA' ) {
+                $self->bump_serial($domain_id);
+            }
+            return 1;
+        }
+        else {
+            $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh()->errstr() );
+            $self->msg->push( 'error', "Failed to update Record [_1] (#[_2]). Database Error.", $record_name, $record_id );
+        }
+    }
+    else {
+        $self->msg->push( 'warning', 'No Parameter changed.' );
+    }
+
+    return;
+}
+
+sub read {
+    my ( $self, $record_id ) = @_;
+
+    my $sql = "SELECT " . join( ",", @{ $self->fields() } ) . " FROM records WHERE id = ?";
+    my @args = ($record_id);
+
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry, no access for you!' );
+        return;
+    }
+    elsif ( !$self->user->is_siteadmin() ) {
+        $sql .= " AND domain_id = ?";
+        push( @args, $self->user->get_domain_id() );
+    }
+
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
+
+    if ( !$sth ) {
+        $self->logger()->log( message => 'Failed to execute SQL ' . $sql . ' due to Database Error: ' . $self->dbh()->errstr, level => 'error', );
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    my %result;
+    @result{ @{ $self->fields() } } = $sth->fetchrow_array();
+    $sth->finish();
+
+    # get domain_name
+    $sql = "SELECT name FROM domains WHERE id = ?";
+    $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $result{'domain_id'} );
+    if ($sth) {
+        $result{'domain'} = $sth->fetchrow_array();
+    }
+
+    foreach my $key ( keys %result ) {
+        $result{$key} = Encode::decode( 'UTF-8', $result{$key} ) unless Encode::is_utf8( $result{$key} );
+    }
+
+    return \%result;
+}
+
+sub bump_serial {
+    my $self      = shift;
+    my $domain_id = shift;
+
+    my @rec = $self->list(
+        {
+            'Type'      => 'SOA',
+            'domain_id' => $domain_id,
+        }
+    );
+
+    if ( !@rec ) {
+        $self->logger()->log( message => 'No SOA-Record found for Domain #' . $domain_id, level => 'error', );
+        return;
+    }
+
+    my $record_id = $rec[0]->{'id'};
+    my $content   = $rec[0]->{'content'};
+    my $ttl       = $rec[0]->{'ttl'};
+    my $name      = $rec[0]->{'name'};
+
+    #$self->logger()->log( message => 'SOA-Record found. ID: '.$record_id.' - Content: '.$content, level => 'debug', );
+
+    my ( $pri_ns, $contact, $serial, $refresh, $retry, $expire, $minimum ) = split /\s+/, $content;
+    if ( !$serial || $serial !~ m/^\d+$/ ) {
+        $self->logger()->log( message => 'Invalid SOA-Record for Domain #' . $domain_id . ': ' . $content, level => 'error', );
+        return;
+    }
+
+    my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime(time);
+    $year += 1900;
+    $mon++;
+    if ( $serial =~ m/^(\d{4})(\d{2})(\d{2})(\d{2})$/ ) {
+        my ( $oyear, $omonth, $oday, $ocount ) = ( $1, $2, $3, $4 );
+
+        # remove leading zeros for proper comparison
+        $oyear  =~ s/^0+//g;
+        $omonth =~ s/^0+//g;
+        $oday   =~ s/^0+//g;
+        $ocount =~ s/^0+//g;
+        my $count = 0;
+
+        # if last updated today we only increase the counter
+        if ( $oyear == $year && $omonth == $mon && $oday == $mday ) {
+            $count = $ocount + 1;
+        }
+
+        # in all other cases we create a new serial with a counter of zero
+        $serial = sprintf( '%4d%02d%02d%02d', $year, $mon, $mday, $count );
+    }
+    elsif ( $serial =~ m/^\d+$/ ) {
+        $serial++;
+    }
+    else {
+
+        # should be impossible, caught above
+        $self->logger()->log( message => 'Invalid SOA-Record for Domain #' . $domain_id . ' at impossible execution path!', level => 'error', );
+    }
+
+    my $new_content = join( ' ', ( $pri_ns, $contact, $serial, $refresh, $retry, $expire, $minimum ) );
+
+    #$self->logger()->log( message => 'new content: '.$new_content, level => 'debug', );
+
+    if ( $self->update( $record_id, { 'content' => $new_content, 'type' => 'SOA', 'ttl' => $ttl, } ) ) {
+        $self->logger()->log( message => 'Raised SOA serial for Domain #' . $domain_id . ' to ' . $serial, level => 'debug', );
+        return 1;
+    }
+    else {
+        $self->logger()->log( message => 'Failed to raise SOA serial for Domain #' . $domain_id, level => 'error', );
+        return;
+    }
+}
+
+sub list {
+    my ( $self, $param ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my @fields = @{ $self->fields() };
+    my $sql    = "SELECT r." . join( ",r.", @fields ) . ",d.name FROM records AS r LEFT JOIN domains AS d ON r.domain_id = d.id WHERE 1";
+    my @args   = ();
+    if ( $param->{'Search'} ) {
+        $sql .= " AND name LIKE ? OR content LIKE ?";
+        my $term = $param->{'Search'};
+        $term =~ s/[*%]+//g;
+        $term = '%' . $term . '%';
+        push( @args, $term );
+        push( @args, $term );
+    }
+    if ( $param->{'domain_id'} ) {
+        $sql .= " AND domain_id = ?";
+        push( @args, $param->{'domain_id'} );
+    }
+    if ( $param->{'Type'} ) {
+        $sql .= ' AND r.type = ?';
+        push( @args, $param->{'Type'} );
+    }
+
+    # domain admins may only see their own domain
+    if ( !$self->user->is_siteadmin() ) {
+        $sql .= " AND domain_id = ?";
+        push( @args, $self->user->get_domain_id() );
+    }
+
+    # regular users are kicked out above
+
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
+
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        $self->log( 'Database Error during query ' . $sql . ': ' . $self->dbh->errstr );
+        return;
+    }
+
+    my @entries = ();
+
+    # domain name was not in the field list 'coz it is prefixed with d., not r.
+    push( @fields, 'domain' );
+    while ( my @row = $sth->fetchrow_array() ) {
+        my %h;
+        @h{@fields} = @row;
+        foreach my $field ( keys %h ) {
+            $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8( $h{$field} );
+        }
+        push( @entries, \%h );
+    }
+    $sth->finish();
+
+    return @entries;
+}
+
+sub get_id {
+    my ( $self, $record ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my ( $local_part, $domain );
+
+    my $query = "SELECT m.id FROM records AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain );
+
+    if ( !$sth ) {
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    my $id = $sth->fetchrow_array();
+    $sth->finish();
+
+    return $id;
+}
+
+sub get_domain_id {
+    my $self      = shift;
+    my $record_id = shift;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $rec_ref = $self->read($record_id);
+
+    if ( $rec_ref && ref($rec_ref) eq 'HASH' ) {
+        return $rec_ref->{'domain_id'};
+    }
+    else {
+        $self->logger()->log( message => "Found no domain_id for Record #" . $record_id, level => 'debug', );
+        return;
+    }
+}
+
+no Moose;
+__PACKAGE__->meta->make_immutable;
+
+1;
+
+__END__
+
+=head1 NAME
+
+VDnsAdm::Model::Records - Class for Records
+
+=head1 VERSION
+
+This documentation refers to VDnsAdm::Model::Record version @VERSION@
+built on @BUILDDATE@.
+
+=head1 SYNOPSIS
+
+    use VDnsAdm::Model::Record;
+
+=head1 DESCRIPTION
+
+TODO
+
+=head1 DEPENDENCIES
+
+DBI.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut

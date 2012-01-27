@@ -6,7 +6,7 @@ use namespace::autoclean;
 use Carp;
 use Encode;
 
-extends 'VBoxAdm::Model';
+extends 'VWebAdm::Model';
 
 sub _init_fields {
     return [qw(id name domain_id is_active)];
@@ -21,9 +21,9 @@ sub create {
         return;
     }
 
-    my $domain_alias = &VBoxAdm::Utils::trim( lc($domain) );
+    my $domain_alias = &VWebAdm::Utils::trim( lc($domain) );
 
-    if ( $domain_alias && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain_alias) ) {
+    if ( $domain_alias && !&VWebAdm::Utils::is_valid_domain_rfc822($domain_alias) ) {
         $self->msg->push( 'error', "Invalid syntax. Domain is not RFC822 compliant!" );
         return;
     }
@@ -35,12 +35,12 @@ sub create {
     }
     elsif ( $domain_alias && $domain_id ) {
         my $query       = "SELECT name FROM domains WHERE id = ?";
-        my $sth         = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain_id );
+        my $sth         = &VWebAdm::DB::prepexec( $self->dbh, $query, $domain_id );
         my $domain_name = $sth->fetchrow_array();
         $sth->finish();
 
         $query = "INSERT INTO domain_aliases (name,domain_id,is_active) VALUES(?,?,1)";
-        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain_alias, $domain_id ) ) {
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $domain_alias, $domain_id ) ) {
             $sth->finish();
             $self->msg->push( 'information', "Added domain alias '[_1]' to domain [_2] (#[_3]).", $domain_alias, $domain_name, $domain_id );
             return 1;
@@ -81,7 +81,7 @@ sub delete {
         return;
     }
     my $query       = "SELECT name FROM domain_aliases WHERE id = ?";
-    my $sth         = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain_alias_id );
+    my $sth         = &VWebAdm::DB::prepexec( $self->dbh, $query, $domain_alias_id );
     my $domain_name = $sth->fetchrow_array();
     $sth->finish();
 
@@ -92,7 +92,7 @@ sub delete {
         $query .= "AND domain_id = ?";
         push( @args, $self->user->get_domain_id() );
     }
-    if ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+    if ( $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
         $self->msg->push( 'information', "Domain-Alias [_1] (#[_2]) removed." );
         return 1;
     }
@@ -131,7 +131,7 @@ sub update {
         if ( $params->{'IsActive'} ) {
             $status_str = 'enabled';
         }
-        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
             $self->msg->push( 'information', "Domain-Alias [_1] (#[_2]) $status_str.", $domain_name, $domain_alias_id );
         }
         else {
@@ -148,7 +148,7 @@ sub update {
     }
     elsif ( $domain_alias_id && $params->{'Goto'} ) {
         my $query              = "SELECT name FROM domains WHERE id = ?";
-        my $sth                = &VBoxAdm::DB::prepexec( $self->dbh, $query, $params->{'Goto'} );
+        my $sth                = &VWebAdm::DB::prepexec( $self->dbh, $query, $params->{'Goto'} );
         my $target_domain_name = $sth->fetchrow_array();
         $sth->finish();
 
@@ -160,7 +160,7 @@ sub update {
             $self->msg->push( 'error', 'Can not point a domainalis to non-existing domain!' );
             return;
         }
-        elsif ( $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $params->{'Goto'}, $domain_alias_id ) ) {
+        elsif ( $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $params->{'Goto'}, $domain_alias_id ) ) {
             $self->msg->push( 'information', "Domain-Alias [_1] (#[_2]) redirected to Domain [_3] (#[_4]).",
                 $domain_name, $domain_alias_id, $target_domain_name, $params->{'Goto'} );
         }
@@ -217,8 +217,9 @@ sub list {
         $sql .= " AND da.domain_id = ?";
         push( @args, $self->user->get_domain_id() );
     }
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
     if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
         $self->msg->push( 'error', 'Database error.' );
         return;
     }
@@ -244,9 +245,10 @@ sub get_name {
     }
 
     my $query = "SELECT name FROM domain_aliases WHERE id = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $id );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $id );
 
     if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
         $self->msg->push( 'error', 'Database error.' );
         return;
     }
@@ -267,9 +269,10 @@ sub get_id {
     }
 
     my $query = "SELECT id FROM domain_aliases WHERE name = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $name );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $name );
 
     if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
         $self->msg->push( 'error', 'Database error.' );
         return;
     }

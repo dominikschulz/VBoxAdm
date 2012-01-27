@@ -9,8 +9,8 @@ use IO::File;
 use Time::HiRes qw(time);
 use List::Util qw(shuffle);
 
-use VBoxAdm::Utils '@VERSION@';
-use VBoxAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
+use VWebAdm::DB '@VERSION@';
 
 our $VERSION = '@VERSION@';
 

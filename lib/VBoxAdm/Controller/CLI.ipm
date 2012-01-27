@@ -20,21 +20,24 @@ use Net::POP3;
 use Net::IMAP::Client;
 use Text::Levenshtein qw(distance);
 
-use VBoxAdm::DB '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 use VBoxAdm::Migration '@VERSION@';
-use VBoxAdm::SaltedHash '@VERSION@';
-use VBoxAdm::Password '@VERSION@';
+use VWebAdm::SaltedHash '@VERSION@';
+use VWebAdm::Password '@VERSION@';
 use VBoxAdm::Model::Alias '@VERSION@';
 use VBoxAdm::Model::AWL '@VERSION@';
 use VBoxAdm::Model::Domain '@VERSION@';
 use VBoxAdm::Model::DomainAlias '@VERSION@';
 use VBoxAdm::Model::Mailbox '@VERSION@';
+use VBoxAdm::Model::RFCNotify '@VERSION@';
+use VBoxAdm::Model::RoleAccount '@VERSION@';
 use VBoxAdm::Model::User '@VERSION@';
 use VBoxAdm::Model::VacationBlacklist '@VERSION@';
-use VBoxAdm::Model::MessageQueue '@VERSION@';
+use VBoxAdm::Model::VacationNotify '@VERISON@';
+use VWebAdm::Model::MessageQueue '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
-use VBoxAdm::Logger '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
 
 binmode( STDIN, ':utf8' );
 
@@ -88,7 +91,7 @@ has 'domain' => (
 sub _init_domain {
     my $self = shift;
 
-    my $Domain = VBoxAdm::Model::Domain->new(
+    my $Domain = VBoxAdm::Model::Domain::->new(
         {
             'dbh'    => $self->dbh(),
             'logger' => $self->logger(),
@@ -111,7 +114,7 @@ has 'alias' => (
 sub _init_alias {
     my $self = shift;
 
-    my $Alias = VBoxAdm::Model::Alias->new(
+    my $Alias = VBoxAdm::Model::Alias::->new(
         {
             'dbh'    => $self->dbh(),
             'logger' => $self->logger(),
@@ -134,7 +137,7 @@ has 'awl' => (
 sub _init_awl {
     my $self = shift;
 
-    my $AWL = VBoxAdm::Model::AWL->new(
+    my $AWL = VBoxAdm::Model::AWL::->new(
         {
             'dbh'    => $self->dbh(),
             'logger' => $self->logger(),
@@ -157,7 +160,7 @@ has 'domainalias' => (
 sub _init_domainalias {
     my $self = shift;
 
-    my $DomainAlias = VBoxAdm::Model::DomainAlias->new(
+    my $DomainAlias = VBoxAdm::Model::DomainAlias::->new(
         {
             'dbh'    => $self->dbh(),
             'logger' => $self->logger(),
@@ -180,7 +183,7 @@ has 'mailbox' => (
 sub _init_mailbox {
     my $self = shift;
 
-    my $Mailbox = VBoxAdm::Model::Mailbox->new(
+    my $Mailbox = VBoxAdm::Model::Mailbox::->new(
         {
             'dbh'    => $self->dbh(),
             'logger' => $self->logger(),
@@ -203,7 +206,7 @@ has 'rfcnotify' => (
 sub _init_rfcnotify {
     my $self = shift;
 
-    my $RFCN = VBoxAdm::Model::RFCNotify->new(
+    my $RFCN = VBoxAdm::Model::RFCNotify::->new(
         {
             'dbh'    => $self->dbh(),
             'logger' => $self->logger(),
@@ -226,7 +229,7 @@ has 'roleaccount' => (
 sub _init_roleaccount {
     my $self = shift;
 
-    my $RA = VBoxAdm::Model::RoleAccount->new(
+    my $RA = VBoxAdm::Model::RoleAccount::->new(
         {
             'dbh'    => $self->dbh(),
             'logger' => $self->logger(),
@@ -249,7 +252,7 @@ has 'vacationblacklist' => (
 sub _init_vacationblacklist {
     my $self = shift;
 
-    my $VB = VBoxAdm::Model::VacationBlacklist->new(
+    my $VB = VBoxAdm::Model::VacationBlacklist::->new(
         {
             'dbh'    => $self->dbh(),
             'logger' => $self->logger(),
@@ -272,7 +275,7 @@ has 'vacationnotify' => (
 sub _init_vacationnotify {
     my $self = shift;
 
-    my $VN = VBoxAdm::Model::VacationNotify->new(
+    my $VN = VBoxAdm::Model::VacationNotify::->new(
         {
             'dbh'    => $self->dbh(),
             'logger' => $self->logger(),
@@ -288,7 +291,7 @@ sub _init_vacationnotify {
 sub _init_logger {
     my $self = shift;
 
-    return VBoxAdm::Logger->new('vboxadm/cli');
+    return VWebAdm::Logger::->new('vboxadm/cli');
 }
 
 sub _init_dbh {
@@ -304,7 +307,7 @@ sub _init_dbh {
     my $port     = $self->config()->{'default'}->{'dbport'} || 3306;
 
     my $dsn = "DBI:mysql:host=$hostname;database=$database;port=$port;user=$username;password=$password";
-    my $dbh = &VBoxAdm::DB::connect( $dsn, { RaiseError => 0, PrintError => 0, } );
+    my $dbh = &VWebAdm::DB::connect( $dsn, { RaiseError => 0, PrintError => 0, } );
 
     if ( !$dbh ) {
         die("Could not connect to DB!\n");
@@ -318,7 +321,7 @@ sub _init_dbh {
 
 sub _init_msgq {
     my $self = shift;
-    my $MQ   = VBoxAdm::Model::MessageQueue->new(
+    my $MQ   = VWebAdm::Model::MessageQueue::->new(
         {
             'lh'    => VBoxAdm::L10N->get_handle(),
             'lh_en' => VBoxAdm::L10N->get_handle('en'),

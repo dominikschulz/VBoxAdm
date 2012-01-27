@@ -1,0 +1,58 @@
+<div class="forms">
+	<form name="create_record" method="POST">
+		<input type="hidden" name="rm" value="update_record" />
+		<input type="hidden" name="record_id" value="[% record_id %]" />
+		<h1>[% "Modify a record" | l10n %]</h1>
+		
+		<label for="name">
+			[% "Subdomain:" | l10n %]
+			<span class="small">Subdomain</span>
+		</label>
+		<input type="text" name="name" value="[% name %]" />.[% domain_name %]
+		
+		<div class="spacer"></div>
+		
+		<label for="type">
+			[% "Type:" | l10n %]
+			<span class="small">Record-Type</span>
+		</label>
+		<select name="type">
+			[% FOREACH line IN types %]
+			<option[% IF line == type %] selected[% END %]>[% line %]</option>
+			[% END %]
+		</select>
+		
+		<div class="spacer"></div>
+		
+		<label for="content">
+			[% "Content:" | l10n %]
+			<span class="small">RR-Content</span>
+		</label>
+		[% IF large_content %]
+		<textarea name="content">[% content %]</textarea>
+		[% ELSE %]
+		<input type="text" name="content" value="[% content %]" />
+		[% END %]
+		
+		<div class="spacer"></div>
+		
+		<label for="ttl">
+			[% "TTL:" | l10n %]
+			<span class="small">TTL</span>
+		</label>
+		<input type="text" name="ttl" value="[% ttl %]" />
+		
+		<div class="spacer"></div>
+		
+		<label for="prio">
+			[% "Priority:" | l10n %]
+			<span class="small">Priority</span>
+		</label>
+		<input type="text" name="prio" value="[% prio %]" />
+		
+		<button class="button" type="submit" name="submit">
+			<img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" />
+			[% "Update Record" | l10n %]
+		</button>
+	</form>
+</div>

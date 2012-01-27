@@ -1,0 +1,187 @@
+package VWebAdm::DNS;
+
+use strict;
+use warnings;
+
+use Net::DNS;
+
+our $VERSION = '@VERSION@';
+
+{
+    my $res;
+    ############################################
+    # Usage      : ????
+    # Purpose    : ????
+    # Returns    : ????
+    # Parameters : ????
+    # Throws     : no exceptions
+    # Comments   : none
+    # See Also   : n/a
+    sub get_a {
+        my $hostname = shift || return;
+        if ( !$res ) {
+            $res = Net::DNS::Resolver::->new;
+        }
+
+        my $query = $res->search($hostname);
+
+        if ($query) {
+            my @ips = ();
+            foreach my $rr ( $query->answer ) {
+                next unless $rr->type eq 'A';
+                my $ip = $rr->address;
+                push( @ips, $ip );
+            }
+            return wantarray ? @ips : $ips[0];
+        }
+        return;
+    }
+    ############################################
+    # Usage      : ????
+    # Purpose    : ????
+    # Returns    : ????
+    # Parameters : ????
+    # Throws     : no exceptions
+    # Comments   : none
+    # See Also   : n/a
+    sub get_ptr {
+        my $ip = shift || return;
+        if ( !$res ) {
+            $res = Net::DNS::Resolver::->new;
+        }
+        my $query = $res->query( $ip, 'PTR' );
+
+        if ($query) {
+            foreach my $rr ( $query->answer ) {
+                next unless $rr->type eq 'PTR';
+                return $rr->ptrdname;
+            }
+        }
+        return;
+    }
+    ############################################
+    # Usage      : ????
+    # Purpose    : ????
+    # Returns    : ????
+    # Parameters : ????
+    # Throws     : no exceptions
+    # Comments   : none
+    # See Also   : n/a
+    sub get_mx {
+        my $hostname = shift || return;
+        if ( !$res ) {
+            $res = Net::DNS::Resolver::->new;
+        }
+
+        my $query = $res->search($hostname);
+
+        my @mx = mx( $res, $hostname );
+
+        return wantarray ? @mx : $mx[0];
+    }
+    ############################################
+    # Usage      : ????
+    # Purpose    : ????
+    # Returns    : ????
+    # Parameters : ????
+    # Throws     : no exceptions
+    # Comments   : none
+    # See Also   : n/a
+    sub get_ns {
+        my $hostname = shift || return;
+        if ( !$res ) {
+            $res = Net::DNS::Resolver::->new;
+        }
+
+        my $query = $res->query( $hostname, 'NS' );
+
+        if ($query) {
+            my @ns = ();
+            foreach my $rr ( $query->answer ) {
+                next unless $rr->type eq 'NS';
+                my $ns = $rr->nsdname;
+                push( @ns, $ns );
+            }
+            return wantarray ? @ns : $ns[0];
+        }
+        return;
+    }
+
+}
+
+sub is_ip {
+    my $str = shift;
+    if ( $str =~ m/^\d+\.\d+\.\d+\.\d+$/ ) {
+        return 4;    # IPv4
+    }
+    elsif ( $str =~ m/^[0-9A-F:]+$/i ) {
+        return 6;    # IPv6
+    }
+    else {
+        return;      # No IP
+    }
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+VWebAdm::DNS - DNS Utility Methods
+
+=head1 VERSION
+
+This documentation refers to VWebAdm::DNS version @VERSION@
+built on @BUILDDATE@.
+
+=head1 SYNOPSIS
+
+    use VWebAdm::DNS;
+
+=head1 DESCRIPTION
+
+TODO
+
+=head1 SUBROUTINES/METHODS
+
+TODO
+
+=head1 DIAGNOSTICS
+
+TODO
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+TODO
+
+=head1 DEPENDENCIES
+
+TODO
+
+=head1 INCOMPATIBILITIES
+
+TODO
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.rog)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This module is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself. See L<perlartistic>.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+=cut

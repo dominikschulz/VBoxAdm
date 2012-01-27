@@ -33,17 +33,17 @@ use DBI;
 use Readonly;
 use Try::Tiny;
 
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
-use VBoxAdm::SaltedHash '@VERSION@';
-use VBoxAdm::Logger '@VERSION@';
+use VWebAdm::SaltedHash '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
 
 use VBoxAdm::Model::Alias '@VERSION@';
 use VBoxAdm::Model::AWL '@VERSION@';
 use VBoxAdm::Model::Domain '@VERSION@';
 use VBoxAdm::Model::DomainAlias '@VERSION@';
 use VBoxAdm::Model::Mailbox '@VERSION@';
-use VBoxAdm::Model::MessageQueue '@VERSION@';
+use VWebAdm::Model::MessageQueue '@VERSION@';
 use VBoxAdm::Model::RFCNotify '@VERSION@';
 use VBoxAdm::Model::RoleAccount '@VERSION@';
 use VBoxAdm::Model::User '@VERSION@';
@@ -66,7 +66,7 @@ Readonly my $ENTRIES_PER_PAGE => 20;
 sub setup {
     my $self = shift;
 
-    my $Logger = VBoxAdm::Logger->new( { 'facility' => 'VBoxAdm/Frontend', } );
+    my $Logger = VWebAdm::Logger::->new( { 'facility' => 'VBoxAdm/Frontend', } );
     $self->{'logger'} = $Logger;
 
     # define the default run mode
@@ -201,8 +201,8 @@ sub setup {
                     my $param   = shift;    # unused, always empty
                     my $plain   = shift;    # password from user
                     my $pwentry = shift;    # password hash from db
-                    my ( $pwscheme, undef, $salt ) = &VBoxAdm::SaltedHash::split_pass($pwentry);
-                    my $passh = &VBoxAdm::SaltedHash::make_pass( $plain, $pwscheme, $salt );
+                    my ( $pwscheme, undef, $salt ) = &VWebAdm::SaltedHash::split_pass($pwentry);
+                    my $passh = &VWebAdm::SaltedHash::make_pass( $plain, $pwscheme, $salt );
                     return $passh;
                 },
             }
@@ -246,8 +246,7 @@ sub setup {
         }
     }
     if ( !$conffile_used ) {
-        $self->{'logger'}
-          ->log( message => "setup - Warning: No readable config file found in search path! (" . join( ':', @conffile_locations ) . ")", level => 'warning', );
+        $self->log( "Warning: No readable config file found in search path! (" . join( ':', @conffile_locations ) . ")", 'warning', );
     }
     $self->{config} = \%config;
 
@@ -286,7 +285,7 @@ sub setup {
         }
     );
     if ( !$self->dbh ) {
-        $self->{'logger'}->log( message => "setup - Failed to establish DB connection with DSN $dsn and error message: " . DBI->errstr, level => 'error', );
+        $self->log( "Failed to establish DB connection with DSN $dsn and error message: " . DBI->errstr, 'error', );
         die("Could not connect to DB.");
     }
 
@@ -294,10 +293,10 @@ sub setup {
     # L10N
     #
     # the user handle, will try to determine the appropriate language ... look at the docs of Locale::Maketext
-    $self->{lh} = VBoxAdm::L10N->get_handle();
+    $self->{lh} = VBoxAdm::L10N::->get_handle();
 
     # this handle is used for logging. logged messages should always be in english
-    $self->{lh_en} = VBoxAdm::L10N->get_handle('en');
+    $self->{lh_en} = VBoxAdm::L10N::->get_handle('en');
 
     #
     # Templating unsing the Template Toolkit
@@ -307,7 +306,7 @@ sub setup {
     # Short version: they allow filters with more than one argument.
     # highlight provides syntax highlightning for the search
     # l10n provides localization via Locale::Maketext
-    my @include_path = qw(tpl ../tpl /usr/lib/vboxadm/tpl);
+    my @include_path = qw(tpl ../tpl /usr/lib/vwebadm/tpl);
     if ( $config{'cgi'}{'template_path'} && -d $config{'cgi'}{'template_path'} ) {
         unshift( @include_path, $config{'cgi'}{'template_path'} );
     }
@@ -355,18 +354,19 @@ sub setup {
 
     # setup classes if the user is logged in
     if ( $self->authen->is_authenticated && $self->authen->username ) {
-        my $Messages = VBoxAdm::Model::MessageQueue->new(
+        my $Messages = VWebAdm::Model::MessageQueue::->new(
             {
                 'lh'      => $self->{'lh'},
                 'lh_en'   => $self->{'lh_en'},
                 'session' => $self->session,
+                'logger'  => $Logger,
             }
         );
 
         # if we can not create a new user object we MUST NOT die but redirect to login page instead
         my $User;
         eval {
-            $User = VBoxAdm::Model::User->new(
+            $User = VBoxAdm::Model::User::->new(
                 {
                     'dbh'      => $self->dbh,
                     'username' => $self->authen->username,
@@ -391,14 +391,14 @@ sub setup {
                 'logger' => $Logger,
                 'config' => $self->{'config'},
             };
-            $self->{'Alias'}             = VBoxAdm::Model::Alias->new($arg_ref);
-            $self->{'AWL'}               = VBoxAdm::Model::AWL->new($arg_ref);
-            $self->{'Domain'}            = VBoxAdm::Model::Domain->new($arg_ref);
-            $self->{'DomainAlias'}       = VBoxAdm::Model::DomainAlias->new($arg_ref);
-            $self->{'Mailbox'}           = VBoxAdm::Model::Mailbox->new($arg_ref);
-            $self->{'RFCNotify'}         = VBoxAdm::Model::RFCNotify->new($arg_ref);
-            $self->{'RoleAccount'}       = VBoxAdm::Model::RoleAccount->new($arg_ref);
-            $self->{'VacationBlacklist'} = VBoxAdm::Model::VacationBlacklist->new($arg_ref);
+            $self->{'Alias'}             = VBoxAdm::Model::Alias::->new($arg_ref);
+            $self->{'AWL'}               = VBoxAdm::Model::AWL::->new($arg_ref);
+            $self->{'Domain'}            = VBoxAdm::Model::Domain::->new($arg_ref);
+            $self->{'DomainAlias'}       = VBoxAdm::Model::DomainAlias::->new($arg_ref);
+            $self->{'Mailbox'}           = VBoxAdm::Model::Mailbox::->new($arg_ref);
+            $self->{'RFCNotify'}         = VBoxAdm::Model::RFCNotify::->new($arg_ref);
+            $self->{'RoleAccount'}       = VBoxAdm::Model::RoleAccount::->new($arg_ref);
+            $self->{'VacationBlacklist'} = VBoxAdm::Model::VacationBlacklist::->new($arg_ref);
         }
     }
 
@@ -465,6 +465,8 @@ sub tt_pre_process {
     $vars->{messages}       = $self->get_messages();
     $vars->{is_siteadmin}   = $self->user->is_siteadmin() if $self->user();
     $vars->{is_domainadmin} = $self->user->is_domainadmin() if $self->user();
+    $vars->{product}        = 'VDnsAdm';
+    $vars->{product_url}    = 'http://www.vboxadm.net/';
 
     return;
 }
@@ -482,14 +484,15 @@ sub tt_pre_process {
 # Comments   : none
 # See Also   : n/a
 sub log {
-    my $self = shift;
-    my $msg  = shift;
+    my $self     = shift;
+    my $msg      = shift;
+    my $severity = shift || 'debug',
 
-    # Get our database connection
-    my $dbh = $self->dbh();
+      # Get our database connection
+      my $dbh = $self->dbh();
 
     if ($msg) {
-        $self->{'logger'}->log( message => $msg, level => 'debug', );
+        $self->{'logger'}->log( message => $msg, level => $severity, );
         my $query = "INSERT INTO log (ts,msg) VALUES(NOW(),?)";
         my $sth   = $dbh->prepare($query)
           or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr );
@@ -674,7 +677,7 @@ sub show_login {
         nonavigation => 1,
     );
 
-    return $self->tt_process( 'login.tpl', \%params );
+    return $self->tt_process( 'vwebadm/login.tpl', \%params );
 }
 
 #
@@ -692,7 +695,7 @@ sub show_welcome {
         'current' => 'welcome',
     );
 
-    return $self->tt_process( 'welcome.tpl', \%params );
+    return $self->tt_process( 'vboxadm/welcome.tpl', \%params );
 }
 
 #
@@ -704,7 +707,7 @@ sub show_broadcast {
 
     if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->log( $msg . ". User: " . $self->authen->username, 'notice', );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
         $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
@@ -725,7 +728,7 @@ sub show_broadcast {
         'count'   => $count,
     );
 
-    return $self->tt_process( 'broadcast.tpl', \%params );
+    return $self->tt_process( 'vboxadm/broadcast.tpl', \%params );
 }
 
 # Send the broadcast message and show confirmation page
@@ -734,7 +737,7 @@ sub show_send_broadcast {
 
     if ( !$self->user->is_siteadmin() ) {
         my $msg = "You are not authorized to access this page.";
-        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->log( $msg . ". User: " . $self->authen->username, 'notice', );
         $self->add_message( 'error', $self->{lh}->maketext($msg) );
         $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
@@ -751,23 +754,44 @@ sub show_send_broadcast {
 
     my $system_domain = $self->{config}{'default'}{'domain'} || 'localhost';
 
-    my $query = "SELECT m.local_part,d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.is_active AND d.is_active";
-    my $sth   = $dbh->prepare($query);
-    $sth->execute();
+    my $query    = "SELECT m.local_part,d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.is_active AND d.is_active";
     my $num_sent = 0;
-    while ( my ( $local_part, $domain_name ) = $sth->fetchrow_array() ) {
-        my $email = $local_part . '@' . $domain_name;
-        my $emsg  = '';
-        $emsg .= "Subject: " . $subject . "\r\n";
-        $emsg .= "Auto-Submitted: auto-generated\r\n";
-        $emsg .= "From: VBoxAdm <vboxadm\@" . $system_domain . ">\r\n";
-        $emsg .= "To: <" . $email . ">\r\n";
-        $emsg .= "\r\n";
-        $emsg .= $message;
-        &VBoxAdm::Utils::sendmail( 'vboxadm@' . $system_domain, $emsg );
-        $num_sent++;
+    if ( my $sth = $dbh->prepare($query) ) {
+        if ( $sth->execute() ) {
+            while ( my ( $local_part, $domain_name ) = $sth->fetchrow_array() ) {
+                my $email = $local_part . '@' . $domain_name;
+                my $emsg  = '';
+                $emsg .= "Subject: " . $subject . "\r\n";
+                $emsg .= "Auto-Submitted: auto-generated\r\n";
+                $emsg .= "From: VBoxAdm <vboxadm\@" . $system_domain . ">\r\n";
+                $emsg .= "To: <" . $email . ">\r\n";
+                $emsg .= "\r\n";
+                $emsg .= $message;
+                if ( &VWebAdm::Utils::sendmail( 'vboxadm@' . $system_domain, $emsg ) ) {
+                    $self->log( 'User ' . $self->authen->username . ' sent broadcast message with subject ' . $subject . ' to ' . $email, 'debug', );
+                }
+                else {
+                    $self->log(
+                        'User '
+                          . $self->authen->username
+                          . ' tried to send broadcast message with subject '
+                          . $subject . ' to '
+                          . $email
+                          . ' but sendmail failed.',
+                        'debug',
+                    );
+                }
+                $num_sent++;
+            }
+        }
+        else {
+            $self->log( 'Executing SQL ' . $query . ' failed w/ error: ' . $sth->errstr, 'error', );
+        }
+        $sth->finish();
     }
-    $sth->finish();
+    else {
+        $self->log( 'Preparing SQL ' . $query . ' into statement failed w/ error: ' . $dbh->errstr, 'error', );
+    }
 
     my %params = (
         'title'    => $self->{lh}->maketext('VBoxAdm Sent Broadcast'),
@@ -775,7 +799,7 @@ sub show_send_broadcast {
         'num_sent' => $num_sent,
     );
 
-    return $self->tt_process( 'broadcast_result.tpl', \%params );
+    return $self->tt_process( 'vboxadm/broadcast_result.tpl', \%params );
 }
 
 #
@@ -793,14 +817,34 @@ sub show_domains {
 
     my $page   = $q->param('page') || 1;
     my $search = $q->param('search');
-    my %params = ( 'Search' => $search, );
+    my %params = (
+        'Search'  => $search,
+        'title'   => $self->{lh}->maketext('VBoxAdm Domains'),
+        'current' => 'domains',
+        'search'  => $search,
+    );
 
-    my $sql_aliases       = "SELECT COUNT(*) FROM aliases WHERE domain_id = ?";
-    my $sth_aliases       = $dbh->prepare($sql_aliases);
-    my $sql_mailboxes     = "SELECT COUNT(*) FROM mailboxes WHERE domain_id = ?";
-    my $sth_mailboxes     = $dbh->prepare($sql_mailboxes);
+    my $sql_aliases = "SELECT COUNT(*) FROM aliases WHERE domain_id = ?";
+    my $sth_aliases = $dbh->prepare($sql_aliases);
+    if ( !$sth_aliases ) {
+        $self->log( 'Preparing SQL ' . $sql_aliases . ' failed w/ error: ' . $dbh->errstr, 'error', );
+        $self->add_message( 'error', 'Database error!' );
+        return $self->tt_process( 'vboxadm/domain/list.tpl', \%params );
+    }
+    my $sql_mailboxes = "SELECT COUNT(*) FROM mailboxes WHERE domain_id = ?";
+    my $sth_mailboxes = $dbh->prepare($sql_mailboxes);
+    if ( !$sth_mailboxes ) {
+        $self->log( 'Preparing SQL ' . $sql_mailboxes . ' failed w/ error: ' . $dbh->errstr, 'error', );
+        $self->add_message( 'error', 'Database error!' );
+        return $self->tt_process( 'vboxadm/domain/list.tpl', \%params );
+    }
     my $sql_domainaliases = "SELECT COUNT(*) FROM domain_aliases WHERE domain_id = ?";
     my $sth_domainaliases = $dbh->prepare($sql_domainaliases);
+    if ( !$sth_domainaliases ) {
+        $self->log( 'Preparing SQL ' . $sql_domainaliases . ' failed w/ error: ' . $dbh->errstr, 'error', );
+        $self->add_message( 'error', 'Database error!' );
+        return $self->tt_process( 'vboxadm/domain/list.tpl', \%params );
+    }
 
     my @domains = $self->{'Domain'}->list( \%params );
 
@@ -820,14 +864,9 @@ sub show_domains {
     $sth_mailboxes->finish();
     $sth_domainaliases->finish();
 
-    %params = (
-        'title'   => $self->{lh}->maketext('VBoxAdm Domains'),
-        'current' => 'domains',
-        'domains' => \@domains,
-        'search'  => $search,
-    );
+    $params{'domains'} = \@domains;
 
-    return $self->tt_process( 'domain/list.tpl', \%params );
+    return $self->tt_process( 'vboxadm/domain/list.tpl', \%params );
 }
 
 sub show_domain {
@@ -847,6 +886,9 @@ sub show_domain {
     # Get CGI Query object
     my $q = $self->query();
 
+    # TT Params
+    my %params = ( 'current' => 'domains', );
+
     my $domain_id = $q->param('domain_id') || undef;
 
     if ( !$domain_id || $domain_id !~ m/^\d+$/ ) {
@@ -863,56 +905,83 @@ sub show_domain {
     # Get Domain name
     $sql = "SELECT name FROM domains WHERE id = ?";
     $sth = $dbh->prepare($sql);
-    $sth->execute($domain_id);
+    if ( !$sth ) {
+        $self->log( 'Preparing SQL ' . $sql . ' failed w/ error: ' . $dbh->errstr, 'error', );
+        $self->add_message( 'error', 'Database error!' );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+    }
+    if ( !$sth->execute($domain_id) ) {
+        $self->log( 'Executing SQL ' . $sql . ' failed w/ error: ' . $sth->errstr, 'error', );
+        $self->add_message( 'error', 'Database error!' );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+    }
     my $domain_name = $sth->fetchrow_array();
     $sth->finish();
+    $params{'title'} = $self->{lh}->maketext( 'VBoxAdm Domain: [_1]', $domain_name );
+    $params{'domain'} = $domain_name;
 
     # Get Aliases
     $sql = "SELECT id,local_part,goto,is_active FROM aliases WHERE domain_id = ? ORDER BY local_part";
     $sth = $dbh->prepare($sql);
-    $sth->execute($domain_id);
+    if ( !$sth ) {
+        $self->log( 'Preparing SQL ' . $sql . ' failed w/ error: ' . $dbh->errstr, 'error', );
+        $self->add_message( 'error', 'Database error!' );
+        return $self->tt_process( 'vboxadm/domain/show.tpl', \%params );
+    }
+    if ( !$sth->execute($domain_id) ) {
+        $self->log( 'Executing SQL ' . $sql . ' failed w/ error: ' . $dbh->errstr, 'error', );
+        $self->add_message( 'error', 'Database error!' );
+        return $self->tt_process( 'vboxadm/domain/show.tpl', \%params );
+    }
     my @aliases = ();
     while ( my ( $id, $local_part, $goto, $is_active ) = $sth->fetchrow_array() ) {
         push( @aliases, { id => $id, local_part => $local_part, 'goto' => $goto, is_active => $is_active, } );
     }
     $sth->finish();
+    $params{'aliases'} = \@aliases;
 
     # Get Mailboxes
     $sql = "SELECT id,local_part,name,is_active FROM mailboxes WHERE domain_id = ? ORDER BY local_part";
     $sth = $dbh->prepare($sql);
-    $sth->execute($domain_id);
+    if ( !$sth ) {
+        $self->log( 'Preparing SQL ' . $sql . ' failed w/ error: ' . $dbh->errstr, 'error', );
+        $self->add_message( 'error', 'Database error!' );
+        return $self->tt_process( 'vboxadm/domain/show.tpl', \%params );
+    }
+    if ( !$sth->execute($domain_id) ) {
+        $self->log( 'Executing SQL ' . $sql . ' failed w/ error: ' . $dbh->errstr, 'error', );
+        $self->add_message( 'error', 'Database error!' );
+        return $self->tt_process( 'vboxadm/domain/show.tpl', \%params );
+    }
     my @mailboxes = ();
     while ( my ( $id, $local_part, $name, $is_active ) = $sth->fetchrow_array() ) {
         push( @mailboxes, { id => $id, local_part => $local_part, name => $name, is_active => $is_active, } );
     }
     $sth->finish();
+    $params{'mailboxes'} = \@mailboxes;
 
     # Get Domain Aliases
     $sql = "SELECT id,name,is_active FROM domain_aliases WHERE domain_id = ? ORDER BY name";
     $sth = $dbh->prepare($sql);
-    $sth->execute($domain_id);
+    if ( !$sth ) {
+        $self->log( 'Preparing SQL ' . $sql . ' failed w/ error: ' . $dbh->errstr, 'error', );
+        $self->add_message( 'error', 'Database error!' );
+        return $self->tt_process( 'vboxadm/domain/show.tpl', \%params );
+    }
+    if ( !$sth->execute($domain_id) ) {
+        $self->log( 'Executing SQL ' . $sql . ' failed w/ error: ' . $dbh->errstr, 'error', );
+        $self->add_message( 'error', 'Database error!' );
+        return $self->tt_process( 'vboxadm/domain/show.tpl', \%params );
+    }
     my @domain_aliases = ();
     while ( my ( $id, $name, $is_active ) = $sth->fetchrow_array() ) {
         push( @domain_aliases, { id => $id, name => $name, is_active => $is_active, } );
     }
     $sth->finish();
+    $params{'domain_aliases'} = \@domain_aliases;
 
-    my @bc = ();
-    push( @bc, { 'rm' => 'welcome',                        caption => 'Overview', } );
-    push( @bc, { 'rm' => 'domains',                        caption => 'Domains', } );
-    push( @bc, { 'rm' => 'domain&domain_id=' . $domain_id, caption => 'View Domain ' . $domain_name, } );
-
-    my %params = (
-        'title'          => $self->{lh}->maketext( 'VBoxAdm Domain: [_1]', $domain_name ),
-        'current'        => 'domains',
-        'domain'         => $domain_name,
-        'aliases'        => \@aliases,
-        'mailboxes'      => \@mailboxes,
-        'domain_aliases' => \@domain_aliases,
-        'breadcrumb'     => \@bc,
-    );
-
-    return $self->tt_process( 'domain/show.tpl', \%params );
+    # Render template
+    return $self->tt_process( 'vboxadm/domain/show.tpl', \%params );
 }
 
 sub show_create_domain {
@@ -931,7 +1000,8 @@ sub show_create_domain {
         'current' => 'domains',
     );
 
-    return $self->tt_process( 'domain/create.tpl', \%params );
+    # Render template
+    return $self->tt_process( 'vboxadm/domain/create.tpl', \%params );
 }
 
 sub show_add_domain {
@@ -940,14 +1010,23 @@ sub show_add_domain {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $domain             = &VBoxAdm::Utils::trim( lc( $q->param('domain') ) );
+    my $domain             = &VWebAdm::Utils::trim( lc( $q->param('domain') ) );
     my $create_domainadmin = $q->param('create_domainadmin');
 
-    if ( $self->{'Domain'}->create($domain) && $create_domainadmin ) {
-        my $domain_id = $self->{'Domain'}->get_id($domain);
-        $self->{'Mailbox'}->create( 'domainadmin', $domain_id );
+    if ( $self->{'Domain'}->create($domain) ) {
+        $self->log( 'Create new domain ' . $domain );
+        if ($create_domainadmin) {
+            my $domain_id = $self->{'Domain'}->get_id($domain);
+            if ( $self->{'Mailbox'}->create( 'domainadmin', $domain_id ) ) {
+                $self->log( 'Created domainadmin mailbox for ' . $domain );
+            }
+            else {
+                $self->log( 'Failed to create domainadmin for ' . $domain );
+            }
+        }
     }
 
+    # Redirect to other page, no need to render anything
     $self->redirect( $self->{base_url} . '?rm=domains' );
     return;
 }
@@ -960,7 +1039,12 @@ sub show_remove_domain {
 
     my $domain_id = $q->param('domain_id');
 
-    $self->{'Domain'}->delete($domain_id);
+    if ( $self->{'Domain'}->delete($domain_id) ) {
+        $self->log( 'Deleted domain #' . $domain_id );
+    }
+    else {
+        $self->log( 'Failed to delete Domain #' . $domain_id );
+    }
 
     $self->redirect( $self->{base_url} . '?rm=domains' );
     return;
@@ -975,7 +1059,12 @@ sub show_update_domain {
     my $domain_id = $q->param('domain_id');
     my %params = ( 'IsActive' => $q->param('is_active'), );
 
-    $self->{'Domain'}->update( $domain_id, \%params );
+    if ( $self->{'Domain'}->update( $domain_id, \%params ) ) {
+        $self->log( 'Updated Domain #' . $domain_id );
+    }
+    else {
+        $self->log( 'Failed to update Domain #' . $domain_id );
+    }
 
     $self->redirect( $self->{base_url} . '?rm=domains' );
     return;
@@ -1006,7 +1095,7 @@ sub show_domain_aliases {
         'search'  => $search,
     );
 
-    return $self->tt_process( 'domain_alias/list.tpl', \%params );
+    return $self->tt_process( 'vboxadm/domain_alias/list.tpl', \%params );
 }
 
 sub show_create_domain_alias {
@@ -1023,6 +1112,12 @@ sub show_create_domain_alias {
     # Get our database connection
     my $dbh = $self->dbh();
 
+    # TT Params
+    my %params = (
+        'title'   => $self->{lh}->maketext('Add Domain Alias'),
+        'current' => 'domain_aliases',
+    );
+
     my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
     my @args  = ();
     if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
@@ -1030,24 +1125,25 @@ sub show_create_domain_alias {
         push( @args, $self->user->get_domain_id() );
     }
     $query .= "ORDER BY name";
-    my $sth = $dbh->prepare($query)
-      or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, level => 'warning', );
-    $sth->execute(@args)
-      or $self->{'logger'}
-      ->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, level => 'warning', );
+    my $sth = $dbh->prepare($query);
+    if ( !$sth ) {
+        $self->add_message('Database Error!');
+        $self->log( 'Could not prepare Query: ' . $query . ', Error: ' . $dbh->errstr, 'error', );
+        return $self->tt_process( 'vboxadm/domain_alias/create.tpl', \%params );
+    }
+    if ( !$sth->execute(@args) ) {
+        $self->add_message('Database Error!');
+        $self->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, 'warning', );
+        return $self->tt_process( 'vboxadm/domain_alias/create.tpl', \%params );
+    }
 
     my @domains = ();
     while ( my @row = $sth->fetchrow_array() ) {
         push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], } );
     }
+    $params{'domains'} = \@domains;
 
-    my %params = (
-        'title'   => $self->{lh}->maketext('Add Domain Alias'),
-        'domains' => \@domains,
-        'current' => 'domain_aliases',
-    );
-
-    return $self->tt_process( 'domain_alias/create.tpl', \%params );
+    return $self->tt_process( 'vboxadm/domain_alias/create.tpl', \%params );
 }
 
 sub show_add_domain_alias {
@@ -1059,7 +1155,13 @@ sub show_add_domain_alias {
     my $domain_alias = &VBoxAdm::Utils::trim( lc( $q->param('domain_alias') ) );
     my $domain_id    = $q->param('domain');
 
-    $self->{'DomainAlias'}->create( $domain_alias, $domain_id );
+    if ( $self->{'DomainAlias'}->create( $domain_alias, $domain_id ) ) {
+        $self->log( 'Added Domain-Alias ' . $domain_alias . ' to base Domain #' . $domain_id );
+    }
+    else {
+        $self->log( 'Failed to add Domain-Alias ' . $domain_alias . ' to base Domain #' . $domain_id );
+        $self->add_message('Database Error!');
+    }
 
     $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
     return;
@@ -1073,7 +1175,13 @@ sub show_remove_domain_alias {
 
     my $domain_alias_id = $q->param('domain_alias_id');
 
-    $self->{'DomainAlias'}->delete($domain_alias_id);
+    if ( $self->{'DomainAlias'}->delete($domain_alias_id) ) {
+        $self->log( 'Deleted Domain-Alias #' . $domain_alias_id );
+    }
+    else {
+        $self->log( 'Failed to delete Domain-Alias #' . $domain_alias_id );
+        $self->add_message('Database Error!');
+    }
 
     $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
     return;
@@ -1096,53 +1204,44 @@ sub show_edit_domain_alias {
     # Get CGI Query object
     my $q = $self->query();
 
+    # TT Params
+    my %params = (
+        'title'   => $self->{lh}->maketext('Edit Domain Alias'),
+        'current' => 'domain_aliases',
+    );
+
     my $domain_alias_id = $q->param('domain_alias_id');
 
-    my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
-    my @args  = ();
+    $params{'domains'} = [ $self->{'Domain'}->list() ];
 
-    # Authorization
-    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-        $query .= "AND id = ?";
-        push( @args, $self->user->get_domain_id() );
-    }
-    $query .= " ORDER BY name";
-    my $sth = $dbh->prepare($query)
-      or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, level => 'warning', );
-    $sth->execute(@args)
-      or $self->{'logger'}
-      ->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, level => 'warning', );
-
-    my @domains = ();
-    while ( my @row = $sth->fetchrow_array() ) {
-        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], } );
-    }
-    $sth->finish();
-
-    $query = "SELECT da.id, da.name, da.domain_id, da.is_active, d.name FROM domain_aliases AS da ";
+    my $query = "SELECT da.id, da.name, da.domain_id, da.is_active, d.name FROM domain_aliases AS da ";
     $query .= "LEFT JOIN domains AS d ON da.domain_id = d.id WHERE da.id = ?";
-    @args = ();
+    my @args = ();
     push( @args, $domain_alias_id );
     if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
         $query .= "AND da.domain_id = ?";
         push( @args, $self->user->get_domain_id() );
     }
-    $sth = $dbh->prepare($query);
-    $sth->execute(@args);
-    my @row = $sth->fetchrow_array();
+    my $sth = $dbh->prepare($query);
+    if ( !$sth ) {
+        $self->add_message('Database Error!');
+        $self->log( 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, 'warning', );
+        return $self->tt_process( 'vboxadm/domain_alias/edit.tpl', \%params );
+    }
+    if ( !$sth->execute(@args) ) {
+        $self->add_message('Database Error!');
+        $self->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, 'warning', );
+        return $self->tt_process( 'vboxadm/domain_alias/edit.tpl', \%params );
+    }
+    my ( $da_id, $da_name, $domain_id, $is_active, $domain_name ) = $sth->fetchrow_array();
     $sth->finish();
 
-    my %params = (
-        'title'           => $self->{lh}->maketext('Edit Domain Alias'),
-        'current'         => 'domain_aliases',
-        'domain_name'     => $row[1],
-        'is_active'       => $row[3],
-        'target'          => $row[2],
-        'domain_alias_id' => $domain_alias_id,
-        'domains'         => \@domains,
-    );
+    $params{'domain_name'}     = $domain_name;
+    $params{'is_active'}       = $is_active;
+    $params{'target'}          = $domain_id;
+    $params{'domain_alias_id'} = $da_id;
 
-    return $self->tt_process( 'domain_alias/edit.tpl', \%params );
+    return $self->tt_process( 'vboxadm/domain_alias/edit.tpl', \%params );
 }
 
 sub show_update_domain_alias {
@@ -1157,7 +1256,13 @@ sub show_update_domain_alias {
         'Goto' => $q->param('target'),
     );
 
-    $self->{'DomainAlias'}->update( $domain_alias_id, \%params );
+    if ( $self->{'DomainAlias'}->update( $domain_alias_id, \%params ) ) {
+        $self->log( 'Updated Domain-Alias #' . $domain_alias_id );
+    }
+    else {
+        $self->log( 'Failed to update Domain-Alias #' . $domain_alias_id );
+        $self->add_message('Database Error!');
+    }
 
     $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
     return;
@@ -1180,16 +1285,17 @@ sub show_aliases {
     my %params = ( 'Search' => $search, );
 
     my @aliases = $self->{'Alias'}->list( \%params );
+    my @domains = $self->{'Domain'}->list();
 
     %params = (
         'title'   => $self->{lh}->maketext('VBoxAdm Aliases'),
         'current' => 'aliases',
         'aliases' => \@aliases,
-        'domains' => [ $self->{'Domain'}->list() ],
+        'domains' => \@domains,
         'search'  => $search,
     );
 
-    return $self->tt_process( 'alias/list.tpl', \%params );
+    return $self->tt_process( 'vboxadm/alias/list.tpl', \%params );
 }
 
 sub show_create_alias {
@@ -1203,26 +1309,7 @@ sub show_create_alias {
         return;
     }
 
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
-    my @args  = ();
-    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-        $query .= "AND id = ? ";
-        push( @args, $self->user->get_domain_id() );
-    }
-    $query .= "ORDER BY name";
-    my $sth = $dbh->prepare($query)
-      or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, level => 'warning', );
-    $sth->execute(@args)
-      or $self->{'logger'}
-      ->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, level => 'warning', );
-
-    my @domains = ();
-    while ( my @row = $sth->fetchrow_array() ) {
-        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], } );
-    }
+    my @domains = $self->{'Domain'}->list();
 
     my %params = (
         'title'   => $self->{lh}->maketext('Add Alias'),
@@ -1230,7 +1317,7 @@ sub show_create_alias {
         'domains' => \@domains,
     );
 
-    return $self->tt_process( 'alias/create.tpl', \%params );
+    return $self->tt_process( 'vboxadm/alias/create.tpl', \%params );
 }
 
 sub show_add_alias {
@@ -1243,7 +1330,13 @@ sub show_add_alias {
     my $domain_id  = $q->param('domain');
     my $goto       = $q->param('goto');
 
-    $self->{'Alias'}->create( $local_part, $domain_id, $goto );
+    if ( $self->{'Alias'}->create( $local_part, $domain_id, $goto ) ) {
+        $self->log( 'Added Alias ' . $local_part . '@' . $domain_id . ' => ' . $goto );
+    }
+    else {
+        $self->log( 'Failed to add Alias ' . $local_part . '@' . $domain_id . ' => ' . $goto );
+        $self->add_message('Database Error!');
+    }
 
     $self->redirect( $self->{base_url} . '?rm=aliases' );
     return;
@@ -1257,7 +1350,13 @@ sub show_remove_alias {
 
     my $alias_id = $q->param('alias_id');
 
-    $self->{'Alias'}->delete($alias_id);
+    if ( $self->{'Alias'}->delete($alias_id) ) {
+        $self->log( 'Deleted alias #' . $alias_id );
+    }
+    else {
+        $self->log( 'Failed to delete alias #' . $alias_id );
+        $self->add_message('Database Error!');
+    }
 
     $self->redirect( $self->{base_url} . '?rm=aliases' );
     return;
@@ -1273,9 +1372,6 @@ sub show_edit_alias {
         $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
-
-    # Get our database connection
-    my $dbh = $self->dbh();
 
     # Get CGI Query object
     my $q = $self->query();
@@ -1293,7 +1389,7 @@ sub show_edit_alias {
         $params{$key} = $alias_ref->{$key};
     }
 
-    return $self->tt_process( 'alias/edit.tpl', \%params );
+    return $self->tt_process( 'vboxadm/alias/edit.tpl', \%params );
 }
 
 sub show_update_alias {
@@ -1304,11 +1400,17 @@ sub show_update_alias {
 
     my %params = ();
     $params{'IsActive'} = $q->param('is_active');
-    $params{'Goto'}     = &VBoxAdm::Utils::trim( $q->param('goto') );
+    $params{'Goto'}     = &VWebAdm::Utils::trim( $q->param('goto') );
 
     my $alias_id = $q->param('alias_id');
 
-    $self->{'Alias'}->update( $alias_id, \%params );
+    if ( $self->{'Alias'}->update( $alias_id, \%params ) ) {
+        $self->log( 'Updated Alias #' . $alias_id );
+    }
+    else {
+        $self->log( 'Failed to update Alias #' . $alias_id );
+        $self->add_message('Database Error!');
+    }
 
     $self->redirect( $self->{base_url} . '?rm=aliases' );
     return;
@@ -1321,9 +1423,6 @@ sub show_update_alias {
 sub show_mailboxes {
     my $self = shift;
 
-    # Get our database connection
-    my $dbh = $self->dbh();
-
     # Get CGI Query object
     my $q = $self->query();
 
@@ -1332,12 +1431,13 @@ sub show_mailboxes {
     my %params = ( 'Search' => $search, );
 
     my @mailboxes = $self->{'Mailbox'}->list( \%params );
+    my @domains   = $self->{'Domain'}->list();
 
     %params = (
         'title'     => $self->{lh}->maketext('VBoxAdm Mailboxes'),
         'current'   => 'mailboxes',
         'mailboxes' => \@mailboxes,
-        'domains'   => [ $self->{'Domain'}->list() ],
+        'domains'   => \@domains,
         'search'    => $search,
     );
 
@@ -1355,27 +1455,7 @@ sub show_create_mailbox {
         return;
     }
 
-    # Get our database connection
-    my $dbh = $self->dbh();
-
-    my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
-    my @args  = ();
-
-    # Authorization
-    if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-        $query .= "AND id = ? ";
-        push( @args, $self->user->get_domain_id() );
-    }
-    $query .= "ORDER BY name";
-    my $sth = $dbh->prepare($query)
-      or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr );
-    $sth->execute(@args)
-      or $self->{'logger'}->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr );
-
-    my @domains = ();
-    while ( my @row = $sth->fetchrow_array() ) {
-        push( @domains, { id => $row[0], name => $row[1], is_active => $row[2], } );
-    }
+    my @domains = $self->{'Domain'}->list();
 
     my %params = (
         'title'   => $self->{lh}->maketext('Add Mailbox'),
@@ -1383,7 +1463,7 @@ sub show_create_mailbox {
         'current' => 'mailboxes',
     );
 
-    return $self->tt_process( 'mailbox/create.tpl', \%params );
+    return $self->tt_process( 'vboxadm/mailbox/create.tpl', \%params );
 }
 
 sub show_add_mailbox {
@@ -1393,7 +1473,7 @@ sub show_add_mailbox {
     my $q = $self->query();
 
     my $domain_id  = $q->param('domain');
-    my $local_part = &VBoxAdm::Utils::trim( lc( $q->param('username') ) );
+    my $local_part = &VWebAdm::Utils::trim( lc( $q->param('username') ) );
     my %params     = (
         'Password'        => $q->param('password'),
         'PasswordAgain'   => $q->param('password_2'),
@@ -1411,7 +1491,13 @@ sub show_add_mailbox {
         $params{'IsActive'} = 1;
     }
 
-    $self->{'Mailbox'}->create( $local_part, $domain_id, \%params );
+    if ( $self->{'Mailbox'}->create( $local_part, $domain_id, \%params ) ) {
+        $self->log( 'Added Mailbox ' . $local_part . '@' . $domain_id );
+    }
+    else {
+        $self->log( 'Failed to add Mailbox ' . $local_part . '@' . $domain_id );
+        $self->add_message('Database Error!');
+    }
 
     $self->redirect( $self->{base_url} . '?rm=mailboxes' );
     return;
@@ -1425,7 +1511,13 @@ sub show_remove_mailbox {
 
     my $mailbox_id = $q->param('mailbox_id');
 
-    $self->{'Mailbox'}->delete($mailbox_id);
+    if ( $self->{'Mailbox'}->delete($mailbox_id) ) {
+        $self->log( 'Remove mailbox #' . $mailbox_id );
+    }
+    else {
+        $self->log( 'Failed to remove Mailbox #' . $mailbox_id );
+        $self->add_message('Database Error!');
+    }
 
     $self->redirect( $self->{base_url} . '?rm=mailboxes' );
     return;
@@ -1448,9 +1540,20 @@ sub show_edit_mailbox {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $mailbox_id  = $q->param('mailbox_id');
+    # TT Params
+    my %params = (
+        'title'             => $self->{lh}->maketext('Edit Mailbox'),
+        'user_is_siteadmin' => $self->user->is_siteadmin(),
+        'current'           => 'mailboxes',
+    );
+
+    my $mailbox_id = $q->param('mailbox_id');
+    $params{'mailbox_id'} = $mailbox_id;
     my $mailbox_ref = $self->{'Mailbox'}->read($mailbox_id);
-    my $domain_id   = $mailbox_ref->{'domain_id'};
+    $params{'mb_is_domainadmin'} = $mailbox_ref->{'is_domainadmin'};
+    $params{'mb_is_siteadmin'}   = $mailbox_ref->{'is_siteadmin'};
+    $params{'pw_lock'}           = $mailbox_ref->{'pw_lock'};
+    my $domain_id = $mailbox_ref->{'domain_id'};
 
     # show aliases pointing to this mbox, don't forget domain aliases!
     # show cc (aliases w/ the same name as this mailbox)
@@ -1463,21 +1566,21 @@ sub show_edit_mailbox {
         push( @args, $self->user->get_domain_id() );
     }
     my $sth = $dbh->prepare($query);
-    $sth->execute(@args);
+    if ( !$sth ) {
+        $self->add_message('Database Error!');
+        $self->log( 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, 'warning', );
+        return $self->tt_process( 'mailbox/edit.tpl', \%params );
+    }
+    if ( !$sth->execute(@args) ) {
+        $self->add_message('Database Error!');
+        $self->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, 'warning', );
+        return $self->tt_process( 'mailbox/edit.tpl', \%params );
+    }
     my ( $cc_id, $cc_goto ) = $sth->fetchrow_array();
+    $params{'cc_id'}   = $cc_id;
+    $params{'cc_goto'} = $cc_goto;
     $sth->finish();
 
-    my %params = (
-        'title'             => $self->{lh}->maketext('Edit Mailbox'),
-        'mailbox_id'        => $mailbox_id,
-        'user_is_siteadmin' => $self->user->is_siteadmin(),
-        'current'           => 'mailboxes',
-        'cc_goto'           => $cc_goto,
-        'cc_id'             => $cc_id,
-        'mb_is_domainadmin' => $mailbox_ref->{'is_domainadmin'},
-        'mb_is_siteadmin'   => $mailbox_ref->{'is_siteadmin'},
-        'pw_lock'           => $mailbox_ref->{'pw_lock'},
-    );
     foreach my $key ( keys %{$mailbox_ref} ) {
         $params{$key} = $mailbox_ref->{$key};
     }
@@ -1489,7 +1592,7 @@ sub show_edit_mailbox {
         $params{'vacation_end'} = "$3.$2.$1";
     }
 
-    return $self->tt_process( 'mailbox/edit.tpl', \%params );
+    return $self->tt_process( 'vboxadm/mailbox/edit.tpl', \%params );
 }
 
 sub show_update_mailbox {
@@ -1526,7 +1629,13 @@ sub show_update_mailbox {
         }
     }
 
-    $self->{'Mailbox'}->update( $mailbox_id, $params );
+    if ( $self->{'Mailbox'}->update( $mailbox_id, $params ) ) {
+        $self->log( 'Updated Mailbox #' . $mailbox_id );
+    }
+    else {
+        $self->log( 'Failed to update Mailbox #' . $mailbox_id );
+        $self->add_message('Database Error!');
+    }
     $self->redirect( $self->{base_url} . '?rm=mailboxes' );
     return;
 }
@@ -1552,11 +1661,18 @@ sub show_log {
     # Get our database connection
     my $dbh = $self->dbh();
 
-    my $search = $q->param('search') || undef;
-    my $page   = $q->param('page')   || 1;
+    # TT Params
+    my %params = (
+        'title'   => $self->{lh}->maketext('VBoxAdm Log'),
+        'current' => 'log',
+    );
+
+    my $search = $q->param('search') || '';
+    $params{'search'} = $search;
+    my $page = $q->param('page') || 1;
 
     my @args  = ();
-    my $query = "FROM log ";
+    my $query = "SELECT ts,msg FROM log ";
     if ($search) {
         $query .= "WHERE msg LIKE ? ";
         $search =~ s/%//g;
@@ -1566,25 +1682,26 @@ sub show_log {
     $query .= "ORDER BY ts DESC";
 
     # Get the actual data
-    my $sth = $dbh->prepare( 'SELECT ts,msg ' . $query )
-      or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr );
-    $sth->execute(@args)
-      or $self->{'logger'}->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr );
+    my $sth = $dbh->prepare($query);
+    if ( !$sth ) {
+        $self->add_message('Database Error!');
+        $self->log( 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, 'warning', );
+        return $self->tt_process( 'vwebadm/log.tpl', \%params );
+    }
+    if ( !$sth->execute(@args) ) {
+        $self->add_message('Database Error!');
+        $self->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, 'warning', );
+        return $self->tt_process( 'vwebadm/log.tpl', \%params );
+    }
 
     my @log = ();
     while ( my @row = $sth->fetchrow_array() ) {
         push( @log, { ts => $row[0], msg => $row[1], } );
     }
     $sth->finish();
+    $params{'log'} = \@log;
 
-    my %params = (
-        'title'   => $self->{lh}->maketext('VBoxAdm Log'),
-        'current' => 'log',
-        'log'     => \@log,
-        'search'  => $search,
-    );
-
-    return $self->tt_process( 'log.tpl', \%params );
+    return $self->tt_process( 'vwebadm/log.tpl', \%params );
 }
 
 #
@@ -1592,9 +1709,6 @@ sub show_log {
 #
 sub show_vacation_blacklist {
     my $self = shift;
-
-    # Get our database connection
-    my $dbh = $self->dbh();
 
     # Get CGI Query object
     my $q = $self->query();
@@ -1615,7 +1729,7 @@ sub show_vacation_blacklist {
         'search'    => $search,
     );
 
-    return $self->tt_process( 'vacation_blacklist/list.tpl', \%params );
+    return $self->tt_process( 'vboxadm/vacation_blacklist/list.tpl', \%params );
 }
 
 sub show_create_vacbl_entry {
@@ -1632,15 +1746,12 @@ sub show_create_vacbl_entry {
     # Get CGI Query object
     my $q = $self->query();
 
-    # Get our database connection
-    my $dbh = $self->dbh();
-
     my %params = (
         'title'   => $self->{lh}->maketext('VBoxAdm Vacation Blacklist - Create Entry'),
         'current' => 'vacation',
     );
 
-    return $self->tt_process( 'vacation_blacklist/create.tpl', \%params );
+    return $self->tt_process( 'vboxadm/vacation_blacklist/create.tpl', \%params );
 }
 
 sub show_add_vacbl_entry {
@@ -1651,7 +1762,13 @@ sub show_add_vacbl_entry {
 
     my $email = $q->param('email') || undef;
 
-    $self->{'VacationBlacklist'}->create($email);
+    if ( $self->{'VacationBlacklist'}->create($email) ) {
+        $self->log( 'Created vacation blacklist entry: ' . $email );
+    }
+    else {
+        $self->log( 'Failed to create vacation blacklist entry: ' . $email );
+        $self->add_message('Database Error!');
+    }
 
     $self->redirect( $self->{base_url} . '?rm=vac_bl' );
     return;
@@ -1665,7 +1782,13 @@ sub show_remove_vacbl_entry {
 
     my $entry_id = $q->param('entry_id') || undef;
 
-    $self->{'VacationBlacklist'}->delete($entry_id);
+    if ( $self->{'VacationBlacklist'}->delete($entry_id) ) {
+        $self->log( 'Deleted vacation blacklist entry #' . $entry_id );
+    }
+    else {
+        $self->log( 'Failed to delete vacation blacklist entry #' . $entry_id );
+        $self->add_message('Database Error!');
+    }
 
     $self->redirect( $self->{base_url} . '?rm=vac_bl' );
     return;
@@ -1688,7 +1811,14 @@ sub show_vacation_replies {
     # Get our database connection
     my $dbh = $self->dbh();
 
-    my $search = $q->param('search') || undef;
+    my $search = $q->param('search') || '';
+
+    # TT Params
+    my %params = (
+        'title'   => $self->{lh}->maketext('VBoxAdm Vacation Notifications'),
+        'current' => 'vacation',
+        'search'  => $search,
+    );
 
     my @args  = ();
     my $query = "SELECT on_vacation,notified,notified_at FROM vacation_notify ";
@@ -1700,10 +1830,17 @@ sub show_vacation_replies {
         push( @args, $search_arg );
     }
     $query .= "ORDER BY on_vacation,notified,notified_at";
-    my $sth = $dbh->prepare($query)
-      or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr );
-    $sth->execute(@args)
-      or $self->{'logger'}->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr );
+    my $sth = $dbh->prepare($query);
+    if ( !$sth ) {
+        $self->add_message('Database Error!');
+        $self->log( 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, 'warning', );
+        return $self->tt_process( 'vboxadm/vacation_notify/list.tpl', \%params );
+    }
+    if ( !$sth->execute(@args) ) {
+        $self->add_message('Database Error!');
+        $self->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, 'warning', );
+        return $self->tt_process( 'vboxadm/vacation_notify/list.tpl', \%params );
+    }
     my @notifies = ();
     while ( my ( $on_vacation, $notified, $notified_at ) = $sth->fetchrow_array() ) {
         push(
@@ -1716,15 +1853,9 @@ sub show_vacation_replies {
         );
     }
     $sth->finish();
+    $params{'notifies'} = \@notifies;
 
-    my %params = (
-        'title'    => $self->{lh}->maketext('VBoxAdm Vacation Notifications'),
-        'current'  => 'vacation',
-        'notifies' => \@notifies,
-        'search'   => $search,
-    );
-
-    return $self->tt_process( 'vacation_notify/list.tpl', \%params );
+    return $self->tt_process( 'vboxadm/vacation_notify/list.tpl', \%params );
 }
 
 #
@@ -1748,31 +1879,11 @@ sub show_rfc_notify {
     # Get our database connection
     my $dbh = $self->dbh();
 
-    my $search = $q->param('search') || undef;
+    my $search = $q->param('search') || '';
 
-    my @args  = ();
-    my $query = "SELECT id,email,ts FROM rfc_notify ";
-    if ($search) {
-        $query .= "WHERE email LIKE ? ";
-        $search =~ s/%//g;
-        my $search_arg = "%" . $search . "%";
-        push( @args, $search_arg );
-    }
-    $query .= "ORDER BY ts";
-    my $sth = $dbh->prepare($query);
-    $sth->execute(@args);
-    my @notifies = ();
-    while ( my ( $id, $email, $ts ) = $sth->fetchrow_array() ) {
-        push(
-            @notifies,
-            {
-                'id'    => $id,
-                'email' => $email,
-                'ts'    => $ts,
-            }
-        );
-    }
-    $sth->finish();
+    my $params = { 'Order' => 'ts', };
+    $params->{'search'} = $search if $search;
+    my @notifies = $self->{'RFCNotify'}->list();
 
     my %params = (
         'title'    => $self->{lh}->maketext('VBoxAdm RFC Notifications'),
@@ -1781,7 +1892,7 @@ sub show_rfc_notify {
         'search'   => $search,
     );
 
-    return $self->tt_process( 'rfc_notify/list.tpl', \%params );
+    return $self->tt_process( 'vboxadm/rfc_notify/list.tpl', \%params );
 }
 
 #
@@ -1812,7 +1923,7 @@ sub show_awl {
         'search'  => $search,
     );
 
-    return $self->tt_process( 'awl/list.tpl', \%params );
+    return $self->tt_process( 'vboxadm/awl/list.tpl', \%params );
 }
 
 sub show_update_awl {
@@ -1824,7 +1935,13 @@ sub show_update_awl {
     my $entry_id = $q->param('entry_id') || undef;
     my %params = ( 'Disabled' => $q->param('disabled'), );
 
-    $self->{'AWL'}->update( $entry_id, \%params );
+    if ( $self->{'AWL'}->update( $entry_id, \%params ) ) {
+        $self->log( 'Updated AWL entry #' . $entry_id );
+    }
+    else {
+        $self->log( 'Failed to update AWL entry #' . $entry_id );
+        $self->add_message('Database Error!');
+    }
 
     $self->redirect( $self->{base_url} . '?rm=awl' );
     return;
@@ -1867,7 +1984,7 @@ sub show_admins {
         'search'  => $search,
     );
 
-    return $self->tt_process( 'mailbox/admins.tpl', \%params );
+    return $self->tt_process( 'vboxadm/mailbox/admins.tpl', \%params );
 }
 
 #
@@ -1897,7 +2014,7 @@ sub show_role_accounts {
         'search'   => $search,
     );
 
-    return $self->tt_process( 'role_account/list.tpl', \%params );
+    return $self->tt_process( 'vboxadm/role_account/list.tpl', \%params );
 }
 
 sub show_add_role_account {
@@ -1915,7 +2032,7 @@ sub show_add_role_account {
     my $q = $self->query();
 
     my $role = $q->param('role');
-    my $goto = &VBoxAdm::Utils::trim( lc( $q->param('goto') ) );
+    my $goto = &VWebAdm::Utils::trim( lc( $q->param('goto') ) );
 
     $self->{'RoleAccount'}->create( $role, $goto );
 
@@ -1939,7 +2056,7 @@ sub show_create_role_account {
         'current' => 'roleacc',
     );
 
-    return $self->tt_process( 'role_account/create.tpl', \%params );
+    return $self->tt_process( 'vboxadm/role_account/create.tpl', \%params );
 }
 
 sub show_edit_role_account {
@@ -1969,7 +2086,7 @@ sub show_edit_role_account {
         $params{$key} = $roleacc_ref->{$key};
     }
 
-    return $self->tt_process( 'role_account/edit.tpl', \%params );
+    return $self->tt_process( 'vboxadm/role_account/edit.tpl', \%params );
 }
 
 sub show_remove_role_account {
@@ -1980,7 +2097,13 @@ sub show_remove_role_account {
 
     my $roleacc_id = $q->param('roleacc_id');
 
-    $self->{'RoleAccount'}->delete($roleacc_id);
+    if ( $self->{'RoleAccount'}->delete($roleacc_id) ) {
+        $self->log( 'Deleted Role-Account #' . $roleacc_id );
+    }
+    else {
+        $self->log( 'Failed to delete Role-Account #' . $roleacc_id );
+        $self->add_message('Database Error!');
+    }
 
     $self->redirect( $self->{base_url} . '?rm=roleaccs' );
     return;
@@ -1995,7 +2118,13 @@ sub show_update_role_account {
     my $roleacc_id = $q->param('roleacc_id');
     my %params = ( 'Goto' => $q->param('goto'), );
 
-    $self->{'RoleAccount'}->update( $roleacc_id, \%params );
+    if ( $self->{'RoleAccount'}->update( $roleacc_id, \%params ) ) {
+        $self->log( 'Updated Role-Account #' . $roleacc_id );
+    }
+    else {
+        $self->log( 'Failed to update Role-Account #' . $roleacc_id );
+        $self->add_message('Database Error!');
+    }
 
     $self->redirect( $self->{base_url} . '?rm=roleaccs' );
     return;

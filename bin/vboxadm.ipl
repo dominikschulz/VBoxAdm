@@ -8,7 +8,7 @@ use VBoxAdm::Controller::CLI '@VERSION@';
 
 binmode( STDIN, ':utf8' );
 
-my $CLI = VBoxAdm::Controller::CLI->new();
+my $CLI = VBoxAdm::Controller::CLI::->new();
 $CLI->run();
 
 exit 0;

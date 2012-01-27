@@ -5,10 +5,10 @@ use namespace::autoclean;
 
 use Carp;
 
-use VBoxAdm::DB '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 
-extends 'VBoxAdm::Model';
+extends 'VWebAdm::Model';
 
 sub _init_fields { return [qw(id local_part domain)]; }
 
@@ -56,6 +56,7 @@ sub get_id {
     }
 
     if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+        $self->logger()->log( message => 'Invalid email passed to get_id: ' . $email, level => 'error', );
         return;
     }
 
@@ -65,7 +66,8 @@ sub get_id {
     my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $local_part, $domain );
 
     if ( !$sth ) {
-        $self->msg->push( 'error', 'Database error: ' . $self->dbh()->err() );
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
+        $self->msg->push( 'error', 'Database error' );
         return;
     }
 

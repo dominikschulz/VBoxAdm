@@ -1,0 +1,280 @@
+package VWebAdm::Logger;
+
+use Moose;
+use namespace::autoclean;
+
+use English qw( -no_match_vars );
+use Log::Dispatch;
+use Log::Dispatch::Screen;
+
+has 'dispatcher' => (
+    'is'       => 'ro',
+    'isa'      => 'Log::Dispatch',
+    'required' => 0,
+    'lazy'     => 1,
+    'builder'  => '_init_dispatcher',
+);
+
+has 'filename' => (
+    'is'      => 'ro',
+    'isa'     => 'Str',
+    'lazy'    => 1,
+    'builder' => '_init_filename',
+);
+
+has 'facility' => (
+    'is'       => 'ro',
+    'isa'      => 'Str',
+    'required' => 1,
+);
+
+has 'recipients' => (
+    'is'  => 'rw',
+    'isa' => 'ArrayRef[Str]',
+);
+
+has '_buffer' => (
+    'is'      => 'rw',
+    'isa'     => 'ArrayRef',
+    'default' => sub { [] },
+);
+
+has 'prefix_caller' => (
+    'is'      => 'rw',
+    'isa'     => 'Bool',
+    'default' => 1,
+);
+
+has 'prefix_ts' => (
+    'is'      => 'rw',
+    'isa'     => 'Bool',
+    'default' => 1,
+);
+
+has 'prefix_level' => (
+    'is'      => 'rw',
+    'isa'     => 'Bool',
+    'default' => 1,
+);
+
+has 'prefix' => (
+    'is'      => 'rw',
+    'isa'     => 'Str',
+    'default' => '',
+);
+
+has 'verbosity' => (
+    'is'      => 'rw',
+    'isa'     => 'Int',
+    'default' => 0,
+    'trigger' => \&_set_level,
+);
+
+sub _set_level {
+    my ( $self, $new_value, $old_value ) = @_;
+
+    return $self->dispatcher()->{'min_level'} = $self->_verbosity_to_level($new_value);
+}
+
+sub _verbosity_to_level {
+    my $self      = shift;
+    my $verbosity = shift;
+
+    my $level         = 7;
+    my $default_level = 4;
+
+    $level = ( $default_level - $verbosity );
+
+    if ( $level < 0 ) {
+        $level = 0;
+    }
+    elsif ( $level > 7 ) {
+        $level = 7;
+    }
+    return $level;
+}
+
+sub get_buffer {
+    my $self  = shift;
+    my @lines = @{ $self->_buffer() };
+    return @lines;
+}
+
+sub clear_buffer {
+    my $self = shift;
+    $self->_buffer( [] );
+
+    return 1;
+}
+
+sub _add_to_buffer {
+    my $self = shift;
+    my $obj  = shift;
+
+    # make sure the buffer doesn't get too big
+    if ( @{ $self->_buffer() } > 1_000_000 ) {
+        shift @{ $self->_buffer() };
+    }
+    push( @{ $self->_buffer() }, $obj );
+
+    return;
+}
+
+sub _init_filename {
+    my $self = shift;
+
+    my $name = lc( $self->facility() );
+    $name =~ s/\W/-/g;
+    if ( $name !~ m/\.log$/ ) {
+        $name .= '.log';
+    }
+    if ( -w '/var/log/' ) {
+        return '/var/log/' . $name;
+    }
+    else {
+        return '/tmp/' . $name;
+    }
+}
+
+sub _check_filename {
+    my $self     = shift;
+    my $filename = shift;
+
+    if ( -f $filename ) {
+        if ( -w $filename ) {
+            return $filename;
+        }
+        else {
+            return $self->_init_filename();
+        }
+    }
+    else {
+        my @path = split /\//, $filename;
+        pop @path;
+        my $basedir = join '/', @path;
+        if ( -w $basedir ) {
+            return $filename;
+        }
+        else {
+            return $self->_init_filename();
+        }
+    }
+
+    return;
+}
+
+sub _init_dispatcher {
+    my $self = shift;
+
+    my $log = Log::Dispatch->new();
+
+    #$log->add(
+    #    Log::Dispatch::Screen->new(
+    #        name      => 'screen',
+    #        min_level => $self->_verbosity_to_level( $self->verbosity() ),
+    #    )
+    #);
+    if ( $self->facility() ) {
+        require Log::Dispatch::Syslog;
+        $log->add(
+            Log::Dispatch::Syslog->new(
+                name      => 'syslog',
+                min_level => 'info',
+                ident     => $self->facility(),
+            )
+        );
+    }
+    if ( $self->filename() ) {
+        require Log::Dispatch::File;
+        $log->add(
+            Log::Dispatch::File->new(
+                name      => 'file',
+                min_level => 'debug',
+                'mode'    => 'append',
+                filename  => $self->filename(),
+            )
+        );
+    }
+    if ( $self->recipients() ) {
+        require Log::Dispatch::Email::MailSender;
+        $log->add(
+            Log::Dispatch::Email::MailSender->new(
+                name      => 'email',
+                min_level => 'emerg',
+                to        => join( ',', @{ $self->recipients() } ),
+                subject   => $self->facility() . ' - EMERGENCY',
+            )
+        );
+    }
+    return $log;
+}
+
+sub log {
+    my ( $self, %params ) = @_;
+
+    $params{'caller'} = ( caller(1) )[3] || 'n/a';
+    $params{'ts'} = time();
+    $params{'level'} ||= 'debug';
+    $self->_add_to_buffer( \%params );
+
+    # we use tabs to separated the fidls, so remove any tabs already present
+    $params{'message'} =~ s/\t/ /g;
+
+    # prepend log level
+    if ( $self->prefix_level() ) {
+        $params{'message'} = uc( $params{'level'} ) . "\t" . $params{'message'};
+    }
+
+    # prepend log message w/ the caller
+    if ( $self->prefix_caller() ) {
+        $params{'message'} = $params{'caller'} . "\t" . $params{'message'};
+    }
+
+    # prepend a user-supplied prefix, e.g. [CHILD 24324/234342]
+    if ( $self->prefix() ) {
+        $params{'message'} = $self->prefix() . "\t" . $params{'message'};
+    }
+
+    # prepend log message w/ a timestamp
+    if ( $self->prefix_ts() ) {
+        my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime( $params{'ts'} );
+        $year += 1900;
+        $mon++;
+        $params{'message'} = sprintf( "%04i.%02i.%02i-%02i:%02i:%02i", $year, $mon, $mday, $hour, $min, $sec ) . "\t" . $params{'message'};
+    }
+    $params{'message'} .= "\n";
+    return $self->dispatcher()->log(%params);
+}
+
+around BUILDARGS => sub {
+    my $orig  = shift;
+    my $class = shift;
+
+    if ( @_ == 1 && !ref $_[0] ) {
+        return $class->$orig( facility => $_[0] );
+    }
+    else {
+        return $class->$orig(@_);
+    }
+};
+
+sub BUILD {
+    my $self = shift;
+    my $args = shift;
+
+    if ( $args->{'filename'} ) {
+        $self->{'filename'} = $self->_check_filename( $args->{'filename'} );
+    }
+    else {
+        $self->{'filename'} = $self->_init_filename();
+    }
+
+    return 1;
+}
+
+no Moose;
+__PACKAGE__->meta->make_immutable;
+
+1;
+
+__END__

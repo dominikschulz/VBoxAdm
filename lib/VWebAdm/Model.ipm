@@ -1,0 +1,178 @@
+package VWebAdm::Model;
+
+use Moose;
+use namespace::autoclean;
+
+use Carp;
+use Encode;
+use Data::Dumper;
+use VWebAdm::DB '@VERSION@';
+
+has 'dbh' => (
+    'is'       => 'ro',
+    'isa'      => 'DBI::db',
+    'required' => 1,
+);
+
+has 'logger' => (
+    'is'       => 'ro',
+    'isa'      => 'VWebAdm::Logger',
+    'required' => 1,
+);
+
+has 'config' => (
+    'is'       => 'ro',
+    'isa'      => 'Object',
+    'required' => 1,
+);
+
+has 'user' => (
+    'is'       => 'ro',
+    'isa'      => 'VWebAdm::Model::User',
+    'required' => 0,
+);
+
+has 'msgq' => (
+    'is'       => 'ro',
+    'isa'      => 'VWebAdm::Model::MessageQueue',
+    'required' => 1,
+);
+
+has 'fields' => (
+    'is'      => 'ro',
+    'isa'     => 'ArrayRef[Str]',
+    'lazy'    => 1,
+    'builder' => '_init_fields',
+);
+
+sub _init_fields {
+    return [qw(none)];
+}
+
+around BUILDARGS => sub {
+    my $orig  = shift;
+    my $class = shift;
+
+    my $arg_ref = $class->$orig(@_);
+
+    if ( $arg_ref->{'Model'} && $arg_ref->{'Model'}->isa('VWebAdm::Model') ) {
+
+        # 'Inherit' from another VWebAdm::Model class
+        my $ModelClass = $arg_ref->{'Model'};
+        $arg_ref->{'logger'} = $ModelClass->logger();
+        $arg_ref->{'config'} = $ModelClass->config();
+        $arg_ref->{'user'}   = $ModelClass->user();
+        $arg_ref->{'msgq'}   = $ModelClass->msgq();
+        $arg_ref->{'dbh'}    = $ModelClass->dbh();
+    }
+    else {
+        if ( !$arg_ref->{'dbh'} || !$arg_ref->{'dbh'}->ping() ) {
+            confess( "Missing DBH handle in VWebAdm::Model constructor for " . caller(1) . "\n" );
+        }
+    }
+
+    return $arg_ref;
+};
+
+sub _read {
+    my ( $self, $table, $id ) = @_;
+
+    my $sql = "SELECT " . join( ",", @{ $self->fields() } ) . " FROM $table WHERE id = ?";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $id );
+
+    if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    my %result;
+    @result{ @{ $self->fields() } } = $sth->fetchrow_array();
+    $sth->finish();
+
+    foreach my $key ( keys %result ) {
+        $result{$key} = Encode::decode( 'UTF-8', $result{$key} ) unless Encode::is_utf8( $result{$key} );
+    }
+
+    return \%result;
+}
+
+sub _list {
+    my ( $self, $table, $param ) = @_;
+
+    my $sql = 'SELECT ' . join( ',', @{ $self->fields() } ) . ' FROM `' . $table . '` WHERE 1';
+    my @args = ();
+    if ( $param && ref($param) eq 'HASH' && $param->{'Search'} ) {
+        $sql .= " AND (";
+        my $term = $param->{'Search'};
+        $term =~ s/[*%]+//g;
+        $term = '%' . $term . '%';
+        my $first = 1;
+        foreach my $field ( @{ $self->fields() } ) {
+            $sql .= " OR" unless $first;
+            $first = 0;
+            $sql .= ' ' . $field . ' LIKE ?';
+            push( @args, $term );
+        }
+        $sql .= ")";
+    }
+    foreach my $field ( @{ $self->fields() } ) {
+        if ( $param->{$field} ) {
+            $sql .= ' AND `' . $field . '` = ?';
+            push( @args, $param->{$field} );
+        }
+    }
+
+    # grep { $_ eq $var } @fields is equiv. to in_array(@array,$subject)
+    if ( $param->{'Order'} && grep { $_ eq $param->{'Order'} } @{ $self->fields() } ) {
+        $sql .= ' ORDER BY ' . $param->{'Order'};
+    }
+
+    # limit clause can be either a single integer (length) or two comma separated integers (for start and length)
+    if ( $param->{'Limit'} && $param->{'Limit'} =~ m/^\d+(?:,\d+)?$/ ) {
+        $sql .= ' LIMIT ' . $param->{'Limit'};
+    }
+
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
+
+    if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
+        $self->msg->push( 'error', 'Database error' );
+        return;
+    }
+
+    my @entries = ();
+
+    while ( my @row = $sth->fetchrow_array() ) {
+        my %h;
+        @h{ @{ $self->fields() } } = @row;
+        foreach my $field ( keys %h ) {
+            $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8( $h{$field} );
+        }
+        push( @entries, \%h );
+    }
+    $sth->finish();
+
+    return @entries;
+}
+
+sub msg {
+    my $self = shift;
+    return $self->msgq();
+}
+
+sub log {
+    my $self     = shift;
+    my $message  = shift;
+    my $severity = shift || 'debug';
+
+    return $self->logger()->log( message => $message, level => $severity, );
+}
+
+no Moose;
+__PACKAGE__->meta->make_immutable;
+
+1;
+
+__END__
+

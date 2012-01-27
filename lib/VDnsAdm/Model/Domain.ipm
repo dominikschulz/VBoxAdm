@@ -1,0 +1,312 @@
+package VDnsAdm::Model::Domain;
+
+use Moose;
+use namespace::autoclean;
+
+use Carp;
+
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
+
+extends 'VWebAdm::Model';
+
+sub _init_fields {
+    return [qw(id name master last_check type notified_serial is_active)];
+}
+
+sub _validate_params {
+    my $self   = shift;
+    my $params = shift;
+
+    #
+    # Name
+    #
+    if ( defined( $params->{'name'} ) ) {
+        if ( $params->{'name'} !~ m/^[\w.]{1,255}$/i ) {
+            $self->msg->push( 'error', 'Domain name out of range!' );
+            return;
+        }
+        if ( !&VWebAdm::Utils::is_valid_domain_rfc822( $params->{'name'} ) ) {
+            $self->msg->push( 'error', 'Invalid Domain name' );
+            return;
+        }
+    }
+
+    #
+    # Master
+    #
+    if ( defined( $params->{'master'} ) && $params->{'master'} !~ m/^\w{1,128}$/i ) {
+        $self->msg->push( 'error', 'Master out of range!' );
+        return;
+    }
+
+    # Last_Check
+    if ( defined( $params->{'last_check'} ) && $params->{'last_check'} !~ m/^\d{1,11}$/ ) {
+        $self->msg->push( 'error', 'Value for last_check out of range!' );
+        return;
+    }
+
+    # Type
+    if ( defined( $params->{'type'} ) && $params->{'type'} !~ m/^(MASTER|SLAVE)$/ ) {
+        $self->msg->push( 'error', 'Value for type invalid! Must be either MASTER or SLAVE' );
+        return;
+    }
+
+    # Notified_Serial
+    if ( defined( $params->{'notified_serial'} ) && $params->{'notified_serial'} !~ m/^\d{1,11}$/ ) {
+        $self->msg->push( 'error', 'Value for notified_serial out of range!' );
+        return;
+    }
+
+    # is_active
+    if ( defined( $params->{'is_active'} ) && $params->{'is_active'} !~ m/^\d$/ ) {
+        $self->msg->push( 'error', 'Value for is_active is out of range!' );
+        return;
+    }
+
+    return 1;
+}
+
+sub create {
+    my ( $self, $params ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    if ( !$self->_validate_params($params) ) {
+        return;
+    }
+
+    my $query = "INSERT INTO domains (" . join( ',', keys %{$params} ) . ") VALUES(";
+    $query .= "?," x ( scalar( keys %{$params} ) - 1 );
+    $query .= "?)";
+
+    if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, values %{$params} ) ) {
+        my $domain_id = $self->dbh->last_insert_id( undef, undef, undef, undef );
+        $self->msg->push( 'information', "Domain '[_1]' added", $params->{'name'} );
+        $sth->finish();
+        return $domain_id;
+    }
+    else {
+        $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . $params->{'name'} . ', Error: ' . $self->dbh()->errstr() );
+        $self->msg->push( 'error', "Failed to add Domain '[_1]'. Database error.", $params->{'name'} );
+        return;
+    }
+}
+
+sub delete {
+    my ( $self, $domain_id ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $sql = "DELETE FROM domains WHERE id = ? LIMIT 1";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $domain_id );
+
+    if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    $sth->finish();
+
+    return 1;
+}
+
+sub update {
+    my ( $self, $domain_id, $params ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_siteadmin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $domain_name = $self->get_name($domain_id);
+
+    if ( !$self->_validate_params($params) ) {
+        return;
+    }
+
+    my $query = "UPDATE domains SET ";
+
+    # only execute query if scalar(@params) > 0, i.e. at least on valid option
+    my @args = ();
+
+    foreach my $key ( keys %{$params} ) {
+        $params->{$key} = Encode::decode( 'UTF-8', $params->{$key} );
+        $query .= $key . ' = ?, ';
+        push( @args, $params->{$key} );
+    }
+
+    # at least on option has changed
+    if ( scalar(@args) > 0 ) {
+
+        # remove (possible) trailing ,
+        $query =~ s/,\s*$//;
+
+        # finialize query
+        $query .= " WHERE id = ?";
+        push( @args, $domain_id );
+
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
+            $sth->finish();
+            $self->msg->push( 'information', 'Updated Domain [_1].', $domain_name );
+            return 1;
+        }
+        else {
+            $self->log( 'Could not execute Query: ' . $query . ', Args: ' . join( ',', @args ) . ', Error: ' . $self->dbh->errstr );
+            $self->msg->push( 'error', 'Failed to update Domain [_1]. Database error.', $domain_name );
+            return;
+        }
+    }
+}
+
+sub read {
+    my ( $self, $id ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+    elsif ( !$self->user->is_siteadmin() && $self->user->get_domain_id() != $id ) {
+        $self->msg->push( 'error', 'Sorry. Not your domain.' );
+        return;
+    }
+
+    return $self->_read( 'domains', $id, );
+}
+
+sub list {
+    my ( $self, $params ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+    elsif ( !$self->user->is_siteadmin() ) {
+
+        # limit to this domain
+        $params->{'id'} = $self->user->get_domain_id();
+    }
+
+    return $self->_list( 'domains', $params );
+}
+
+sub get_name {
+    my ( $self, $id ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $query = "SELECT name FROM domains WHERE id = ?";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $id );
+
+    if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    my $domain_name = $sth->fetchrow_array();
+    $sth->finish();
+
+    return $domain_name;
+}
+
+sub get_id {
+    my ( $self, $name ) = @_;
+
+    # Authorization - No access for regular users
+    if ( !$self->user->is_admin() ) {
+        $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        return;
+    }
+
+    my $sql = "SELECT id FROM domains WHERE name = ?";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $name );
+
+    if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
+        $self->msg->push( 'error', 'Database error.' );
+        return;
+    }
+
+    my $domain_id = $sth->fetchrow_array();
+    $sth->finish();
+
+    return $domain_id;
+}
+
+#no Moose;
+__PACKAGE__->meta->make_immutable;
+
+1;
+
+__END__
+
+=head1 NAME
+
+VDnsAdm::Model::Domain - Class for Domains
+
+=head1 VERSION
+
+This documentation refers to VDnsAdm::Model::Domain version @VERSION@
+built on @BUILDDATE@.
+
+=head1 SYNOPSIS
+
+    use VBoxAdm::Model::Domain;
+
+=head1 DESCRIPTION
+
+This class provides common DB methods.
+
+=head1 DEPENDENCIES
+
+DBI.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut

@@ -1,0 +1,30 @@
+[% INCLUDE vwebadm/includes/header.tpl %]
+    <div id="main" role="main">
+		[% FOREACH line IN log %]
+		[% IF loop.first %]
+		<table class="datatable">
+			<thead>
+			<tr>
+				<th>[% "Date" | l10n %]</th>
+				<th>[% "Message" | l10n %]</th>
+			</tr>
+			</thead>
+			<tbody>
+		[% END %]
+			<tr class="[% loop.parity %] [% IF line.is_active %]enabled[% ELSE %]disabled[% END %]">
+				<td>
+					[% line.ts %]
+				</td>
+				<td>
+					[% line.msg | highlight(search) %]
+				</td>
+			</tr>
+		[% IF loop.last %]
+		</tbody>
+		<tfoot>
+		</tfoot>
+		</table>
+		[% END %]
+		[% END %]
+    </div>
+[% INCLUDE vwebadm/includes/footer.tpl %]

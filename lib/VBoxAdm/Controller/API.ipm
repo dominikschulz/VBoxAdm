@@ -13,18 +13,18 @@ use CGI::Application::Plugin::DBH (qw/dbh_config dbh/);
 use Carp;
 use Config::Std;
 use Data::Dumper;
-use Sys::Syslog;
 
-use VBoxAdm::API '@VERSION@';
+use VWebAdm::API '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
 
 use VBoxAdm::Model::Alias '@VERSION@';
 use VBoxAdm::Model::AWL '@VERSION@';
 use VBoxAdm::Model::Domain '@VERSION@';
 use VBoxAdm::Model::DomainAlias '@VERSION@';
 use VBoxAdm::Model::Mailbox '@VERSION@';
-use VBoxAdm::Model::MessageQueue '@VERSION@';
+use VWebAdm::Model::MessageQueue '@VERSION@';
 use VBoxAdm::Model::RFCNotify '@VERSION@';
 use VBoxAdm::Model::RoleAccount '@VERSION@';
 use VBoxAdm::Model::User '@VERSION@';
@@ -44,6 +44,9 @@ our $VERSION = '@VERSION@';
 # setup is run right after cgiapp_init
 sub setup {
     my $self = shift;
+
+    my $Logger = VWebAdm::Logger::->new( { 'facility' => 'VBoxAdm/API', } );
+    $self->{'logger'} = $Logger;
 
     # define the default run mode
     $self->start_mode('api');
@@ -83,7 +86,8 @@ sub setup {
         }
     }
     if ( !$conffile_used ) {
-        syslog( 2, "setup - Warning: No readable config file found in search path! (" . join( ':', @conffile_locations ) . ")" );
+        $self->{'logger'}
+          ->log( message => "setup - Warning: No readable config file found in search path! (" . join( ':', @conffile_locations ) . ")", level => 'warning', );
     }
     $config{'quiet'} = 1;
     $self->{config} = \%config;
@@ -115,7 +119,7 @@ sub setup {
         }
     );
     if ( !$self->dbh ) {
-        syslog( 2, "setup - Failed to establish DB connection with DSN $dsn and error message: " . DBI->errstr );
+        $self->{'logger'}->log( message => "setup - Failed to establish DB connection with DSN $dsn and error message: " . DBI->errstr, level => 'warning', );
         die("Could not connect to DB.");
     }
 
@@ -124,16 +128,16 @@ sub setup {
     # the only point were we could deal with non-UTF-8 is when we output data to
     # non-utf-8 capable browsers (are there any?)
     $self->dbh->do("SET NAMES utf8")
-      or syslog( 2, "setup - Failed to set DB connection to UTF-8!" );
+      or $self->{'logger'}->log( message => "setup - Failed to set DB connection to UTF-8!", level => 'warning', );
 
     #
     # L10N
     #
     # the user handle, will try to determine the appropriate language ... look at the docs of Locale::Maketext
-    $self->{lh} = VBoxAdm::L10N->get_handle();
+    $self->{lh} = VBoxAdm::L10N::->get_handle();
 
     # this handle is used for logging. logged messages should always be in english
-    $self->{lh_en} = VBoxAdm::L10N->get_handle('en');
+    $self->{lh_en} = VBoxAdm::L10N::->get_handle('en');
 
     # to make perlcritic happy
     return 1;
@@ -161,9 +165,6 @@ sub cgiapp_init {
 
     # Everything should be in UTF-8!
     $self->query->charset('UTF-8');
-
-    # Set up syslog
-    openlog( 'VBoxAdm/API', 'ndelay,nofatal', 'mail' );
 
     # to make perlcritic happy
     return 1;
@@ -221,7 +222,7 @@ sub handle_v1 {
         return "Missing parameters.\n";
     }
 
-    my $hash_ref = &VBoxAdm::API::decrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $payload );
+    my $hash_ref = &VWebAdm::API::decrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $payload );
     my $answer_ref = {};
 
     if ( !$hash_ref ) {
@@ -234,7 +235,7 @@ sub handle_v1 {
         return "Illegal request.\n";
     }
 
-    my $Messages = VBoxAdm::Model::MessageQueue->new(
+    my $Messages = VWebAdm::Model::MessageQueue::->new(
         {
             'LH'    => $cgiapp->{'lh'},
             'LH_EN' => $cgiapp->{'lh_en'},
@@ -275,13 +276,13 @@ sub handle_v1 {
         'Config'       => $cgiapp->{'config'},
     };
     my $c = {};
-    $c->{alias}             = VBoxAdm::Model::Alias->new($arg_ref);
-    $c->{awl}               = VBoxAdm::Model::AWL->new($arg_ref);
-    $c->{domain}            = VBoxAdm::Model::Domain->new($arg_ref);
-    $c->{domainalias}       = VBoxAdm::Model::DomainAlias->new($arg_ref);
-    $c->{mailbox}           = VBoxAdm::Model::Mailbox->new($arg_ref);
-    $c->{rfcnotify}         = VBoxAdm::Model::RFCNotify->new($arg_ref);
-    $c->{vacationblacklist} = VBoxAdm::Model::VacationBlacklist->new($arg_ref);
+    $c->{alias}             = VBoxAdm::Model::Alias::->new($arg_ref);
+    $c->{awl}               = VBoxAdm::Model::AWL::->new($arg_ref);
+    $c->{domain}            = VBoxAdm::Model::Domain::->new($arg_ref);
+    $c->{domainalias}       = VBoxAdm::Model::DomainAlias::->new($arg_ref);
+    $c->{mailbox}           = VBoxAdm::Model::Mailbox::->new($arg_ref);
+    $c->{rfcnotify}         = VBoxAdm::Model::RFCNotify::->new($arg_ref);
+    $c->{vacationblacklist} = VBoxAdm::Model::VacationBlacklist::->new($arg_ref);
 
     $answer_ref->{'auth'} = 'ok';
 
@@ -352,7 +353,7 @@ sub handle_v1 {
     #$output .= "Response-Ciphertext: ".$ciphertext."<br />\n";
     #my $plaintext = &decrypt( $cgiapp, $ciphertext );
     #$output .= "Response-Hashref: <pre>".Dumper($plaintext)."</pre><br />\n";
-    my $output = &VBoxAdm::API::encrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $answer_ref );
+    my $output = &VWebAdm::API::encrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $answer_ref );
     return $output;
 }
 

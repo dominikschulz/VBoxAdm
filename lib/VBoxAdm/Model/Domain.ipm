@@ -5,11 +5,10 @@ use namespace::autoclean;
 
 use Carp;
 
-use Sys::Syslog;
-use VBoxAdm::DB '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 
-extends 'VBoxAdm::Model';
+extends 'VWebAdm::Model';
 
 sub _init_fields {
     return [qw(id name is_active)];
@@ -24,16 +23,16 @@ sub create {
         return;
     }
 
-    $domain = &VBoxAdm::Utils::trim( lc($domain) );
+    $domain = &VWebAdm::Utils::trim( lc($domain) );
 
-    if ( $domain && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain) ) {
+    if ( $domain && !&VWebAdm::Utils::is_valid_domain_rfc822($domain) ) {
         $self->msg->push( 'error', 'Invalid syntax. Domain is not RFC822 compliant!' );
         return;
     }
     elsif ($domain) {
         my $query = "INSERT INTO domains (name,is_active) VALUES(?,1)";
 
-        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $domain ) ) {
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $domain ) ) {
             $self->msg->push( 'information', "Domain '[_1]' added", $domain );
             $sth->finish();
             return 1;
@@ -61,9 +60,10 @@ sub delete {
     }
 
     my $sql = "DELETE FROM domains WHERE id = ? LIMIT 1";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $domain_id );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $domain_id );
 
     if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
         $self->msg->push( 'error', 'Database error.' );
         return;
     }
@@ -100,7 +100,7 @@ sub update {
     if ( scalar(@args) > 0 ) {
         $sql .= "WHERE id = ?";
         push( @args, $domain_id );
-        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, @args ) ) {
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args ) ) {
             $sth->finish();
             $self->msg->push( 'information', 'Updated Domain [_1].', $domain_name );
             return 1;
@@ -133,7 +133,7 @@ sub list {
         $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
-    elsif ( $self->user->is_domainadmin() ) {
+    elsif ( !$self->user->is_siteadmin() ) {
 
         # limit to this domain
         $params->{'id'} = $self->user->get_domain_id();
@@ -152,9 +152,10 @@ sub get_name {
     }
 
     my $query = "SELECT name FROM domains WHERE id = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $id );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $id );
 
     if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
         $self->msg->push( 'error', 'Database error.' );
         return;
     }
@@ -175,9 +176,10 @@ sub get_id {
     }
 
     my $query = "SELECT id FROM domains WHERE name = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $name );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $name );
 
     if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
         $self->msg->push( 'error', 'Database error.' );
         return;
     }

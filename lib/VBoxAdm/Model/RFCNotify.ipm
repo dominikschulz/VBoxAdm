@@ -5,11 +5,10 @@ use namespace::autoclean;
 
 use Carp;
 
-use Sys::Syslog;
-use VBoxAdm::DB '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 
-extends 'VBoxAdm::Model';
+extends 'VWebAdm::Model';
 
 sub _init_fields {
     return [qw(id email ts)];
@@ -36,15 +35,16 @@ sub get_id {
         return;
     }
 
-    if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+    if ( !&VWebAdm::Utils::is_valid_address_rfc822($email) ) {
         return;
     }
 
     my $sql = "SELECT id FROM rfc_notify WHERE email = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $email );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $email );
     my $id  = $sth->fetchrow_array();
 
     if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
         $self->msg->push( 'error', 'Database error.' );
         return;
     }

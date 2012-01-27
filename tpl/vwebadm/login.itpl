@@ -1,0 +1,24 @@
+[% INCLUDE vwebadm/includes/header.tpl %]
+    <div id="main">
+    	<div class="forms">
+			<form name="loginform" action="[% base_url %]" method="POST">
+				<h1>[% "Sign In" | l10n %]</h1>
+				<label for="authen_username">
+					[% "User Name" | l10n %]
+					<span class="small">Enter your full email address</span>
+				</label>
+				<input id="authen_loginfield" tabindex="1" type="text" name="authen_username" size="30" value="" />
+							
+				<label for="authen_password">
+					[% "Password" | l10n %]
+					<span class="small">Please enter your password</span>
+				</label>
+				<input id="authen_passwordfield" tabindex="2" type="password" name="authen_password" size="30" /><br />
+	        	<button type="submit" id="authen_loginbutton" tabindex="4" type="submit" >[% "Sign In" | l10n %]</button>
+				<input type="hidden" name="rm" value="authen_login" />
+				<input type="hidden" name="destination" value="[% base_url %]?rm=welcome" />
+				<div class="spacer"></div>
+			</form>
+		</div>
+    </div>
+[% INCLUDE vwebadm/includes/footer.tpl %]

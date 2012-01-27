@@ -1,0 +1,72 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use lib '@LIBDIR@';
+use lib qw(../lib);
+
+use CGI::Fast();
+use VDnsAdm::Controller::Frontend '@VERSION@';
+
+binmode STDIN,  ":utf8";
+binmode STDOUT, ":utf8";
+binmode STDERR, ":utf8";
+
+while ( my $q = CGI::Fast::->new() ) {
+    my $vbox = VDnsAdm::Controller::Frontend::->new(
+        PARAMS => {
+            'require_ssl'    => 1,
+            'rewrite_to_ssl' => 1,
+        },
+        QUERY => $q,
+    );
+    $vbox->run();
+}
+
+__END__
+
+=head1 NAME
+
+vdnsadm.fcgi- Frontend for VDnsAdm, FastCGI Version
+
+=head1 VERSION
+
+This documentation refers to vdnsadm.pl version @VERSION@
+built on @BUILDDATE@.
+
+=head1 DESCRIPTION
+
+This is the fcgi script for VDnsAdm.
+
+=head1 DEPENDENCIES
+
+VDnsAdm::Frontend, CGI::Fast.
+
+=head1 SEE ALSO
+
+http://cgi-app.org/index.cgi?FastCGI
+https://docs.google.com/Doc?docid=0AY-OcCA2-lySZGQzNjNmZzlfNzdnYjRoZGg3Yg&hl=en#FastCGI_8880821961767984
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This module is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself. See L<perlartistic>.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+=cut

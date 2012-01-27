@@ -1,0 +1,23 @@
+<nav id="topNav">
+	<!-- <h1>Navigation</h1> -->
+	<ul>
+		<li><a[% IF current == 'welcome' %] class="current"[% END %] href="[% base_url %]?rm=welcome">VDnsAdm</a></li>
+		[% IF is_siteadmin %]
+		<li><a[% IF current == 'admins' %] class="current"[% END %] href="[% base_url %]?rm=users">[% "Admin List" | l10n %]</a></li>
+		[% END %]
+		<li><a[% IF current == 'domains' %] class="current"[% END %] href="[% base_url %]?rm=domains">[% "Domain List" | l10n %]</a>
+			<ul>
+				<li><a href="[% base_url %]?rm=domains">List</a></li>
+				<li><a href="[% base_url %]?rm=create_domain">Create</a></li>
+			</ul>
+		</li>
+		[% IF is_siteadmin %]
+		<li><a href="[% base_url %]?rm=welcome">Admin Tools</a>
+			<ul>
+				<li><a[% IF current == 'log' %] class="current"[% END %] href="[% base_url %]?rm=log">[% "View Log" | l10n %]</a></li>
+			</ul>
+		</li>
+		[% END %]
+		<li><a[% IF current == 'logout' %] class="current"[% END %] href="[% base_url %]?rm=login&authen_logout=1">[% "Logout" | l10n %]</a></li>
+	</ul>
+</nav>

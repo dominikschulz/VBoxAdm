@@ -1,0 +1,24 @@
+[% INCLUDE vwebadm/includes/header.tpl %]
+    <div id="main">
+    	<div id="accordion">
+	    	<h3><a href="#">Domains</a></h3>
+	    	<div>
+	    		<ul>
+	    		    <li><a target="_top" href="[% base_url %]?rm=domains">[% "Domains" | l10n %]</a> - [% "List and edit your Domains" | l10n %]</li>
+	    		</ul>
+	    	</div>
+	    	[% IF is_siteadmin %]
+	    	<h3><a href="#">Admin Tools</a></h3>
+	    	<div>
+	    		<ul>
+					<li><a[% IF current == 'log' %] class="current"[% END %] href="[% base_url %]?rm=log">[% "View Log" | l10n %]</a> - [% "View the transaction log" | l10n %]</li>
+				</ul>
+	    	</div>
+	    	[% END %]
+    	</div>
+    	<br />
+    	<a target="_top" href="[% base_url %]?rm=logout&authen_logout=1">[% "Logout" | l10n %] - [% "Quit your session" | l10n %]
+    	<hr />
+    	[% extra %]
+    </div>
+[% INCLUDE vwebadm/includes/footer.tpl %]

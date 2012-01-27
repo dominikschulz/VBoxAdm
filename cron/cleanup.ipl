@@ -53,7 +53,7 @@ $config{'vacation'}{'notify_interval'} ||= 3600 * 24 * 7;
 $config{'awl'}{'lifetime'} ||= 365;
 
 my $dsn = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;password=$dbpass";
-my $dbh = &VBoxAdm::DB::connect($dsn);
+my $dbh = &VWebAdm::DB::connect($dsn);
 
 if ( !$dbh ) {
     $Logger->log( message => 'Could not connect to database with DSN $dsn - Exiting', level => 'error', );

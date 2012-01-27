@@ -1,0 +1,73 @@
+<div class="forms">
+	<form name="create_user" method="POST">
+		<input type="hidden" name="rm" value="add_user" />
+		<h1>[% "Create a user" | l10n %]</h1>
+		
+		<label for="local_part">
+			[% "Local Part:" | l10n %]
+			<span class="small">Local Part of the Username</span>
+		</label>
+		<input type="text" name="local_part" value="" />
+		
+		<div class="spacer"></div>
+		
+		<label for="domain_id">
+			[% "Domain:" | l10n %]
+			<span class="small">Domain</span>
+		</label>
+		<select name="domain_id">
+			[% FOREACH line IN domains %]
+			<option value="[% line.id %]">[% line.name %]</option>
+			[% END %]
+		</select>
+		
+		<div class="spacer"></div>
+		
+		<label for="name">
+			[% "Name:" | l10n %]
+			<span class="small">Real Name</span>
+		</label>
+		<input type="text" name="name" value="" />
+		
+		<div class="spacer"></div>
+		
+		<label for="password">
+			[% "Password:" | l10n %]
+			<span class="small">Enter a Password here to replace the old one.</span>
+		</label>
+		<input type="text" name="password" value="" />
+		
+		<div class="spacer"></div>
+		
+		<label for="password_again">
+			[% "Password (again):" | l10n %]
+			<span class="small">Enter the same Password as above here to replace the old one.</span>
+		</label>
+		<input type="text" name="password_again" value="" />
+		
+		<div class="spacer"></div>
+		
+		[% IF is_siteadmin %]
+		<label for="is_domainadmin">
+			[% "Domainadmin:" | l10n %]
+			<span class="small">Is this user a Domainadmin for his domain?</span>
+		</label>
+		<input class="flat" type="checkbox" name="is_domainadmin" [% IF usr_is_domainadmin %]checked[% END %] />
+		
+		<div class="spacer"></div>
+		
+		<label for="is_siteadmin">
+			[% "Domainadmin:" | l10n %]
+			<span class="small">Is this user a Siteadmin for all domains?</span>
+		</label>
+		<input class="flat" type="checkbox" name="is_siteadmin" [% IF usr_is_siteadmin %]checked[% END %] />
+		
+		<div class="spacer"></div>
+		[% END %]
+		
+		<button class="button" type="submit" name="submit">
+			<img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" />
+			[% "Update User" | l10n %]
+		</button>
+	</form>
+</div>

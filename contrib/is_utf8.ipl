@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use VBoxAdm::Utils;
+use VWebAdm::Utils;
 
 my $file = shift
   or die("Usage: $0 <filename>\n");

@@ -9,8 +9,8 @@ use Time::HiRes qw(time);
 use Digest::SHA;
 
 use VBoxAdm::SMTP::Server '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
-use VBoxAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
+use VWebAdm::DB '@VERSION@';
 
 our $VERSION = '@VERSION@';
 
@@ -106,7 +106,7 @@ sub process_request {
                     $smtp_server->tempfail('Only one recipient per mail!');
                     next LINE;
                 }
-                my $unrolled = &VBoxAdm::Utils::unroll_recipient( $smtp_server->{to} );
+                my $unrolled = &VWebAdm::Utils::unroll_recipient( $smtp_server->{to} );
                 if ($unrolled) {
                     $smtp_server->{to}         = $unrolled;
                     $smtp_server->{recipients} = ($unrolled);
@@ -334,7 +334,7 @@ max_requests - Each children will complete this much requests and than exit.
 
 =head1 DEPENDENCIES
 
-VBoxAdm::Utils, VBoxAdm::SMTP::Mailarchive, VBoxAdm::SMTP::Server, VBoxAdm::DB.
+VWebAdm::Utils, VBoxAdm::SMTP::Mailarchive, VBoxAdm::SMTP::Server, VBoxAdm::DB.
 
 =head1 INCOMPATIBILITIES
 

@@ -54,7 +54,7 @@ $config{'vacation'}{'notify_interval'} ||= 3600 * 24 * 7;
 $config{'awl'}{'lifetime'} ||= 365;
 
 my $dsn = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;password=$dbpass";
-my $dbh = &VBoxAdm::DB::connect($dsn);
+my $dbh = &VWebAdm::DB::connect($dsn);
 
 if ( !$dbh ) {
     $Logger->log( message => 'Could not connect to database with DSN $dsn - Exiting', level => 'error', );
@@ -88,11 +88,11 @@ sub optimize_archive_tables {
     my $Logger = shift;
 
     my $sql = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE 'archive_%'";
-    my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql )
+    my $sth = &VWebAdm::DB::prepexec( $dbh, $sql )
       or return;
     while ( my $table = $sth->fetchrow_array() ) {
         my $sql = "OPTIMIZE TABLE $table";
-        my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql );
+        my $sth = &VWebAdm::DB::prepexec( $dbh, $sql );
     }
     $sth->finish();
     return 1;
@@ -118,7 +118,7 @@ sub expire_archive_tables {
         $holdback = 5;
     }
     my $sql = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE 'archive_%'";
-    my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql )
+    my $sth = &VWebAdm::DB::prepexec( $dbh, $sql )
       or return;
     while ( my $table = $sth->fetchrow_array() ) {
         if ( $table =~ m/^archive_(\d{4})_(\d{2})$/ ) {
@@ -126,7 +126,7 @@ sub expire_archive_tables {
             my $current_year = ( localtime(time) )[5];
             if ( $year < $current_year - $holdback ) {
                 my $sql = "DROP TABLE $table";
-                my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql );
+                my $sth = &VWebAdm::DB::prepexec( $dbh, $sql );
                 $sth->finish();
                 $Logger->log( message => "Dropped expired table $table after $holdback years.", level => 'debug', );
             }
@@ -251,7 +251,7 @@ sub create_signature_table {
 `key_id` INT( 16 ) NOT NULL
 ) ENGINE = ARCHIVE';
 
-    my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql )
+    my $sth = &VWebAdm::DB::prepexec( $dbh, $sql )
       or return;
     $Logger->log( message => "Created archive table signatures (if it did not exist).", level => 'debug', );
     $sth->finish();
@@ -291,7 +291,7 @@ sub create_archive_table {
   `body` longtext NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=ARCHIVE DEFAULT CHARSET=utf8;';
-    my $sth = &VBoxAdm::DB::prepexec( $dbh, $sql )
+    my $sth = &VWebAdm::DB::prepexec( $dbh, $sql )
       or return;
     $Logger->log( message => "Created archive table $table (if it did not exist).", level => 'debug', );
     $sth->finish();
