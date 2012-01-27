@@ -9,10 +9,10 @@ use Config::Std;
 use Getopt::Long;
 use Template;
 
-use VBoxAdm::DB '@VERSION@';
-use VBoxAdm::DNS '@VERSION@';
-use VBoxAdm::Logger '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::DNS '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 use VBoxAdm::Controller::Notify '@VERSION@';
 
 my $RN = VBoxAdm::Controller::Notify::->new();

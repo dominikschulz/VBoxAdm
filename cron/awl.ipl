@@ -8,9 +8,11 @@ use DBI;
 use Getopt::Long;
 use Config::Std;
 
-use VBoxAdm::DB '@VERSION@';
-use VBoxAdm::Logger '@VERSION@';
-use VBoxAdm::Utils '@VERSION@';
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
+
+# TODO refactor
 
 use Data::Dumper;
 $Data::Dumper::Sortkeys = 1;
@@ -43,7 +45,7 @@ foreach my $loc (@conffile_locations) {
     }
 }
 
-my $Logger = VBoxAdm::Logger::->new('vboxadm-awl');
+my $Logger = VWebAdm::Logger::->new('vboxadm-awl');
 
 # Determine options
 my $dbhost = $config{'default'}{'dbhost'} || 'localhost';

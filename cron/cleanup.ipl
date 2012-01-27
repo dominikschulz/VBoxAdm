@@ -8,8 +8,10 @@ use DBI;
 use Config::Std;
 use Getopt::Long;
 
-use VBoxAdm::DB '@VERSION@';
-use VBoxAdm::Logger '@VERSION@';
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
+
+# TODO refactor
 
 my ( $conffile_used, @hooks, %hook, %config, );
 
@@ -41,7 +43,7 @@ foreach my $loc (@conffile_locations) {
     }
 }
 
-my $Logger = VBoxAdm::Logger::->new('vboxadm-cleanup');
+my $Logger = VWebAdm::Logger::->new('vboxadm-cleanup');
 
 # Determine options
 my $dbhost = $config{'default'}{'dbhost'} || 'localhost';
