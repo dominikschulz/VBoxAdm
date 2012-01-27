@@ -360,16 +360,19 @@ real-install: all test rcvboxadm
 	$(INSTALL) -d $(CFGDIR)/vboxadm $(CFGDIR)/vdnsadm
 	$(INSTALL) -d $(LIBDIR)/VBoxAdm/Controller $(LIBDIR)/VBoxAdm/L10N $(LIBDIR)/VBoxAdm/Model $(LIBDIR)/VBoxAdm/SMTP/Proxy 
 	$(INSTALL) -d $(LIBDIR)/VDnsAdm/Controller $(LIBDIR)/VDnsAdm/L10N $(LIBDIR)/VDnsAdm/Model
-	$(INSTALL) -d $(LIBDIR)/VDnsAdm/Model
+	$(INSTALL) -d $(LIBDIR)/VWebAdm/Model
 	$(INSTALL) -d $(MANDIR)/man1 $(MANDIR)/man3 $(MANDIR)/man8
 	$(INSTALL) -d $(VBOXLIBDIR)/bin
-	$(INSTALL) -d $(VBOXLIBDIR)/tpl/alias $(VBOXLIBDIR)/tpl/autoconfig $(VBOXLIBDIR)/tpl/awl $(VBOXLIBDIR)/tpl/domain
-	$(INSTALL) -d $(VBOXLIBDIR)/tpl/domain_alias $(VBOXLIBDIR)/tpl/includes $(VBOXLIBDIR)/tpl/mailbox $(VBOXLIBDIR)/tpl/notify
-	$(INSTALL) -d $(VBOXLIBDIR)/tpl/rfc_notify $(VBOXLIBDIR)/tpl/vacation_blacklist $(VBOXLIBDIR)/tpl/vacation_notify
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/alias $(VWEBLIBDIR)/tpl/vboxadm/autoconfig $(VWEBLIBDIR)/tpl/vboxadm/awl $(VWEBLIBDIR)/tpl/vboxadm/domain
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/domain_alias $(VWEBLIBDIR)/tpl/vboxadm/includes $(VWEBLIBDIR)/tpl/vboxadm/mailbox $(VWEBLIBDIR)/tpl/vboxadm/notify
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/rfc_notify $(VWEBLIBDIR)/tpl/vboxadm/vacation_blacklist $(VWEBLIBDIR)/tpl/vboxadm/vacation_notify
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vdnsadm/domain $(VWEBLIBDIR)/tpl/vdnsadm/includes $(VWEBLIBDIR)/tpl/vdnsadm/record
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vdnsadm/user
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vwebadm/includes
 	$(INSTALL) -g $(WWWGROUP) -d $(VBOXVHDIR)/cgi-bin $(VDNSVHDIR)/cgi-bin
-	$(INSTALL) -g $(WWWGROUP) -d $(VWEBHDIR)/htdocs/images/knob $(VWEBHDIR)/htdocs/images/datatables
-	$(INSTALL) -g $(WWWGROUP) -d $(VWEBHDIR)/htdocs/css/datatable $(VWEBHDIR)/htdocs/css/themes/ui-darkness/images
-	$(INSTALL) -g $(WWWGROUP) -d $(VWEBHDIR)/htdocs/js/libs $(VWEBHDIR)/htdocs/js/mylibs $(VWEBHDIR)/htdocs/js/profiling
+	$(INSTALL) -g $(WWWGROUP) -d $(VWEBVHDIR)/htdocs/images/knob $(VWEBVHDIR)/htdocs/images/datatables
+	$(INSTALL) -g $(WWWGROUP) -d $(VWEBVHDIR)/htdocs/css/datatable $(VWEBVHDIR)/htdocs/css/themes/ui-darkness/images
+	$(INSTALL) -g $(WWWGROUP) -d $(VWEBVHDIR)/htdocs/js/libs $(VWEBVHDIR)/htdocs/js/mylibs $(VWEBVHDIR)/htdocs/js/profiling
 	$(INSTALL_PROGRAM) bin/vacation.pl $(VBOXLIBDIR)/bin/vacation
 	$(INSTALL_PROGRAM) bin/vboxadm-ma.pl $(SBINDIR)/vboxadm-ma
 	$(INSTALL_PROGRAM) bin/vboxadm-sa.pl $(SBINDIR)/vboxadm-sa
@@ -391,7 +394,7 @@ real-install: all test rcvboxadm
 	$(INSTALL_PROGRAM) cron/notify.pl $(VBOXLIBDIR)/bin/notify
 	$(INSTALL_CONF) doc/vboxadm/apache/vboxadm.conf $(CFGDIR)/vboxadm/apache.conf
 	$(INSTALL_CONF) doc/vboxadm/lighttpd/50-vboxadm.conf $(CFGDIR)/vboxadm/lighttpd.conf
-	$(INSTALL_CONF) doc/vdnsadm/powerdns/pdns.local $(CFGDIR)/vboxadm/pdns.local
+	$(INSTALL_CONF) doc/vdnsadm/powerdns/pdns.local $(CFGDIR)/vdnsadm/pdns.local
 	$(INSTALL_DATA) lib/VBoxAdm/Controller/*.pm $(LIBDIR)/VBoxAdm/Controller/
 	$(INSTALL_DATA) lib/VBoxAdm/Controller/VBoxAdm::*.3 $(MANDIR)/man3/
 	$(INSTALL_DATA) lib/VBoxAdm/L10N/*.pm $(LIBDIR)/VBoxAdm/L10N/
@@ -409,30 +412,29 @@ real-install: all test rcvboxadm
 	$(INSTALL_DATA) lib/VDnsAdm/Model/*.pm $(LIBDIR)/VDnsAdm/Model/
 	$(INSTALL_DATA) lib/VDnsAdm/Model/VDnsAdm::*.3 $(MANDIR)/man3/
 	$(INSTALL_DATA) lib/VDnsAdm/*.pm $(LIBDIR)/VDnsAdm/
-	$(INSTALL_DATA) lib/VDnsAdm/VDnsAdm::*.3 $(MANDIR)/man3/
 	$(INSTALL_DATA) lib/VWebAdm/Model/*.pm $(LIBDIR)/VWebAdm/Model/
 	$(INSTALL_DATA) lib/VWebAdm/Model/VWebAdm::*.3 $(MANDIR)/man3/
 	$(INSTALL_DATA) lib/VWebAdm/*.pm $(LIBDIR)/VWebAdm/
 	$(INSTALL_DATA) lib/VWebAdm/VWebAdm::*.3 $(MANDIR)/man3/
-	$(INSTALL_DATA) tpl/vboxadm/*.tpl $(VWEBLIBDIR)/tpl/
-	$(INSTALL_DATA) tpl/vboxadm/alias/*.tpl $(VWEBLIBDIR)/tpl/alias/
-	$(INSTALL_DATA) tpl/vboxadm/autoconfig/*.tpl $(VWEBLIBDIR)/tpl/autoconfig/
-	$(INSTALL_DATA) tpl/vboxadm/awl/*.tpl $(VWEBLIBDIR)/tpl/awl/
-	$(INSTALL_DATA) tpl/vboxadm/domain/*.tpl $(VWEBLIBDIR)/tpl/domain/
-	$(INSTALL_DATA) tpl/vboxadm/domain_alias/*.tpl $(VWEBLIBDIR)/tpl/domain_alias/
-	$(INSTALL_DATA) tpl/vboxadm/includes/*.tpl $(VWEBLIBDIR)/tpl/includes/
-	$(INSTALL_DATA) tpl/vboxadm/mailbox/*.tpl $(VWEBLIBDIR)/tpl/mailbox/
-	$(INSTALL_DATA) tpl/vboxadm/notify/*.tpl $(VWEBLIBDIR)/tpl/notify/
-	$(INSTALL_DATA) tpl/vboxadm/rfc_notify/*.tpl $(VWEBLIBDIR)/tpl/rfc_notify/
-	$(INSTALL_DATA) tpl/vboxadm/vacation_blacklist/*.tpl $(VWEBLIBDIR)/tpl/vacation_blacklist/
-	$(INSTALL_DATA) tpl/vboxadm/vacation_notify/*.tpl $(VWEBLIBDIR)/tpl/vacation_notify/
-	$(INSTALL_DATA) tpl/vdnsadm/domain/*.tpl $(VWEBLIBDIR)/tpl/domain/
-	$(INSTALL_DATA) tpl/vdnsadm/includes/*.tpl $(VWEBLIBDIR)/tpl/includes/
-	$(INSTALL_DATA) tpl/vdnsadm/record/*.tpl $(VWEBLIBDIR)/tpl/record/
-	$(INSTALL_DATA) tpl/vdnsadm/user/*.tpl $(VWEBLIBDIR)/tpl/user/
-	$(INSTALL_DATA) tpl/vdnsadm/*.tpl $(VWEBLIBDIR)/tpl/
-	$(INSTALL_DATA) tpl/vwebadm/includes/*.tpl $(VWEBLIBDIR)/tpl/includes/
-	$(INSTALL_DATA) tpl/vwebadm/*.tpl $(VWEBLIBDIR)/tpl/
+	$(INSTALL_DATA) tpl/vboxadm/*.tpl $(VWEBLIBDIR)/tpl/vboxadm/
+	$(INSTALL_DATA) tpl/vboxadm/alias/*.tpl $(VWEBLIBDIR)/tpl/vboxadm/alias/
+	$(INSTALL_DATA) tpl/vboxadm/autoconfig/*.tpl $(VWEBLIBDIR)/tpl/vboxadm/autoconfig/
+	$(INSTALL_DATA) tpl/vboxadm/awl/*.tpl $(VWEBLIBDIR)/tpl/vboxadm/awl/
+	$(INSTALL_DATA) tpl/vboxadm/domain/*.tpl $(VWEBLIBDIR)/tpl/vboxadm/domain/
+	$(INSTALL_DATA) tpl/vboxadm/domain_alias/*.tpl $(VWEBLIBDIR)/tpl/vboxadm/domain_alias/
+	$(INSTALL_DATA) tpl/vboxadm/includes/*.tpl $(VWEBLIBDIR)/tpl/vboxadm/includes/
+	$(INSTALL_DATA) tpl/vboxadm/mailbox/*.tpl $(VWEBLIBDIR)/tpl/vboxadm/mailbox/
+	$(INSTALL_DATA) tpl/vboxadm/notify/*.tpl $(VWEBLIBDIR)/tpl/vboxadm/notify/
+	$(INSTALL_DATA) tpl/vboxadm/rfc_notify/*.tpl $(VWEBLIBDIR)/tpl/vboxadm/rfc_notify/
+	$(INSTALL_DATA) tpl/vboxadm/vacation_blacklist/*.tpl $(VWEBLIBDIR)/tpl/vboxadm/vacation_blacklist/
+	$(INSTALL_DATA) tpl/vboxadm/vacation_notify/*.tpl $(VWEBLIBDIR)/tpl/vboxadm/vacation_notify/
+	$(INSTALL_DATA) tpl/vdnsadm/domain/*.tpl $(VWEBLIBDIR)/tpl/vdnsadm/domain/
+	$(INSTALL_DATA) tpl/vdnsadm/includes/*.tpl $(VWEBLIBDIR)/tpl/vdnsadm/includes/
+	$(INSTALL_DATA) tpl/vdnsadm/record/*.tpl $(VWEBLIBDIR)/tpl/vdnsadm/record/
+	$(INSTALL_DATA) tpl/vdnsadm/user/*.tpl $(VWEBLIBDIR)/tpl/vdnsadm/user/
+	$(INSTALL_DATA) tpl/vdnsadm/*.tpl $(VWEBLIBDIR)/tpl/vdnsadm/
+	$(INSTALL_DATA) tpl/vwebadm/includes/*.tpl $(VWEBLIBDIR)/tpl/vwebadm/includes/
+	$(INSTALL_DATA) tpl/vwebadm/*.tpl $(VWEBLIBDIR)/tpl/vwebadm/
 	$(INSTALL_DATA) res/css/*.css $(VWEBVHDIR)/htdocs/css/
 	$(INSTALL_DATA) res/css/datatable/*.css $(VWEBVHDIR)/htdocs/css/datatable/
 	$(INSTALL_DATA) res/css/themes/ui-darkness/*.css $(VWEBVHDIR)/htdocs/css/themes/ui-darkness/
