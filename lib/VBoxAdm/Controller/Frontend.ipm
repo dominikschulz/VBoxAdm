@@ -306,7 +306,7 @@ sub setup {
     # Short version: they allow filters with more than one argument.
     # highlight provides syntax highlightning for the search
     # l10n provides localization via Locale::Maketext
-    my @include_path = qw(tpl ../tpl /usr/lib/vboxadm/tpl);
+    my @include_path = qw(tpl ../tpl /usr/lib/vwebadm/tpl);
     if ( $config{'cgi'}{'template_path'} && -d $config{'cgi'}{'template_path'} ) {
         unshift( @include_path, $config{'cgi'}{'template_path'} );
     }
