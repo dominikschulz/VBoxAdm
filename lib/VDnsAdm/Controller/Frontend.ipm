@@ -9,8 +9,6 @@ use CGI::Carp qw(fatalsToBrowser);
 
 use Encode;
 
-# TODO add punnycode translator
-
 # Needed for database connection
 use CGI::Application::Plugin::DBH (qw/dbh_config dbh/);
 
@@ -1177,8 +1175,8 @@ sub show_users {
 
     %params = (
         'title'   => $self->{lh}->maketext('VDnsAdm Admins'),
-        'current' => 'admins',
-        'admins'  => \@users,
+        'current' => 'user',
+        'users'   => \@users,
         'search'  => $search,
     );
 
@@ -1283,7 +1281,7 @@ sub show_edit_user {
     my $user_id = $q->param('user_id');
 
     # Authorization
-    if ( !$self->is_siteadmin() ) {
+    if ( !$self->user->is_siteadmin() ) {
         $user_id = $self->id();
     }
 

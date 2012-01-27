@@ -209,7 +209,7 @@ sub read {
         $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
-    elsif ( $self->user->is_domainadmin() && $self->user->id() != $id ) {
+    elsif ( $self->is_domainadmin() && $self->id() != $id ) {
         $self->msg->push( 'error', 'Sorry. Not your account.' );
         return;
     }
@@ -225,13 +225,29 @@ sub list {
         $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
-    elsif ( $self->is_domainadmin() ) {
+    elsif ( !$self->is_siteadmin() ) {
 
         # limit to this domain
         $params->{'id'} = $self->get_domain_id();
     }
 
-    return $self->_list( 'users', $params );
+    my @users = $self->_list( 'users', $params );
+
+    my $sql = "SELECT name FROM domains WHERE id = ?";
+    my $sth = $self->dbh->prepare($sql);
+    if ( !$sth ) {
+        $self->logger()->log( message => "Could not prepare Query $sql due to error: " . $self->dbh->errstr, level => 'debug', );
+        $self->msg->push( 'error', 'Database error.' );
+        return @users;
+    }
+
+    foreach my $user (@users) {
+        $sth->execute( $user->{'domain_id'} );
+        $user->{'domain'} = $sth->fetchrow_array();
+    }
+    $sth->finish();
+
+    return @users;
 }
 
 sub get_name {

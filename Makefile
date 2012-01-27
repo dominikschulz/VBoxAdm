@@ -170,6 +170,7 @@ MANFILES = \
 	lib/VDnsAdm/Controller/Frontend.3 \
 	lib/VDnsAdm/Model/Domain.3 \
 	lib/VDnsAdm/Model/Record.3 \
+	lib/VDnsAdm/Model/User.3 \
 	lib/VWebAdm/Model/MessageQueue.3 \
 	lib/VWebAdm/Model/User.3 \
 	lib/VWebAdm/API.3 \
@@ -211,6 +212,7 @@ TESTFILES = \
 	t/VDnsAdm/Controller/Frontend.t \
 	t/VDnsAdm/Model/Domain.t \
 	t/VDnsAdm/Model/Record.t \
+	t/VDnsAdm/Model/User.t \
 	t/VDnsAdm/L10N.t \
 	t/VWebAdm/Model/MessageQueue.t \
 	t/VWebAdm/Model/User.t \
@@ -282,6 +284,12 @@ TPLFILES = \
 	tpl/vdnsadm/record/edit.tpl \
 	tpl/vdnsadm/record/list.tpl \
 	tpl/vdnsadm/record/show.tpl \
+	tpl/vdnsadm/user/create_partial.tpl \
+	tpl/vdnsadm/user/create.tpl \
+	tpl/vdnsadm/user/edit_partial.tpl \
+	tpl/vdnsadm/user/edit.tpl \
+	tpl/vdnsadm/user/list.tpl \
+	tpl/vdnsadm/user/show.tpl \
 	tpl/vdnsadm/welcome.tpl \
 	tpl/vwebadm/includes/footer.tpl \
 	tpl/vwebadm/includes/header.tpl \

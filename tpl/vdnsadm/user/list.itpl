@@ -1,15 +1,14 @@
 [% INCLUDE vwebadm/includes/header.tpl %]
     <div id="main" role="main">
-		[% FOREACH line IN records %]
+		[% FOREACH line IN users %]
 		[% IF loop.first %]
 		<table class="datatable">
 			<thead>
 			<tr>
-				<th>[% "Subdomain" | l10n %]</th>
-				<th>[% "Type" | l10n %]</th>
-				<th>[% "Content" | l10n %]</th>
-				<th>[% "TTL" | l10n %]</th>
-				<th>[% "Priority" | l10n %]</th>
+				<th>[% "Username" | l10n %]</th>
+				<th>[% "Name" | l10n %]</th>
+				<th>[% "Domainadmin" | l10n %]</th>
+				<th>[% "Siteadmin" | l10n %]</th>
 				<th></th>
 				<th></th>
 			</tr>
@@ -18,25 +17,22 @@
 		[% END %]
 			<tr class="[% loop.parity %] [% IF line.is_active %]enabled[% ELSE %]disabled[% END %]">
 				<td>
-					<a href="[% base_url %]?rm=record&record_id=[% line.id %]">[% line.name | highlight(search) %].[% line.domain %]</a>
+					<a href="[% base_url %]?rm=edit_user&user_id=[% line.id %]">[% line.local_part | highlight(search) %]@[% line.domain %]</a>
 				</td>
 				<td>
-					IN [% line.type %]
+					[% line.name %]
 				</td>
 				<td>
-					[% line.content %]
+					[% line.is_domainadmin %]
 				</td>
 				<td>
-					[% line.ttl %]
+					[% line.is_siteadmin %]
 				</td>
 				<td>
-					[% line.prio %]
+					<a href="[% base_url %]?rm=edit_user&userd_id=[% line.id %]">[% "edit" | l10n %]</a>
 				</td>
 				<td>
-					<a href="[% base_url %]?rm=edit_record&record_id=[% line.id %]">[% "edit" | l10n %]</a>
-				</td>
-				<td>
-					<a onClick="if(confirm('[% "Do you really want to delete the Record [_1]?" | l10n(line.name) %]')) return true; else return false;" href="[% base_url %]?rm=remove_record&record_id=[% line.id %]">[% "del" | l10n %]</a>
+					<a onClick="if(confirm('[% "Do you really want to delete the User [_1]?" | l10n(line.name) %]')) return true; else return false;" href="[% base_url %]?rm=remove_user&user_id=[% line.id %]">[% "del" | l10n %]</a>
 				</td>
 			</tr>
 		[% IF loop.last %]
@@ -47,9 +43,9 @@
 		[% END %]
 		[% END %]
 		<br />
-		<a href="[% base_url %]?rm=create_record#?w=500" rel="modal_new" class="modallight"><img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" /> [% "Add Record" | l10n %]</a>
+		<a href="[% base_url %]?rm=create_user#?w=500" rel="modal_new" class="modallight"><img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" /> [% "Add User" | l10n %]</a>
     </div>
     <div id="modal_new" class="modal_block">
-    	[% INCLUDE vdnsadm/record/create_partial.tpl %]
+    	[% INCLUDE vdnsadm/user/create_partial.tpl %]
     </div>
 [% INCLUDE vwebadm/includes/footer.tpl %]

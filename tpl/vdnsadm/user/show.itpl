@@ -1,6 +1,6 @@
 [% INCLUDE vwebadm/includes/header.tpl %]
     <div id="main" role="main">
-    	<h2>Viewing Record: [% id %]</h2>
-    	[% name %].[% domain %] [% ttl %] IN [% type %] [% prio %] [% content %]<br />
+    	<h2>Viewing User: [% id %]</h2>
+    	[% local_part %].[% domain %] [% name %] [% is_domainadmin %] [% is_siteadmin %]<br />
     </div>
 [% INCLUDE vwebadm/includes/footer.tpl %]
