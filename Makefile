@@ -139,6 +139,7 @@ MANFILES = \
 	bin/vboxadm-ma.8 \
 	bin/vboxadm-sa.8 \
 	bin/vboxadm.8 \
+	bin/vboxadmr.8 \
 	bin/vdnsadm.8 \
 	bin/vdnsadmr.8 \
 	cgi-bin/autodiscover.1 \
