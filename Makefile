@@ -397,7 +397,7 @@ real-install: all test rcvboxadm
 	$(INSTALL_CONF) doc/vboxadm/apache/vboxadm.conf $(CFGDIR)/vboxadm/apache.conf
 	$(INSTALL_CONF) doc/vboxadm/lighttpd/50-vboxadm.conf $(CFGDIR)/vboxadm/lighttpd.conf
 	$(INSTALL_CONF) doc/vdnsadm/apache/vdnsadm.conf $(CFGDIR)/vdnsadm/apache.conf
-	$(INSTALL_CONF) doc/vdnsadm/lighttpd/50-vboxadm.conf $(CFGDIR)/vdnsadm/lighttpd.conf
+	$(INSTALL_CONF) doc/vdnsadm/lighttpd/50-vdnsadm.conf $(CFGDIR)/vdnsadm/lighttpd.conf
 	$(INSTALL_CONF) doc/vdnsadm/powerdns/pdns.local $(CFGDIR)/vdnsadm/pdns.local
 	$(INSTALL_DATA) lib/VBoxAdm/Controller/*.pm $(LIBDIR)/VBoxAdm/Controller/
 	$(INSTALL_DATA) lib/VBoxAdm/Controller/VBoxAdm::*.3 $(MANDIR)/man3/
