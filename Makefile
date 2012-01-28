@@ -143,6 +143,7 @@ MANFILES = \
 	bin/vdnsadmr.8 \
 	cgi-bin/autodiscover.1 \
 	cgi-bin/vboxadm.1 \
+	cgi-bin/vboxapi.1 \
 	cgi-bin/vdnsadm.1 \
 	cgi-bin/vdnsapi.1 \
 	cron/awl.8 \
