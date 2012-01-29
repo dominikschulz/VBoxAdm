@@ -1,0 +1,340 @@
+package VBoxAdm::Controller::Cleanup;
+
+use Moose;
+use namespace::autoclean;
+
+use Config::Std;
+use Getopt::Long;
+
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
+
+our $VERSION = '@VERSION@';
+
+has 'dbh' => (
+    'is'      => 'ro',
+    'isa'     => 'DBI::db',
+    'lazy'    => 1,
+    'builder' => '_init_dbh',
+);
+
+sub _init_dbh {
+    my $self = shift;
+
+    my $dbhost = $self->config()->{'default'}{'dbhost'};
+    my $dbuser = $self->config()->{'default'}{'dbuser'};
+    my $dbpass = $self->config()->{'default'}{'dbpass'};
+    my $dbport = $self->config()->{'default'}{'dbport'};
+    my $dbdb   = $self->config()->{'default'}{'dbdb'};
+    my $dsn    = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;password=$dbpass";
+    my $dbh    = &VWebAdm::DB::connect( $dsn, undef, undef, { RaiseError => 1, } );
+
+    if ( !$dbh ) {
+        $self->logger()->log(
+            message => 'Could not connect to database with DSN $dsn - Exiting',
+            level   => 'error',
+        );
+        die("Could not connect to database with DSN $dsn");
+    }
+
+    return $dbh;
+}
+
+has 'logger' => (
+    'is'      => 'ro',
+    'isa'     => 'VWebAdm::Logger',
+    'lazy'    => 1,
+    'builder' => '_init_logger',
+);
+
+sub _init_logger {
+    my $self = shift;
+
+    return VWebAdm::Logger::->new('vboxadm-cleanup');
+}
+
+has 'config_locations' => (
+    'is'      => 'ro',
+    'isa'     => 'ArrayRef',
+    'lazy'    => 1,
+    'builder' => '_init_config_locs',
+);
+
+sub _init_config_locs {
+    my $self = shift;
+
+    # Valid config file locations to try
+    my @conffile_locations = qw(
+      vboxadm.conf
+      conf/vboxadm.conf
+      /etc/vboxadm/vboxadm.conf
+      @CFGDIR@/vboxadm/vboxadm.conf
+    );
+
+    return \@conffile_locations;
+}
+
+has 'config' => (
+    'is'  => 'rw',
+    'isa' => 'Object',
+);
+
+has 'conffile_used' => (
+    'is'  => 'rw',
+    'isa' => 'Str',
+);
+
+sub _read_config {
+    my $self = shift;
+
+    my %config;
+
+    # Try all config file locations
+    foreach my $loc ( @{ $self->config_locations() } ) {
+        if ( -r $loc ) {
+            $self->conffile_used($loc);
+            read_config $loc => %config;
+            last;
+        }
+    }
+
+    $config{'default'}{'dbhost'}   ||= 'localhost';
+    $config{'default'}{'dbuser'}   ||= 'vboxadm';
+    $config{'default'}{'dbpass'}   ||= '';
+    $config{'default'}{'dbport'}   ||= 3306;
+    $config{'default'}{'dbdb'}     ||= 'vboxadm';
+    $config{'default'}{'pwscheme'} ||= 'sha256';
+
+    $config{'vacation'}{'notify_interval'} ||= 3600 * 24 * 7;
+    $config{'awl'}{'lifetime'} ||= 365;
+
+    $self->config( \%config );
+
+    return 1;
+}
+
+has 'opts' => (
+    'is'      => 'ro',
+    'isa'     => 'HashRef',
+    'default' => sub { {} },
+);
+
+sub _read_options {
+    my $self = shift;
+
+    GetOptions( 'verbose|v+' => \$self->opts()->{Verbose}, );
+
+    return 1;
+}
+
+sub run {
+    my $self = shift;
+
+    $self->_read_options();
+    $self->_read_config();
+
+    $self->_purge_mailboxes();
+    $self->_clean_vacation();
+    $self->_purge_mails();
+    $self->_clean_awl();
+
+    return 1;
+}
+
+############################################
+# Usage      : &purge_mails($dir);
+# Purpose    : Delete any mails marked as read (S) and deleted (T)
+# Returns    : True on success
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/av
+# See Also: http://cr.yp.to/proto/maildir.html
+sub _purge_mails {
+    my $self       = shift;
+    my $dir        = shift || $self->config()->{'default'}->{'mail_location'};
+    my $is_maildir = shift || 0;
+
+    if ( !$self->config()->{'cleanup'}->{'purge_mails'} ) {
+        $self->logger()->log( message => "cleanup -> purge_mails is false in config", level => 'debug', );
+        return;
+    }
+
+    if ( $dir && -d $dir && opendir( my $DH, $dir ) ) {
+        my @dirs = ();
+        while ( my $dir_entry = readdir($DH) ) {
+            next if $dir_entry =~ m/^\./;
+            my $full_dir = $dir . '/' . $dir_entry;
+            if ( $dir_entry =~ m/^Maildir/ && -d $full_dir ) {
+                $is_maildir = 1;
+                $self->_purge_mails( $full_dir, $is_maildir );
+            }
+            elsif ( -d $full_dir ) {
+                push( @dirs, $full_dir );
+            }
+            elsif ( -f $full_dir && $is_maildir && $dir_entry =~ m/^\d+\./ && $dir_entry =~ m/,ST$/ ) {
+                unlink($full_dir);
+            }
+        }
+        closedir($DH);
+        foreach my $d (@dirs) {
+            $self->_purge_mails( $d, $is_maildir );
+        }
+        return 1;
+    }
+    else {
+        $self->logger()->log( message => "purge_mails - default/mail_location not set or no directory. Aborting.", level => 'error', );
+        return;
+    }
+}
+############################################
+# Usage      : &purge_mailboxes($dhb,$config);
+# Purpose    : Remove any mailboxes which were deleted in the frontend.
+# Returns    : True on success.
+# Parameters : DBH, Config hashref.
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub _purge_mailboxes {
+    my $self = shift;
+
+    # - remove deleted mailboxes
+    # -- get all mailboxes from db into hash
+    # -- traverse over maildirs and remove all maildirs not in hash
+    if ( !$self->config()->{'cleanup'}->{'purge_mailboxes'} ) {
+        $self->logger()->log( message => "cleanup -> purge_mailboxes is false in config", level => 'debug', );
+        return;
+    }
+
+    if ( !$self->config()->{'default'}{'mail_location'} ) {
+        my $msg = 'purge_mailboxes - mail_location is not set. Aborting!';
+        $self->logger()->log( message => $msg, level => 'error', );
+        return;
+    }
+    elsif ( !-d $self->config()->{'default'}{'mail_location'} ) {
+        my $msg = 'purge_mailboxes - mail_location (' . $self->config()->{'default'}{'mail_location'} . ') is no directory. Aborting!';
+        $self->logger()->log( message => $msg, level => 'error', );
+        return;
+    }
+
+    my $query = "SELECT m.local_part,d.name FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id";
+    my $sth   = $self->dbh->prepare($query);
+    $sth->execute();
+    my %mailboxes = ();
+    while ( my ( $local_part, $domain ) = $sth->fetchrow_array() ) {
+        $mailboxes{$domain}{$local_part} = 1;
+    }
+    $sth->finish();
+
+    my $basedir = $self->config()->{'default'}{'mail_location'};
+    if ( opendir( my $DH, $basedir ) ) {
+        while ( my $domain = readdir($DH) ) {
+            next if $domain =~ m/^\./;
+            my $domain_dir = $basedir . '/' . $domain;
+            next unless -d $domain_dir;
+            if ( opendir( my $MH, $domain_dir ) ) {
+                while ( my $mailbox = readdir($MH) ) {
+                    next if $mailbox =~ m/^\./;
+                    my $mailbox_dir = $domain_dir . '/' . $mailbox;
+                    next unless -d $mailbox_dir;
+                    next if $mailboxes{$domain}{$mailbox};
+                    my $cmd = 'rm -rf ' . $mailbox_dir;
+                    my $rv  = 0;
+                    $self->logger()->log( message => "purge_mailboxes - CMD: $cmd", level => 'debug', );
+                    $rv = system($cmd) >> 8 unless $self->config()->{'cleanup'}{'dry'};
+
+                    if ( $rv != 0 ) {
+                        $self->logger()->log( message => "Could not execute CMD: " . $cmd, level => 'error', );
+                    }
+                    else {
+                        $self->logger()->log( message => "Purged Mailbox $mailbox\@$domain", level => 'debug', );
+                    }
+                }
+                closedir($MH);
+            }
+        }
+        closedir($DH);
+    }
+
+    return 1;
+}
+############################################
+# Usage      : &clean_vacation($dbh,$config);
+# Purpose    : Remove old entries from the vacation notify table.
+# Returns    : Always true.
+# Parameters : DBH, Config hashref.
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub _clean_vacation {
+    my $self = shift;
+
+    my $sql = "DELETE FROM vacation_notify WHERE notified_at < NOW() - ?";
+    my $sth = $self->dbh->prepare($sql);
+    $sth->execute( $self->config()->{'vacation'}{'notify_interval'} * 2 );
+    $sth->finish();
+
+    return 1;
+}
+############################################
+# Usage      : &clean_awl($dbh,$config);
+# Purpose    : Remove old entries from the AWL table.
+# Returns    : Always true.
+# Parameters : DBH, Config hashref.
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub _clean_awl {
+    my $self = shift;
+
+    my $query = "DELETE FROM awl WHERE last_seen <= NOW() - INTERVAL ? DAY";
+    my $sth   = $self->dbh->prepare($query)
+      or return;
+    $sth->execute( $self->config()->{'awl'}{'lifetime'} )
+      or return;
+    $sth->finish();
+
+    return 1;
+}
+
+no Moose;
+__PACKAGE__->meta->make_immutable();
+
+1;
+
+__END__
+
+
+=head1 NAME
+
+cleanup - perform misc. regular cleanup jobs.
+
+=head1 VERSION
+
+This documentation refers to VBoxAdm cleanup version @VERSION@
+built on @BUILDDATE@.
+
+=head1 DESCRIPTION
+
+This script implements severl regular maintenance jobs.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+The configuration file should be place either in /etc/vboxadm.conf or
+in /etc/vboxadm/vboxadm.conf. This is a common configuration file
+for the whole suite of VBoxAdm applications. Each part of this suite
+has its own section in the config file and all use the values
+from the default section when appropriate.
+
+=head2 default
+The default section should contain at least the database configuration.
+
+dbuser - The user used to connect to the MySQL database.
+dbpass - This users password.
+dbdb - The db used by this application.
+dbhost - The MySQL database host, usually localhost.
+
+=head1 DEPENDENCIES
+
+VWebAdm::Utils, DBI.

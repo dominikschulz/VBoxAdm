@@ -1,0 +1,424 @@
+package VBoxAdm::Controller::Notify;
+
+use Moose;
+use namespace::autoclean;
+
+use Config::Std;
+use Getopt::Long;
+
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
+
+our $VERSION = '@VERSION@';
+
+has 'dbh' => (
+    'is'      => 'ro',
+    'isa'     => 'DBI::db',
+    'lazy'    => 1,
+    'builder' => '_init_dbh',
+);
+
+sub _init_dbh {
+    my $self = shift;
+
+    my $dbhost = $self->config()->{'default'}{'dbhost'};
+    my $dbuser = $self->config()->{'default'}{'dbuser'};
+    my $dbpass = $self->config()->{'default'}{'dbpass'};
+    my $dbport = $self->config()->{'default'}{'dbport'};
+    my $dbdb   = $self->config()->{'default'}{'dbdb'};
+    my $dsn    = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;password=$dbpass";
+    my $dbh    = &VWebAdm::DB::connect( $dsn, undef, undef, { RaiseError => 1, } );
+
+    if ( !$dbh ) {
+        $self->logger()->log(
+            message => 'Could not connect to database with DSN $dsn - Exiting',
+            level   => 'error',
+        );
+        die("Could not connect to database with DSN $dsn");
+    }
+
+    return $dbh;
+}
+
+has 'logger' => (
+    'is'      => 'ro',
+    'isa'     => 'VWebAdm::Logger',
+    'lazy'    => 1,
+    'builder' => '_init_logger',
+);
+
+sub _init_logger {
+    my $self = shift;
+
+    return VWebAdm::Logger::->new('vboxadm-mailarchive');
+}
+
+has 'config_locations' => (
+    'is'      => 'ro',
+    'isa'     => 'ArrayRef',
+    'lazy'    => 1,
+    'builder' => '_init_config_locs',
+);
+
+sub _init_config_locs {
+    my $self = shift;
+
+    # Valid config file locations to try
+    my @conffile_locations = qw(
+      vboxadm.conf
+      conf/vboxadm.conf
+      /etc/vboxadm/vboxadm.conf
+      @CFGDIR@/vboxadm/vboxadm.conf
+    );
+
+    return \@conffile_locations;
+}
+
+has 'config' => (
+    'is'  => 'rw',
+    'isa' => 'Object',
+);
+
+has 'conffile_used' => (
+    'is'  => 'rw',
+    'isa' => 'Str',
+);
+
+sub _read_config {
+    my $self = shift;
+
+    my %config;
+
+    # Try all config file locations
+    foreach my $loc ( @{ $self->config_locations() } ) {
+        if ( -r $loc ) {
+            $self->conffile_used($loc);
+            read_config $loc => %config;
+            last;
+        }
+    }
+
+    $config{'default'}{'dbhost'}   ||= 'localhost';
+    $config{'default'}{'dbuser'}   ||= 'vboxadm';
+    $config{'default'}{'dbpass'}   ||= '';
+    $config{'default'}{'dbport'}   ||= 3306;
+    $config{'default'}{'dbdb'}     ||= 'vboxadm';
+    $config{'default'}{'pwscheme'} ||= 'sha256';
+
+    $self->config( \%config );
+
+    return 1;
+}
+
+has 'opts' => (
+    'is'      => 'ro',
+    'isa'     => 'HashRef',
+    'default' => sub { {} },
+);
+
+sub _read_options {
+    my $self = shift;
+
+    GetOptions( 'verbose|v+' => \$self->opts()->{Verbose}, );
+
+    return 1;
+}
+
+sub run {
+    my $self = shift;
+
+    $self->_create_archive_tables();
+    if ( !$self->config()->{'create'} ) {
+        $self->_optimize_archive_tables();
+        $self->_expire_archive_tables();
+        $self->_sign_archive();
+    }
+
+    return 1;
+}
+############################################
+# Usage      : &optimize_archive_tables($dbh,$config);
+# Purpose    : Compact all archive tables
+# Returns    : Always true
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub _optimize_archive_tables {
+    my $self = shift;
+
+    my $sql = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE 'archive_%'";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql )
+      or return;
+    while ( my $table = $sth->fetchrow_array() ) {
+        my $sql = "OPTIMIZE TABLE $table";
+        my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql );
+    }
+    $sth->finish();
+    return 1;
+}
+############################################
+# Usage      : &expire_archive_table($dbh,$config);
+# Purpose    : Drop expired archive tables
+# Returns    : Always true.
+# Parameters : DBH, config hashref.
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub _expire_archive_tables {
+    my $self = shift;
+
+    # default to 10 years
+    my $holdback = $self->config()->{'mailarchive'}{'holdback'} || 10;
+
+    # enforce at least 5 years
+    if ( $holdback < 5 ) {
+        $holdback = 5;
+    }
+    my $sql = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE 'archive_%'";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql )
+      or return;
+    while ( my $table = $sth->fetchrow_array() ) {
+        if ( $table =~ m/^archive_(\d{4})_(\d{2})$/ ) {
+            my ( $year, $month ) = ( $1, $2 );
+            my $current_year = ( localtime(time) )[5];
+            if ( $year < $current_year - $holdback ) {
+                my $sql = "DROP TABLE $table";
+                my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql );
+                $sth->finish();
+                $self->logger()->log( message => "Dropped expired table $table after $holdback years.", level => 'debug', );
+            }
+        }
+    }
+    $sth->finish();
+    return 1;
+}
+############################################
+# Usage      : &sign_archive($dbh,$config);
+# Purpose    : Sign checksums of archived
+# Returns    :
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub _sign_archive {
+    my $self = shift;
+
+    # TODO implement
+    # - sign archived mails
+    # - write to signature table
+    # - generate a new key each year
+    # - store it in archive_keys tables
+    # - sign the whole last year if not already signed with the new key
+    # http://search.cpan.org/~vipul/Crypt-RSA-1.57/lib/Crypt/RSA.pm
+    # http://search.cpan.org/~iroberts/Crypt-OpenSSL-RSA-0.26/RSA.pm
+
+=begin sample
+use Digest::SHA;
+use Crypt::OpenSSL::RSA;
+use MIME::Base64;
+
+my $digest    = Digest::SHA->new(256);
+my $rsa = Crypt::OpenSSL::RSA->generate_key(1024);
+my $data = "Test";
+$digest->add($data);
+my $checksum = $digest->hexdigest();
+my $signature = $rsa->sign($checksum); # length always 64
+my $signb64 = MIME::Base64::encode($signature); # length always 175
+
+print "Data: $data\n";
+print "Checksum: $checksum\n";
+print "Signature: ".MIME::Base64::encode($signature)."\n";
+if($rsa->verify($checksum,$signature)) {
+	print "Signature valid!\n";
+} else {
+	print "Signature INVALID!\n";
+}
+=cut
+
+    return;
+
+}
+############################################
+# Usage      : &create_archive_tables($dbh, $config);
+# Purpose    : Create all necessary archive tables in advance.
+# Returns    : Always true.
+# Parameters : DBH, Config hashref.
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub _create_archive_tables {
+    my $self = shift;
+
+    # holdback time in years
+    my $holdback_years = $self->config()->{'mailarchive'}{'holdback'} || 10;
+    my ( $sec, $min, $hour, $dom, $mon, $year, $wday, $yday, $isdst ) = localtime(time);
+    $year += 1900;
+    $mon++;
+
+    my $dbdb = $self->config()->{'mailarchive'}{'dbdb'} || $self->config()->{'default'}{'dbdb'};
+
+    # Create the Monthly/Yearly archive tables
+    # We always make sure to create the tables for the current and the next year
+    if ( $self->config()->{'mailarchive'}{'rotate'} && $self->config()->{'mailarchive'}{'rotate'} eq 'monthly' ) {
+        for my $y ( $year .. $year + 1 ) {
+            for my $m ( 1 .. 12 ) {
+                if ( $self->_create_archive_table( $y, $m ) ) {
+                    $self->logger()->log( message => 'Created archive table for ' . $y . '-' . $m, level => 'debug', );
+                }
+                else {
+                    $self->logger()->log( message => 'Failed to create archive table for ' . $y . '-' . $m, level => 'error', );
+                }
+            }
+        }
+    }
+    else {
+        for my $y ( $year .. $year + 1 ) {
+            if ( $self->_create_archive_table( $y, 1 ) ) {
+                $self->logger()->log( message => 'Created archive table for ' . $y . '-01', level => 'debug', );
+            }
+            else {
+                $self->logger()->log( message => 'Failed to create archive table for ' . $y . '-01', level => 'error', );
+            }
+        }
+    }
+
+    # Create the signature table(s)
+    $self->_create_signature_table();
+
+    # Create the metadata tables(s)
+    $self->_create_metadata_table();
+
+    return 1;
+}
+
+sub _create_signature_table {
+    my $self = shift;
+
+    my $sql = 'CREATE TABLE IF NOT EXISTS `archive_signatures` (
+`id` BIGINT( 64 ) NOT NULL AUTO_INCREMENT PRIMARY KEY ,
+`table` CHAR( 15 ) NOT NULL ,
+`fk` BIGINT( 64 ) NOT NULL ,
+`checksum` CHAR( 64 ) NOT NULL ,
+`signature` CHAR( 175 ) NOT NULL ,
+`key_id` INT( 16 ) NOT NULL
+) ENGINE = ARCHIVE';
+
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql )
+      or return;
+    $self->logger()->log( message => "Created archive table signatures (if it did not exist).", level => 'debug', );
+    $sth->finish();
+
+    return 1;
+}
+
+sub _create_metadata_table {
+    my $self = shift;
+
+    # TODO implement
+    return;
+}
+############################################
+# Usage      : &create_archive_table($dbh, $year, $month);
+# Purpose    : Create an archive table for the given year and month.
+# Returns    : True if the table was created.
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub _create_archive_table {
+    my $self  = shift;
+    my $year  = shift;
+    my $month = shift;
+
+    my $table = sprintf( "archive_%04d_%02d", $year, $month );
+    my $sql = 'CREATE TABLE IF NOT EXISTS `';
+    $sql .= $table;
+
+    # body type must be longtext, which should allow up to 4G of data
+    $sql .= '` (
+  `id` bigint(64) NOT NULL AUTO_INCREMENT,
+  `checksum` char(20) NOT NULL,
+  `body` longtext NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=ARCHIVE DEFAULT CHARSET=utf8;';
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql )
+      or return;
+    $self->logger()->log( message => "Created archive table $table (if it did not exist).", level => 'debug', );
+    $sth->finish();
+    return 1;
+}
+
+no Moose;
+__PACKAGE__->meta->make_immutable();
+
+1;
+
+__END__
+
+=head1 NAME
+
+mailarchive - perform misc. regular cleanup jobs.
+
+=head1 VERSION
+
+This documentation refers to VBoxAdm mailarchive version @VERSION@
+built on @BUILDDATE@.
+
+=head1 DESCRIPTION
+
+This script implements severl regular maintenance jobs.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+The configuration file should be place either in /etc/vboxadm.conf or
+in /etc/vboxadm/vboxadm.conf. This is a common configuration file
+for the whole suite of VBoxAdm applications. Each part of this suite
+has its own section in the config file and all use the values
+from the default section when appropriate.
+
+=head2 default
+The default section should contain at least the database configuration.
+
+dbuser - The user used to connect to the MySQL database.
+dbpass - This users password.
+dbdb - The db used by this application.
+dbhost - The MySQL database host, usually localhost.
+
+=head1 DEPENDENCIES
+
+VWebAdm::Utils, DBI.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut

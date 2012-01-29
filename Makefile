@@ -77,8 +77,11 @@ BINFILES = \
 LIBFILES = \
 	lib/VBoxAdm/Controller/API.pm \
 	lib/VBoxAdm/Controller/Autodiscover.pm \
+	lib/VBoxAdm/Controller/AWL.pm \
+	lib/VBoxAdm/Controller/Cleanup.pm \
 	lib/VBoxAdm/Controller/CLI.pm \
 	lib/VBoxAdm/Controller/Frontend.pm \
+	lib/VBoxAdm/Controller/Mailarchive.pm \
 	lib/VBoxAdm/Controller/Notify.pm \
 	lib/VBoxAdm/Controller/Vacation.pm \
 	lib/VBoxAdm/L10N/ar.pm \
@@ -153,8 +156,11 @@ MANFILES = \
 	cron/notify.8 \
 	lib/VBoxAdm/Controller/API.3 \
 	lib/VBoxAdm/Controller/Autodiscover.3 \
+	lib/VBoxAdm/Controller/AWL.3 \
+	lib/VBoxAdm/Controller/Cleanup.3 \
 	lib/VBoxAdm/Controller/CLI.3 \
 	lib/VBoxAdm/Controller/Frontend.3 \
+	lib/VBoxAdm/Controller/Mailarchive.3 \
 	lib/VBoxAdm/Controller/Notify.3 \
 	lib/VBoxAdm/Controller/Vacation.3 \
 	lib/VBoxAdm/Model/Alias.3 \
@@ -193,8 +199,11 @@ MANFILES = \
 TESTFILES = \
 	t/VBoxAdm/Controller/API.t \
 	t/VBoxAdm/Controller/Autodiscover.t \
+	t/VBoxAdm/Controller/AWL.t \
+	t/VBoxAdm/Controller/Cleanup.t \
 	t/VBoxAdm/Controller/CLI.t \
 	t/VBoxAdm/Controller/Frontend.t \
+	t/VBoxAdm/Controller/Mailarchive.t \
 	t/VBoxAdm/Controller/Notify.t \
 	t/VBoxAdm/Controller/Vacation.t \
 	t/VBoxAdm/L10N/de.t \

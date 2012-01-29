@@ -1,0 +1,656 @@
+package VBoxAdm::Controller::AWL;
+
+use Moose;
+use namespace::autoclean;
+
+use Config::Std;
+use Getopt::Long;
+
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
+
+our $VERSION = '@VERSION@';
+
+has 'dbh' => (
+    'is'      => 'ro',
+    'isa'     => 'DBI::db',
+    'lazy'    => 1,
+    'builder' => '_init_dbh',
+);
+
+sub _init_dbh {
+    my $self = shift;
+
+    my $dbhost = $self->config()->{'default'}{'dbhost'};
+    my $dbuser = $self->config()->{'default'}{'dbuser'};
+    my $dbpass = $self->config()->{'default'}{'dbpass'};
+    my $dbport = $self->config()->{'default'}{'dbport'};
+    my $dbdb   = $self->config()->{'default'}{'dbdb'};
+    my $dsn    = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;password=$dbpass";
+    my $dbh    = &VWebAdm::DB::connect( $dsn, undef, undef, { RaiseError => 1, } );
+
+    if ( !$dbh ) {
+        $self->logger()->log(
+            message => 'Could not connect to database with DSN $dsn - Exiting',
+            level   => 'error',
+        );
+        die("Could not connect to database with DSN $dsn");
+    }
+
+    return $dbh;
+}
+
+has 'logger' => (
+    'is'      => 'ro',
+    'isa'     => 'VWebAdm::Logger',
+    'lazy'    => 1,
+    'builder' => '_init_logger',
+);
+
+sub _init_logger {
+    my $self = shift;
+
+    return VWebAdm::Logger::->new('vboxadm-awl');
+}
+
+has 'config_locations' => (
+    'is'      => 'ro',
+    'isa'     => 'ArrayRef',
+    'lazy'    => 1,
+    'builder' => '_init_config_locs',
+);
+
+sub _init_config_locs {
+    my $self = shift;
+
+    # Valid config file locations to try
+    my @conffile_locations = qw(
+      vboxadm.conf
+      conf/vboxadm.conf
+      /etc/vboxadm/vboxadm.conf
+      @CFGDIR@/vboxadm/vboxadm.conf
+    );
+
+    return \@conffile_locations;
+}
+
+has 'config' => (
+    'is'  => 'rw',
+    'isa' => 'Object',
+);
+
+has 'conffile_used' => (
+    'is'  => 'rw',
+    'isa' => 'Str',
+);
+
+sub _read_config {
+    my $self = shift;
+
+    my %config;
+
+    # Try all config file locations
+    foreach my $loc ( @{ $self->config_locations() } ) {
+        if ( -r $loc ) {
+            $self->conffile_used($loc);
+            read_config $loc => %config;
+            last;
+        }
+    }
+
+    $config{'default'}{'dbhost'}   ||= 'localhost';
+    $config{'default'}{'dbuser'}   ||= 'vboxadm';
+    $config{'default'}{'dbpass'}   ||= '';
+    $config{'default'}{'dbport'}   ||= 3306;
+    $config{'default'}{'dbdb'}     ||= 'vboxadm';
+    $config{'default'}{'pwscheme'} ||= 'sha256';
+    $config{'awl'}{'mailserver'}   ||= 'postfix';
+    $config{'awl'}{'logfile'}      ||= '/var/log/mail.log';
+    $config{'awl'}{'whitelist'}    ||= '/etc/postgrey/postgrey_whitelist_clients.local';
+    $config{'awl'}{'verbose'}      ||= 0;
+
+    my @ignore_nets = ();    # list of our nets to ignore
+    if ( $config{'awl'}{'ignore_net'} ) {
+        if ( ref( $config{'awl'}{'ignore_net'} ) eq 'ARRAY' ) {
+            push( @ignore_nets, @{ $config{'awl'}{'ignore_net'} } );
+        }
+        else {
+            push( @ignore_nets, $config{'awl'}{'ignore_net'} );
+        }
+    }
+    $config{'awl'}{'ignore_nets'} = \@ignore_nets;
+
+    my @only_domains = ();    # list of domains filter for
+    if ( $config{'awl'}{'only_domain'} ) {
+        if ( ref( $config{'awl'}{'only_domain'} ) eq 'ARRAY' ) {
+            push( @only_domains, @{ $config{'awl'}{'only_domain'} } );
+        }
+        else {
+            push( @only_domains, $config{'awl'}{'only_domain'} );
+        }
+    }
+    $config{'awl'}{'only_domains'} = \@only_domains;
+
+    $self->config( \%config );
+
+    return 1;
+}
+
+has 'opts' => (
+    'is'      => 'ro',
+    'isa'     => 'HashRef',
+    'default' => sub { {} },
+);
+
+sub _read_options {
+    my $self = shift;
+
+    GetOptions( 'verbose|v+' => \$self->opts()->{Verbose}, );
+
+    return 1;
+}
+
+sub run {
+    my $self = shift;
+
+    $self->_read_options();
+    $self->_read_config();
+
+    my $whitelist;
+    if ( $self->config()->{'awl'}->{'mailserver'} eq 'exim' ) {
+        $whitelist = $self->_parse_exim();
+    }
+    elsif ( $self->config()->{'awl'}->{'mailserver'} eq 'postfix' ) {
+        $whitelist = $self->_parse_postfix();
+    }
+    else {
+        die("Unknown logfile format");
+    }
+    $self->_store_whitelist($whitelist);
+    if ( $self->config()->{'awl'}->{'mailserver'} eq 'exim' ) {
+        $self->_write_exim_whitelist($whitelist);
+    }
+    elsif ( $self->config()->{'awl'}->{'mailserver'} eq 'postfix' ) {
+        $self->_write_postfix_whitelist($whitelist);
+    }
+    $self->_reload_postgrey();
+
+    return 1;
+}
+############################################
+# Usage      : &reload_postgrey();
+# Purpose    : Make Postgrey reload its whitelist.
+# Returns    : True on success.
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+# We must HUP to tell postgrey to reload its whitelist
+sub _reload_postgrey {
+    my $self = shift;
+
+    my $pidfile = '/var/run/postgrey.pid';
+    if ( -f $pidfile ) {
+        my $pid = &VWebAdm::Utils::slurp($pidfile);
+        if ( $pid =~ m/^\d+$/ ) {
+            my $cmd = "kill -HUP $pid";
+            my $rv  = system($cmd) >> 8;
+            if ( $rv == 0 ) {
+                return 1;
+            }
+            else {
+                return;
+            }
+        }
+    }
+}
+############################################
+# Usage      : &store_whitelist($whitelist,$dbh);
+# Purpose    :
+# Returns    :
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub _store_whitelist {
+    my $self      = shift;
+    my $whitelist = shift;
+
+    my $query = "INSERT INTO awl (email,last_seen,disabled) VALUES(?,NOW(),0) ON DUPLICATE KEY UPDATE last_seen=NOW()";
+    my $sth   = $self->dbh->prepare($query)
+      or return;
+    foreach my $email ( sort keys %{$whitelist} ) {
+        $sth->execute($email)
+          or return;
+    }
+    $sth->finish();
+
+    return 1;
+}
+############################################
+# Usage      : &write_exim_whiteliste($dbh,$config);
+# Purpose    :
+# Returns    :
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub _write_exim_whitelist {
+    my $self = shift;
+
+    if ( open( my $FH, ">", $self->config()->{'awl'}->{'whitelist'} ) ) {
+        my $query = "SELECT email FROM awl WHERE NOT disabled ORDER BY email";
+        my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query );
+        while ( my $email = $sth->fetchrow_array() ) {
+            print $FH $email . "\n";
+        }
+        $sth->finish();
+        close($FH);
+        return 1;
+    }
+    return;
+}
+############################################
+# Usage      : &write_postfix_whitelist($dbh,$config);
+# Purpose    :
+# Returns    :
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub _write_postfix_whitelist {
+    my $self = shift;
+
+    if ( open( my $FH, ">", $self->config()->{'awl'}->{'whitelist'} ) ) {
+        my $query = "SELECT email FROM awl WHERE NOT disabled ORDER BY email";
+        my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query );
+        while ( my $email = $sth->fetchrow_array() ) {
+            print $FH $email . "\n";
+        }
+        $sth->finish();
+        close($FH);
+        return 1;
+    }
+    return;
+}
+############################################
+# Usage      : &parse_exim($dbh,$config);
+# Purpose    : Parse an exim mainlog for outgoing mail.
+# Returns    : Always true.
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub _parse_exim {
+    my $self = shift;
+
+    my $whitelist = {};
+
+    my %msgs = ();
+    open( my $IN, "<", $self->config()->{'awl'}{'logfile'} ) or die( "Could not open file " . $self->config()->{'awl'}{'logfile'} . ": $!" );
+  LINE: while ( my $line = <$IN> ) {
+        chomp($line);
+
+        # SMTP-Auth
+        if ( $line =~ m/(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (\w{6}-\w{6}-\w{2}) <= (\S+) .* A=(?:plain|fixed)_login/i ) {
+            my $datetime = $1;
+            my $qid      = $2;
+            my $from     = $3;
+
+            next unless $datetime;
+            next if ( !$qid || $qid =~ m/statistics/ );
+            next unless $from;
+
+            $msgs{$qid} = 1;
+        }
+        elsif ( $line =~ m/(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (\w{6}-\w{6}-\w{2}) <= (\S+) H=[^([]+ (?:\(([^)]+)\))? \[([^]]+)\]/i ) {
+            my $datetime = $1;
+            my $qid      = $2;
+            my $from     = $3;
+            my ( $helo, $ip );
+            if ($5) {
+                $helo = $4;
+                $ip   = $5;
+            }
+            else {
+                $ip = $4;
+            }
+
+            next unless $datetime;
+            next unless $ip;
+            next if $from eq '<>';
+            next if $self->_is_ignored_network($ip);
+            next if ( $self->config()->{'awl'}{'only_local_domains'} && !$self->_is_local_domain($from) );
+            next unless $self->_is_valid_domain($from);
+
+            $msgs{$qid} = 1;
+        }
+        elsif ( $line =~ m/(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (\w{6}-\w{6}-\w{2}) => (\S+) R=dnslookup T=remote_smtp/i ) {
+            my $datetime = $1;
+            my $qid      = $2;
+            my $to       = $3;
+
+            next unless $datetime;
+            next if ( !$qid || $qid =~ m/statistics/ );
+            next unless $to;
+
+            if ( $msgs{$qid} ) {
+                $whitelist->{$to}++;
+                delete $msgs{$qid};
+            }
+        }
+    }
+    close($IN);
+
+    return $whitelist;
+}
+############################################
+# Usage      : if(&is_valid_domain($from,$config)) { ... }
+# Purpose    : Determine if the given email address contains a valid domain.
+# Returns    : True if the domain is valid.
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub _is_valid_domain {
+    my $self = shift;
+    my $from = shift;
+
+    if ( scalar( @{ $self->config()->{'awl'}{'only_domains'} } ) > 0 ) {
+        foreach my $domain ( @{ $self->config()->{'awl'}{'only_domains'} } ) {
+            if ( $from =~ m/\@$domain$/ ) {
+                return 1;
+            }
+        }
+        return;
+    }
+    else {
+
+        # no valid domains defined, so we assume that all are valid
+        return 1;
+    }
+}
+############################################
+# Usage      : if(&is_local_domain($dbh, $from)) { ... }
+# Purpose    : Determine if the given email address has a local domain.
+# Returns    : True if the domain is local.
+# Parameters : DBH, an email address
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub _is_local_domain {
+    my $self = shift;
+    my $from = shift;
+
+    my ( $local_part, $domain ) = split /@/, $from;
+
+    return unless $domain;
+
+    my $query = "SELECT COUNT(*) FROM domains WHERE name = ?";
+    my $sth   = $self->dbh->prepare($query);
+    $sth->execute($domain);
+    my $count = $sth->fetchrow_array();
+    $sth->finish();
+
+    return $count;
+}
+############################################
+# Usage      : if(&is_ignored_network($ip,$config)) { ... }
+# Purpose    : Determine if this IP is from an ignored network range.
+# Returns    : True if it is.
+# Parameters : IP, Config hashref
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub _is_ignored_network {
+    my $self = shift;
+    my $ip   = shift;
+
+    foreach my $net ( @{ $self->config()->{'awl'}{'ignore_nets'} } ) {
+        if ( $ip =~ m/^$net/ ) { return 1; }
+    }
+    return;
+}
+############################################
+# Usage      : &parse_postfix($dbh, $config);
+# Purpose    : Pare as postfix logfile for outgoing messages.
+# Returns    : Always true.
+# Parameters : None
+# Throws     : no exceptions
+# Comments   : none
+# See Also   : n/a
+sub _parse_postfix {
+    my $self = shift;
+
+    my $whitelist = {};
+
+    my %pids = ();
+    my %qids = ();
+
+    # First record all information about this PID
+    # then copy it to the MID table if we have a MID
+    # and if that MID is sent add it to the whitelist table
+
+    open( my $IN, "<", $self->config()->{'awl'}{'logfile'} ) or die("Could not open file $self->config()->{'awl'}{'logfile'}: $!");
+    while ( my $line = <$IN> ) {
+        chomp($line);
+        if ( $line =~ m/postfix\/smtpd\[(\d+)\]: NOQUEUE: client=(\S+)\[([\d\.]+)\], sasl_method=([A-Z]+), sasl_username=(\S+)\b/ ) {
+            $self->logger()->log( message => "new client connects: $line", level => 'debug', ) if $self->config()->{'awl'}{'verbose'};
+
+            # new client connects
+            my $pid           = $1;
+            my $rdns          = $2;
+            my $ip            = $3;
+            my $sasl_method   = $4;
+            my $sasl_username = $5;
+
+            next unless $pid;
+
+            $pids{$pid}{'rdns'}          = $rdns;
+            $pids{$pid}{'ip'}            = $ip;
+            $pids{$pid}{'sasl_method'}   = $sasl_method;
+            $pids{$pid}{'sasl_username'} = $sasl_username;
+
+            $self->logger()->log( message => "rdns: $rdns - ip: $ip - sasl_method: $sasl_method - sasl_username: $sasl_username", level => 'debug', )
+              if $self->config()->{'awl'}{'verbose'};
+        }
+        elsif ( $line =~
+            m/postfix\/smtpd\[(\d+)\]: proxy-accept: END-OF-MESSAGE: .*: queued as (\w{10,12}); from=<([^>]+)> to=<([^>]+)> proto=([A-Z]+) helo=<([^>]+)>/ )
+        {
+            $self->logger()->log( message => "proxy-accept: $line", level => 'debug', ) if $self->config()->{'awl'}{'verbose'};
+            my $pid   = $1;
+            my $qid   = $2;
+            my $from  = $3;
+            my $to    = $4;
+            my $proto = $5;
+            my $helo  = $6;
+
+            next unless $pid;
+
+            if ( $pids{$pid} ) {
+                $pids{$pid}{'qid'}     = $qid;
+                $pids{$pid}{'from'}    = $from;
+                $pids{$pid}{'to'}{$to} = 1;
+                $pids{$pid}{'proto'}   = $proto;
+                $pids{$pid}{'helo'}    = $helo;
+                foreach my $key ( keys %{ $pids{$pid} } ) {
+                    $self->logger()
+                      ->log( message => "extract message id - coyping $key => " . $pids{$pid}{$key} . " from PID $pid to MID $qid", level => 'debug', )
+                      if $self->config()->{'awl'}{'verbose'};
+                    $qids{$qid}{$key} = $pids{$pid}{$key};
+                }
+            }
+        }
+        elsif ( $line =~ m/postfix\/qmgr\[(\d+)\]: (\w{10,12}): from=<([^>]+)>, / ) {
+            $self->logger()->log( message => "extract from: $line", level => 'debug', ) if $self->config()->{'awl'}{'verbose'};
+
+            # extract from
+            my $pid  = $1;
+            my $qid  = $2;
+            my $from = $3;
+
+            next unless $pid;
+
+            if ( $pids{$pid} && $pids{$pid}{'qid'} eq $qid ) {
+                $pids{$pid}{'from'} = $from;
+            }
+
+            $self->logger()->log( message => "from: $from", level => 'debug', ) if $self->config()->{'awl'}{'verbose'};
+        }
+        elsif ( $line =~ m/postfix\/smtp\[(\d+)\]: (\w{10}): to=<([^>]+)>, .*, status=sent / ) {
+            $self->logger()->log( message => "extract to: $line", level => 'debug', ) if $self->config()->{'awl'}{'verbose'};
+
+            # extract to
+            my $pid = $1;
+            my $qid = $2;
+            my $to  = $3;
+
+            next unless $pid;
+            next unless $qid;
+
+            $qids{$qid}{'to'}{$to} = 1;
+
+            $self->logger()->log( message => "to: $to", level => 'debug', ) if $self->config()->{'awl'}{'verbose'};
+        }
+        elsif ( $line =~ m/postfix\/qmgr\[(\d+)\]: (\w{10,12}): removed/ ) {
+            $self->logger()->log( message => "whitelist iff: $line", level => 'debug', ) if $self->config()->{'awl'}{'verbose'};
+
+            # whitelist if eglible
+            my $pid = $1;
+            my $qid = $2;
+
+            next unless $pid;
+            next unless $qid;
+
+            $self->logger()->log( message => "Dumping data for QID $qid:\n" . Dumper( $qids{$qid} ), level => 'debug', ) if $self->config()->{'awl'}{'verbose'};
+            $self->logger()->log( message => "Dumping data for PID $pid:\n" . Dumper( $pids{$pid} ), level => 'debug', ) if $self->config()->{'awl'}{'verbose'};
+
+            if ( $qids{$qid} ) {
+                if ( $qids{$qid}{'from'} && $qids{$qid}{'to'} && $qids{$qid}{'ip'} ) {
+                    if (   $qids{$qid}{'from'} ne '<>'
+                        && ( ( $qids{$qid}{'sasl_username'} && $qids{$qid}{'sasl_method'} ) || !$self->_is_ignored_network( $qids{$qid}{'ip'} ) )
+                        && $self->_is_valid_domain( $qids{$qid}{'from'} )
+                        && ( !$self->config()->{'awl'}{'only_local_domains'} || $self->_is_local_domain( $qids{$qid}{'from'} ) ) )
+                    {
+                        foreach my $to ( keys %{ $qids{$qid}{'to'} } ) {
+                            $whitelist->{$to}++;
+                            $self->logger()->log( message => "WHITELISTED: $to", level => 'debug', ) if $self->config()->{'awl'}{'verbose'};
+                        }
+                    }
+                }
+                delete( $qids{$qid} );
+            }
+        }
+        elsif ( $line =~ m/postfix\/smtpd\[(\d+)\]: disconnect from (\S+)\[([\d\.]+)\]/ ) {
+            $self->logger()->log( message => "client disconnects: $line", level => 'debug', ) if $self->config()->{'awl'}{'verbose'};
+
+            # disconnect
+            my $pid  = $1;
+            my $rdns = $2;
+            my $ip   = $3;
+
+            next unless $pid;
+
+            if ( $pids{$pid} && $pids{$pid}{'rdns'} eq $rdns && $pids{$pid}{'ip'} eq $ip ) {
+                if ( $pids{$pid}{'qid'} ) {
+                    my $qid = $pids{$pid}{'qid'};
+                    foreach my $key ( keys %{ $pids{$pid} } ) {
+                        $qids{$qid}{$key} = $pids{$pid}{$key};
+                    }
+                }
+                delete( $pids{$pid} );
+            }
+
+            $self->logger()->log( message => "deleted $pid from pids", level => 'debug', ) if $self->config()->{'awl'}{'verbose'};
+        }
+    }
+    close($IN);
+
+    return $whitelist;
+}
+no Moose;
+__PACKAGE__->meta->make_immutable();
+
+1;
+
+__END__
+
+=head1 NAME
+
+VBoxAdm::Controller::AWL - Auto-Whitelist Cronjob.
+
+=head1 VERSION
+
+This documentation refers to VBoxAdm::Controller::AWL version @VERSION@
+built on @BUILDDATE@.
+
+=head1 DESCRIPTION
+
+This script will scan the postfix logfile and add each recipient of
+any outgoing mail to an auto-whitelist which will bypass greylisting. 
+
+This should reduce the impact of greylisting to the minimum.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+The configuration file should be place either in /etc/vboxadm.conf or
+in /etc/vboxadm/vboxadm.conf. This is a common configuration file
+for the whole suite of VBoxAdm applications. Each part of this suite
+has its own section in the config file and all use the values
+from the default section when appropriate.
+
+=head2 default
+The default section should contain at least the database configuration.
+
+dbuser - The user used to connect to the MySQL database.
+dbpass - This users password.
+dbdb - The db used by this application.
+dbhost - The MySQL database host, usually localhost.
+
+=head2 awl
+
+ignore_net - White subnets are ignore, e.g. because these hosts use this mailserver as an smart host
+and we don't want to whiteliste their recipients.
+only_domain - Only whitelist mails coming from this domain.
+mailserver - Our mailserver, either postfix or exim.
+lifetime - The lifetime of the awl entries in the db in days.
+logfile - The logfile to parse.
+whitelist - Where to write the whitelist to.
+
+=head1 DEPENDENCIES
+
+VWebAdm::Utils, DBI.
+
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 BUGS AND LIMITATIONS
+
+There are no known bugs in this module.
+Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
+Patches are welcome.
+
+=head1 AUTHOR
+
+Dominik Schulz (dominik.schulz@gauner.org)
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=cut

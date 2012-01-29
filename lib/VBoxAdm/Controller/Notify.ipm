@@ -57,7 +57,7 @@ has 'config' => (
 sub _init_logger {
     my $self = shift;
 
-    return VWebAdm::Logger->new('vboxadm-rfcnotify');
+    return VWebAdm::Logger::->new('vboxadm-rfcnotify');
 }
 
 has 'conffile_used' => (

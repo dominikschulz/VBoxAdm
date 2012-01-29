@@ -12,7 +12,7 @@ binmode STDIN,  ":utf8";
 binmode STDOUT, ":utf8";
 binmode STDERR, ":utf8";
 
-my $adisc = VBoxAdm::Controller::Autodiscover->new();
+my $adisc = VBoxAdm::Controller::Autodiscover::->new();
 $adisc->run();
 
 # TODO Support Apple Mail Autoconfiguration
