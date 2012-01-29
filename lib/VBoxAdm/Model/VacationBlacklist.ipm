@@ -21,10 +21,10 @@ sub create {
         return;
     }
 
-    if ( $email && &VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+    if ( $email && &VWebAdm::Utils::is_valid_address_rfc822($email) ) {
         my $query = "INSERT INTO vacation_blacklist (local_part,domain) VALUES(?,?)";
         my ( $local_part, $domain ) = split /@/, $email;
-        if ( my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain ) ) {
+        if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain ) ) {
             $sth->finish();
             $self->msg->push( 'information', "Added Vacation Blacklist Entry [_1].", $email );
             return 1;
@@ -55,7 +55,7 @@ sub get_id {
         return;
     }
 
-    if ( !&VBoxAdm::Utils::is_valid_address_rfc822($email) ) {
+    if ( !&VWebAdm::Utils::is_valid_address_rfc822($email) ) {
         $self->logger()->log( message => 'Invalid email passed to get_id: ' . $email, level => 'error', );
         return;
     }
@@ -63,7 +63,7 @@ sub get_id {
     my ( $local_part, $domain ) = split /@/, $email;
 
     my $sql = "SELECT id FROM vacation_blacklist WHERE local_part = ? AND domain = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $local_part, $domain );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $local_part, $domain );
 
     if ( !$sth ) {
         $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
@@ -93,7 +93,7 @@ sub delete {
         $sth->finish();
 
         $query = "DELETE FROM vacation_blacklist WHERE id = ?";
-        if ( &VBoxAdm::DB::prepexec( $self->dbh, $query, $entry_id ) ) {
+        if ( &VWebAdm::DB::prepexec( $self->dbh, $query, $entry_id ) ) {
             $sth->finish();
             $self->msg->push( 'information', "Deleted Vacation Blacklist Entry [_1].", $email );
             return 1;

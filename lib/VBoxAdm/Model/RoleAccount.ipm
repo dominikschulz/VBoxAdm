@@ -23,11 +23,11 @@ sub create {
 
     my $delim = $self->config()->{'smtpproxy'}->{'recipient_delimiter'};
 
-    if ( !&VBoxAdm::Utils::is_valid_localpart_rfc822($role) ) {
+    if ( !&VWebAdm::Utils::is_valid_localpart_rfc822($role) ) {
         $self->msg->push( 'error', 'Invalid localpart as role name given.' );
         return;
     }
-    elsif ( !&VBoxAdm::Utils::is_valid_address_rfc822($goto) ) {
+    elsif ( !&VWebAdm::Utils::is_valid_address_rfc822($goto) ) {
         $self->msg->push( 'error', 'Invalid email address given.' );
         return;
     }
@@ -38,7 +38,7 @@ sub create {
     my ( $local_part, $domain ) = split /@/, $goto;
 
     my $sql = "INSERT IGNORE INTO role_accounts (name,local_part,domain,ts) VALUES(?,?,?,NOW())";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $role, $local_part, $domain );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $role, $local_part, $domain );
 
     if ( !$sth ) {
         $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
@@ -61,7 +61,7 @@ sub get_id {
     }
 
     my $sql = "SELECT id FROM role_accounts WHERE name = ?";
-    my $sth = &VBoxAdm::DB::prepexec( $self->dbh, $sql, $role );
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $role );
     my $id  = $sth->fetchrow_array();
 
     if ( !$sth ) {
@@ -84,7 +84,7 @@ sub update {
         return;
     }
     my $goto = $params->{'Goto'};
-    if ( !&VBoxAdm::Utils::is_valid_address_rfc822($goto) ) {
+    if ( !&VWebAdm::Utils::is_valid_address_rfc822($goto) ) {
         $self->msg->push( 'error', 'Invalid email address given.' );
         return;
     }

@@ -128,7 +128,7 @@ sub reload_postgrey {
     my $Logger  = shift;
     my $pidfile = '/var/run/postgrey.pid';
     if ( -f $pidfile ) {
-        my $pid = &VBoxAdm::Utils::slurp($pidfile);
+        my $pid = &VWebAdm::Utils::slurp($pidfile);
         if ( $pid =~ m/^\d+$/ ) {
             my $cmd = "kill -HUP $pid";
             my $rv  = system($cmd) >> 8;
@@ -558,7 +558,7 @@ whitelist - Where to write the whitelist to.
 
 =head1 DEPENDENCIES
 
-VBoxAdm::Utils, DBI.
+VWebAdm::Utils, DBI.
 
 =head1 INCOMPATIBILITIES
 

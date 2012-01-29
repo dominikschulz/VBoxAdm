@@ -64,9 +64,9 @@ sub create {
         return;
     }
 
-    $domain = &VBoxAdm::Utils::trim( lc($domain) );
+    $domain = &VWebAdm::Utils::trim( lc($domain) );
 
-    if ( $domain && !&VBoxAdm::Utils::is_valid_domain_rfc822($domain) ) {
+    if ( $domain && !&VWebAdm::Utils::is_valid_domain_rfc822($domain) ) {
         $self->msg->push( 'error', 'Invalid syntax. Domain is not RFC822 compliant!' );
         return;
     }

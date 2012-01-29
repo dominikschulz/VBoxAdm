@@ -1152,7 +1152,7 @@ sub show_add_domain_alias {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $domain_alias = &VBoxAdm::Utils::trim( lc( $q->param('domain_alias') ) );
+    my $domain_alias = &VWebAdm::Utils::trim( lc( $q->param('domain_alias') ) );
     my $domain_id    = $q->param('domain');
 
     if ( $self->{'DomainAlias'}->create( $domain_alias, $domain_id ) ) {
@@ -1326,7 +1326,7 @@ sub show_add_alias {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $local_part = &VBoxAdm::Utils::trim( lc( $q->param('local_part') ) );
+    my $local_part = &VWebAdm::Utils::trim( lc( $q->param('local_part') ) );
     my $domain_id  = $q->param('domain');
     my $goto       = $q->param('goto');
 

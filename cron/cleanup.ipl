@@ -272,7 +272,7 @@ dbhost - The MySQL database host, usually localhost.
 
 =head1 DEPENDENCIES
 
-VBoxAdm::Utils, DBI.
+VWebAdm::Utils, DBI.
 
 =head1 INCOMPATIBILITIES
 

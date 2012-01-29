@@ -9,6 +9,7 @@ use Crypt::CBC;
 use Digest::SHA;
 use JSON;
 use VWebAdm::Logger '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
 
 has '_ua' => (
     'is'      => 'rw',
@@ -34,7 +35,7 @@ has 'logger' => (
 sub _init_logger {
     my $self = shift;
 
-    my $Logger = VWebAdm::Logger->new('vwebadm-remotecli');
+    my $Logger = VWebAdm::Logger::->new('vwebadm-remotecli');
 
     return $Logger;
 }
@@ -42,7 +43,7 @@ sub _init_logger {
 sub _init_ua {
     my $self = shift;
 
-    my $UA = LWP::UserAgent->new();
+    my $UA = LWP::UserAgent::->new();
     $UA->agent('VWebAdm/RemoteCLI @VERSION@');
 
     return $UA;
@@ -51,7 +52,7 @@ sub _init_ua {
 sub _init_json {
     my $self = shift;
 
-    my $JSON = JSON->new->utf8();
+    my $JSON = JSON::->new->utf8();
 
     return $JSON;
 }
@@ -110,7 +111,7 @@ sub decrypt {
     my $raw_key    = shift;
     my $ciphertext = shift;
 
-    $ciphertext = MIME::Base64::decode_base64( &VBoxAdm::Utils::urldecode($ciphertext) );
+    $ciphertext = MIME::Base64::decode_base64( &VWebAdm::Utils::urldecode($ciphertext) );
 
     if ( !$raw_key || length($raw_key) < 12 ) {
         $self->logger()->log( message => "Misconfigured Server. Invalid Key Length.", level => 'error', );
@@ -123,7 +124,7 @@ sub decrypt {
     # the Crypt::CBC parameters are important,
     # this set of parameters makes the ciphertext
     # compatible with PHP's mcrypt_cbc method.
-    my $cipher = Crypt::CBC->new(
+    my $cipher = Crypt::CBC::->new(
         -key         => $key,
         -cipher      => 'Blowfish',
         -iv          => $iv,
@@ -173,7 +174,7 @@ sub encrypt {
     # the Crypt::CBC parameters are important,
     # this set of parameters makes the ciphertext
     # compatible with PHP's mcrypt_cbc method.
-    my $cipher = Crypt::CBC->new(
+    my $cipher = Crypt::CBC::->new(
         -key         => $key,
         -cipher      => 'Blowfish',
         -iv          => $iv,
@@ -190,7 +191,7 @@ sub encrypt {
         return;
     }
     else {
-        return &VBoxAdm::Utils::urlencode( encode_base64($ciphertext) );
+        return &VWebAdm::Utils::urlencode( encode_base64($ciphertext) );
     }
 }
 

@@ -777,7 +777,7 @@ sub _init_actions {
 
                 # Longer vacation messages can not be given on the commandline, they may also be a file
                 if ( $params->{VacationMessage} && -f $params->{VacationMessage} ) {
-                    $params->{VacationMessage} = &VBoxAdm::Utils::slurp( $params->{VacationMessage} );
+                    $params->{VacationMessage} = &VWebAdm::Utils::slurp( $params->{VacationMessage} );
                 }
                 print "Update User: $email\n";
                 $self->mailbox()->update( $mailbox_id, $params );
@@ -927,11 +927,11 @@ sub _init_user {
     }
 
     # check if login works
-    if ( !&VBoxAdm::Utils::is_valid_address_rfc822( $user_config{'auth'}{'username'} ) ) {
+    if ( !&VWebAdm::Utils::is_valid_address_rfc822( $user_config{'auth'}{'username'} ) ) {
         print "Invalid email address given.\n" unless $self->opts()->{'Quiet'};
         return;
     }
-    my $User = VBoxAdm::Model::User->new(
+    my $User = VBoxAdm::Model::User::->new(
         {
             'dbh'      => $self->dbh(),
             'logger'   => $self->logger(),

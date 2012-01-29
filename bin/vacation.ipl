@@ -60,7 +60,7 @@ notify_interval - The time between subsequent notifies for one user in seconds.
 
 =head1 DEPENDENCIES
 
-VBoxAdm::Utils, DBI.
+VWebAdm::Utils, DBI.
 
 =head1 INCOMPATIBILITIES
 

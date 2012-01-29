@@ -50,7 +50,7 @@ sub db_connect {
     # use guarding alarm timer
     my $dsn = "DBI:mysql:database=$db;user=$user;password=$pass;port=$port;host=";
     foreach my $host ( shuffle @{ $self->{server}->{vbox}->{dbhosts} } ) {
-        $self->{server}->{vbox}->{dbh} = VBoxAdm::DB::connect( $dsn . $host, { ConnectTimeout => 10, } ) and last;
+        $self->{server}->{vbox}->{dbh} = VWebAdm::DB::connect( $dsn . $host, { ConnectTimeout => 10, } ) and last;
     }
     if ( !$self->{server}->{vbox}->{dbh} ) {
         my $msg = "Could not connect to DB with DSN $dsn - Hosts: " . join( ',', @{ $self->{server}->{vbox}->{dbhosts} } ) . " - DBI Error: " . DBI->errstr;
@@ -264,7 +264,7 @@ max_requests - Each children will complete this much requests and than exit.
 
 =head1 DEPENDENCIES
 
-VBoxAdm::Utils, VBoxAdm::SMTP::Proxy, VBoxAdm::SMTP::Client, VBoxAdm::SMTP::Server.
+VWebAdm::Utils, VBoxAdm::SMTP::Proxy, VBoxAdm::SMTP::Client, VBoxAdm::SMTP::Server.
 
 =head1 INCOMPATIBILITIES
 

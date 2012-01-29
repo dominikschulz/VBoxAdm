@@ -115,7 +115,7 @@ sub migrate {
                     if (
                         !$config->{'dry'}
                         && $sth_new_mailbox->execute(
-                            $new_domain_id, $local_part, &VBoxAdm::SaltedHash::make_pass( $pwclear, $config->{'default'}{'pwscheme'} ),
+                            $new_domain_id, $local_part, &VWebAdm::SaltedHash::make_pass( $pwclear, $config->{'default'}{'pwscheme'} ),
                             $name, $is_active, 15360, $is_on_vacation, 'On Vacation', $away_text, 0, 0, $sa_active, 6.31
                         )
                       )
@@ -213,7 +213,7 @@ sub migrate {
                     if (
                         !$config->{'dry'}
                         && $sth_new_mailbox->execute(
-                            $new_domain_id, $local_part, VBoxAdm::SaltedHash::make_pass( $pwclear, $config->{'default'}{'pwscheme'} ),
+                            $new_domain_id, $local_part, VWebAdm::SaltedHash::make_pass( $pwclear, $config->{'default'}{'pwscheme'} ),
                             $name, $is_active, 15360, $is_on_vacation, 'On Vacation', $away_text, 0, 0, $sa_active, 6.31
                         )
                       )
@@ -312,7 +312,7 @@ sub migrate {
                 my $alias_is_enabled = 0;
                 $localpart = lc($localpart);
                 $vacation_msg ||= '';
-                $vacation_msg = &VBoxAdm::Utils::trim($vacation_msg);
+                $vacation_msg = &VWebAdm::Utils::trim($vacation_msg);
 
                 if ( $type eq 'site' && $admin ) {
                     $is_siteadmin = 1;
@@ -324,7 +324,7 @@ sub migrate {
                     $is_alias         = 1;
                     $alias_is_enabled = $enabled;
                     $forward          = $smtp;
-                    $forward          = &VBoxAdm::Utils::trim($forward);
+                    $forward          = &VWebAdm::Utils::trim($forward);
                     $forward =~ s/\s+/,/g;
                 }
                 if ( $type eq 'local' ) {
@@ -342,7 +342,7 @@ sub migrate {
                 if ($is_local) {
                     my $pw = '';
                     if ($pwclear) {
-                        $pw = &VBoxAdm::SaltedHash::make_pass( $pwclear, $config->{'default'}{'pwscheme'} );
+                        $pw = &VWebAdm::SaltedHash::make_pass( $pwclear, $config->{'default'}{'pwscheme'} );
                     }
                     elsif ( $pwcrypt && $pwcrypt =~ m/^\$1\$/ ) {
                         $pw = '{MD5-CRYPT}' . $pwcrypt;
@@ -415,7 +415,7 @@ sub migrate {
                         $vacation_msg   = $msg;
                     }
                 }
-                $sth_new_mailbox->execute( $new_domain_id, $local_part, VBoxAdm::SaltedHash::make_pass( $password, $config->{'default'}{'pwscheme'} ),
+                $sth_new_mailbox->execute( $new_domain_id, $local_part, VWebAdm::SaltedHash::make_pass( $password, $config->{'default'}{'pwscheme'} ),
                     $name, $is_active, $maxmsgsize, $is_on_vacation, $vacation_subj, $vacation_msg, $is_domainadmin, $is_siteadmin, $sa_active, $sa_kill_score,
                 ) or die( "Could not execute query $sql_new_mailbox: " . $sth_new_mailbox->errstr );
                 print

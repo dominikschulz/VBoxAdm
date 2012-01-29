@@ -373,7 +373,7 @@ sub want_sa {
     my $delim = $self->{server}->{vbox}->{recipient_delimiter} || undef;
 
     # iterate over all recipients, if one wants sa checking, the message will be checked
-    foreach my $email ( &VBoxAdm::Utils::extract_recipients( $recipients, $delim ) ) {
+    foreach my $email ( &VWebAdm::Utils::extract_recipients( $recipients, $delim ) ) {
         if ( $self->{server}->{vbox}->{caching} && defined( $self->{cache}->{want_sa}->{$email} ) ) {
             $want_sa = $want_sa || $self->{cache}->{want_sa}->{$email} || 0;
             $self->logger()->log( message => 'Using want_sa = ' . $want_sa . ' from cache for user ' . $email, level => 'debug', );

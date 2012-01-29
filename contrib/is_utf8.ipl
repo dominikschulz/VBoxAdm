@@ -53,10 +53,10 @@ sub handle_file {
     my $is_utf8 = 1;
     while (<$FH>) {
         chomp() if $verbose > 1;
-        if ( !&VBoxAdm::Utils::is_utf8($_) ) {
+        if ( !&VWebAdm::Utils::is_utf8($_) ) {
             $is_utf8 = 0;
         }
-        printf( "Line: %s\n\tHex: %s\n\tIsUTF8: %s\n", $_, VBoxAdm::Utils::string_to_hex($_), ( $is_utf8 ? "Yes" : "No" ) ) if $verbose > 1;
+        printf( "Line: %s\n\tHex: %s\n\tIsUTF8: %s\n", $_, VWebAdm::Utils::string_to_hex($_), ( $is_utf8 ? "Yes" : "No" ) ) if $verbose > 1;
     }
     close($FH);
     if ($is_utf8) {
