@@ -48,7 +48,7 @@ has 'config' => (
 
 has 'logger' => (
     'is'      => 'ro',
-    'isa'     => 'VBoxAdm::Logger',
+    'isa'     => 'VWebAdm::Logger',
     'lazy'    => 1,
     'builder' => '_init_logger',
 );
@@ -62,7 +62,7 @@ has 'dbh' => (
 
 has 'msgq' => (
     'is'      => 'ro',
-    'isa'     => 'VBoxAdm::Model::MessageQueue',
+    'isa'     => 'VWebAdm::Model::MessageQueue',
     'lazy'    => 1,
     'builder' => '_init_msgq',
 );

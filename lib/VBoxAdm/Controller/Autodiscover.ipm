@@ -21,7 +21,7 @@ has 'dbh' => (
 
 has 'logger' => (
     'is'      => 'ro',
-    'isa'     => 'VBoxAdm::Logger',
+    'isa'     => 'VWebAdm::Logger',
     'lazy'    => 1,
     'builder' => '_init_logger',
 );
@@ -55,7 +55,7 @@ has 'config' => (
 sub _init_logger {
     my $self = shift;
 
-    return VBoxAdm::Logger->new('vboxadm-vacation');
+    return VWebAdm::Logger::->new('vboxadm-vacation');
 }
 
 has 'conffile_used' => (
