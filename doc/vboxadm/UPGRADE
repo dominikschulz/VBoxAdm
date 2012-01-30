@@ -1,0 +1,7 @@
+This document is still WIP. Just some hints to get you started.
+- Install the latest debian package
+- source users are on their own
+- the directory (debian) /usr/share/doc/vboxadm-common/examples/mysql/diffs/ or (source) doc/vboxadm/mysql/diffs contains mysql schema diffs between each two versions where schema changes did occur
+- if your upgrade path contains no appropriate diffs you need none
+- if your upgrade paht contains more than one diff, you need all of them
+- Good luck!
