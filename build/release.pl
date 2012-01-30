@@ -151,6 +151,8 @@ my $tempdir = tempdir( CLEANUP => 1, );
 $cmd = "DESTDIR=$tempdir/ fakeroot make install";
 run_cmd($cmd);
 
+# TODO HIGH automagically add mysqldiff!
+
 # Increase Version number in Makefile
 $cmd = 'sed -i "s/^VERSION = .*$/VERSION = '.$version.'/g" Makefile';
 run_cmd($cmd);
