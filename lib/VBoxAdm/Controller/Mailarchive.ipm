@@ -1,4 +1,4 @@
-package VBoxAdm::Controller::Notify;
+package VBoxAdm::Controller::Mailarchive;
 
 use Moose;
 use namespace::autoclean;
