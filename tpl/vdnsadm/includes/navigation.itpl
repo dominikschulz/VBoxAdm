@@ -11,6 +11,22 @@
 				<li><a href="[% base_url %]?rm=create_domain">Create</a></li>
 			</ul>
 		</li>
+		[% IF feature_templates %]
+		<li><a[% IF current == 'templates' %] class="current"[% END %] href="[% base_url %]?rm=templates">[% "Templates" | l10n %]</a>
+			<ul>
+				<li><a href="[% base_url %]?rm=templates">List</a></li>
+				<li><a href="[% base_url %]?rm=create_template">Create</a></li>
+			</ul>
+		</li>
+		[% END %]
+		[% IF feature_groups %]
+		<li><a[% IF current == 'groups' %] class="current"[% END %] href="[% base_url %]?rm=groups">[% "Groups" | l10n %]</a>
+			<ul>
+				<li><a href="[% base_url %]?rm=groups">List</a></li>
+				<li><a href="[% base_url %]?rm=create_group">Create</a></li>
+			</ul>
+		</li>
+		[% END %]
 		[% IF is_siteadmin %]
 		<li><a href="[% base_url %]?rm=welcome">Admin Tools</a>
 			<ul>

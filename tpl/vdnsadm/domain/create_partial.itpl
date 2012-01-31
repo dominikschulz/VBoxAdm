@@ -104,7 +104,7 @@
 			[% "Minimum:" | l10n %]
 			<span class="small">The minimum TTL that should be exported with any RR from this zone</span>
 		</label>
-		<select name="soa_retry">
+		<select name="soa_minimum">
 			<option selected>3600</option>
 			<option>7200</option>
 			<option>10800</option>

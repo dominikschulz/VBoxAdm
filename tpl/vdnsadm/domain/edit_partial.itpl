@@ -11,6 +11,8 @@
 		
 		<div class="spacer"></div>
 		
+		[% IF non_native %]
+		
 		<label for="master">
 			[% "Master:" | l10n %]
 			<span class="small"></span>
@@ -23,7 +25,7 @@
 			[% "Last Check:" | l10n %]
 			<span class="small"></span>
 		</label>
-		<input type="text" name="last_check" value="[% last_check %] />
+		<input type="text" name="last_check" value="[% last_check %]" />
 		
 		<div class="spacer"></div>
 		
@@ -46,11 +48,136 @@
 		
 		<div class="spacer"></div>
 		
+		[% END %]
+		
 		<label for="is_active">
 			[% "Enabled:" | l10n %]
 			<span class="small"></span>
 		</label>
 		<input type="checkbox" name="is_active" [% IF is_active %]checked[% END %] />
+		
+		<div class="spacer"></div>
+		
+		<label for="soa_mname">
+			[% "Primary NS:" | l10n %]
+			<span class="small">The primary Nameserver for this Domain</span>
+		</label>
+		<input type="text" name="soa_mname" value="[% soa_mname %]" />
+		
+		<div class="spacer"></div>
+		
+		<label for="soa_rname">
+			[% "Hostmaster:" | l10n %]
+			<span class="small">The email address of the hostmaster repsonsible for this domain</span>
+		</label>
+		<input type="text" name="soa_rname" value="[% soa_rname %]" />
+		
+		<div class="spacer"></div>
+		
+		<label for="soa_serial">
+			[% "Serial:" | l10n %]
+			<span class="small">An auto-generated 32-bit integer version number</span>
+		</label>
+		<input type="hidden" name="soa_serial" value="[% soa_serial %]" />
+		[% soa_serial %]
+		
+		<input type="hidden" name="soa_id" value="[% soa_id %]" />
+		
+		<div class="spacer"></div>
+		
+		<label for="soa_refresh">
+			[% "Refresh:" | l10n %]
+			<span class="small">An interval in seconds before the zone should be refreshed</span>
+		</label>
+		<select name="soa_refresh">
+			<option[% IF soa_refresh == 3600 %] selected[% END %]>3600</option>
+			<option[% IF soa_refresh == 7200 %] selected[% END %]>7200</option>
+			<option[% IF soa_refresh == 10800 %] selected[% END %]>10800</option>
+			<option[% IF soa_refresh == 14400 %] selected[% END %]>14400</option>
+			<option[% IF soa_refresh == 28800 %] selected[% END %]>28800</option>
+			<option[% IF soa_refresh == 32400 %] selected[% END %]>32400</option>
+			<option[% IF soa_refresh == 57600 %] selected[% END %]>57600</option>
+			<option[% IF soa_refresh == 64800 %] selected[% END %]>64800</option>
+			<option[% IF soa_refresh == 86400 %] selected[% END %]>86400</option>
+			<option[% IF soa_refresh == 115200 %] selected[% END %]>115200</option>
+		</select>
+		
+		<div class="spacer"></div>
+		
+		<label for="soa_retry">
+			[% "Retry:" | l10n %]
+			<span class="small">An interval in seconds that should elapse before a failed refresh should be retried</span>
+		</label>
+		<select name="soa_retry">
+			<option[% IF soa_retry == 3600 %] selected[% END %]>3600</option>
+			<option[% IF soa_retry == 7200 %] selected[% END %]>7200</option>
+			<option[% IF soa_retry == 10800 %] selected[% END %]>10800</option>
+			<option[% IF soa_retry == 14400 %] selected[% END %]>14400</option>
+			<option[% IF soa_retry == 28800 %] selected[% END %]>28800</option>
+			<option[% IF soa_retry == 32400 %] selected[% END %]>32400</option>
+			<option[% IF soa_retry == 57600 %] selected[% END %]>57600</option>
+			<option[% IF soa_retry == 64800 %] selected[% END %]>64800</option>
+			<option[% IF soa_retry == 86400 %] selected[% END %]>86400</option>
+			<option[% IF soa_retry == 115200 %] selected[% END %]>115200</option>
+		</select>
+		
+		<div class="spacer"></div>
+		
+		<label for="soa_expire">
+			[% "Expire:" | l10n %]
+			<span class="small">The upper limit in seconds that can elapse before the zone is no longer authorative</span>
+		</label>
+		<select name="soa_expire">
+			<option[% IF soa_expire == 3600 %] selected[% END %]>3600</option>
+			<option[% IF soa_expire == 7200 %] selected[% END %]>7200</option>
+			<option[% IF soa_expire == 10800 %] selected[% END %]>10800</option>
+			<option[% IF soa_expire == 14400 %] selected[% END %]>14400</option>
+			<option[% IF soa_expire == 28800 %] selected[% END %]>28800</option>
+			<option[% IF soa_expire == 32400 %] selected[% END %]>32400</option>
+			<option[% IF soa_expire == 57600 %] selected[% END %]>57600</option>
+			<option[% IF soa_expire == 64800 %] selected[% END %]>64800</option>
+			<option[% IF soa_expire == 86400 %] selected[% END %]>86400</option>
+			<option[% IF soa_expire == 115200 %] selected[% END %]>115200</option>
+			<option[% IF soa_expire == 3600000 %] selected[% END %]>3600000</option>
+		</select>
+		
+		<div class="spacer"></div>
+		
+		<label for="soa_minimum">
+			[% "Minimum:" | l10n %]
+			<span class="small">The minimum TTL that should be exported with any RR from this zone</span>
+		</label>
+		<select name="soa_minimum">
+			<option[% IF soa_retry == 3600 %] selected[% END %]>3600</option>
+			<option[% IF soa_retry == 7200 %] selected[% END %]>7200</option>
+			<option[% IF soa_retry == 10800 %] selected[% END %]>10800</option>
+			<option[% IF soa_retry == 14400 %] selected[% END %]>14400</option>
+			<option[% IF soa_retry == 28800 %] selected[% END %]>28800</option>
+			<option[% IF soa_retry == 32400 %] selected[% END %]>32400</option>
+			<option[% IF soa_retry == 57600 %] selected[% END %]>57600</option>
+			<option[% IF soa_retry == 64800 %] selected[% END %]>64800</option>
+			<option[% IF soa_retry == 86400 %] selected[% END %]>86400</option>
+			<option[% IF soa_retry == 115200 %] selected[% END %]>115200</option>
+		</select>
+		
+		<div class="spacer"></div>
+		
+		<label for="soa_ttl">
+			[% "TTL:" | l10n %]
+			<span class="small">The default TTL.</span>
+		</label>
+		<select name="soa_ttl">
+			<option[% IF soa_ttl == 3600 %] selected[% END %]>3600</option>
+			<option[% IF soa_ttl == 7200 %] selected[% END %]>7200</option>
+			<option[% IF soa_ttl == 10800 %] selected[% END %]>10800</option>
+			<option[% IF soa_ttl == 14400 %] selected[% END %]>14400</option>
+			<option[% IF soa_ttl == 28800 %] selected[% END %]>28800</option>
+			<option[% IF soa_ttl == 32400 %] selected[% END %]>32400</option>
+			<option[% IF soa_ttl == 57600 %] selected[% END %]>57600</option>
+			<option[% IF soa_ttl == 64800 %] selected[% END %]>64800</option>
+			<option[% IF soa_ttl == 86400 %] selected[% END %]>86400</option>
+			<option[% IF soa_ttl == 115200 %] selected[% END %]>115200</option>
+		</select>
 		
 		<div class="spacer"></div>
 		

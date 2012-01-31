@@ -132,6 +132,7 @@ sub update {
     my $domain_name = $self->get_name($domain_id);
 
     if ( !$self->_validate_params($params) ) {
+        $self->log('Params not valid!');
         return;
     }
 

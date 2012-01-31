@@ -6,9 +6,9 @@
 			<thead>
 			<tr>
 				<th>[% "Domain" | l10n %]</th>
-				<th>[% "Aliases" | l10n %]</th>
-				<th>[% "Mailboxes" | l10n %]</th>
-				<th>[% "Alias-Domains" | l10n %]</th>
+				<th>[% "# Records" | l10n %]</th>
+				<th>[% "Primary NS" | l10n %]</th>
+				<th>[% "Group" | l10n %]</th>
 				<th>[% "Active" | l10n %]</th>
 				<th></th>
 				<th></th>
@@ -21,13 +21,13 @@
 					<a href="[% base_url %]?rm=domain&domain_id=[% line.id %]">[% line.name | highlight(search) %]</a>
 				</td>
 				<td>
-					[% line.num_aliases %]
+					[% line.num_records %]
 				</td>
 				<td>
-					[% line.num_mailboxes %]
+					[% line.soa_mname %]
 				</td>
 				<td>
-					[% line.num_domainaliases %]
+					[% line.group %]
 				</td>
 				<td>
 					[% IF line.is_active %]

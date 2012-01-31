@@ -408,15 +408,17 @@ sub tt_post_process {
 sub tt_pre_process {
     my ( $self, $file, $vars ) = @_;
 
-    $vars->{username}       = $self->authen->username;
-    $vars->{system_domain}  = $self->{config}{'default'}{'domain'} || 'localhost';
-    $vars->{long_forms}     = $self->{config}{'cgi'}{'long_forms'} || 0;
-    $vars->{version}        = $VERSION;
-    $vars->{messages}       = $self->get_messages();
-    $vars->{is_siteadmin}   = $self->user->is_siteadmin() if $self->user();
-    $vars->{is_domainadmin} = $self->user->is_domainadmin() if $self->user();
-    $vars->{product}        = 'VDnsAdm';
-    $vars->{product_url}    = 'http://www.vdnsadm.net/';
+    $vars->{username}          = $self->authen->username;
+    $vars->{system_domain}     = $self->{config}{'default'}{'domain'} || 'localhost';
+    $vars->{long_forms}        = $self->{config}{'cgi'}{'long_forms'} || 0;
+    $vars->{version}           = $VERSION;
+    $vars->{messages}          = $self->get_messages();
+    $vars->{is_siteadmin}      = $self->user->is_siteadmin() if $self->user();
+    $vars->{is_domainadmin}    = $self->user->is_domainadmin() if $self->user();
+    $vars->{product}           = 'VDnsAdm';
+    $vars->{product_url}       = 'http://www.vdnsadm.net/';
+    $vars->{feature_groups}    = $self->{config}{'default'}{'feature_groups'} || 0;
+    $vars->{feature_templates} = $self->{config}{'default'}{'feature_templates'} || 0;
 
     return;
 }
@@ -665,7 +667,7 @@ sub show_domains {
     my $search = $q->param('search');
     my %params = ( 'Search' => $search, );
 
-    my $sql_records = "SELECT COUNT(*) FROM records WHERE domain_id = ?";
+    my $sql_records = "SELECT COUNT(*) FROM records WHERE domain_id = ? AND type <> 'SOA'";
     my $sth_records = $dbh->prepare($sql_records);
 
     my @domains = $self->{'Domain'}->list( \%params );
@@ -736,18 +738,18 @@ sub show_domain {
     my $domain_name = $domain_ref->{'name'};
 
     # Get Records
-    my @records = $self->{'Record'}->list( { 'domain_id' => $domain_id, }, );
-    my @types = $self->{'Record'}->types();
-    $params->{'NotType'} = 'SOA';
+    my @records = $self->{'Record'}->list( { 'domain_id' => $domain_id, 'NotType' => 'SOA', }, );
+    my @types   = $self->{'Record'}->types();
     my @domains = $self->{'Domain'}->list($params);
 
     my %params = (
-        'title'   => $self->{lh}->maketext( 'VDnsAdm Domain: [_1]', $domain_name ),
-        'current' => 'domains',
-        'domain'  => $domain_name,
-        'records' => \@records,
-        'types'   => \@types,
-        'domains' => \@domains,
+        'title'     => $self->{lh}->maketext( 'VDnsAdm Domain: [_1]', $domain_name ),
+        'current'   => 'domains',
+        'domain'    => $domain_name,
+        'records'   => \@records,
+        'types'     => \@types,
+        'domains'   => \@domains,
+        'domain_id' => $domain_id,
     );
 
     return $self->tt_process( 'vdnsadm/domain/show.tpl', \%params );
@@ -866,6 +868,12 @@ sub show_edit_domain {
     my $domain_id   = $q->param('domain_id');
     my $domain_ref  = $self->{'Domain'}->read($domain_id);
     my $domain_name = $domain_ref->{'name'};
+    my ($soa_ref)   = $self->{'Record'}->list(
+        {
+            'Type'      => 'SOA',
+            'domain_id' => $domain_id,
+        }
+    );
 
     my %params = (
         'title'         => $self->{lh}->maketext('Edit Domain'),
@@ -878,9 +886,16 @@ sub show_edit_domain {
     foreach my $key ( keys %{$domain_ref} ) {
         $params{$key} = $domain_ref->{$key};
     }
-    if ( length( $params{'content'} ) > 20 ) {
-        $params{'large_content'} = 1;
-    }
+
+    # SOA
+    $params{'soa_id'}  = $soa_ref->{'id'};
+    $params{'soa_ttl'} = $soa_ref->{'ttl'};
+    my @soa_fields = qw(soa_mname soa_rname soa_serial soa_refresh soa_retry soa_expire soa_minimum);
+    my @soa = split /\s+/, $soa_ref->{'content'};
+    @params{@soa_fields} = @soa;
+
+    # replace the first dot by the correct @
+    $params{'soa_rname'} = join( '@', split /\./, $params{'soa_rname'}, 2 );
 
     return $self->tt_process( 'vdnsadm/domain/edit.tpl', \%params );
 }
@@ -899,9 +914,42 @@ sub show_update_domain {
         next if $field eq 'id';
         $params->{$field} = $q->param($field) if defined( $q->param($field) );
     }
+    if ( defined( $params->{'is_active'} ) ) {
+        if ( $params->{'is_active'} eq 'on' ) {
+            $params->{'is_active'} = 1;
+        }
+        else {
+            $params->{'is_active'} = 0;
+        }
+    }
 
     if ( $self->{'Domain'}->update( $domain_id, $params ) ) {
         $self->log( 'Updated Domain #' . $domain_id );
+
+        # Assemble the SOA record
+        my $soa_id    = $q->param('soa_id');
+        my $soa_mname = $q->param('soa_mname');
+        my $soa_rname = $q->param('soa_rname');
+        $soa_rname =~ s/@/./;
+        my $soa_serial  = $q->param('soa_serial');
+        my $soa_refresh = $q->param('soa_refresh');
+        my $soa_retry   = $q->param('soa_retry');
+        my $soa_expire  = $q->param('soa_expire');
+        my $soa_minimum = $q->param('soa_minimum');
+        my $content     = join( ' ', ( $soa_mname, $soa_rname, $soa_serial, $soa_refresh, $soa_retry, $soa_expire, $soa_minimum ) );
+        my $params      = {
+            'ttl'     => $q->param('soa_ttl'),
+            'prio'    => 0,
+            'content' => $content,
+            'type'    => 'SOA',
+        };
+
+        if ( $self->{'Record'}->update( $soa_id, $params ) ) {
+            $self->log( 'Updated SOA Record for Domain #' . $domain_id );
+        }
+        else {
+            $self->log( 'Failed to update SOA Record for Domain #' . $domain_id );
+        }
     }
     else {
         $self->log( 'Failed to update Domain #' . $domain_id );
