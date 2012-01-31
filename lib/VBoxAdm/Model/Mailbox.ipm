@@ -259,7 +259,7 @@ sub update {
             }
 
             # Check password lock
-            if ( $self->config()->{'cgi'}->{'obey_pw_lock'} && $self->read($mailbox_id)->{'pw_lock'} ) {
+            if ( $self->config()->{'cgi'}->{'obey_pw_lock'} && $self->read($mailbox_id)->{'pw_lock'} && !$params->{'pw_lock_override'} ) {
                 $self->msg->push( 'warning', 'Password locked. Can not be changed.' );
             }
             else {

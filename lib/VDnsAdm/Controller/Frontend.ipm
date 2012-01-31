@@ -738,6 +738,7 @@ sub show_domain {
     # Get Records
     my @records = $self->{'Record'}->list( { 'domain_id' => $domain_id, }, );
     my @types   = $self->{'Record'}->types();
+    $params->{'NotType'} = 'SOA';
     my @domains = $self->{'Domain'}->list($params);
 
     my %params = (
@@ -841,6 +842,47 @@ sub show_remove_domain {
 
     $self->redirect( $self->{base_url} . '?rm=domains' );
     return;
+}
+
+sub show_edit_domain {
+    my $self = shift;
+
+    if ( !$self->user->is_admin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $large_content = $q->param('large') || 0;
+
+    my $domain_id   = $q->param('domain_id');
+    my $domain_ref  = $self->{'Domain'}->read($record_id);
+    my $domain_name = $domain_ref->{'name'};
+
+    my %params = (
+        'title'         => $self->{lh}->maketext('Edit Domain'),
+        'record_id'     => $record_id,
+        'domain_name'   => $domain_name,
+        'current'       => 'domains',
+        'large_content' => $large_content,
+    );
+
+    foreach my $key ( keys %{$record_ref} ) {
+        $params{$key} = $record_ref->{$key};
+    }
+    if ( length( $params{'content'} ) > 20 ) {
+        $params{'large_content'} = 1;
+    }
+
+    return $self->tt_process( 'vdnsadm/domain/edit.tpl', \%params );
 }
 
 sub show_update_domain {

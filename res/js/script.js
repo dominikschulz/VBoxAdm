@@ -6,6 +6,7 @@ $(document).ready(function() {
 	oTable = $('.datatable').dataTable({
 		"bJQueryUI": true,
 		"sPaginationType": "full_numbers",
+		"iDisplayLength": 25,
 	});
 } );
 // setup popup window
