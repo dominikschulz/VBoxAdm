@@ -152,6 +152,8 @@ $cmd = "DESTDIR=$tempdir/ fakeroot make install";
 run_cmd($cmd);
 
 # TODO HIGH automagically add mysqldiff!
+# -- VBoxAdm: from the last version to the current release
+# -- VDnsAdm: from the last version and from the powerdns vanilla schema
 
 # Increase Version number in Makefile
 $cmd = 'sed -i "s/^VERSION = .*$/VERSION = '.$version.'/g" Makefile';
