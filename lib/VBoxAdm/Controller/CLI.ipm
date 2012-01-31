@@ -778,9 +778,10 @@ sub _init_actions {
                     $params->{VacationMessage} = &VWebAdm::Utils::slurp( $params->{VacationMessage} );
                 }
                 print "Update User: $email\n";
+
                 # locked passwords can not be changed in the web gui but on the CLI
-                if($self->opts()->{ForcePassword}) {
-                	$params->{'pw_lock_override'} = 1;
+                if ( $self->opts()->{ForcePassword} ) {
+                    $params->{'pw_lock_override'} = 1;
                 }
                 $self->mailbox()->update( $mailbox_id, $params );
                 $self->display_messages();

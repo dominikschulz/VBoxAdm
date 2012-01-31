@@ -737,7 +737,7 @@ sub show_domain {
 
     # Get Records
     my @records = $self->{'Record'}->list( { 'domain_id' => $domain_id, }, );
-    my @types   = $self->{'Record'}->types();
+    my @types = $self->{'Record'}->types();
     $params->{'NotType'} = 'SOA';
     my @domains = $self->{'Domain'}->list($params);
 
@@ -864,19 +864,19 @@ sub show_edit_domain {
     my $large_content = $q->param('large') || 0;
 
     my $domain_id   = $q->param('domain_id');
-    my $domain_ref  = $self->{'Domain'}->read($record_id);
+    my $domain_ref  = $self->{'Domain'}->read($domain_id);
     my $domain_name = $domain_ref->{'name'};
 
     my %params = (
         'title'         => $self->{lh}->maketext('Edit Domain'),
-        'record_id'     => $record_id,
+        'domain_id'     => $domain_id,
         'domain_name'   => $domain_name,
         'current'       => 'domains',
         'large_content' => $large_content,
     );
 
-    foreach my $key ( keys %{$record_ref} ) {
-        $params{$key} = $record_ref->{$key};
+    foreach my $key ( keys %{$domain_ref} ) {
+        $params{$key} = $domain_ref->{$key};
     }
     if ( length( $params{'content'} ) > 20 ) {
         $params{'large_content'} = 1;

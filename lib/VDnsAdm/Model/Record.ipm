@@ -699,9 +699,9 @@ sub list {
         $sql .= ' AND r.type = ?';
         push( @args, $param->{'Type'} );
     }
-    if( $param->{'NotType'} ) {
-    	$sql .= ' AND r.type <> ?';
-    	push( @args, $param->{'NotType'} );
+    if ( $param->{'NotType'} ) {
+        $sql .= ' AND r.type <> ?';
+        push( @args, $param->{'NotType'} );
     }
 
     # domain admins may only see their own domain
