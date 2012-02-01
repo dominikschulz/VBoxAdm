@@ -165,7 +165,6 @@ if($new_diff && -f $new_diff) {
 	$cmd = "git add $new_vanilla_diff";
 	run_cmd($cmd);
 }
-die("TESTING");
 
 # Increase Version number in Makefile
 $cmd = 'sed -i "s/^VERSION = .*$/VERSION = '.$version.'/g" Makefile';
@@ -291,7 +290,7 @@ sub sql_diff {
 	my $product = shift;
 	
 	# Get the latest schema from the db
-	$cmd = "mysqldump --no-data --opt ".$product." | sed 's/AUTO_INCREMENT=[0-9]*\b//' > $tempdir/".$product."-current.sql";
+	$cmd = "mysqldump --no-data --opt ".$product.q{ | sed 's/AUTO_INCREMENT=[0-9]*\b//' > }.$tempdir.'/'.$product."-current.sql";
 	run_cmd($cmd);
 	# see if there are any differences
 	$cmd = "mysqldiff doc/".$product."/mysql/".$product."-current.sql $tempdir/".$product."-current.sql > $tempdir/".$product."-diff.sql";
