@@ -160,7 +160,7 @@ my $new_diff = &sql_diff($tempdir,'vdnsadm');
 # if there is a new diff we need to do a vanilla diff, too
 if($new_diff && -f $new_diff) {
 	my $new_vanilla_diff = "doc/vdnsadm/mysql/diffs/vanilla-diff-to-".$version.".sql";
-	$cmd = "mysqldiff doc/vdnsadm/mysql/powerdns-vanilla.sql $new_diff > $new_vanilla_diff";
+	$cmd = "mysqldiff doc/vdnsadm/mysql/powerdns-vanilla.sql doc/vdnsadm/mysql/vdnsadm-current.sql > $new_vanilla_diff";
 	run_cmd($cmd);
 	$cmd = "git add $new_vanilla_diff";
 	run_cmd($cmd);
