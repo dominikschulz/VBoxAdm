@@ -33,7 +33,7 @@ sub create {
 
     $local_part = &VWebAdm::Utils::trim( lc($local_part) );
 
-    my $Domain = &VBoxAdm::Model::Domain::->new( { 'Model' => $self, } );
+    my $Domain = VBoxAdm::Model::Domain::->new( { 'Model' => $self, } );
     my $domain_name = $Domain->get_name($domain_id);
 
     my $system_domain = $self->config->{'default'}{'domain'}   || 'localhost';

@@ -151,9 +151,21 @@ my $tempdir = tempdir( CLEANUP => 1, );
 $cmd = "DESTDIR=$tempdir/ fakeroot make install";
 run_cmd($cmd);
 
-# TODO HIGH automagically add mysqldiff!
+# automagically add mysqldiff!
 # -- VBoxAdm: from the last version to the current release
+&sql_diff($tempdir,'vboxadm');
+
 # -- VDnsAdm: from the last version and from the powerdns vanilla schema
+my $new_diff = &sql_diff($tempdir,'vdnsadm');
+# if there is a new diff we need to do a vanilla diff, too
+if($new_diff && -f $new_diff) {
+	my $new_vanilla_diff = "doc/vdnsadm/mysql/diffs/vanilla-diff-to-".$version.".sql";
+	$cmd = "mysqldiff doc/vdnsadm/mysql/powerdns-vanilla.sql $new_diff > $new_vanilla_diff";
+	run_cmd($cmd);
+	$cmd = "git add $new_vanilla_diff";
+	run_cmd($cmd);
+}
+die("TESTING");
 
 # Increase Version number in Makefile
 $cmd = 'sed -i "s/^VERSION = .*$/VERSION = '.$version.'/g" Makefile';
@@ -273,6 +285,33 @@ if(-d '../debian-archive') {
 
 print "Release of $version finished!\n";
 exit 0;
+
+sub sql_diff {
+	my $tempdir = shift;
+	my $product = shift;
+	
+	# Get the latest schema from the db
+	$cmd = "mysqldump --no-data --opt ".$product." | sed 's/AUTO_INCREMENT=[0-9]*\b//' > $tempdir/".$product."-current.sql";
+	run_cmd($cmd);
+	# see if there are any differences
+	$cmd = "mysqldiff doc/".$product."/mysql/".$product."-current.sql $tempdir/".$product."-current.sql > $tempdir/".$product."-diff.sql";
+	run_cmd($cmd);
+	# only create a diff if there are some changes (diff > 0 bytes)
+	if((stat("$tempdir/".$product."-diff.sql"))[7] > 0) {
+		my $new_diff = "doc/".$product."/mysql/diffs/schema-diff-$preversion-to-$version.sql";
+		$cmd = "mv $tempdir/".$product."-diff.sql ".$new_diff;
+		run_cmd($cmd);
+		# add to git
+		$cmd = "git add ".$new_diff;
+		run_cmd($cmd);
+		# move the latest schema to the repo if there were any changes
+		$cmd = "mv $tempdir/".$product."-current.sql doc/".$product."/mysql/".$product."-current.sql";
+		run_cmd($cmd);
+		
+		return $new_diff;
+	}
+	return;
+}
 
 sub run_cmd {
     my $cmd = shift;
