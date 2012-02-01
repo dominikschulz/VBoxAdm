@@ -10,6 +10,19 @@ use VWebAdm::Utils '@VERSION@';
 
 extends 'VWebAdm::Model';
 
+has 'table_name' => (
+    'is'      => 'ro',
+    'isa'     => 'Str',
+    'lazy'    => 1,
+    'builder' => '_init_table_name',
+);
+
+sub _init_table_name {
+    my $self = shift;
+
+    return 'domains';
+}
+
 sub _init_fields {
     return [qw(id name master last_check type notified_serial is_active)];
 }
@@ -80,7 +93,7 @@ sub create {
         return;
     }
 
-    my $query = "INSERT INTO domains (" . join( ',', keys %{$params} ) . ") VALUES(";
+    my $query = "INSERT INTO " . $self->table_name() . " (" . join( ',', keys %{$params} ) . ") VALUES(";
     $query .= "?," x ( scalar( keys %{$params} ) - 1 );
     $query .= "?)";
 
@@ -106,7 +119,7 @@ sub delete {
         return;
     }
 
-    my $sql = "DELETE FROM domains WHERE id = ? LIMIT 1";
+    my $sql = "DELETE FROM " . $self->table_name() . " WHERE id = ? LIMIT 1";
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $domain_id );
 
     if ( !$sth ) {
@@ -136,7 +149,7 @@ sub update {
         return;
     }
 
-    my $query = "UPDATE domains SET ";
+    my $query = "UPDATE " . $self->table_name() . " SET ";
 
     # only execute query if scalar(@params) > 0, i.e. at least on valid option
     my @args = ();
@@ -183,7 +196,7 @@ sub read {
         return;
     }
 
-    return $self->_read( 'domains', $id, );
+    return $self->_read( $self->table_name(), $id, );
 }
 
 sub list {
@@ -200,7 +213,7 @@ sub list {
         $params->{'id'} = $self->user->get_domain_id();
     }
 
-    return $self->_list( 'domains', $params );
+    return $self->_list( $self->table_name(), $params );
 }
 
 sub get_name {
@@ -212,7 +225,7 @@ sub get_name {
         return;
     }
 
-    my $query = "SELECT name FROM domains WHERE id = ?";
+    my $query = "SELECT name FROM " . $self->table_name() . " WHERE id = ?";
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $id );
 
     if ( !$sth ) {
@@ -236,7 +249,7 @@ sub get_id {
         return;
     }
 
-    my $sql = "SELECT id FROM domains WHERE name = ?";
+    my $sql = "SELECT id FROM " . $self->table_name() . " WHERE name = ?";
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $name );
 
     if ( !$sth ) {

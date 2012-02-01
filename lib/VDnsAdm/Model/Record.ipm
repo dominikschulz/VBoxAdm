@@ -18,6 +18,19 @@ has 'valid_types' => (
     'builder' => '_init_valid_types',
 );
 
+has 'table_name' => (
+    'is'      => 'ro',
+    'isa'     => 'Str',
+    'lazy'    => 1,
+    'builder' => '_init_table_name',
+);
+
+sub _init_table_name {
+    my $self = shift;
+
+    return 'records';
+}
+
 sub _init_fields {
     return [qw(id domain_id name type content ttl prio change_date ordername auth)];
 }
@@ -381,7 +394,7 @@ sub create {
         $self->msg->push( 'error', "You are not authorized to modify this domain!" );
     }
     else {
-        my $query = "INSERT INTO records (" . join( ",", keys %{$params} ) . ") VALUES(";
+        my $query = "INSERT INTO " . $self->table_name() . " (" . join( ",", keys %{$params} ) . ") VALUES(";
         $query .= "?," x ( scalar( keys %{$params} ) - 1 );
         $query .= "?)";
 
@@ -418,7 +431,7 @@ sub delete {
         $self->msg->push( 'error', "Failed to remove record. Insufficient parameters." );
         return;
     }
-    my $query = "SELECT name, type, content, ttl, domain_id FROM records WHERE id = ?";
+    my $query = "SELECT name, type, content, ttl, domain_id FROM " . $self->table_name() . " WHERE id = ?";
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $record_id );
     if ( !$sth ) {
         $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
@@ -429,7 +442,7 @@ sub delete {
     my $record_name = $self->_get_record_name( { 'name' => $name, 'type' => $type, 'ttl' => $ttl, 'content' => $content, }, );
     $sth->finish();
 
-    $query = "DELETE FROM records WHERE id = ?";
+    $query = "DELETE FROM " . $self->table_name() . " WHERE id = ?";
     my @args = ();
     push( @args, $record_id );
     if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
@@ -469,7 +482,7 @@ sub update {
         return;
     }
 
-    my $query = "SELECT name, type, content, ttl, domain_id FROM records WHERE id = ?";
+    my $query = "SELECT name, type, content, ttl, domain_id FROM " . $self->table_name() . " WHERE id = ?";
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $record_id );
     if ( !$sth ) {
         $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
@@ -500,7 +513,7 @@ sub update {
         return;
     }
 
-    $query = "UPDATE records SET ";
+    $query = "UPDATE " . $self->table_name() . " SET ";
 
     # only execute query if scalar(@params) > 0, i.e. at least on valid option
     my @args = ();
@@ -560,7 +573,7 @@ sub update {
 sub read {
     my ( $self, $record_id ) = @_;
 
-    my $sql = "SELECT " . join( ",", @{ $self->fields() } ) . " FROM records WHERE id = ?";
+    my $sql = "SELECT " . join( ",", @{ $self->fields() } ) . " FROM " . $self->table_name() . " WHERE id = ?";
     my @args = ($record_id);
 
     if ( !$self->user->is_admin() ) {
@@ -619,8 +632,6 @@ sub bump_serial {
     my $ttl       = $rec[0]->{'ttl'};
     my $name      = $rec[0]->{'name'};
 
-    #$self->logger()->log( message => 'SOA-Record found. ID: '.$record_id.' - Content: '.$content, level => 'debug', );
-
     my ( $pri_ns, $contact, $serial, $refresh, $retry, $expire, $minimum ) = split /\s+/, $content;
     if ( !$serial || $serial !~ m/^\d+$/ ) {
         $self->logger()->log( message => 'Invalid SOA-Record for Domain #' . $domain_id . ': ' . $content, level => 'error', );
@@ -659,8 +670,6 @@ sub bump_serial {
 
     my $new_content = join( ' ', ( $pri_ns, $contact, $serial, $refresh, $retry, $expire, $minimum ) );
 
-    #$self->logger()->log( message => 'new content: '.$new_content, level => 'debug', );
-
     if ( $self->update( $record_id, { 'content' => $new_content, 'type' => 'SOA', 'ttl' => $ttl, } ) ) {
         $self->logger()->log( message => 'Raised SOA serial for Domain #' . $domain_id . ' to ' . $serial, level => 'debug', );
         return 1;
@@ -681,7 +690,7 @@ sub list {
     }
 
     my @fields = @{ $self->fields() };
-    my $sql    = "SELECT r." . join( ",r.", @fields ) . ",d.name FROM records AS r LEFT JOIN domains AS d ON r.domain_id = d.id WHERE 1";
+    my $sql    = "SELECT r." . join( ",r.", @fields ) . ",d.name FROM " . $self->table_name() . " AS r LEFT JOIN domains AS d ON r.domain_id = d.id WHERE 1";
     my @args   = ();
     if ( $param->{'Search'} ) {
         $sql .= " AND name LIKE ? OR content LIKE ?";
@@ -747,7 +756,7 @@ sub get_id {
 
     my ( $local_part, $domain );
 
-    my $query = "SELECT m.id FROM records AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
+    my $query = "SELECT m.id FROM " . $self->table_name() . " AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.local_part = ? AND d.name = ?";
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain );
 
     if ( !$sth ) {
