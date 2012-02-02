@@ -1,0 +1,26 @@
+package VDnsAdm::Model::TemplateRecord;
+
+use Moose;
+use namespace::autoclean;
+
+use Carp;
+
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Utils '@VERSION@';
+
+extends 'VDnsAdm::Model::Record';
+
+sub _init_table_name {
+    my $self = shift;
+
+    return 'template_records';
+}
+
+sub _init_fields {
+    return [qw(id tpl_id name type content ttl prio)];
+}
+
+no Moose;
+__PACKAGE__->meta->make_immutable;
+
+1;

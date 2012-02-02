@@ -1,4 +1,4 @@
-package VDnsAdm::Model::Domain;
+package VDnsAdm::Model::Group;
 
 use Moose;
 use namespace::autoclean;
@@ -10,21 +10,14 @@ use VWebAdm::Utils '@VERSION@';
 
 extends 'VWebAdm::Model';
 
-has 'table_name' => (
-    'is'      => 'ro',
-    'isa'     => 'Str',
-    'lazy'    => 1,
-    'builder' => '_init_table_name',
-);
-
 sub _init_table_name {
     my $self = shift;
 
-    return 'domains';
+    return 'groups';
 }
 
 sub _init_fields {
-    return [qw(id name master last_check type notified_serial is_active group_id linked_template)];
+    return [qw(id name)];
 }
 
 sub _validate_params {
@@ -36,45 +29,9 @@ sub _validate_params {
     #
     if ( defined( $params->{'name'} ) ) {
         if ( $params->{'name'} !~ m/^[\w.]{1,255}$/i ) {
-            $self->msg->push( 'error', 'Domain name out of range!' );
+            $self->msg->push( 'error', 'Group name out of range!' );
             return;
         }
-        if ( !&VWebAdm::Utils::is_valid_domain_rfc822( $params->{'name'} ) ) {
-            $self->msg->push( 'error', 'Invalid Domain name' );
-            return;
-        }
-    }
-
-    #
-    # Master
-    #
-    if ( defined( $params->{'master'} ) && $params->{'master'} !~ m/^\w{1,128}$/i ) {
-        $self->msg->push( 'error', 'Master out of range!' );
-        return;
-    }
-
-    # Last_Check
-    if ( defined( $params->{'last_check'} ) && $params->{'last_check'} !~ m/^\d{1,11}$/ ) {
-        $self->msg->push( 'error', 'Value for last_check out of range!' );
-        return;
-    }
-
-    # Type
-    if ( defined( $params->{'type'} ) && $params->{'type'} !~ m/^(MASTER|SLAVE)$/ ) {
-        $self->msg->push( 'error', 'Value for type invalid! Must be either MASTER or SLAVE' );
-        return;
-    }
-
-    # Notified_Serial
-    if ( defined( $params->{'notified_serial'} ) && $params->{'notified_serial'} !~ m/^\d{1,11}$/ ) {
-        $self->msg->push( 'error', 'Value for notified_serial out of range!' );
-        return;
-    }
-
-    # is_active
-    if ( defined( $params->{'is_active'} ) && $params->{'is_active'} !~ m/^\d$/ ) {
-        $self->msg->push( 'error', 'Value for is_active is out of range!' );
-        return;
     }
 
     return 1;
@@ -99,13 +56,13 @@ sub create {
 
     if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, values %{$params} ) ) {
         my $domain_id = $self->dbh->last_insert_id( undef, undef, undef, undef );
-        $self->msg->push( 'information', "Domain '[_1]' added", $params->{'name'} );
+        $self->msg->push( 'information', "Group '[_1]' added", $params->{'name'} );
         $sth->finish();
         return $domain_id;
     }
     else {
         $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . $params->{'name'} . ', Error: ' . $self->dbh()->errstr() );
-        $self->msg->push( 'error', "Failed to add Domain '[_1]'. Database error.", $params->{'name'} );
+        $self->msg->push( 'error', "Failed to add Group '[_1]'. Database error.", $params->{'name'} );
         return;
     }
 }
@@ -210,7 +167,8 @@ sub list {
     elsif ( !$self->user->is_siteadmin() ) {
 
         # limit to this domain
-        $params->{'id'} = $self->user->get_domain_id();
+        #$params->{'id'} = $self->user->get_domain_id();
+        # TODO restrict a user to his groups ...
     }
 
     return $self->_list( $self->table_name(), $params );
@@ -264,63 +222,7 @@ sub get_id {
     return $domain_id;
 }
 
-#no Moose;
+no Moose;
 __PACKAGE__->meta->make_immutable;
 
 1;
-
-__END__
-
-=head1 NAME
-
-VDnsAdm::Model::Domain - Class for Domains
-
-=head1 VERSION
-
-This documentation refers to VDnsAdm::Model::Domain version @VERSION@
-built on @BUILDDATE@.
-
-=head1 SYNOPSIS
-
-    use VBoxAdm::Model::Domain;
-
-=head1 DESCRIPTION
-
-This class provides common DB methods.
-
-=head1 DEPENDENCIES
-
-DBI.
-
-=head1 INCOMPATIBILITIES
-
-None known.
-
-=head1 BUGS AND LIMITATIONS
-
-There are no known bugs in this module.
-Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
-Patches are welcome.
-
-=head1 AUTHOR
-
-Dominik Schulz (dominik.schulz@gauner.org)
-
-=head1 LICENCE AND COPYRIGHT
-
-Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-=cut

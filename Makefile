@@ -122,7 +122,10 @@ LIBFILES = \
 	lib/VDnsAdm/L10N/de.pm \
 	lib/VDnsAdm/L10N/en.pm \
 	lib/VDnsAdm/Model/Domain.pm \
+	lib/VDnsAdm/Model/Group.pm \
 	lib/VDnsAdm/Model/Record.pm \
+	lib/VDnsAdm/Model/Template.pm \
+	lib/VDnsAdm/Model/TemplateRecord.pm \
 	lib/VDnsAdm/Model/User.pm \
 	lib/VDnsAdm/L10N.pm \
 	lib/VWebAdm/Model/MessageQueue.pm \

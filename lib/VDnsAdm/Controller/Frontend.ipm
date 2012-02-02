@@ -88,7 +88,7 @@ sub setup {
         'edit_domain'   => 'show_edit_domain',
         'update_domain' => 'show_update_domain',
 
-        # Mailboxes
+        # Records
         'records'       => 'show_records',
         'create_record' => 'show_create_record',
         'add_record'    => 'show_add_record',
@@ -107,6 +107,30 @@ sub setup {
         'remove_user' => 'show_remove_user',
         'edit_user'   => 'show_edit_user',
         'update_user' => 'show_update_user',
+
+        # Groups
+        'groups'       => 'show_groups',
+        'create_group' => 'show_create_group',
+        'add_group'    => 'show_add_group',
+        'remove_group' => 'show_remove_group',
+        'edit_group'   => 'show_edit_group',
+        'update_group' => 'show_update_group',
+
+        # Templates
+        'templates'       => 'show_templates',
+        'create_template' => 'show_create_template',
+        'add_template'    => 'show_add_template',
+        'remove_template' => 'show_remove_template',
+        'edit_template'   => 'show_edit_template',
+        'update_template' => 'show_update_template',
+
+        # TemplateRecords
+        'template_records'       => 'show_template_records',
+        'create_template_record' => 'show_create_template_record',
+        'add_template_record'    => 'show_add_template_record',
+        'remove_template_record' => 'show_remove_template_record',
+        'edit_template_record'   => 'show_edit_template_record',
+        'update_template_record' => 'show_update_template_record',
     );
 
     # Authentication
@@ -164,9 +188,7 @@ sub setup {
 
     # only enable authen if called as CGI, this helps with testing and debugging from the commandline
     if ( !$self->is_shell() ) {
-
-        # TODO DEVEL # $self->authen->protected_runmodes(qr/^(?!public_|api)/);
-        $self->authen->protected_runmodes(qr/WHATEVER/);
+        $self->authen->protected_runmodes(qr/^(?!public_|api)/);
     }
 
     #
@@ -1418,6 +1440,15 @@ sub show_update_user {
     $self->redirect( $self->{base_url} . '?rm=users' );
     return;
 }
+
+# Groups
+# TODO
+
+# Templates
+# TODO
+
+# TemplateRecords
+# TODO
 
 1;
 
