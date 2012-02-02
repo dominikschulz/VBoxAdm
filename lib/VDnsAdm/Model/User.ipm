@@ -59,7 +59,7 @@ sub create {
     my ( $self, $domain ) = @_;
 
     # Authorization - No access for regular users
-    if ( !$self->user->is_siteadmin() ) {
+    if ( !$self->is_siteadmin() ) {
         $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
@@ -97,7 +97,7 @@ sub delete {
     my ( $self, $domain_id ) = @_;
 
     # Authorization - No access for regular users
-    if ( !$self->user->is_siteadmin() ) {
+    if ( !$self->is_siteadmin() ) {
         $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
@@ -120,11 +120,11 @@ sub update {
     my ( $self, $user_id, $params ) = @_;
 
     # Authorization - No access for regular users
-    if ( !$self->user->is_admin() ) {
+    if ( !$self->is_admin() ) {
         $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
-    elsif ( !$self->user->is_siteadmin() && $user_id != $self->user->id() ) {
+    elsif ( !$self->is_siteadmin() && $user_id != $self->id() ) {
         $self->msg->push( 'error', 'Sorry. Not your account.' );
         return;
     }
@@ -167,7 +167,7 @@ sub update {
     }
 
     # Only a siteadmin may update these sensible flags ...
-    if ( $self->user->is_siteadmin() ) {
+    if ( $self->is_siteadmin() ) {
         if ( defined( $params->{'is_active'} ) ) {
             $sql .= "is_active = ?, ";
             push( @args, $params->{'is_active'} );
@@ -278,7 +278,7 @@ sub get_id {
     my ( $self, $name ) = @_;
 
     # Authorization - No access for regular users
-    if ( !$self->user->is_admin() ) {
+    if ( !$self->is_admin() ) {
         $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
