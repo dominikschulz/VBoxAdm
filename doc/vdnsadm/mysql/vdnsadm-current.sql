@@ -63,8 +63,26 @@ CREATE TABLE `domains` (
   `type` varchar(6) NOT NULL,
   `notified_serial` int(11) DEFAULT NULL,
   `is_active` tinyint(4) NOT NULL DEFAULT '1',
+  `group_id` int(16) NOT NULL,
+  `linked_template` int(11) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `name_index` (`name`)
+  UNIQUE KEY `name_index` (`name`),
+  KEY `group_id` (`group_id`),
+  CONSTRAINT `domains_ibfk_1` FOREIGN KEY (`group_id`) REFERENCES `groups` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB  DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `groups`
+--
+
+DROP TABLE IF EXISTS `groups`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `groups` (
+  `id` int(16) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -123,6 +141,41 @@ CREATE TABLE `supermasters` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `template_records`
+--
+
+DROP TABLE IF EXISTS `template_records`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `template_records` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `tpl_id` int(11) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `type` varchar(10) NOT NULL,
+  `content` varchar(4096) NOT NULL,
+  `ttl` int(11) NOT NULL,
+  `prio` int(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `tpl_id` (`tpl_id`),
+  CONSTRAINT `template_records_ibfk_1` FOREIGN KEY (`tpl_id`) REFERENCES `templates` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `templates`
+--
+
+DROP TABLE IF EXISTS `templates`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `templates` (
+  `id` int(16) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `tsigkeys`
 --
 
@@ -170,4 +223,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2012-02-01 20:22:51
+-- Dump completed on 2012-02-02 21:19:47
