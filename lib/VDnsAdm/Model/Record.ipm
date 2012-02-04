@@ -367,6 +367,8 @@ sub create {
         $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
+    
+    # TODO HIGH if the associated domain is a linked domain nothing should be editable here!
 
     my $Domain      = VDnsAdm::Model::Domain::->new( { 'Model' => $self, } );
     my $domain_name = $Domain->get_name($domain_id);
@@ -473,6 +475,8 @@ sub _get_record_name {
 
 sub update {
     my ( $self, $record_id, $params ) = @_;
+    
+    # TODO HIGH if the associated domain is a linked domain nothing should be editable here!
 
     # Authorization - Regular Users may access this method!
 

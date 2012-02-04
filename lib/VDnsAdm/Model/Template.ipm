@@ -20,6 +20,12 @@ sub _init_fields {
     return [qw(id name)];
 }
 
+sub sync_linked_domains {
+	my $self = shift;
+	
+	# TODO sync each linked domains, i.e. domain and records
+}
+
 no Moose;
 __PACKAGE__->meta->make_immutable;
 

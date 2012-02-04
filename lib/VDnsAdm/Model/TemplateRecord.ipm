@@ -20,6 +20,8 @@ sub _init_fields {
     return [qw(id tpl_id name type content ttl prio)];
 }
 
+# TODO on update sync each linked domain
+
 no Moose;
 __PACKAGE__->meta->make_immutable;
 

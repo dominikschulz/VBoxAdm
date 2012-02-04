@@ -30,6 +30,9 @@ sub _init_fields {
 sub _validate_params {
     my $self   = shift;
     my $params = shift;
+    
+    # TODO if this is a linked domain only the field 'linked_template' should be editable
+    # once linked_template is set to 0/NULL everything can be edited again
 
     #
     # Name
