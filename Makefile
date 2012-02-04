@@ -296,6 +296,8 @@ TPLFILES = \
 	tpl/vdnsadm/domain/edit.tpl \
 	tpl/vdnsadm/domain/list.tpl \
 	tpl/vdnsadm/domain/show.tpl \
+	tpl/vdnsadm/group/create_partial.tpl \
+	tpl/vdnsadm/group/list.tpl \
 	tpl/vdnsadm/includes/navigation.tpl \
 	tpl/vdnsadm/record/create_partial.tpl \
 	tpl/vdnsadm/record/create.tpl \
@@ -303,6 +305,10 @@ TPLFILES = \
 	tpl/vdnsadm/record/edit.tpl \
 	tpl/vdnsadm/record/list.tpl \
 	tpl/vdnsadm/record/show.tpl \
+	tpl/vdnsadm/template/create_partial.tpl \
+	tpl/vdnsadm/template/list.tpl \
+	tpl/vdnsadm/template_record/create_partial.tpl \
+	tpl/vdnsadm/template_record/list.tpl \
 	tpl/vdnsadm/user/create_partial.tpl \
 	tpl/vdnsadm/user/create.tpl \
 	tpl/vdnsadm/user/edit_partial.tpl \

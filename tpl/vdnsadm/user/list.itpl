@@ -29,7 +29,7 @@
 					[% line.is_siteadmin %]
 				</td>
 				<td>
-					<a href="[% base_url %]?rm=edit_user&userd_id=[% line.id %]">[% "edit" | l10n %]</a>
+					<a href="[% base_url %]?rm=edit_user&user_id=[% line.id %]">[% "edit" | l10n %]</a>
 				</td>
 				<td>
 					<a onClick="if(confirm('[% "Do you really want to delete the User [_1]?" | l10n(line.name) %]')) return true; else return false;" href="[% base_url %]?rm=remove_user&user_id=[% line.id %]">[% "del" | l10n %]</a>

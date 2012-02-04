@@ -1,0 +1,19 @@
+<div class="forms">
+	<form name="create_group" method="POST">
+		<input type="hidden" name="rm" value="add_group" />
+		<h1>[% "Create a Group" | l10n %]</h1>
+		
+		<label for="name">
+			[% "Name:" | l10n %]
+			<span class="small">Name of this group</span>
+		</label>
+		<input type="text" name="name" value="" />
+		
+		<div class="spacer"></div>
+		
+		<button class="button" type="submit" name="submit">
+			<img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" />
+			[% "Create Group" | l10n %]
+		</button>
+	</form>
+</div>

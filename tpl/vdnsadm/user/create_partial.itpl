@@ -67,7 +67,7 @@
 		
 		<button class="button" type="submit" name="submit">
 			<img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" />
-			[% "Update User" | l10n %]
+			[% "Create User" | l10n %]
 		</button>
 	</form>
 </div>

@@ -41,6 +41,9 @@ use VWebAdm::Model::MessageQueue '@VERSION@';
 use VDnsAdm::Model::User '@VERSION@';
 use VDnsAdm::Model::Domain '@VERSION@';
 use VDnsAdm::Model::Record '@VERSION@';
+use VDnsAdm::Model::Group '@VERSION@';
+use VDnsAdm::Model::Template '@VERSION@';
+use VDnsAdm::Model::TemplateRecord '@VERSION@';
 
 our $VERSION = '@VERSION@';
 
@@ -365,9 +368,12 @@ sub setup {
                 'logger' => $Logger,
                 'config' => $self->{'config'},
             };
-            $self->{'Record'}     = VDnsAdm::Model::Record::->new($arg_ref);
-            $arg_ref->{'records'} = $self->{'Record'};
-            $self->{'Domain'}     = VDnsAdm::Model::Domain::->new($arg_ref);
+            $self->{'Record'}         = VDnsAdm::Model::Record::->new($arg_ref);
+            $arg_ref->{'records'}     = $self->{'Record'};
+            $self->{'Domain'}         = VDnsAdm::Model::Domain::->new($arg_ref);
+            $self->{'Template'}       = VDnsAdm::Model::Template::->new($arg_ref);
+            $self->{'TemplateRecord'} = VDnsAdm::Model::TemplateRecord::->new($arg_ref);
+            $self->{'Group'}          = VDnsAdm::Model::Group::->new($arg_ref);
         }
     }
     else {
@@ -1424,7 +1430,7 @@ sub show_update_user {
 
     # set params
     my $params = {};
-    foreach my $field ( @{ $self->{'Record'}->fields() } ) {
+    foreach my $field ( @{ $self->{'User'}->fields() } ) {
         next if $field eq 'id';
         $params->{$field} = $q->param($field) if defined( $q->param($field) );
     }
@@ -1442,13 +1448,503 @@ sub show_update_user {
 }
 
 # Groups
-# TODO
+sub show_groups {
+    my $self = shift;
+
+    if ( !$self->user->is_siteadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $page   = $q->param('page') || 1;
+    my $search = $q->param('search');
+    my %params = ( 'Search' => $search, );
+
+    my @groups = $self->{'Group'}->list( \%params );
+
+    %params = (
+        'title'   => $self->{lh}->maketext('VDnsAdm Groups'),
+        'current' => 'groups',
+        'groups'  => \@groups,
+        'search'  => $search,
+    );
+
+    return $self->tt_process( 'vdnsadm/group/list.tpl', \%params );
+}
+
+sub show_create_group {
+    my $self = shift;
+
+    if ( !$self->user->is_siteadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $params = {};
+
+    my %params = (
+        'title'   => $self->{lh}->maketext('Add Group'),
+        'current' => 'records',
+    );
+
+    return $self->tt_process( 'vdnsadm/group/create.tpl', \%params );
+}
+
+sub show_add_group {
+    my $self = shift;
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    # set params
+    my $params = {};
+    foreach my $field ( @{ $self->{'Group'}->fields() } ) {
+        next if $field eq 'id';
+        if ( defined( $q->param($field) ) ) {
+            $params->{$field} = $q->param($field);
+        }
+    }
+
+    if ( $self->{'Group'}->create($params) ) {
+        $self->log('Added Group');
+    }
+    else {
+        $self->log( 'Failed to add Group', 'error' );
+        $self->add_message( 'error', 'Database Error!' );
+    }
+
+    $self->redirect( $self->{base_url} . '?rm=groups' );
+    return;
+}
+
+sub show_remove_group {
+    my $self = shift;
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $group_id = $q->param('group_id');
+
+    if ( $self->{'Group'}->delete($group_id) ) {
+        $self->log( 'Deleted Group #' . $group_id );
+    }
+    else {
+        $self->log( 'Failed to delete Group #' . $group_id );
+        $self->add_message( 'error', 'Database Error!' );
+    }
+
+    $self->redirect( $self->{base_url} . '?rm=groups' );
+    return;
+}
+
+sub show_edit_group {
+    my $self = shift;
+
+    if ( !$self->user->is_siteadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $group_id = $q->param('group_id');
+
+    my $record_ref = $self->{'Group'}->read($group_id);
+
+    my %params = (
+        'title'    => $self->{lh}->maketext('Edit Group'),
+        'group_id' => $group_id,
+        'current'  => 'groups',
+    );
+    foreach my $key ( keys %{$record_ref} ) {
+        $params{$key} = $record_ref->{$key};
+    }
+
+    return $self->tt_process( 'vdnsadm/group/edit.tpl', \%params );
+}
+
+sub show_update_group {
+    my $self = shift;
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $group_id = $q->param('group_id');
+
+    # set params
+    my $params = {};
+    foreach my $field ( @{ $self->{'Group'}->fields() } ) {
+        next if $field eq 'id';
+        $params->{$field} = $q->param($field) if defined( $q->param($field) );
+    }
+
+    if ( $self->{'Group'}->update( $group_id, $params ) ) {
+        $self->log( 'Updated Group #' . $group_id );
+    }
+    else {
+        $self->log( 'Failed to update Group #' . $group_id );
+        $self->add_message( 'error', 'Database Error!' );
+    }
+
+    $self->redirect( $self->{base_url} . '?rm=groups' );
+    return;
+}
 
 # Templates
-# TODO
+sub show_templates {
+    my $self = shift;
+
+    if ( !$self->user->is_siteadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $page   = $q->param('page') || 1;
+    my $search = $q->param('search');
+    my %params = ( 'Search' => $search, );
+
+    my @templates = $self->{'Template'}->list( \%params );
+
+    %params = (
+        'title'     => $self->{lh}->maketext('VDnsAdm Templates'),
+        'current'   => 'templates',
+        'templates' => \@templates,
+        'search'    => $search,
+    );
+
+    return $self->tt_process( 'vdnsadm/template/list.tpl', \%params );
+}
+
+sub show_create_template {
+    my $self = shift;
+
+    if ( !$self->user->is_siteadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $params = {};
+
+    my %params = (
+        'title'   => $self->{lh}->maketext('Add Template'),
+        'current' => 'templates',
+    );
+
+    return $self->tt_process( 'vdnsadm/template/create.tpl', \%params );
+}
+
+sub show_add_template {
+    my $self = shift;
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    # set params
+    my $params = {};
+    foreach my $field ( @{ $self->{'User'}->fields() } ) {
+        next if $field eq 'id';
+        if ( defined( $q->param($field) ) ) {
+            $params->{$field} = $q->param($field);
+        }
+    }
+
+    if ( $self->{'Template'}->create($params) ) {
+        $self->log('Added Template');
+    }
+    else {
+        $self->log( 'Failed to add Template', 'error' );
+        $self->add_message( 'error', 'Database Error!' );
+    }
+
+    $self->redirect( $self->{base_url} . '?rm=templates' );
+    return;
+}
+
+sub show_remove_template {
+    my $self = shift;
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $template_id = $q->param('template_id');
+
+    if ( $self->{'Template'}->delete($template_id) ) {
+        $self->log( 'Deleted Template #' . $template_id );
+    }
+    else {
+        $self->log( 'Failed to delete Template #' . $template_id );
+        $self->add_message( 'error', 'Database Error!' );
+    }
+
+    $self->redirect( $self->{base_url} . '?rm=templates' );
+    return;
+}
+
+sub show_edit_template {
+    my $self = shift;
+
+    if ( !$self->user->is_siteadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $template_id = $q->param('template_id');
+
+    my $record_ref = $self->{'Template'}->read($template_id);
+
+    my %params = (
+        'title'       => $self->{lh}->maketext('Edit Template'),
+        'template_id' => $template_id,
+        'current'     => 'templates',
+    );
+    foreach my $key ( keys %{$record_ref} ) {
+        $params{$key} = $record_ref->{$key};
+    }
+
+    return $self->tt_process( 'vdnsadm/template/edit.tpl', \%params );
+}
+
+sub show_update_template {
+    my $self = shift;
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $template_id = $q->param('template_id');
+
+    # set params
+    my $params = {};
+    foreach my $field ( @{ $self->{'Template'}->fields() } ) {
+        next if $field eq 'id';
+        $params->{$field} = $q->param($field) if defined( $q->param($field) );
+    }
+
+    if ( $self->{'Template'}->update( $template_id, $params ) ) {
+        $self->log( 'Updated Template #' . $template_id );
+    }
+    else {
+        $self->log( 'Failed to update Template #' . $template_id );
+        $self->add_message( 'error', 'Database Error!' );
+    }
+
+    $self->redirect( $self->{base_url} . '?rm=templates' );
+    return;
+}
 
 # TemplateRecords
-# TODO
+sub show_template_records {
+    my $self = shift;
+
+    if ( !$self->user->is_siteadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $page   = $q->param('page') || 1;
+    my $search = $q->param('search');
+    my %params = ( 'Search' => $search, );
+
+    my @recs = $self->{'TemplateRecord'}->list( \%params );
+
+    %params = (
+        'title'   => $self->{lh}->maketext('VDnsAdm Template Records'),
+        'current' => 'templates',
+        'records' => \@recs,
+        'search'  => $search,
+    );
+
+    return $self->tt_process( 'vdnsadm/template_record/list.tpl', \%params );
+}
+
+sub show_create_template_record {
+    my $self = shift;
+
+    if ( !$self->user->is_siteadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $params = {};
+
+    my %params = (
+        'title'   => $self->{lh}->maketext('Add Template Record'),
+        'current' => 'templates',
+    );
+
+    return $self->tt_process( 'vdnsadm/template_record/create.tpl', \%params );
+}
+
+sub show_add_template_record {
+    my $self = shift;
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $tpl_id = $q->param('template_id');
+
+    # set params
+    my $params = {};
+    foreach my $field ( @{ $self->{'User'}->fields() } ) {
+        next if $field eq 'id';
+        if ( defined( $q->param($field) ) ) {
+            $params->{$field} = $q->param($field);
+        }
+    }
+
+    if ( $self->{'TemplateRecord'}->create( $tpl_id, $params ) ) {
+        $self->log( 'Added Record for Template #' . $tpl_id );
+    }
+    else {
+        $self->log( 'Failed to add Record for Template #' . $tpl_id, 'error' );
+        $self->add_message( 'error', 'Database Error!' );
+    }
+
+    $self->redirect( $self->{base_url} . '?rm=templates' );
+    return;
+}
+
+sub show_remove_template_record {
+    my $self = shift;
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $record_id = $q->param('record_id');
+
+    if ( $self->{'TemplateRecord'}->delete($record_id) ) {
+        $self->log( 'Deleted Template Record #' . $record_id );
+    }
+    else {
+        $self->log( 'Failed to delete Record #' . $record_id );
+        $self->add_message( 'error', 'Database Error!' );
+    }
+
+    $self->redirect( $self->{base_url} . '?rm=templates' );
+    return;
+}
+
+sub show_edit_template_record {
+    my $self = shift;
+
+    if ( !$self->user->is_siteadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $large_content = $q->param('large') || 0;
+
+    my $record_id = $q->param('record_id');
+
+    my $record_ref = $self->{'TemplateRecord'}->read($record_id);
+
+    my %params = (
+        'title'     => $self->{lh}->maketext('Edit Template Record'),
+        'record_id' => $record_id,
+        'current'   => 'templates',
+    );
+    foreach my $key ( keys %{$record_ref} ) {
+        $params{$key} = $record_ref->{$key};
+    }
+
+    return $self->tt_process( 'vdnsadm/template_record/edit.tpl', \%params );
+}
+
+sub show_update_template_record {
+    my $self = shift;
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $record_id = $q->param('record_id');
+
+    # set params
+    my $params = {};
+    foreach my $field ( @{ $self->{'TemplateRecord'}->fields() } ) {
+        next if $field eq 'id';
+        $params->{$field} = $q->param($field) if defined( $q->param($field) );
+    }
+
+    if ( $self->{'TemplateRecord'}->update( $record_id, $params ) ) {
+        $self->log( 'Updated Template Record #' . $record_id );
+    }
+    else {
+        $self->log( 'Failed to update Template Record #' . $record_id );
+        $self->add_message( 'error', 'Database Error!' );
+    }
+
+    $self->redirect( $self->{base_url} . '?rm=users' );
+    return;
+}
 
 1;
 

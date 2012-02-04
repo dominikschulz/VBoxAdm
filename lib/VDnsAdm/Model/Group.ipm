@@ -10,6 +10,13 @@ use VWebAdm::Utils '@VERSION@';
 
 extends 'VWebAdm::Model';
 
+has 'table_name' => (
+    'is'      => 'ro',
+    'isa'     => 'Str',
+    'lazy'    => 1,
+    'builder' => '_init_table_name',
+);
+
 sub _init_table_name {
     my $self = shift;
 
