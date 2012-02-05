@@ -121,6 +121,7 @@ sub setup {
 
         # Templates
         'templates'       => 'show_templates',
+        'template'        => 'show_template',
         'create_template' => 'show_create_template',
         'add_template'    => 'show_add_template',
         'remove_template' => 'show_remove_template',
@@ -129,6 +130,7 @@ sub setup {
 
         # TemplateRecords
         'template_records'       => 'show_template_records',
+        'template_record'        => 'show_template_record',
         'create_template_record' => 'show_create_template_record',
         'add_template_record'    => 'show_add_template_record',
         'remove_template_record' => 'show_remove_template_record',
@@ -1646,6 +1648,60 @@ sub show_templates {
     );
 
     return $self->tt_process( 'vdnsadm/template/list.tpl', \%params );
+}
+
+sub show_template {
+    my $self = shift;
+
+    if ( !$self->user->is_siteadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $template_id = $q->param('template_id') || undef;
+
+    if ( !$template_id || $template_id !~ m/^\d+$/ ) {
+        my $msg = "Invalid Template-ID.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $msg );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    my $params = {};
+
+    my $sql = undef;
+    my $sth = undef;
+
+    # Get Domain name
+    my $template_ref  = $self->{'Template'}->read($template_id);
+    my $template_name = $template_ref->{'name'};
+
+    # Get Records
+    my @records   = $self->{'TemplateRecord'}->list( { 'tpl_id' => $template_id, 'NotType' => 'SOA', }, );
+    my @types     = $self->{'TemplateRecord'}->types();
+    my @templates = $self->{'Template'}->list($params);
+
+    my %params = (
+        'title'       => $self->{lh}->maketext( 'VDnsAdm Template: [_1]', $template_name ),
+        'current'     => 'templates',
+        'template'    => $template_name,
+        'records'     => \@records,
+        'types'       => \@types,
+        'templates'   => \@templates,
+        'template_id' => $template_id,
+    );
+
+    return $self->tt_process( 'vdnsadm/template/show.tpl', \%params );
 }
 
 sub show_create_template {
