@@ -374,6 +374,7 @@ sub create {
     }
 
     # TODO HIGH if the associated domain is a linked domain nothing should be editable here!
+    # execpt override (by CLI or TemplateRecord class) is set!
 
     my $domain_name = $self->domain()->get_name($domain_id);
     my $record_name = $self->_get_record_name($params);

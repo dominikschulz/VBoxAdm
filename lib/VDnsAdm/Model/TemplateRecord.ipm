@@ -10,6 +10,18 @@ use VWebAdm::Utils '@VERSION@';
 
 extends 'VDnsAdm::Model::Record';
 
+has 'domain' => (
+    'is'       => 'ro',
+    'isa'      => 'VDnsAdm::Model::Domain',
+    'required' => 1,
+);
+
+has 'record' => (
+    'is'       => 'ro',
+    'isa'      => 'VDnsAdm::Model::Record',
+    'required' => 1,
+);
+
 sub _init_table_name {
     my $self = shift;
 
@@ -24,14 +36,40 @@ sub sync_records {
     my $self   = shift;
     my $tpl_id = shift;    # a template, the sync source
     my $dom_id = shift;    # a linked domain, the sync destionation
-                           # SELECT name AS domain_name FROM domains WHERE id = $dom_id
-                           # DELETE FROM records WHERE domain_id = $dom_id
-                           # SELECT * FROM template_records WHERE template_id = $tpl_id
+
+    # SELECT name AS domain_name FROM domains WHERE id = $dom_id
+    my $domain_name = $self->domain()->get_name($dom_id);
+
+    # DELETE FROM records WHERE domain_id = $dom_id
+    my @recs = $self->record()->list( { 'domain_id' => $dom_id, } );
+    foreach my $rec (@recs) {
+        $self->record()->delete( $rec->{'id'} );
+    }
+
+    # SELECT * FROM template_records WHERE template_id = $tpl_id
+    my @tpl_recs = $self->list( { 'template_id' => $tpl_id, } );
     ## foreach tpl_rec
-    ### name =~ s/{{domain}}/$domain_name/g;
-    ### content =~ s/{{domain}}/$domain_name/g;
-    ### INSERT INTO records (domain_id,name,ttl,content,prio) VALUES($dom_id,$name,$ttl,$content,$prio);
-    # $self->bump_soa($dom_id);
+    foreach my $tpl_rec (@tpl_recs) {
+        ### name =~ s/{{domain}}/$domain_name/g;
+        my $name = $tpl_rec->{'name'};
+        $name =~ s/{{domain}}/$domain_name/g;
+        ### content =~ s/{{domain}}/$domain_name/g;
+        my $content = $tpl_rec->{'content'};
+        $content =~ s/{{domain}}/$domain_name/g;
+        ### INSERT INTO records (domain_id,name,ttl,content,prio) VALUES($dom_id,$name,$ttl,$content,$prio);
+        $self->record()->create(
+            $dom_id,
+            {
+                'name'    => $name,
+                'content' => $content,
+                'ttl'     => $tpl_rec->{'ttl'},
+                'prio'    => $tpl_rec->{'prio'},
+            }
+        );
+    }
+    $self->bump_serial($dom_id);
+
+    return 1;
 }
 
 # TODO on update sync each linked domain
