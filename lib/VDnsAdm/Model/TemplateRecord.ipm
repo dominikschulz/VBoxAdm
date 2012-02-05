@@ -22,6 +22,12 @@ has 'record' => (
     'required' => 1,
 );
 
+has 'template' => (
+    'is'       => 'ro',
+    'isa'      => 'VDnsAdm::Model::Template',
+    'required' => 1,
+);
+
 sub _init_table_name {
     my $self = shift;
 
@@ -71,6 +77,29 @@ sub sync_records {
 
     return 1;
 }
+
+# after modifying a template record all linked domains should be updated immedeately to reflect any changes
+after 'update' => sub {
+    my $self      = shift;
+    my $record_id = shift;
+    my $params    = shift;
+
+    my $rec_ref     = $self->read($record_id);
+    my $template_id = $rec_ref->{'tpl_id'};
+    my @domains     = $self->domain()->list( { 'linked_template' => $template_id, } );
+
+    foreach my $domain (@domains) {
+        my $domain_id = $domain->{'id'};
+        if ( $self->sync_records( $template_id, $domain_id ) ) {
+            $self->logger()->log( message => "Synced records from template #" . $template_id . " to domain #" . $domain_id, level => 'debug', );
+        }
+        else {
+            $self->logger()->log( message => "Failed to sync records from template #" . $template_id . " to domain #" . $domain_id, level => 'debug', );
+        }
+    }
+
+    return 1;    # return value is ignored by moose, but be nice anyway ...
+};
 
 # TODO on update sync each linked domain
 

@@ -26,6 +26,23 @@ sub _init_fields {
     return [qw(id name)];
 }
 
+sub _validate_params {
+    my $self   = shift;
+    my $params = shift;
+
+    #
+    # Name
+    #
+    if ( defined( $params->{'name'} ) ) {
+        if ( $params->{'name'} !~ m/^[\w.]{1,255}$/i ) {
+            $self->msg->push( 'error', 'Domain name out of range!' );
+            return;
+        }
+    }
+
+    return 1;
+}
+
 sub sync_linked_domains {
     my $self   = shift;
     my $tpl_id = shift;    # the template whose domains should be synced

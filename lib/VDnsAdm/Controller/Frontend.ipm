@@ -368,10 +368,12 @@ sub setup {
                 'logger' => $Logger,
                 'config' => $self->{'config'},
             };
-            $self->{'Record'}         = VDnsAdm::Model::Record::->new($arg_ref);
-            $arg_ref->{'records'}     = $self->{'Record'};
             $self->{'Domain'}         = VDnsAdm::Model::Domain::->new($arg_ref);
+            $arg_ref->{'domain'}      = $self->{'Domain'};
+            $self->{'Record'}         = VDnsAdm::Model::Record::->new($arg_ref);
+            $arg_ref->{'record'}      = $self->{'Record'};
             $self->{'Template'}       = VDnsAdm::Model::Template::->new($arg_ref);
+            $arg_ref->{'template'}    = $self->{'Template'};
             $self->{'TemplateRecord'} = VDnsAdm::Model::TemplateRecord::->new($arg_ref);
             $self->{'Group'}          = VDnsAdm::Model::Group::->new($arg_ref);
         }
