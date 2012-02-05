@@ -7,9 +7,14 @@ use Carp;
 
 use VWebAdm::DB '@VERSION@';
 use VWebAdm::Utils '@VERSION@';
-use VDnsAdm::Model::Domain '@VERSION@';
 
 extends 'VWebAdm::Model';
+
+has 'domain' => (
+    'is'       => 'ro',
+    'isa'      => 'VDnsAdm::Model::Domain',
+    'required' => 1,
+);
 
 has 'valid_types' => (
     'is'      => 'ro',
@@ -259,11 +264,11 @@ sub _init_valid_types {
         },
         'TXT' => sub {
             my ( $content, $ttl, $prio ) = @_;
-            if ( $content =~ m/^\w+$/i ) {
+            if ( $content =~ m/^.{1,4096}$/i ) {
                 return 1;
             }
 
-            return;    # TODO impl
+            return;
         },
     };
 
@@ -367,11 +372,10 @@ sub create {
         $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
-    
+
     # TODO HIGH if the associated domain is a linked domain nothing should be editable here!
 
-    my $Domain      = VDnsAdm::Model::Domain::->new( { 'Model' => $self, } );
-    my $domain_name = $Domain->get_name($domain_id);
+    my $domain_name = $self->domain()->get_name($domain_id);
     my $record_name = $self->_get_record_name($params);
 
     # append domain name
@@ -475,7 +479,7 @@ sub _get_record_name {
 
 sub update {
     my ( $self, $record_id, $params ) = @_;
-    
+
     # TODO HIGH if the associated domain is a linked domain nothing should be editable here!
 
     # Authorization - Regular Users may access this method!
@@ -502,8 +506,7 @@ sub update {
     my $msg_loc = '';
     my $msg_en  = '';
 
-    my $Domain = VDnsAdm::Model::Domain::->new( { 'Model' => $self, } );
-    my $domain_name = $Domain->get_name($domain_id);
+    my $domain_name = $self->domain()->get_name($domain_id);
 
     # append domain name
     if ( $params->{'name'} ) {

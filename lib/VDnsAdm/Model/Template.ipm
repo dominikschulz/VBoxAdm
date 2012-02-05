@@ -10,6 +10,12 @@ use VWebAdm::Utils '@VERSION@';
 
 extends 'VDnsAdm::Model::Domain';
 
+has 'domain' => (
+    'is'       => 'ro',
+    'isa'      => 'VDnsAdm::Model::Domain',
+    'required' => 1,
+);
+
 sub _init_table_name {
     my $self = shift;
 
@@ -21,9 +27,45 @@ sub _init_fields {
 }
 
 sub sync_linked_domains {
-	my $self = shift;
-	
-	# TODO sync each linked domains, i.e. domain and records
+    my $self   = shift;
+    my $tpl_id = shift;    # the template whose domains should be synced
+
+    # sync each linked domains, i.e. domain and records
+    my @linked_domains = $self->domain()->list( { 'linked_template' => $tpl_id, } );
+    my $num_failed = 0;    # number of domains which failed to sync
+    foreach my $ldom (@linked_domains) {
+        my $ldom_id = $ldom->{'id'};
+        if ( $self->_sync_props( $tpl_id, $ldom_id ) ) {
+            $self->logger()->log( message => "Synced props from template #" . $tpl_id . " to linked domain #" . $ldom_id, level => 'debug', );
+            if ( $self->template_record()->sync_records( $tpl_id, $ldom_id ) ) {
+                $self->logger()->log( message => "Synced records from template #" . $tpl_id . " to linked domain #" . $ldom_id, level => 'debug', );
+            }
+            else {
+                $self->logger()->log( message => "Failed to sync recrods from template #" . $tpl_id . " to linked domain #" . $ldom_id, level => 'error', );
+                $num_failed++;
+            }
+        }
+        else {
+            $self->logger()->log( message => "Failed to sync props from template #" . $tpl_id . " to linked domain #" . $ldom_id, level => 'error', );
+            $num_failed++;
+        }
+    }
+
+    if ($num_failed) {
+        return;
+    }
+    else {
+        return 1;
+    }
+}
+
+sub _sync_props {
+    my $self   = shift;
+    my $tpl_id = shift;
+    my $dom_id = shift;
+
+    # TODO HIGH implement
+    return;
 }
 
 no Moose;

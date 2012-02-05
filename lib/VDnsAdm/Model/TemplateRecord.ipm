@@ -20,6 +20,20 @@ sub _init_fields {
     return [qw(id tpl_id name type content ttl prio)];
 }
 
+sub sync_records {
+    my $self   = shift;
+    my $tpl_id = shift;    # a template, the sync source
+    my $dom_id = shift;    # a linked domain, the sync destionation
+                           # SELECT name AS domain_name FROM domains WHERE id = $dom_id
+                           # DELETE FROM records WHERE domain_id = $dom_id
+                           # SELECT * FROM template_records WHERE template_id = $tpl_id
+    ## foreach tpl_rec
+    ### name =~ s/{{domain}}/$domain_name/g;
+    ### content =~ s/{{domain}}/$domain_name/g;
+    ### INSERT INTO records (domain_id,name,ttl,content,prio) VALUES($dom_id,$name,$ttl,$content,$prio);
+    # $self->bump_soa($dom_id);
+}
+
 # TODO on update sync each linked domain
 
 no Moose;
