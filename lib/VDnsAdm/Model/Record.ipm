@@ -605,6 +605,7 @@ sub read {
     @result{ @{ $self->fields() } } = $sth->fetchrow_array();
     $sth->finish();
 
+    # TODO high doesn't work w/ Subclass. Refactor to own method and override this method in subclasses
     # get domain_name
     $sql = "SELECT name FROM domains WHERE id = ?";
     $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $result{'domain_id'} );
@@ -697,6 +698,7 @@ sub list {
         return;
     }
 
+    # TODO high doesn't work w/ Subclass. Refactor to own method and override this method in subclasses
     my @fields = @{ $self->fields() };
     my $sql    = "SELECT r." . join( ",r.", @fields ) . ",d.name FROM " . $self->table_name() . " AS r LEFT JOIN domains AS d ON r.domain_id = d.id WHERE 1";
     my @args   = ();

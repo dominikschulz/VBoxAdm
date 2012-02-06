@@ -306,7 +306,11 @@ TPLFILES = \
 	tpl/vdnsadm/record/list.tpl \
 	tpl/vdnsadm/record/show.tpl \
 	tpl/vdnsadm/template/create_partial.tpl \
+	tpl/vdnsadm/template/create.tpl \
+	tpl/vdnsadm/template/edit_partial.tpl \
+	tpl/vdnsadm/template/edit.tpl \
 	tpl/vdnsadm/template/list.tpl \
+	tpl/vdnsadm/template/show.tpl \
 	tpl/vdnsadm/template_record/create_partial.tpl \
 	tpl/vdnsadm/template_record/list.tpl \
 	tpl/vdnsadm/user/create_partial.tpl \
