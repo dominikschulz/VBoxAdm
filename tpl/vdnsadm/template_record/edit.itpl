@@ -1,0 +1,5 @@
+[% INCLUDE vwebadm/includes/header.tpl %]
+    <div id="main">
+		[% INCLUDE vdnsadm/template_record/edit_partial.tpl %]
+    </div>
+[% INCLUDE vwebadm/includes/footer.tpl %]

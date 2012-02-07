@@ -1,7 +1,8 @@
 <div class="forms">
-	<form name="create_template_record" method="POST">
-		<input type="hidden" name="rm" value="add_template_record" />
-		<h1>[% "Add a new record" | l10n %]</h1>
+	<form name="edit_template_record" method="POST">
+		<input type="hidden" name="rm" value="update_template_record" />
+		<input type="hidden" name="record_id" value="[% record_id %]" />
+		<h1>[% "Modify a template record" | l10n %]</h1>
 		
 		<label for="name">
 			[% "Subdomain:" | l10n %]
@@ -21,7 +22,7 @@
 		</label>
 		<select name="type">
 			[% FOREACH line IN types %]
-			<option>[% line %]</option>
+			<option[% IF type == line %] selected[% END %]>[% line %]</option>
 			[% END %]
 		</select>
 		
@@ -32,9 +33,9 @@
 			<span class="small">RR-Content</span>
 		</label>
 		[% IF large_content %]
-		<textarea name="content"></textarea>
+		<textarea name="content">[% content %]</textarea>
 		[% ELSE %]
-		<input type="text" name="content" value="" />
+		<input type="text" name="content" value="[% content %]" />
 		[% END %]
 		
 		<div class="spacer"></div>
@@ -43,7 +44,7 @@
 			[% "TTL:" | l10n %]
 			<span class="small">TTL</span>
 		</label>
-		<input type="text" name="ttl" value="3600" />
+		<input type="text" name="ttl" value="[% ttl %]" />
 		
 		<div class="spacer"></div>
 		
@@ -51,11 +52,11 @@
 			[% "Priority:" | l10n %]
 			<span class="small">Priority</span>
 		</label>
-		<input type="text" name="prio" value="0" />
+		<input type="text" name="prio" value="[% prio %]" />
 		
 		<button class="button" type="submit" name="submit">
 			<img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" />
-			[% "Add Record" | l10n %]
+			[% "Update Record" | l10n %]
 		</button>
 	</form>
 </div>

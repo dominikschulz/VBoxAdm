@@ -394,7 +394,7 @@ sub create {
         return;
     }
 
-    # Check authorization, syntax and create mailbox
+    # Check authorization, syntax and create record
     if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get_domain_id() ) {
 
         # if domainadmin, verify that its his domain
@@ -419,7 +419,7 @@ sub create {
         }
         else {
             $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", ( %{$params} ) ) . ', Error: ' . $self->dbh()->errstr() );
-            $self->msg->push( 'error', "Failed to add Record [_1] for [_2]. Database Error: " . $sth->dbh()->err(), $record_name, $domain_name );
+            $self->msg->push( 'error', "Failed to add Record [_1] for [_2]. Database Error!", $record_name, $domain_name );
         }
     }
     return;
@@ -465,7 +465,7 @@ sub delete {
     }
     else {
         $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh()->errstr() );
-        $self->msg->push( 'error', "Failed to remove Record [_1] (#[_2]). Database Error: " . $self->dbh()->err(), $record_name, $record_id );
+        $self->msg->push( 'error', "Failed to remove Record [_1] (#[_2]). Database Error!", $record_name, $record_id );
     }
 
     return;

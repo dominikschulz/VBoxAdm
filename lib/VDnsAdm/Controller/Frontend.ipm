@@ -1904,7 +1904,7 @@ sub show_add_template_record {
 
     # set params
     my $params = {};
-    foreach my $field ( @{ $self->{'User'}->fields() } ) {
+    foreach my $field ( @{ $self->{'TemplateRecord'}->fields() } ) {
         next if $field eq 'id';
         if ( defined( $q->param($field) ) ) {
             $params->{$field} = $q->param($field);
