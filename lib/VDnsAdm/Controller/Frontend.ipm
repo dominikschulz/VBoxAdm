@@ -440,17 +440,18 @@ sub tt_post_process {
 sub tt_pre_process {
     my ( $self, $file, $vars ) = @_;
 
-    $vars->{username}          = $self->authen->username;
-    $vars->{system_domain}     = $self->{config}{'default'}{'domain'} || 'localhost';
-    $vars->{long_forms}        = $self->{config}{'cgi'}{'long_forms'} || 0;
-    $vars->{version}           = $VERSION;
-    $vars->{messages}          = $self->get_messages();
-    $vars->{is_siteadmin}      = $self->user->is_siteadmin() if $self->user();
-    $vars->{is_domainadmin}    = $self->user->is_domainadmin() if $self->user();
-    $vars->{product}           = 'VDnsAdm';
-    $vars->{product_url}       = 'http://www.vdnsadm.net/';
-    $vars->{feature_groups}    = $self->{config}{'default'}{'feature_groups'} || 0;
-    $vars->{feature_templates} = $self->{config}{'default'}{'feature_templates'} || 0;
+    $vars->{username}                 = $self->authen->username;
+    $vars->{system_domain}            = $self->{config}{'default'}{'domain'} || 'localhost';
+    $vars->{long_forms}               = $self->{config}{'cgi'}{'long_forms'} || 0;
+    $vars->{version}                  = $VERSION;
+    $vars->{messages}                 = $self->get_messages();
+    $vars->{is_siteadmin}             = $self->user->is_siteadmin() if $self->user();
+    $vars->{is_domainadmin}           = $self->user->is_domainadmin() if $self->user();
+    $vars->{product}                  = 'VDnsAdm';
+    $vars->{product_url}              = 'http://www.vdnsadm.net/';
+    $vars->{feature_groups}           = $self->{config}{'default'}{'feature_groups'} || 0;
+    $vars->{feature_templates}        = $self->{config}{'default'}{'feature_templates'} || 0;
+    $vars->{feature_linked_templates} = $self->{config}{'default'}{'feature_linked_templates'} || 0;
 
     return;
 }
@@ -1692,13 +1693,13 @@ sub show_template {
     my @templates = $self->{'Template'}->list($params);
 
     my %params = (
-        'title'       => $self->{lh}->maketext( 'VDnsAdm Template: [_1]', $template_name ),
-        'current'     => 'templates',
-        'template'    => $template_name,
-        'records'     => \@records,
-        'types'       => \@types,
-        'templates'   => \@templates,
-        'template_id' => $template_id,
+        'title'         => $self->{lh}->maketext( 'VDnsAdm Template: [_1]', $template_name ),
+        'current'       => 'templates',
+        'template_name' => $template_name,
+        'records'       => \@records,
+        'types'         => \@types,
+        'templates'     => \@templates,
+        'template_id'   => $template_id,
     );
 
     return $self->tt_process( 'vdnsadm/template/show.tpl', \%params );

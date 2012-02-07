@@ -26,6 +26,12 @@ sub _init_fields {
     return [qw(id name)];
 }
 
+sub _is_linked_domain {
+
+    # a template is never a linked domain
+    return;
+}
+
 sub _validate_params {
     my $self   = shift;
     my $params = shift;
@@ -52,18 +58,11 @@ sub sync_linked_domains {
     my $num_failed = 0;    # number of domains which failed to sync
     foreach my $ldom (@linked_domains) {
         my $ldom_id = $ldom->{'id'};
-        if ( $self->_sync_props( $tpl_id, $ldom_id ) ) {
-            $self->logger()->log( message => "Synced props from template #" . $tpl_id . " to linked domain #" . $ldom_id, level => 'debug', );
-            if ( $self->template_record()->sync_records( $tpl_id, $ldom_id ) ) {
-                $self->logger()->log( message => "Synced records from template #" . $tpl_id . " to linked domain #" . $ldom_id, level => 'debug', );
-            }
-            else {
-                $self->logger()->log( message => "Failed to sync recrods from template #" . $tpl_id . " to linked domain #" . $ldom_id, level => 'error', );
-                $num_failed++;
-            }
+        if ( $self->template_record()->sync_records( $tpl_id, $ldom_id ) ) {
+            $self->logger()->log( message => "Synced records from template #" . $tpl_id . " to linked domain #" . $ldom_id, level => 'debug', );
         }
         else {
-            $self->logger()->log( message => "Failed to sync props from template #" . $tpl_id . " to linked domain #" . $ldom_id, level => 'error', );
+            $self->logger()->log( message => "Failed to sync recrods from template #" . $tpl_id . " to linked domain #" . $ldom_id, level => 'error', );
             $num_failed++;
         }
     }
@@ -74,15 +73,6 @@ sub sync_linked_domains {
     else {
         return 1;
     }
-}
-
-sub _sync_props {
-    my $self   = shift;
-    my $tpl_id = shift;
-    my $dom_id = shift;
-
-    # TODO HIGH implement
-    return;
 }
 
 no Moose;

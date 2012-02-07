@@ -78,6 +78,37 @@ sub sync_records {
     return 1;
 }
 
+sub _read_addn {
+    my $self       = shift;
+    my $result_ref = shift;
+
+    # get template name
+    my $sql = "SELECT name FROM templates WHERE id = ?";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $result_ref->{'tpl_id'} );
+    if ($sth) {
+        $result_ref->{'template'} = $sth->fetchrow_array();
+    }
+
+    return 1;
+}
+
+sub _list_addn {
+    my $self      = shift;
+    my $entry_ref = shift;
+
+    my $sql = "SELECT name FROM templates WHERE id = ?";
+    my $sth = $self->dbh()->prepare($sql);
+
+    foreach my $entry ( @{$entry_ref} ) {
+        $sth->execute( $entry->{'tpl_id'} );
+        my $domain_name = $sth->fetchrow_array();
+        $entry->{'template'} = $domain_name;
+    }
+    $sth->finish();
+
+    return 1;
+}
+
 # after modifying a template record all linked domains should be updated immedeately to reflect any changes
 after 'update' => sub {
     my $self      = shift;
@@ -100,8 +131,6 @@ after 'update' => sub {
 
     return 1;    # return value is ignored by moose, but be nice anyway ...
 };
-
-# TODO on update sync each linked domain
 
 no Moose;
 __PACKAGE__->meta->make_immutable;

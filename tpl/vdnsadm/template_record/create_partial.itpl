@@ -8,8 +8,8 @@
 			<span class="small">Subdomain</span>
 		</label>
 		<input type="text" name="name" />.<select name="domain_id">
-			[% FOREACH line IN domains %]
-			<option value="[% line.id %]"[% IF domain_id == line.id %] selected[% END %]>[% line.name %]</option>
+			[% FOREACH line IN templates %]
+			<option value="[% line.id %]"[% IF tpl_id == line.id %] selected[% END %]>[% line.name %]</option>
 			[% END %]
 		</select>
 		

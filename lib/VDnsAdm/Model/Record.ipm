@@ -500,8 +500,6 @@ sub update {
     }
     my ( $name, $type, $content, $ttl, $domain_id ) = $sth->fetchrow_array();
     my $record_name = $self->_get_record_name( { 'name' => $name, 'type' => $type, 'ttl' => $ttl, 'content' => $content, }, );
-
-    #$self->logger()->log( message => 'Record-Name: '.$record_name, level => 'debug', );
     $sth->finish();
 
     my $msg_loc = '';
@@ -605,19 +603,28 @@ sub read {
     @result{ @{ $self->fields() } } = $sth->fetchrow_array();
     $sth->finish();
 
-    # TODO high doesn't work w/ Subclass. Refactor to own method and override this method in subclasses
-    # get domain_name
-    $sql = "SELECT name FROM domains WHERE id = ?";
-    $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $result{'domain_id'} );
-    if ($sth) {
-        $result{'domain'} = $sth->fetchrow_array();
-    }
+    # additional attributes are poplized in a separate method to aid w/ subclassing
+    $self->_read_addn( \%result );
 
     foreach my $key ( keys %result ) {
         $result{$key} = Encode::decode( 'UTF-8', $result{$key} ) unless Encode::is_utf8( $result{$key} );
     }
 
     return \%result;
+}
+
+sub _read_addn {
+    my $self       = shift;
+    my $result_ref = shift;
+
+    # get domain_name
+    my $sql = "SELECT name FROM domains WHERE id = ?";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $result_ref->{'domain_id'} );
+    if ($sth) {
+        $result_ref->{'domain'} = $sth->fetchrow_array();
+    }
+
+    return 1;
 }
 
 sub bump_serial {
@@ -700,7 +707,7 @@ sub list {
 
     # TODO high doesn't work w/ Subclass. Refactor to own method and override this method in subclasses
     my @fields = @{ $self->fields() };
-    my $sql    = "SELECT r." . join( ",r.", @fields ) . ",d.name FROM " . $self->table_name() . " AS r LEFT JOIN domains AS d ON r.domain_id = d.id WHERE 1";
+    my $sql    = "SELECT r." . join( ",r.", @fields ) . " FROM " . $self->table_name() . " AS r WHERE 1";
     my @args   = ();
     if ( $param->{'Search'} ) {
         $sql .= " AND name LIKE ? OR content LIKE ?";
@@ -740,19 +747,41 @@ sub list {
 
     my @entries = ();
 
-    # domain name was not in the field list 'coz it is prefixed with d., not r.
-    push( @fields, 'domain' );
     while ( my @row = $sth->fetchrow_array() ) {
         my %h;
         @h{@fields} = @row;
-        foreach my $field ( keys %h ) {
-            $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8( $h{$field} );
-        }
         push( @entries, \%h );
     }
     $sth->finish();
 
+    # additional attributes are poplized in a separate method to aid w/ subclassing
+    $self->_list_addn( \@entries );
+
+    # ensure proper encoding
+    foreach my $row (@entries) {
+        foreach my $field ( keys %{$row} ) {
+            $row->{$field} = Encode::decode( 'UTF-8', $row->{$field} ) unless Encode::is_utf8( $row->{$field} );
+        }
+    }
+
     return @entries;
+}
+
+sub _list_addn {
+    my $self      = shift;
+    my $entry_ref = shift;
+
+    my $sql = "SELECT name FROM domains WHERE id = ?";
+    my $sth = $self->dbh()->prepare($sql);
+
+    foreach my $entry ( @{$entry_ref} ) {
+        $sth->execute( $entry->{'domain_id'} );
+        my $domain_name = $sth->fetchrow_array();
+        $entry->{'domain'} = $domain_name;
+    }
+    $sth->finish();
+
+    return 1;
 }
 
 sub get_id {

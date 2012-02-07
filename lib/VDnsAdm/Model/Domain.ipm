@@ -27,12 +27,27 @@ sub _init_fields {
     return [qw(id name master last_check type notified_serial is_active group_id linked_template)];
 }
 
+sub _is_linked_domain {
+    my $self   = shift;
+    my $params = shift;
+
+    if ( $params->{'linked_template'} && $params->{'linked_template'} > 0 ) {
+        return 1;
+    }
+    return;
+}
+
 sub _validate_params {
     my $self   = shift;
     my $params = shift;
 
-    # TODO if this is a linked domain only the field 'linked_template' should be editable
+    # if this is a linked domain only the field 'linked_template' should be editable
     # once linked_template is set to 0/NULL everything can be edited again
+    # if this update will unlink this domain everything else can be edited as well
+    if ( $self->_is_linked_domain($params) && grep { $_ ne 'linked_template' } @{ keys %{$params} } ) {
+        $self->msg->push( 'error', 'Can not edit linked domain! Remove linkage first!' );
+        return;
+    }
 
     #
     # Name

@@ -1,6 +1,6 @@
 [% INCLUDE vwebadm/includes/header.tpl %]
     <div id="main" role="main">
-    	<h2>Viewing Template: [% template %]</h2>
+    	<h2>Viewing Template: [% template_name %]</h2>
 		<br />
 		[% FOREACH line IN records %]
 		[% IF loop.first %]
