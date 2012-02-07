@@ -6,7 +6,7 @@
 			<thead>
 			<tr>
 				<th>[% "Group" | l10n %]</th>
-				<th>[% "Domains" | l10n %]</th>
+				<th>[% "# Domains" | l10n %]</th>
 				<th></th>
 				<th></th>
 			</tr>
@@ -15,7 +15,7 @@
 		[% END %]
 			<tr class="[% loop.parity %] [% IF line.is_active %]enabled[% ELSE %]disabled[% END %]">
 				<td>
-					<a href="[% base_url %]?rm=edit_group&group_id=[% line.id %]">[% line.local_part | highlight(search) %]@[% line.name %]</a>
+					<a href="[% base_url %]?rm=edit_group&group_id=[% line.id %]">[% line.name | highlight(search) %]</a>
 				</td>
 				<td>
 					[% line.num_domains %]

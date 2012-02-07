@@ -98,7 +98,7 @@ sub delete {
 }
 
 sub update {
-    my ( $self, $domain_id, $params ) = @_;
+    my ( $self, $group_id, $params ) = @_;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_siteadmin() ) {
@@ -106,7 +106,7 @@ sub update {
         return;
     }
 
-    my $domain_name = $self->get_name($domain_id);
+    my $group_name = $self->get_name($group_id);
 
     if ( !$self->_validate_params($params) ) {
         $self->log('Params not valid!');
@@ -132,16 +132,16 @@ sub update {
 
         # finialize query
         $query .= " WHERE id = ?";
-        push( @args, $domain_id );
+        push( @args, $group_id );
 
         if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
             $sth->finish();
-            $self->msg->push( 'information', 'Updated Domain [_1].', $domain_name );
+            $self->msg->push( 'information', 'Updated Group [_1].', $group_name );
             return 1;
         }
         else {
             $self->log( 'Could not execute Query: ' . $query . ', Args: ' . join( ',', @args ) . ', Error: ' . $self->dbh->errstr );
-            $self->msg->push( 'error', 'Failed to update Domain [_1]. Database error.', $domain_name );
+            $self->msg->push( 'error', 'Failed to update Group [_1]. Database error.', $group_name );
             return;
         }
     }

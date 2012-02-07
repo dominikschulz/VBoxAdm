@@ -190,12 +190,12 @@ sub update {
 
         if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
             $sth->finish();
-            $self->msg->push( 'information', 'Updated Domain [_1].', $domain_name );
+            $self->msg->push( 'information', 'Updated Entry [_1].', $domain_name );
             return 1;
         }
         else {
             $self->log( 'Could not execute Query: ' . $query . ', Args: ' . join( ',', @args ) . ', Error: ' . $self->dbh->errstr );
-            $self->msg->push( 'error', 'Failed to update Domain [_1]. Database error.', $domain_name );
+            $self->msg->push( 'error', 'Failed to update Entry [_1]. Database error.', $domain_name );
             return;
         }
     }

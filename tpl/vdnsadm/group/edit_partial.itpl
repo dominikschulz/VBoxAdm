@@ -1,0 +1,20 @@
+<div class="forms">
+	<form name="edit_group" method="POST">
+		<input type="hidden" name="rm" value="update_group" />
+		<input type="hidden" name="group_id" value="[% group_id %]" />
+		<h1>[% "Modify a Group" | l10n %]</h1>
+		
+		<label for="name">
+			[% "Name:" | l10n %]
+			<span class="small">Name of this group</span>
+		</label>
+		<input type="text" name="name" value="[% name %]" />
+		
+		<div class="spacer"></div>
+		
+		<button class="button" type="submit" name="submit">
+			<img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" />
+			[% "Update Group" | l10n %]
+		</button>
+	</form>
+</div>

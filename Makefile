@@ -297,7 +297,11 @@ TPLFILES = \
 	tpl/vdnsadm/domain/list.tpl \
 	tpl/vdnsadm/domain/show.tpl \
 	tpl/vdnsadm/group/create_partial.tpl \
+	tpl/vdnsadm/group/create.tpl \
+	tpl/vdnsadm/group/edit_partial.tpl \
+	tpl/vdnsadm/group/edit.tpl \
 	tpl/vdnsadm/group/list.tpl \
+	tpl/vdnsadm/group/show.tpl \
 	tpl/vdnsadm/includes/navigation.tpl \
 	tpl/vdnsadm/record/create_partial.tpl \
 	tpl/vdnsadm/record/create.tpl \
