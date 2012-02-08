@@ -465,7 +465,7 @@ sub tt_pre_process {
     $vars->{messages}       = $self->get_messages();
     $vars->{is_siteadmin}   = $self->user->is_siteadmin() if $self->user();
     $vars->{is_domainadmin} = $self->user->is_domainadmin() if $self->user();
-    $vars->{product}        = 'VDnsAdm';
+    $vars->{product}        = 'VBoxAdm';
     $vars->{product_url}    = 'http://www.vboxadm.net/';
 
     return;
@@ -1441,7 +1441,7 @@ sub show_mailboxes {
         'search'    => $search,
     );
 
-    return $self->tt_process( 'mailbox/list.tpl', \%params );
+    return $self->tt_process( 'vboxadm/mailbox/list.tpl', \%params );
 }
 
 sub show_create_mailbox {
@@ -1569,12 +1569,12 @@ sub show_edit_mailbox {
     if ( !$sth ) {
         $self->add_message('Database Error!');
         $self->log( 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, 'warning', );
-        return $self->tt_process( 'mailbox/edit.tpl', \%params );
+        return $self->tt_process( 'vboxadm/mailbox/edit.tpl', \%params );
     }
     if ( !$sth->execute(@args) ) {
         $self->add_message('Database Error!');
         $self->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, 'warning', );
-        return $self->tt_process( 'mailbox/edit.tpl', \%params );
+        return $self->tt_process( 'vboxadm/mailbox/edit.tpl', \%params );
     }
     my ( $cc_id, $cc_goto ) = $sth->fetchrow_array();
     $params{'cc_id'}   = $cc_id;

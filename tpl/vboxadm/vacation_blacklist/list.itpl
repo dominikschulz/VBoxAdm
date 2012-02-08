@@ -1,4 +1,4 @@
-[% INCLUDE includes/header.tpl %]
+[% INCLUDE vwebadm/includes/header.tpl %]
     <div id="main" role="main">
 		[% FOREACH line IN blacklist %]
 		[% IF loop.first %]
@@ -30,6 +30,6 @@
 		<a href="[% base_url %]?rm=create_vac_bl#?w=500" rel="modal_new" class="modallight"><img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" /> [% "Add Entry" | l10n %]</a>
     </div>
     <div id="modal_new" class="modal_block">
-    	[% INCLUDE vacation_blacklist/create_partial.tpl %]
+    	[% INCLUDE vboxadm/vacation_blacklist/create_partial.tpl %]
     </div>
-[% INCLUDE includes/footer.tpl %]
+[% INCLUDE vwebadm/includes/footer.tpl %]

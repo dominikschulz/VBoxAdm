@@ -1,4 +1,4 @@
-[% INCLUDE includes/header.tpl %]
+[% INCLUDE vwebadm/includes/header.tpl %]
     <div id="main" role="main">
     	<h1>Admins</h1>
 		[% FOREACH line IN admins %]
@@ -56,4 +56,4 @@
 		[% END %]
 		[% END %]
     </div>
-[% INCLUDE includes/footer.tpl %]
+[% INCLUDE vwebadm/includes/footer.tpl %]

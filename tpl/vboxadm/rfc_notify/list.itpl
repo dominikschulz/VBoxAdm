@@ -1,4 +1,4 @@
-[% INCLUDE includes/header.tpl %]
+[% INCLUDE vwebadm/includes/header.tpl %]
     <div id="main" role="main">
 		[% FOREACH line IN notifies %]
 		[% IF loop.first %]
@@ -28,4 +28,4 @@
 		[% END %]
 		<br />
     </div>
-[% INCLUDE includes/footer.tpl %]
+[% INCLUDE vwebadm/includes/footer.tpl %]
