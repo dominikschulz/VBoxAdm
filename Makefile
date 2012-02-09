@@ -394,6 +394,7 @@ real-install: all test rcvboxadm
 	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/alias $(VWEBLIBDIR)/tpl/vboxadm/autoconfig $(VWEBLIBDIR)/tpl/vboxadm/awl $(VWEBLIBDIR)/tpl/vboxadm/domain
 	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/domain_alias $(VWEBLIBDIR)/tpl/vboxadm/includes $(VWEBLIBDIR)/tpl/vboxadm/mailbox $(VWEBLIBDIR)/tpl/vboxadm/notify
 	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/rfc_notify $(VWEBLIBDIR)/tpl/vboxadm/vacation_blacklist $(VWEBLIBDIR)/tpl/vboxadm/vacation_notify
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/role_account $(VWEBLIBDIR)/tpl/vboxadm/role_account $(VWEBLIBDIR)/tpl/vboxadm/role_account
 	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vdnsadm/domain $(VWEBLIBDIR)/tpl/vdnsadm/includes $(VWEBLIBDIR)/tpl/vdnsadm/record
 	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vdnsadm/user
 	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vwebadm/includes
@@ -456,6 +457,7 @@ real-install: all test rcvboxadm
 	$(INSTALL_DATA) tpl/vboxadm/mailbox/*.tpl $(VWEBLIBDIR)/tpl/vboxadm/mailbox/
 	$(INSTALL_DATA) tpl/vboxadm/notify/*.tpl $(VWEBLIBDIR)/tpl/vboxadm/notify/
 	$(INSTALL_DATA) tpl/vboxadm/rfc_notify/*.tpl $(VWEBLIBDIR)/tpl/vboxadm/rfc_notify/
+	$(INSTALL_DATA) tpl/vboxadm/role_account/*.tpl $(VWEBLIBDIR)/tpl/vboxadm/role_account/
 	$(INSTALL_DATA) tpl/vboxadm/vacation_blacklist/*.tpl $(VWEBLIBDIR)/tpl/vboxadm/vacation_blacklist/
 	$(INSTALL_DATA) tpl/vboxadm/vacation_notify/*.tpl $(VWEBLIBDIR)/tpl/vboxadm/vacation_notify/
 	$(INSTALL_DATA) tpl/vdnsadm/domain/*.tpl $(VWEBLIBDIR)/tpl/vdnsadm/domain/
