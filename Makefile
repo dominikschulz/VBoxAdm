@@ -384,24 +384,49 @@ quick-install: real-install
 install: clean real-install
 
 real-install: all test rcvboxadm
-	$(INSTALL) -d $(BINDIR) $(SBINDIR) $(DESTDIR)/etc
-	$(INSTALL) -d $(CFGDIR)/vboxadm $(CFGDIR)/vdnsadm
-	$(INSTALL) -d $(LIBDIR)/VBoxAdm/Controller $(LIBDIR)/VBoxAdm/L10N $(LIBDIR)/VBoxAdm/Model $(LIBDIR)/VBoxAdm/SMTP/Proxy 
-	$(INSTALL) -d $(LIBDIR)/VDnsAdm/Controller $(LIBDIR)/VDnsAdm/L10N $(LIBDIR)/VDnsAdm/Model
+	$(INSTALL) -d $(BINDIR)
+	$(INSTALL) -d $(SBINDIR)
+	$(INSTALL) -d $(DESTDIR)/etc
+	$(INSTALL) -d $(CFGDIR)/vboxadm
+	$(INSTALL) -d $(CFGDIR)/vdnsadm
+	$(INSTALL) -d $(LIBDIR)/VBoxAdm/Controller
+	$(INSTALL) -d $(LIBDIR)/VBoxAdm/L10N
+	$(INSTALL) -d $(LIBDIR)/VBoxAdm/Model
+	$(INSTALL) -d $(LIBDIR)/VBoxAdm/SMTP/Proxy
+	$(INSTALL) -d $(LIBDIR)/VDnsAdm/Controller
+	$(INSTALL) -d $(LIBDIR)/VDnsAdm/L10N
+	$(INSTALL) -d $(LIBDIR)/VDnsAdm/Model
 	$(INSTALL) -d $(LIBDIR)/VWebAdm/Model
-	$(INSTALL) -d $(MANDIR)/man1 $(MANDIR)/man3 $(MANDIR)/man8
+	$(INSTALL) -d $(MANDIR)/man1
+	$(INSTALL) -d $(MANDIR)/man3
+	$(INSTALL) -d $(MANDIR)/man8
 	$(INSTALL) -d $(VBOXLIBDIR)/bin
-	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/alias $(VWEBLIBDIR)/tpl/vboxadm/autoconfig $(VWEBLIBDIR)/tpl/vboxadm/awl $(VWEBLIBDIR)/tpl/vboxadm/domain
-	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/domain_alias $(VWEBLIBDIR)/tpl/vboxadm/includes $(VWEBLIBDIR)/tpl/vboxadm/mailbox $(VWEBLIBDIR)/tpl/vboxadm/notify
-	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/rfc_notify $(VWEBLIBDIR)/tpl/vboxadm/vacation_blacklist $(VWEBLIBDIR)/tpl/vboxadm/vacation_notify
-	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/role_account $(VWEBLIBDIR)/tpl/vboxadm/role_account $(VWEBLIBDIR)/tpl/vboxadm/role_account
-	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vdnsadm/domain $(VWEBLIBDIR)/tpl/vdnsadm/includes $(VWEBLIBDIR)/tpl/vdnsadm/record
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/alias
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/autoconfig
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/awl
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/domain
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/domain_alias
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/includes
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/mailbox
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/notify
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/rfc_notify
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/vacation_blacklist
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/vacation_notify
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/role_account
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vdnsadm/domain
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vdnsadm/includes
+	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vdnsadm/record
 	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vdnsadm/user
 	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vwebadm/includes
-	$(INSTALL) -g $(WWWGROUP) -d $(VBOXVHDIR)/cgi-bin $(VDNSVHDIR)/cgi-bin
-	$(INSTALL) -g $(WWWGROUP) -d $(VWEBVHDIR)/htdocs/images/knob $(VWEBVHDIR)/htdocs/images/datatables
-	$(INSTALL) -g $(WWWGROUP) -d $(VWEBVHDIR)/htdocs/css/datatable $(VWEBVHDIR)/htdocs/css/themes/ui-darkness/images
-	$(INSTALL) -g $(WWWGROUP) -d $(VWEBVHDIR)/htdocs/js/libs $(VWEBVHDIR)/htdocs/js/mylibs $(VWEBVHDIR)/htdocs/js/profiling
+	$(INSTALL) -g $(WWWGROUP) -d $(VBOXVHDIR)/cgi-bin
+	$(INSTALL) -g $(WWWGROUP) -d $(VDNSVHDIR)/cgi-bin
+	$(INSTALL) -g $(WWWGROUP) -d $(VWEBVHDIR)/htdocs/images/knob
+	$(INSTALL) -g $(WWWGROUP) -d $(VWEBVHDIR)/htdocs/images/datatables
+	$(INSTALL) -g $(WWWGROUP) -d $(VWEBVHDIR)/htdocs/css/datatable
+	$(INSTALL) -g $(WWWGROUP) -d $(VWEBVHDIR)/htdocs/css/themes/ui-darkness/images
+	$(INSTALL) -g $(WWWGROUP) -d $(VWEBVHDIR)/htdocs/js/libs
+	$(INSTALL) -g $(WWWGROUP) -d $(VWEBVHDIR)/htdocs/js/mylibs
+	$(INSTALL) -g $(WWWGROUP) -d $(VWEBVHDIR)/htdocs/js/profiling
 	$(INSTALL_PROGRAM) bin/vacation.pl $(VBOXLIBDIR)/bin/vacation
 	$(INSTALL_PROGRAM) bin/vboxadm-ma.pl $(SBINDIR)/vboxadm-ma
 	$(INSTALL_PROGRAM) bin/vboxadm-sa.pl $(SBINDIR)/vboxadm-sa
