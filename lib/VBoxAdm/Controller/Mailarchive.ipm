@@ -76,8 +76,10 @@ sub _init_config_locs {
 }
 
 has 'config' => (
-    'is'  => 'rw',
-    'isa' => 'Object',
+    'is'      => 'rw',
+    'isa'     => 'Object',
+    'lazy'    => 1,
+    'builder' => '_init_config',
 );
 
 has 'conffile_used' => (
@@ -85,7 +87,7 @@ has 'conffile_used' => (
     'isa' => 'Str',
 );
 
-sub _read_config {
+sub _init_config {
     my $self = shift;
 
     my %config;
@@ -106,9 +108,7 @@ sub _read_config {
     $config{'default'}{'dbdb'}     ||= 'vboxadm';
     $config{'default'}{'pwscheme'} ||= 'sha256';
 
-    $self->config( \%config );
-
-    return 1;
+    return \%config;
 }
 
 has 'opts' => (
@@ -127,6 +127,8 @@ sub _read_options {
 
 sub run {
     my $self = shift;
+
+    $self->_read_options();
 
     $self->_create_archive_tables();
     if ( !$self->config()->{'create'} ) {

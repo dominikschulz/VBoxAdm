@@ -555,6 +555,7 @@ sub add_message {
     my $self = shift;
     my $type = shift;
     my $msg  = shift;
+    return unless $type && $msg;
     return if !$self->{'Messages'};
     $self->{'Messages'}->push( $type, $msg );
     return 1;
@@ -1127,12 +1128,12 @@ sub show_create_domain_alias {
     $query .= "ORDER BY name";
     my $sth = $dbh->prepare($query);
     if ( !$sth ) {
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
         $self->log( 'Could not prepare Query: ' . $query . ', Error: ' . $dbh->errstr, 'error', );
         return $self->tt_process( 'vboxadm/domain_alias/create.tpl', \%params );
     }
     if ( !$sth->execute(@args) ) {
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
         $self->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, 'warning', );
         return $self->tt_process( 'vboxadm/domain_alias/create.tpl', \%params );
     }
@@ -1160,7 +1161,7 @@ sub show_add_domain_alias {
     }
     else {
         $self->log( 'Failed to add Domain-Alias ' . $domain_alias . ' to base Domain #' . $domain_id );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
 
     $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
@@ -1180,7 +1181,7 @@ sub show_remove_domain_alias {
     }
     else {
         $self->log( 'Failed to delete Domain-Alias #' . $domain_alias_id );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
 
     $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
@@ -1224,12 +1225,12 @@ sub show_edit_domain_alias {
     }
     my $sth = $dbh->prepare($query);
     if ( !$sth ) {
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
         $self->log( 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, 'warning', );
         return $self->tt_process( 'vboxadm/domain_alias/edit.tpl', \%params );
     }
     if ( !$sth->execute(@args) ) {
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
         $self->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, 'warning', );
         return $self->tt_process( 'vboxadm/domain_alias/edit.tpl', \%params );
     }
@@ -1261,7 +1262,7 @@ sub show_update_domain_alias {
     }
     else {
         $self->log( 'Failed to update Domain-Alias #' . $domain_alias_id );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
 
     $self->redirect( $self->{base_url} . '?rm=domain_aliases' );
@@ -1335,7 +1336,7 @@ sub show_add_alias {
     }
     else {
         $self->log( 'Failed to add Alias ' . $local_part . '@' . $domain_id . ' => ' . $goto );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
 
     $self->redirect( $self->{base_url} . '?rm=aliases' );
@@ -1355,7 +1356,7 @@ sub show_remove_alias {
     }
     else {
         $self->log( 'Failed to delete alias #' . $alias_id );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
 
     $self->redirect( $self->{base_url} . '?rm=aliases' );
@@ -1409,7 +1410,7 @@ sub show_update_alias {
     }
     else {
         $self->log( 'Failed to update Alias #' . $alias_id );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
 
     $self->redirect( $self->{base_url} . '?rm=aliases' );
@@ -1496,7 +1497,7 @@ sub show_add_mailbox {
     }
     else {
         $self->log( 'Failed to add Mailbox ' . $local_part . '@' . $domain_id );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
 
     $self->redirect( $self->{base_url} . '?rm=mailboxes' );
@@ -1516,7 +1517,7 @@ sub show_remove_mailbox {
     }
     else {
         $self->log( 'Failed to remove Mailbox #' . $mailbox_id );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
 
     $self->redirect( $self->{base_url} . '?rm=mailboxes' );
@@ -1529,7 +1530,7 @@ sub show_edit_mailbox {
     if ( !$self->user->is_admin() ) {
         my $msg = "You are not authorized to access this page.";
         $self->log( $msg . ". User: " . $self->authen->username );
-        $self->add_message( $self->{lh}->maketext($msg) );
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
         $self->redirect( $self->{base_url} . '?rm=welcome' );
         return;
     }
@@ -1567,12 +1568,12 @@ sub show_edit_mailbox {
     }
     my $sth = $dbh->prepare($query);
     if ( !$sth ) {
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
         $self->log( 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, 'warning', );
         return $self->tt_process( 'vboxadm/mailbox/edit.tpl', \%params );
     }
     if ( !$sth->execute(@args) ) {
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
         $self->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, 'warning', );
         return $self->tt_process( 'vboxadm/mailbox/edit.tpl', \%params );
     }
@@ -1634,7 +1635,7 @@ sub show_update_mailbox {
     }
     else {
         $self->log( 'Failed to update Mailbox #' . $mailbox_id );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
     $self->redirect( $self->{base_url} . '?rm=mailboxes' );
     return;
@@ -1684,12 +1685,12 @@ sub show_log {
     # Get the actual data
     my $sth = $dbh->prepare($query);
     if ( !$sth ) {
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
         $self->log( 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, 'warning', );
         return $self->tt_process( 'vwebadm/log.tpl', \%params );
     }
     if ( !$sth->execute(@args) ) {
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
         $self->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, 'warning', );
         return $self->tt_process( 'vwebadm/log.tpl', \%params );
     }
@@ -1767,7 +1768,7 @@ sub show_add_vacbl_entry {
     }
     else {
         $self->log( 'Failed to create vacation blacklist entry: ' . $email );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
 
     $self->redirect( $self->{base_url} . '?rm=vac_bl' );
@@ -1787,7 +1788,7 @@ sub show_remove_vacbl_entry {
     }
     else {
         $self->log( 'Failed to delete vacation blacklist entry #' . $entry_id );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
 
     $self->redirect( $self->{base_url} . '?rm=vac_bl' );
@@ -1832,12 +1833,12 @@ sub show_vacation_replies {
     $query .= "ORDER BY on_vacation,notified,notified_at";
     my $sth = $dbh->prepare($query);
     if ( !$sth ) {
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
         $self->log( 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr, 'warning', );
         return $self->tt_process( 'vboxadm/vacation_notify/list.tpl', \%params );
     }
     if ( !$sth->execute(@args) ) {
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
         $self->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $sth->errstr, 'warning', );
         return $self->tt_process( 'vboxadm/vacation_notify/list.tpl', \%params );
     }
@@ -1940,7 +1941,7 @@ sub show_update_awl {
     }
     else {
         $self->log( 'Failed to update AWL entry #' . $entry_id );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
 
     $self->redirect( $self->{base_url} . '?rm=awl' );
@@ -2102,7 +2103,7 @@ sub show_remove_role_account {
     }
     else {
         $self->log( 'Failed to delete Role-Account #' . $roleacc_id );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
 
     $self->redirect( $self->{base_url} . '?rm=roleaccs' );
@@ -2123,7 +2124,7 @@ sub show_update_role_account {
     }
     else {
         $self->log( 'Failed to update Role-Account #' . $roleacc_id );
-        $self->add_message('Database Error!');
+        $self->add_message( 'error', 'Database Error!' );
     }
 
     $self->redirect( $self->{base_url} . '?rm=roleaccs' );
