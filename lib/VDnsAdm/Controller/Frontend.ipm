@@ -477,7 +477,8 @@ sub log {
     my $dbh = $self->dbh();
 
     if ($msg) {
-        $self->{'logger'}->log( message => $msg, level => $severity, );
+        my $caller = ( caller(1) )[3] || 'n/a';
+        $self->{'logger'}->log( message => $msg, level => $severity, 'caller' => $caller );
         my $query = "INSERT INTO log (ts,msg) VALUES(NOW(),?)";
         my $sth   = $dbh->prepare($query)
           or $self->{'logger'}->log( message => 'Could not prepare Query: ' . $query . ', Error: ' . DBI->errstr );
@@ -1901,8 +1902,6 @@ sub show_add_template_record {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $tpl_id = $q->param('template_id');
-
     # set params
     my $params = {};
     foreach my $field ( @{ $self->{'TemplateRecord'}->fields() } ) {
@@ -1912,7 +1911,9 @@ sub show_add_template_record {
         }
     }
 
-    if ( $self->{'TemplateRecord'}->create( $tpl_id, $params ) ) {
+    my $tpl_id = $params->{'tpl_id'};
+
+    if ( $self->{'TemplateRecord'}->create($params) ) {
         $self->log( 'Added Record for Template #' . $tpl_id );
     }
     else {
@@ -1920,7 +1921,7 @@ sub show_add_template_record {
         $self->add_message( 'error', 'Database Error!' );
     }
 
-    $self->redirect( $self->{base_url} . '?rm=templates' );
+    $self->redirect( $self->{base_url} . '?rm=template&template_id=' . $tpl_id );
     return;
 }
 

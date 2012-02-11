@@ -7,7 +7,7 @@
 			[% "Subdomain:" | l10n %]
 			<span class="small">Subdomain</span>
 		</label>
-		<input type="text" name="name" />.<select name="template_id">
+		<input type="text" name="name" />.<select name="tpl_id">
 			[% FOREACH line IN templates %]
 			<option value="[% line.id %]"[% IF tpl_id == line.id %] selected[% END %]>[% line.name %]</option>
 			[% END %]

@@ -301,7 +301,18 @@ sub _valid_content {
     $self->logger()->log( message => "Checking $type, $content, $ttl, $prio", level => 'debug', );
 
     if ( defined( $self->valid_types()->{$type} ) && ref( $self->valid_types()->{$type} ) eq 'CODE' ) {
-        return &{ $self->valid_types()->{$type} }( $content, $ttl, $prio );
+        if ( &{ $self->valid_types()->{$type} }( $content, $ttl, $prio ) ) {
+            $self->logger()->log( message => "Validated content.", level => 'debug', );
+            return 1;
+        }
+        else {
+            $self->logger()->log( message => "Invalid content for type!", level => 'notice', );
+            return;
+        }
+    }
+    else {
+        $self->logger()->log( message => "Unknown content type!", level => 'notice', );
+        return;
     }
 
     return;
@@ -320,15 +331,21 @@ sub _validate_params {
     # Content, TTL, Prio
     #
     if ( !defined( $params->{'type'} ) ) {
-        $self->msg->push( 'error', 'Mandatory field type missing!' );
+        my $msg = 'Mandatory field type missing!';
+        $self->msg->push( 'error', $msg );
+        $self->logger()->log( message => $msg, level => 'notice', );
         return;
     }
     if ( !defined( $params->{'content'} ) ) {
-        $self->msg->push( 'error', 'Mandatoy field content missing!' );
+        my $msg = 'Mandatoy field content missing!';
+        $self->msg->push( 'error', $msg );
+        $self->logger()->log( message => $msg, level => 'notice', );
         return;
     }
     if ( !defined( $params->{'ttl'} ) || $params->{'ttl'} < 1800 || $params->{'ttl'} > 2_592_000 ) {
-        $self->msg->push( 'error', 'Mandatory field TTL missing or out of range!' );
+        my $msg = 'Mandatory field TTL missing or out of range!';
+        $self->msg->push( 'error', $msg );
+        $self->logger()->log( message => $msg, level => 'notice', );
         return;
     }
     if ( !$self->_valid_content( $params->{'type'}, $params->{'content'}, $params->{'ttl'}, $params->{'prio'} ) ) {
@@ -341,7 +358,9 @@ sub _validate_params {
     # ChangeDate
     #
     if ( defined( $params->{'change_date'} ) && $params->{'change_date'} !~ m/^\d{1,11}$/ ) {
-        $self->msg->push( 'error', 'Invalid content for change_date!' );
+        my $msg = 'Invalid content for change_date!';
+        $self->msg->push( 'error', $msg );
+        $self->logger()->log( message => $msg, level => 'notice', );
         return;
     }
 
@@ -349,7 +368,9 @@ sub _validate_params {
     # Ordername
     #
     if ( defined( $params->{'ordername'} ) && $params->{'ordername'} !~ m/^\w{1,255}$/i ) {
-        $self->msg->push( 'error', 'Invalid content for odername!' );
+        my $msg = 'Invalid content for odername!';
+        $self->msg->push( 'error', $msg );
+        $self->logger()->log( message => $msg, level => 'notice', );
         return;
     }
 
@@ -357,26 +378,57 @@ sub _validate_params {
     # Auth
     #
     if ( defined( $params->{'auth'} ) && $params->{'auth'} !~ m/^\d$/ ) {
-        $self->msg->push( 'error', 'Invalid content for auth!' );
+        my $msg = 'Invalid content for auth!';
+        $self->msg->push( 'error', $msg );
+        $self->logger()->log( message => $msg, level => 'notice', );
         return;
     }
 
     return 1;
 }
 
+sub _get_domain_name {
+    my $self   = shift;
+    my $params = shift;
+
+    return $self->domain()->get_name( $params->{'tpl_id'} );
+}
+
+sub _is_authorized {
+    my $self   = shift;
+    my $action = shift;
+    my $params = shift;
+
+    if ( !$params->{'domain_id'} ) {
+        return;
+    }
+    elsif ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $params->{'domain_id'} != $self->user->get_domain_id() ) {
+
+        # if domainadmin, verify that its his domain
+        $self->msg->push( 'error', "You are not authorized to modify this domain!" );
+        $self->logger()
+          ->log( message => "Unauthorized user (" . $self->user->id() . ") tried to add record for domain " . $params->{'domain_id'}, level => 'warning', );
+        return;
+    }
+    else {
+        return 1;
+    }
+}
+
 sub create {
-    my ( $self, $domain_id, $params ) = @_;
+    my ( $self, $params ) = @_;
 
     # Authorization - No access for regular users
     if ( !$self->user->is_admin() ) {
         $self->msg->push( 'error', 'Sorry. No access for regular users.' );
+        $self->logger()->log( message => "Unauthorized access!", level => 'warning', );
         return;
     }
 
     # TODO HIGH if the associated domain is a linked domain nothing should be editable here!
     # execpt override (by CLI or TemplateRecord class) is set!
 
-    my $domain_name = $self->domain()->get_name($domain_id);
+    my $domain_name = $self->_get_domain_name($params);
     my $record_name = $self->_get_record_name($params);
 
     # append domain name
@@ -387,15 +439,13 @@ sub create {
         $params->{'name'} = $domain_name;
     }
 
-    # make sure domain_id is set
-    $params->{'domain_id'} = $domain_id;
-
     if ( !$self->_validate_params($params) ) {
+        $self->logger()->log( message => "Invalid content for new record. Not creating.", level => 'warning', );
         return;
     }
 
     # Check authorization, syntax and create record
-    if ( $domain_id && !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $domain_id != $self->user->get_domain_id() ) {
+    if ( !$self->_is_authorized($params) ) {
 
         # if domainadmin, verify that its his domain
         $self->msg->push( 'error', "You are not authorized to modify this domain!" );
@@ -412,13 +462,16 @@ sub create {
         if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, values %{$params} ) ) {
             $sth->finish();
             $self->msg->push( 'information', "Added Record [_1] for [_2].", $record_name, $domain_name );
-            if ( $params->{'type'} ne 'SOA' ) {
-                $self->bump_serial($domain_id);
+            if ( $params->{'type'} ne 'SOA' && $params->{'domain_id'} ) {
+                $self->bump_serial( $params->{'domain_id'} );
             }
             return 1;
         }
         else {
-            $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", ( %{$params} ) ) . ', Error: ' . $self->dbh()->errstr() );
+            $self->logger()->log(
+                message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", ( %{$params} ) ) . ', Error: ' . $self->dbh()->errstr(),
+                level => 'error',
+            );
             $self->msg->push( 'error', "Failed to add Record [_1] for [_2]. Database Error!", $record_name, $domain_name );
         }
     }

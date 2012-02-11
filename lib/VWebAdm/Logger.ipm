@@ -212,7 +212,9 @@ sub _init_dispatcher {
 sub log {
     my ( $self, %params ) = @_;
 
-    $params{'caller'} = ( caller(1) )[3] || 'n/a';
+    if ( !$params{'caller'} ) {
+        $params{'caller'} = ( caller(1) )[3] || 'n/a';
+    }
     $params{'ts'} = time();
     $params{'level'} ||= 'debug';
     $self->_add_to_buffer( \%params );

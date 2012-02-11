@@ -43,8 +43,6 @@ sub _init_dbh {
     return $dbh;
 }
 
-
-
 has 'logger' => (
     'is'      => 'ro',
     'isa'     => 'VWebAdm::Logger',

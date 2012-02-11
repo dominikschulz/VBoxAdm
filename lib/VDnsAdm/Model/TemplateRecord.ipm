@@ -109,6 +109,26 @@ sub _list_addn {
     return 1;
 }
 
+sub _get_domain_name {
+    my $self   = shift;
+    my $tpl_id = shift;
+
+    return $self->template()->get_name($tpl_id);
+}
+
+sub _is_authorized {
+    my $self   = shift;
+    my $action = shift;
+    my $params = shift;
+
+    if ( $self->user->is_siteadmin() ) {
+        return 1;
+    }
+    else {
+        return;
+    }
+}
+
 # after modifying a template record all linked domains should be updated immedeately to reflect any changes
 after 'update' => sub {
     my $self      = shift;
