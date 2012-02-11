@@ -21,6 +21,30 @@ has 'dbh' => (
     'builder' => '_init_dbh',
 );
 
+sub _init_dbh {
+    my $self = shift;
+
+    my $dbhost = $self->config()->{'default'}{'dbhost'};
+    my $dbuser = $self->config()->{'default'}{'dbuser'};
+    my $dbpass = $self->config()->{'default'}{'dbpass'};
+    my $dbport = $self->config()->{'default'}{'dbport'};
+    my $dbdb   = $self->config()->{'default'}{'dbdb'};
+    my $dsn    = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;password=$dbpass";
+    my $dbh    = &VWebAdm::DB::connect( $dsn, undef, undef, { RaiseError => 1, } );
+
+    if ( !$dbh ) {
+        $self->logger()->log(
+            message => 'Could not connect to database with DSN $dsn - Exiting',
+            level   => 'error',
+        );
+        die("Could not connect to database with DSN $dsn");
+    }
+
+    return $dbh;
+}
+
+
+
 has 'logger' => (
     'is'      => 'ro',
     'isa'     => 'VWebAdm::Logger',
@@ -252,7 +276,7 @@ sub _parse_reject_line {
             $common_header .= 'X-Client: VBoxAdm/RFC-Notify @VERSION@\r\n';
 
             my $postmaster_msg;
-            $self->_tt()->process( 'notify/postmaster.tpl', $vars, \$postmaster_msg );
+            $self->_tt()->process( 'vboxadm/notify/postmaster.tpl', $vars, \$postmaster_msg );
 
             my $emsg = $common_header;
             $emsg .= "To: <postmaster\@$from_domain>\r\n";
@@ -270,7 +294,7 @@ sub _parse_reject_line {
             }
 
             my $recipient_msg;
-            $self->_tt()->process( 'notify/recipient.tpl', $vars, \$recipient_msg );
+            $self->_tt()->process( 'vboxadm/notify/recipient.tpl', $vars, \$recipient_msg );
 
             $emsg = $common_header;
             $emsg .= "To: <$to>\r\n";
@@ -288,7 +312,7 @@ sub _parse_reject_line {
             }
 
             my $sender_msg;
-            $self->_tt()->process( 'notify/sender.tpl', $vars, \$sender_msg );
+            $self->_tt()->process( 'vboxadm/notify/sender.tpl', $vars, \$sender_msg );
 
             $emsg = $common_header;
             $emsg .= "To: <$from>\r\n";
