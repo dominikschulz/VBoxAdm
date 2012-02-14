@@ -194,6 +194,27 @@ sub _init_mailbox {
     return $Mailbox;
 }
 
+has 'migration' => (
+    'is'      => 'ro',
+    'isa'     => 'VBoxAdm::Migration',
+    'lazy'    => 1,
+    'builder' => '_init_migration',
+);
+
+sub _init_migration {
+    my $self = shift;
+
+    my $Migration = VBoxAdm::Migration::->new(
+        {
+            'dbh'    => $self->dbh(),
+            'logger' => $self->logger(),
+            'config' => $self->config(),
+        }
+    );
+
+    return $Migration;
+}
+
 has 'rfcnotify' => (
     'is'      => 'ro',
     'isa'     => 'VBoxAdm::Model::RFCNotify',
@@ -878,7 +899,7 @@ sub migrate {
         $self->opts()->{'SourceDb'} = $self->config()->{'Source'};
     }
 
-    if ( &VBoxAdm::Migration::migrate( $self->dbh(), $self->config(), $self->opts()->{'Source'}, $self->opts()->{'SourceDb'}, 'vboxadm', $self->opts() ) ) {
+    if ( $self->migration()->migrate( $self->opts()->{'Source'}, $self->opts()->{'SourceDb'}, 'vboxadm', $self->opts() ) ) {
 
         #print "Migration OK\n" unless $config->{'Quiet'};
         return 1;

@@ -1,43 +1,65 @@
 package VBoxAdm::Migration;
 
-use strict;
-use warnings;
+use Moose;
+use namespace::autoclean;
 
 use VWebAdm::SaltedHash '@VERSION@';
 use VWebAdm::Utils '@VERSION@';
 
 our $VERSION = '@VERSION@';
 
+has 'config' => (
+    'is'       => 'rw',
+    'isa'      => 'Object',
+    'required' => 1,
+);
+
+has 'logger' => (
+    'is'      => 'ro',
+    'isa'     => 'VWebAdm::Logger',
+    'lazy'    => 1,
+    'builder' => '_init_logger',
+);
+
+has 'dbh' => (
+    'is'      => 'ro',
+    'isa'     => 'Object',
+    'lazy'    => 1,
+    'builder' => '_init_dbh',
+);
+
 sub migrate {
-    my $dbh         = shift;
-    my $config      = shift;
+    my $self        = shift;
     my $source_type = shift;
     my $source_db   = shift;
     my $target_db   = shift;
     my $opts        = shift;
 
-    $dbh and $config and $source_type and $source_db and $target_db or return;
+    if ( !$source_type || !$source_db || !$target_db ) {
+        $self->logger()->log( message => "Missing options. Need source_type, source_db and target_db!", level => 'error', );
+        return;
+    }
 
     my $sql_new_domain = "INSERT INTO \`$target_db\`.domains (name,is_active) VALUES(?,?)";
-    my $sth_new_domain = $dbh->prepare($sql_new_domain);
+    my $sth_new_domain = $self->dbh()->prepare($sql_new_domain);
 
     my $sql_new_alias = "INSERT INTO \`$target_db\`.aliases (domain_id,local_part,goto,is_active) VALUES(?,?,?,?)";
-    my $sth_new_alias = $dbh->prepare($sql_new_alias);
+    my $sth_new_alias = $self->dbh()->prepare($sql_new_alias);
 
     my $sql_new_mailbox = "INSERT INTO \`$target_db\`.mailboxes ";
     $sql_new_mailbox .= "(domain_id,local_part,password,name,is_active,max_msg_size,is_on_vacation,vacation_subj,vacation_msg,";
     $sql_new_mailbox .= "is_domainadmin,is_siteadmin,sa_active,sa_kill_score) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)";
-    my $sth_new_mailbox = $dbh->prepare($sql_new_mailbox);
+    my $sth_new_mailbox = $self->dbh()->prepare($sql_new_mailbox);
 
     my $sql_new_domain_alias = "INSERT INTO \`$target_db\`.domain_aliases (name,domain_id,is_active) VALUES(?,?,1)";
-    my $sth_new_domain_alias = $dbh->prepare($sql_new_domain_alias);
+    my $sth_new_domain_alias = $self->dbh()->prepare($sql_new_domain_alias);
 
     my $sql_vacation_status = "INSERT INTO \`$target_db\`.vacation_notify (on_vacation,notified,notified_at) VALUES(?,?,?)";
-    my $sth_vacation_status = $dbh->prepare($sql_vacation_status);
+    my $sth_vacation_status = $self->dbh()->prepare($sql_vacation_status);
 
     my $sql_set_admin = "UPDATE \`$target_db\`.mailboxes SET is_domainadmin = ?, is_siteadmin = ? ";
     $sql_set_admin .= "WHERE local_part = ? AND domain_id = (SELECT id FROM domains WHERE name = ?)";
-    my $sth_set_admin = $dbh->prepare($sql_set_admin);
+    my $sth_set_admin = $self->dbh()->prepare($sql_set_admin);
 
     if ( $opts->{'Truncate'} ) {
         my @queries = ();
@@ -47,8 +69,8 @@ sub migrate {
         push( @queries, 'TRUNCATE TABLE `' . $target_db . '`.domain_aliases' );
         foreach my $q (@queries) {
             print "Query: $q\n" if $opts->{'Verbose'};
-            $dbh->do($q)
-              or die( "Could not execut query $q: " . $dbh->errstr );
+            $self->dbh()->do($q)
+              or die( "Could not execut query $q: " . $self->dbh()->errstr );
         }
     }
 
@@ -60,14 +82,16 @@ sub migrate {
             $source_db = 'system';
         }
         my $sql_domains = 'SELECT id,domain,is_enabled FROM `' . $source_db . '`.exim_domains ORDER BY domain';
-        my $sth_domains = $dbh->prepare($sql_domains);
+        my $sth_domains = $self->dbh()->prepare($sql_domains);
         my $sql_mailboxes =
             'SELECT local_part,forward,cc,name,pwclear,is_away,away_text,spam_check,is_enabled FROM `'
           . $source_db
           . '`.exim_emailtable WHERE domain = ? ORDER BY local_part';
-        my $sth_mailboxes = $dbh->prepare($sql_mailboxes);
-        $sth_domains->execute()
-          or die( "Could not execute query $sql_domains: " . $sth_domains->errstr );
+        my $sth_mailboxes = $self->dbh()->prepare($sql_mailboxes);
+        if ( !$sth_domains->execute() ) {
+            $self->logger()->log( message => "Could not execute SQL ($sql_domains) due to error: " . $sth_domains->errstr(), level => 'error', );
+            return;
+        }
 
         #
         # CREATE DOMAINS
@@ -78,14 +102,14 @@ sub migrate {
                 $domain_is_active = 0;
             }
             $domain_name = lc($domain_name);
-            if ( !$config->{'dry'} && $sth_new_domain->execute( $domain_name, $domain_is_active ) ) {
+            if ( !$self->config()->{'dry'} && $sth_new_domain->execute( $domain_name, $domain_is_active ) ) {
                 print "Created new Domain '$domain_name'\n";
             }
             else {
                 print "Failed to create new domain '$domain_name': " . $sth_new_domain->errstr . "\n";
                 next DOMAIN;
             }
-            my $new_domain_id = $dbh->last_insert_id( undef, undef, undef, undef );
+            my $new_domain_id = $self->dbh()->last_insert_id( undef, undef, undef, undef );
             print "SQL: $sql_mailboxes - Args: $domain_name\n";
             $sth_mailboxes->execute($domain_name)
               or die( "Could not execute Query $sql_mailboxes: " . $sth_mailboxes->errstr );
@@ -113,9 +137,9 @@ sub migrate {
 
                     # a real mailbox
                     if (
-                        !$config->{'dry'}
+                        !$self->config()->{'dry'}
                         && $sth_new_mailbox->execute(
-                            $new_domain_id, $local_part, &VWebAdm::SaltedHash::make_pass( $pwclear, $config->{'default'}{'pwscheme'} ),
+                            $new_domain_id, $local_part, &VWebAdm::SaltedHash::make_pass( $pwclear, $self->config()->{'default'}{'pwscheme'} ),
                             $name, $is_active, 15360, $is_on_vacation, 'On Vacation', $away_text, 0, 0, $sa_active, 6.31
                         )
                       )
@@ -129,7 +153,7 @@ sub migrate {
                 else {
 
                     # an alias
-                    if ( !$config->{'dry'} && $sth_new_alias->execute( $new_domain_id, $local_part, $forward, $is_active ) ) {
+                    if ( !$self->config()->{'dry'} && $sth_new_alias->execute( $new_domain_id, $local_part, $forward, $is_active ) ) {
                         print "\tCreated new Alias: $local_part\@$domain_name\n";
                     }
                     else {
@@ -139,7 +163,7 @@ sub migrate {
 
                 # handle cc, too (insert as alias)
                 if ($cc) {
-                    if ( !$config->{'dry'} && $sth_new_alias->execute( $new_domain_id, $local_part, $cc, $is_active ) ) {
+                    if ( !$self->config()->{'dry'} && $sth_new_alias->execute( $new_domain_id, $local_part, $cc, $is_active ) ) {
                         print "\tCreated new Alias (CC): $local_part\@$domain_name\n";
                     }
                     else {
@@ -159,12 +183,12 @@ sub migrate {
             $source_db = 'sysmgm_ng';
         }
         my $sql_domains = 'SELECT id,domain,is_enabled FROM `' . $source_db . '`.domains ORDER BY domain';
-        my $sth_domains = $dbh->prepare($sql_domains);
+        my $sth_domains = $self->dbh()->prepare($sql_domains);
         my $sql_mailboxes =
             'SELECT local_part,forward,cc,name,pwclear,is_away,away_text,spam_check,is_enabled FROM `'
           . $source_db
           . '`.mail_accounts WHERE domain = ? ORDER BY local_part';
-        my $sth_mailboxes = $dbh->prepare($sql_mailboxes);
+        my $sth_mailboxes = $self->dbh()->prepare($sql_mailboxes);
         $sth_domains->execute()
           or die( "Could not execute query $sql_domains: " . $sth_domains->errstr );
 
@@ -177,14 +201,14 @@ sub migrate {
                 $domain_is_active = 0;
             }
             $domain_name = lc($domain_name);
-            if ( !$config->{'dry'} && $sth_new_domain->execute( $domain_name, $domain_is_active ) ) {
+            if ( !$self->config()->{'dry'} && $sth_new_domain->execute( $domain_name, $domain_is_active ) ) {
                 print "Created new Domain '$domain_name'\n";
             }
             else {
                 print "Failed to create new domain '$domain_name': " . $sth_new_domain->errstr . "\n";
                 next DOMAIN;
             }
-            my $new_domain_id = $dbh->last_insert_id( undef, undef, undef, undef );
+            my $new_domain_id = $self->dbh()->last_insert_id( undef, undef, undef, undef );
             $sth_mailboxes->execute($old_domain_id)
               or die( "Could not execute Query $sql_mailboxes: " . $sth_mailboxes->errstr );
 
@@ -211,9 +235,9 @@ sub migrate {
 
                     # a real mailbox
                     if (
-                        !$config->{'dry'}
+                        !$self->config()->{'dry'}
                         && $sth_new_mailbox->execute(
-                            $new_domain_id, $local_part, VWebAdm::SaltedHash::make_pass( $pwclear, $config->{'default'}{'pwscheme'} ),
+                            $new_domain_id, $local_part, VWebAdm::SaltedHash::make_pass( $pwclear, $self->config()->{'default'}{'pwscheme'} ),
                             $name, $is_active, 15360, $is_on_vacation, 'On Vacation', $away_text, 0, 0, $sa_active, 6.31
                         )
                       )
@@ -227,7 +251,7 @@ sub migrate {
                 else {
 
                     # an alias
-                    if ( !$config->{'dry'} && $sth_new_alias->execute( $new_domain_id, $local_part, $forward, $is_active ) ) {
+                    if ( !$self->config()->{'dry'} && $sth_new_alias->execute( $new_domain_id, $local_part, $forward, $is_active ) ) {
                         print "\tCreated new Alias: $local_part\@$domain_name\n";
                     }
                     else {
@@ -237,7 +261,7 @@ sub migrate {
 
                 # handle cc, too (insert as alias)
                 if ($cc) {
-                    if ( !$config->{'dry'} && $sth_new_alias->execute( $new_domain_id, $local_part, $cc, $is_active ) ) {
+                    if ( !$self->config()->{'dry'} && $sth_new_alias->execute( $new_domain_id, $local_part, $cc, $is_active ) ) {
                         print "\tCreated new Alias (CC): $local_part\@$domain_name\n";
                     }
                     else {
@@ -261,14 +285,14 @@ sub migrate {
         # Iterate over all domains, we need the domain_id
         #
         my $query       = 'SELECT domain_id,domain,enabled FROM `' . $source_db . '`.domains';
-        my $sth_domains = $dbh->prepare($query);
+        my $sth_domains = $self->dbh()->prepare($query);
         $query = "SELECT alias FROM vexim.domainalias WHERE domain_id = ?";
-        my $sth_domainalias = $dbh->prepare($query);
+        my $sth_domainalias = $self->dbh()->prepare($query);
         $query =
 'SELECT localpart,clear,smtp,pop,type,admin,on_vacation,enabled,forward,maxmsgsize,quota,realname,vacation,on_spamassassin,sa_refuse,crypt,on_forward FROM `'
           . $source_db
           . '`.users WHERE domain_id = ?';
-        my $sth_users = $dbh->prepare($query);
+        my $sth_users = $self->dbh()->prepare($query);
 
         $sth_domains->execute()
           or die( "Could not execute query $query: " . $sth_domains->errstr );
@@ -281,7 +305,7 @@ sub migrate {
                 warn( "Could not execute Query $sql_new_domain: " . $sth_new_domain->errstr );
                 next;
             }
-            my $new_domain_id = $dbh->last_insert_id( undef, undef, undef, undef ) || 1;
+            my $new_domain_id = $self->dbh()->last_insert_id( undef, undef, undef, undef ) || 1;
 
             #
             # Convert domain_aliases
@@ -342,7 +366,7 @@ sub migrate {
                 if ($is_local) {
                     my $pw = '';
                     if ($pwclear) {
-                        $pw = &VWebAdm::SaltedHash::make_pass( $pwclear, $config->{'default'}{'pwscheme'} );
+                        $pw = &VWebAdm::SaltedHash::make_pass( $pwclear, $self->config()->{'default'}{'pwscheme'} );
                     }
                     elsif ( $pwcrypt && $pwcrypt =~ m/^\$1\$/ ) {
                         $pw = '{MD5-CRYPT}' . $pwcrypt;
@@ -368,17 +392,17 @@ sub migrate {
             $source_db = 'postfix';
         }
         my $sql_domains         = "SELECT domain, active FROM domain ORDER BY domain";
-        my $sth_domains         = $dbh->prepare($sql_domains);
+        my $sth_domains         = $self->dbh()->prepare($sql_domains);
         my $sql_alias_domains   = "SELECT alias_domain, active FROM alias_domain WHERE target_domain = ? ORDER BY alias_domain";
-        my $sth_alias_domains   = $dbh->prepare($sql_alias_domains);
+        my $sth_alias_domains   = $self->dbh()->prepare($sql_alias_domains);
         my $sql_mailboxes       = "SELECT local_part, password, name, quota, active FROM mailbox WHERE domain = ?";
-        my $sth_mailboxes       = $dbh->prepare($sql_mailboxes);
+        my $sth_mailboxes       = $self->dbh()->prepare($sql_mailboxes);
         my $sql_domain_admin    = "SELECT username, domain FROM domains_admins WHERE active = 1";
-        my $sth_domain_admin    = $dbh->prepare($sql_domain_admin);
+        my $sth_domain_admin    = $self->dbh()->prepare($sql_domain_admin);
         my $sql_vacation        = "SELECT subject, body FROM vacation WHERE email = ?";
-        my $sth_vacation        = $dbh->prepare($sql_vacation);
+        my $sth_vacation        = $self->dbh()->prepare($sql_vacation);
         my $sql_vacation_notify = "SELECT on_vacation, notified, notified_at FROM vacation_notification WHERE notified_at > NOW() - INTERVAL 1 MONTH";
-        my $sth_vacation_notify = $dbh->prepare($sql_vacation_notify);
+        my $sth_vacation_notify = $self->dbh()->prepare($sql_vacation_notify);
 
         #
         # Domains and Mailboxes
@@ -389,7 +413,7 @@ sub migrate {
             # create a new domain
             $sth_new_domain->execute( $domain, $is_active )
               or die( "Could not execute query $sql_new_domain: " . $sth_new_domain->errstr );
-            my $new_domain_id = $dbh->last_insert_id( undef, undef, undef, undef ) || 1;
+            my $new_domain_id = $self->dbh()->last_insert_id( undef, undef, undef, undef ) || 1;
             $sth_mailboxes->execute($domain)
               or die( "Could not execute query $sql_mailboxes: " . $sth_mailboxes->errstr );
             while ( my @row = $sth_mailboxes->fetchrow_array() ) {
@@ -415,7 +439,7 @@ sub migrate {
                         $vacation_msg   = $msg;
                     }
                 }
-                $sth_new_mailbox->execute( $new_domain_id, $local_part, VWebAdm::SaltedHash::make_pass( $password, $config->{'default'}{'pwscheme'} ),
+                $sth_new_mailbox->execute( $new_domain_id, $local_part, VWebAdm::SaltedHash::make_pass( $password, $self->config()->{'default'}{'pwscheme'} ),
                     $name, $is_active, $maxmsgsize, $is_on_vacation, $vacation_subj, $vacation_msg, $is_domainadmin, $is_siteadmin, $sa_active, $sa_kill_score,
                 ) or die( "Could not execute query $sql_new_mailbox: " . $sth_new_mailbox->errstr );
                 print
@@ -472,7 +496,6 @@ sub migrate {
     $sth_new_mailbox->finish();
     $sth_vacation_status->finish();
     $sth_set_admin->finish();
-    $dbh->disconnect();
     return 1;
 }
 
