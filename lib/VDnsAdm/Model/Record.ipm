@@ -491,16 +491,18 @@ sub delete {
         $self->msg->push( 'error', "Failed to remove record. Insufficient parameters." );
         return;
     }
-    my $query = "SELECT name, type, content, ttl, domain_id FROM " . $self->table_name() . " WHERE id = ?";
+    my $query = "SELECT name, type, content, ttl FROM " . $self->table_name() . " WHERE id = ?";
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $record_id );
     if ( !$sth ) {
         $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
         $self->msg->push( 'error', 'Database error' );
         return;
     }
-    my ( $name, $type, $content, $ttl, $domain_id ) = $sth->fetchrow_array();
+    my ( $name, $type, $content, $ttl ) = $sth->fetchrow_array();
     my $record_name = $self->_get_record_name( { 'name' => $name, 'type' => $type, 'ttl' => $ttl, 'content' => $content, }, );
     $sth->finish();
+
+    my $domain_id = $self->_get_domain_id($record_id);
 
     $query = "DELETE FROM " . $self->table_name() . " WHERE id = ?";
     my @args = ();
@@ -511,7 +513,7 @@ sub delete {
     }
     if ( $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
         $self->msg->push( 'information', "Record [_1] (#[_2]) removed.", $record_name, $record_id );
-        if ( $type ne 'SOA' ) {
+        if ( $type ne 'SOA' && $domain_id ) {    # important: do not check for definedness here!
             $self->bump_serial($domain_id);
         }
         return 1;
@@ -522,6 +524,25 @@ sub delete {
     }
 
     return;
+}
+
+sub _get_domain_id {
+    my $self      = shift;
+    my $record_id = shift;
+
+    my $sql = "SELECT domain_id FROM " . $self->table_name() . " WHERE id = ?";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $record_id );
+
+    if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
+        $self->msg->push( 'error', 'Database error' );
+        return;
+    }
+    else {
+        my $domain_id = $sth->fetchrow_array();
+        $sth->finish();
+        return $domain_id;
+    }
 }
 
 sub _get_record_name {

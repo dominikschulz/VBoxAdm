@@ -111,9 +111,34 @@ sub _list_addn {
 
 sub _get_domain_name {
     my $self   = shift;
-    my $tpl_id = shift;
+    my $params = shift;
 
-    return $self->template()->get_name($tpl_id);
+    my $tpl_id = $params->{'tpl_id'};
+
+    my $domain_name = $self->template()->get_name($tpl_id);
+
+    $self->logger()->log( message => "Got domain-name: $domain_name from template id $tpl_id", level => 'debug', );
+
+    return $domain_name;
+}
+
+sub _get_domain_id {
+    my $self      = shift;
+    my $record_id = shift;
+
+    my $sql = "SELECT tpl_id FROM " . $self->table_name() . " WHERE id = ?";
+    my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, $record_id );
+
+    if ( !$sth ) {
+        $self->logger()->log( message => 'Could not execute query ' . $sql . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
+        $self->msg->push( 'error', 'Database error' );
+        return;
+    }
+    else {
+        my $domain_id = $sth->fetchrow_array();
+        $sth->finish();
+        return $domain_id;
+    }
 }
 
 sub _is_authorized {
