@@ -181,6 +181,51 @@
 		
 		<div class="spacer"></div>
 		
+		[% IF feature_groups %]
+		
+		<label for="group_id">
+			[% "Group:" | l10n %]
+			<span class="small">This domains group.</span>
+		</label>
+		<select name="group_id">
+			[% FOREACH line IN groups %]
+			<option value="[% line.id %]"[% IF line.id == group_id %] selected[% END %]>[% line.name %]</option>
+			[% END %]
+		</select>
+		
+		<div class="spacer"></div>
+		
+		[% END %]
+		
+		[% IF feature_templates %]
+		
+		<label for="template">
+			[% "Template:" | l10n %]
+			<span class="small">The template used to populate this domain.</span>
+		</label>
+		<select name="template">
+			[% FOREACH line IN templates %]
+			<option value="[% line.id %]"[% IF line.id == template_id %] selected[% END %]>[% line.name %]</option>
+			[% END %]
+		</select>
+		
+		<div class="spacer"></div>
+		
+		[% IF feature_linked_templates %]
+		
+		<label for="linked_template">
+			[% "Linked Template:" | l10n %]
+			<span class="small">Link this domain to the template?</span>
+		</label>
+		<input type="checkbox" name="linked_template" [% IF linked_template %] checked[% END %] />
+		
+		<div class="spacer"></div>
+		
+		[% END %]
+		[% END %]
+		
+		<div class="spacer"></div>
+		
 		<button class="button" type="submit" name="submit">
 			<img src="[% media_prefix %]/icons/fffsilk/accept.png" border="0" />
 			[% "Modify Domain-Alias" | l10n %]

@@ -141,6 +141,13 @@ sub _get_domain_id {
     }
 }
 
+sub get_tpl_id {
+    my $self      = shift;
+    my $record_id = shift;
+
+    return $self->_get_domain_id($record_id);
+}
+
 sub _is_authorized {
     my $self   = shift;
     my $action = shift;

@@ -53,7 +53,7 @@ sub _validate_params {
     # Name
     #
     if ( defined( $params->{'name'} ) ) {
-        if ( $params->{'name'} !~ m/^[\w.]{1,255}$/i ) {
+        if ( $params->{'name'} !~ m/^[\w.-]{1,255}$/i ) {
             $self->msg->push( 'error', 'Domain name out of range!' );
             return;
         }
@@ -119,10 +119,13 @@ sub create {
         my $domain_id = $self->dbh->last_insert_id( undef, undef, undef, undef );
         $self->msg->push( 'information', "Domain '[_1]' added", $params->{'name'} );
         $sth->finish();
+
+        # TODO HIGH if this is a linked domain we should add all records from the template, and don't forget about the SOA!
         return $domain_id;
     }
     else {
-        $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . $params->{'name'} . ', Error: ' . $self->dbh()->errstr() );
+        $self->logger()
+          ->log( message => 'Could not execute Query: ' . $query . ', Args: ' . $params->{'name'} . ', Error: ' . $self->dbh()->errstr(), level => 'error', );
         $self->msg->push( 'error', "Failed to add Domain '[_1]'. Database error.", $params->{'name'} );
         return;
     }

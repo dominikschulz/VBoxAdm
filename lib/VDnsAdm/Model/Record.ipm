@@ -157,7 +157,7 @@ sub _init_valid_types {
         },
         'MX' => sub {
             my ( $content, $ttl, $prio ) = @_;    # see RFC1035
-            if ( $prio =~ m/^\d+$/ && $prio > 0 && $content =~ m/^\w+$/i ) {
+            if ( $prio =~ m/^\d+$/ && $prio > 0 && $content =~ m/^[\w.-]+$/i ) {
                 return 1;
             }
             return;
@@ -298,11 +298,11 @@ sub _valid_content {
     my $ttl     = shift;
     my $prio    = shift;
 
-    $self->logger()->log( message => "Checking $type, $content, $ttl, $prio", level => 'debug', );
+    $self->logger()->log( message => "Validating content: $type, $content, $ttl, $prio", level => 'debug', );
 
     if ( defined( $self->valid_types()->{$type} ) && ref( $self->valid_types()->{$type} ) eq 'CODE' ) {
         if ( &{ $self->valid_types()->{$type} }( $content, $ttl, $prio ) ) {
-            $self->logger()->log( message => "Validated content.", level => 'debug', );
+            $self->logger()->log( message => "Valid content.", level => 'debug', );
             return 1;
         }
         else {
@@ -349,8 +349,8 @@ sub _validate_params {
         return;
     }
     if ( !$self->_valid_content( $params->{'type'}, $params->{'content'}, $params->{'ttl'}, $params->{'prio'} ) ) {
-        $self->logger()->log( message => "Record " . $self->_get_record_name($params) . " is invalid.", level => 'debug', );
-        $self->msg->push( 'error', 'Invalid content for type!' );
+        $self->logger()->log( message => "Record '" . $self->_get_record_name($params) . "' is invalid.", level => 'debug', );
+        $self->msg->push( 'error', 'Invalid content for type ' . $params->{'type'} . '!' );
         return;
     }
 
@@ -391,7 +391,9 @@ sub _get_domain_name {
     my $self   = shift;
     my $params = shift;
 
-    return $self->domain()->get_name( $params->{'tpl_id'} );
+    return unless ref($params) eq 'HASH';
+
+    return $self->domain()->get_name( $params->{'domain_id'} );
 }
 
 sub _is_authorized {
@@ -400,6 +402,7 @@ sub _is_authorized {
     my $params = shift;
 
     if ( !$params->{'domain_id'} ) {
+        $self->logger()->log( message => 'No domain_id given. Can not validate authorization!', level => 'warning', );
         return;
     }
     elsif ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() && $params->{'domain_id'} != $self->user->get_domain_id() ) {
@@ -445,7 +448,8 @@ sub create {
     }
 
     # Check authorization, syntax and create record
-    if ( !$self->_is_authorized($params) ) {
+    if ( !$self->_is_authorized( 'create', $params ) ) {
+        $self->logger()->log( message => 'Unauthorized access!', level => 'notice', );
 
         # if domainadmin, verify that its his domain
         $self->msg->push( 'error', "You are not authorized to modify this domain!" );
@@ -565,16 +569,18 @@ sub update {
         return;
     }
 
-    my $query = "SELECT name, type, content, ttl, domain_id FROM " . $self->table_name() . " WHERE id = ?";
+    my $query = "SELECT name, type, content, ttl FROM " . $self->table_name() . " WHERE id = ?";
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $record_id );
     if ( !$sth ) {
         $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
         $self->msg->push( 'error', 'Database error' );
         return;
     }
-    my ( $name, $type, $content, $ttl, $domain_id ) = $sth->fetchrow_array();
+    my ( $name, $type, $content, $ttl ) = $sth->fetchrow_array();
     my $record_name = $self->_get_record_name( { 'name' => $name, 'type' => $type, 'ttl' => $ttl, 'content' => $content, }, );
     $sth->finish();
+
+    my $domain_id = $self->_get_domain_id($record_id);
 
     my $msg_loc = '';
     my $msg_en  = '';

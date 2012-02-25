@@ -315,8 +315,12 @@ TPLFILES = \
 	tpl/vdnsadm/template/edit.tpl \
 	tpl/vdnsadm/template/list.tpl \
 	tpl/vdnsadm/template/show.tpl \
+	tpl/vdnsadm/template_record/create.tpl \
 	tpl/vdnsadm/template_record/create_partial.tpl \
+	tpl/vdnsadm/template_record/edit.tpl \
+	tpl/vdnsadm/template_record/edit_partial.tpl \
 	tpl/vdnsadm/template_record/list.tpl \
+	tpl/vdnsadm/template_record/show.tpl \
 	tpl/vdnsadm/user/create_partial.tpl \
 	tpl/vdnsadm/user/create.tpl \
 	tpl/vdnsadm/user/edit_partial.tpl \

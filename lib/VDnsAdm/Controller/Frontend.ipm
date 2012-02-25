@@ -720,12 +720,26 @@ sub show_domains {
     $mon++;
     my $serial = sprintf( "%4d%02d%02d%02d", $year, $mon, $mday, 1 );
 
+    my @groups    = ();
+    my @templates = ();
+
+    if ( $self->{config}{'default'}{'feature_groups'} ) {
+        @groups = $self->{'Group'}->list();
+    }
+
+    if ( $self->{config}{'default'}{'feature_templates'} ) {
+        @templates = $self->{'Template'}->list();
+        unshift( @templates, { 'id' => 0, 'name' => 'None', } );
+    }
+
     %params = (
         'title'      => $self->{lh}->maketext('VDnsAdm Domains'),
         'current'    => 'domains',
         'domains'    => \@domains,
         'search'     => $search,
         'soa_serial' => $serial,
+        'groups'     => \@groups,
+        'templates'  => \@templates,
     );
 
     return $self->tt_process( 'vdnsadm/domain/list.tpl', \%params );
@@ -806,10 +820,24 @@ sub show_create_domain {
     $mon++;
     my $serial = sprintf( "%4d%02d%02d%02d", $year, $mon, $mday, 1 );
 
+    my @groups    = ();
+    my @templates = ();
+
+    if ( $self->{config}{'default'}{'feature_groups'} ) {
+        @groups = $self->{'Group'}->list();
+    }
+
+    if ( $self->{config}{'default'}{'feature_templates'} ) {
+        @templates = $self->{'Template'}->list();
+        unshift( @templates, { 'id' => 0, 'name' => 'None', } );
+    }
+
     my %params = (
         'title'      => $self->{lh}->maketext('Add Domain'),
         'soa_serial' => $serial,
         'current'    => 'domains',
+        'groups'     => \@groups,
+        'templates'  => \@templates,
     );
 
     return $self->tt_process( 'vdnsadm/domain/create.tpl', \%params );
@@ -822,8 +850,11 @@ sub show_add_domain {
     my $q = $self->query();
 
     my $domain = &VWebAdm::Utils::trim( lc( $q->param('domain') ) );
+    my $group  = &VWebAdm::Utils::trim( $q->param('group_id') );
 
-    if ( my $domain_id = $self->{'Domain'}->create( { 'name' => $domain, 'type' => 'MASTER', 'last_check' => 1, 'notified_serial' => 1, 'is_active' => 1, }, ) )
+    if ( my $domain_id =
+        $self->{'Domain'}
+        ->create( { 'name' => $domain, 'type' => 'MASTER', 'last_check' => 1, 'notified_serial' => 1, 'is_active' => 1, 'group_id' => $group, }, ) )
     {
         $self->log( 'Added Domain ' . $domain );
 
@@ -838,18 +869,19 @@ sub show_add_domain {
         my $soa_minimum = $q->param('soa_minimum');
         my $content     = join( ' ', ( $soa_mname, $soa_rname, $soa_serial, $soa_refresh, $soa_retry, $soa_expire, $soa_minimum ) );
         my $params      = {
-            'ttl'     => $q->param('soa_ttl'),
-            'prio'    => 0,
-            'content' => $content,
-            'type'    => 'SOA',
+            'ttl'       => $q->param('soa_ttl'),
+            'prio'      => 0,
+            'content'   => $content,
+            'type'      => 'SOA',
+            'domain_id' => $domain_id,
         };
 
-        if ( $self->{'Record'}->create( $domain_id, $params ) ) {
+        if ( $self->{'Record'}->create($params) ) {
             $self->log( 'Created SOA record for Domain ' . $domain . ' (' . $domain_id . ')' );
         }
         else {
             $self->log( 'Failed to create SOA record for Domain ' . $domain . ' (' . $domain_id . ')' );
-            $self->add_message( 'error', 'Database Error!' );
+            $self->add_message( 'error', 'Database Error when adding SOA!' );
         }
     }
     else {
@@ -1081,7 +1113,7 @@ sub show_add_record {
     my $domain_id = $q->param('domain_id');
 
     # set params
-    my $params = {};
+    my $params = { 'domain_id' => $domain_id, };
     foreach my $field ( @{ $self->{'Record'}->fields() } ) {
         next if $field eq 'id';
         if ( defined( $q->param($field) ) ) {
@@ -1089,7 +1121,7 @@ sub show_add_record {
         }
     }
 
-    if ( $self->{'Record'}->create( $domain_id, $params ) ) {
+    if ( $self->{'Record'}->create($params) ) {
         $self->log( 'Added Record for Domain #' . $domain_id );
     }
     else {
@@ -1933,6 +1965,8 @@ sub show_remove_template_record {
 
     my $record_id = $q->param('record_id');
 
+    my $tpl_id = $self->{'TemplateRecord'}->get_tpl_id($record_id);
+
     if ( $self->{'TemplateRecord'}->delete($record_id) ) {
         $self->log( 'Deleted Template Record #' . $record_id );
     }
@@ -1941,7 +1975,7 @@ sub show_remove_template_record {
         $self->add_message( 'error', 'Database Error!' );
     }
 
-    $self->redirect( $self->{base_url} . '?rm=templates' );
+    $self->redirect( $self->{base_url} . '?rm=template&template_id=' . $tpl_id );
     return;
 }
 

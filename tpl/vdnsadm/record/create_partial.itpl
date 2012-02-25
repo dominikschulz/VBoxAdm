@@ -7,11 +7,20 @@
 			[% "Subdomain:" | l10n %]
 			<span class="small">Subdomain</span>
 		</label>
-		<input type="text" name="name" />.<select name="domain_id">
+		<input type="text" name="name" />.
+		[% IF domain_id %]
 			[% FOREACH line IN domains %]
-			<option value="[% line.id %]"[% IF domain_id == line.id %] selected[% END %]>[% line.name %]</option>
+				[% IF line.id == domain_id %]
+					[% line.name %]
+				[% END %]
+			[% END %]
+		[% ELSE %]
+		<select name="domain_id">
+			[% FOREACH line IN domains %]
+			<option value="[% line.id %]">[% line.name %]</option>
 			[% END %]
 		</select>
+		[% END %]
 		
 		<div class="spacer"></div>
 		

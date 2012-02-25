@@ -14,7 +14,7 @@
 			</thead>
 			<tbody>
 		[% END %]
-			<tr class="[% loop.parity %] [% IF line.is_active %]enabled[% ELSE %]disabled[% END %]">
+			<tr class="[% loop.parity %] enabled">
 				<td>
 					<a href="[% base_url %]?rm=template&template_id=[% line.id %]">[% line.name | highlight(search) %]</a>
 				</td>

@@ -162,7 +162,7 @@
 		</label>
 		<select name="template">
 			[% FOREACH line IN templates %]
-			<option value="[% line.id %]">[% line.name %]</option>
+			<option value="[% line.id %]"[% IF line.id == 0 %] selected[% END %]>[% line.name %]</option>
 			[% END %]
 		</select>
 		
@@ -180,6 +180,8 @@
 		
 		[% END %]
 		[% END %]
+		
+		<div class="spacer"></div>
 		
 		<button class="button" type="submit" name="submit">
 			<img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" />

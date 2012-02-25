@@ -5,6 +5,7 @@
 $(document).ready(function() {
 	oTable = $('.datatable').dataTable({
 		"bJQueryUI": true,
+		"bStateSave": true,
 		"sPaginationType": "full_numbers",
 		"iDisplayLength": 25,
 	});
@@ -16,8 +17,8 @@ $('a.modallight[href*=#]').click(function() {
   var popID = $(this).attr('rel'); // Get Popup Name
   var popURL = $(this).attr('href'); // Get Popup href to define size
   // Pull Query & Variables from href URL
-  var query= popURL.split('?');
-  var dim= query[1].split('&');
+  var query = popURL.split('?');
+  var dim = query[1].split('&');
   var popWidth = dim[0].split('=')[1]; // Gets the first query string value
   // Fade in the Popup and add close button
   $('#' + popID).fadeIn().css({ 'width': Number( popWidth ) }).prepend('<a href="#" class="close"><img src="/images/knob/knob_cancel.png" class="btn_close" title="Close Window" alt="Close" /></a>');

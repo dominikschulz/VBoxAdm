@@ -31,7 +31,7 @@
 					[% line.type %]
 				</td>
 				<td>
-					[% line.priority %]
+					[% line.prio %]
 				</td>
 				<td>
 					[% line.content %]
