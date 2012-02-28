@@ -52,16 +52,19 @@ $labels['adminlinktext']  = 'You are registered as a domain administrator. On th
 $messages['enterallpassfields'] = 'To change the password, you need to enter all three password fields.';
 $messages['passwordinconsistency'] = 'Passwords do not match, please try again.';
 
-$messages['savesuccess-config'] = 'Konfiguration erfolgreich gespeichert.';
-$messages['savesuccess-config-saveerror-pass-mismatch'] = 'Successfully saved configuration, but new password was not set (old password mismatch)';
-
-$messages['saveerror-internalerror'] = 'Error saving configuration';
-$messages['saveerror-config-database'] = 'Configuration was not saved due to database error';
-
-$messages['savesuccess-pass'] = 'Das neue Passwort wurde erfolgreiche gespeichert';
-$messages['saveerror-pass-mismatch'] = 'Das neue Passwort wurde nicht gespeichert, da das aktuelle Passwort nicht stimmt';
+$messages['saveerror-config-database'] = 'Die Konfiguration konnte wegen eines Datenbankfehlers nicht gespeichert werden';
+$messages['saveerror-internalerror'] = 'Interner Fehler beim speichern der Konfiguration';
 $messages['saveerror-pass-database'] = 'Das neue Passwort konnte nicht gespeichert werden (Datenbankfehler)';
-$messages['saveerror-pass-norows'] = 'Das neue Passwort konnte nicht gespeichert werden (Datenbankfehler: keine Eintraege           gefunden)';
+$messages['saveerror-pass-mismatch'] = 'Das neue Passwort wurde nicht gespeichert, da das aktuelle Passwort nicht stimmt';
+$messages['saveerror-pass-norows'] = 'Das neue Passwort konnte nicht gespeichert werden (Datenbankfehler: keine Eintraege gefunden)';
 $messages['saveerror-pass-too-weak'] = 'Das neue Passwort konnte nicht gespeichert werden (Das neue Passwort ist zu einfach)';
 
+$messages['savesuccess-config'] = 'Konfiguration erfolgreich gespeichert.';
+$messages['savesuccess-config-saveerror-pass-database'] = 'Konfiguration erfolgreich gespeichert, aber Passwort nicht geändert (Datenbankfehler)';
+$messages['savesuccess-config-saveerror-pass-mismatch'] = 'Konfiguration erfolgreich gespeichert, aber Passwort nicht geändert (altes Passwort falsch)';
+$messages['savesuccess-config-saveerror-pass-norows'] = 'Konfiguration erfolgreich gespeichert, aber Passwort nicht geändert (keine passenden Einträge in DB)';
+$messages['savesuccess-config-saveerror-pass-too-weak'] = 'Konfiguration erfolgreich gespeichert, aber Passwort nicht geändert (neues Passwort zu unsicher)';
+$messages['savesuccess-config-saveerror-verify-mismatch'] = 'Konfiguration erfolgreich gespeichert, aber Passwort nicht geändert (Passwörter stimmen nicht überein)';
+
+$messages['savesuccess-pass'] = 'Das neue Passwort wurde erfolgreiche gespeichert';
 ?>

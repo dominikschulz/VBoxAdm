@@ -43,16 +43,18 @@ $labels['adminlinktext']  = 'You are registered as a domain administrator. On th
 $messages['enterallpassfields'] = 'To change the password, you need to enter all three password fields.';
 $messages['passwordinconsistency'] = 'Passwords do not match, please try again.';
 
-$messages['savesuccess-config'] = 'Successfully saved configuration';
-$messages['savesuccess-config-saveerror-pass-mismatch'] = 'Successfully saved configuration, but new password was not set (old password mismatch)';
-
-$messages['saveerror-internalerror'] = 'Error saving configuration';
 $messages['saveerror-config-database'] = 'Configuration was not saved due to database error';
-
-$messages['savesuccess-pass'] = 'New password was set successfully';
-$messages['saveerror-pass-mismatch'] = 'New password was not set (old passord mismatch)';
+$messages['saveerror-internalerror'] = 'Error saving configuration';
 $messages['saveerror-pass-database'] = 'New password was not set (database error)';
+$messages['saveerror-pass-mismatch'] = 'New password was not set (old passord mismatch)';
 $messages['saveerror-pass-norows'] = 'New password was not set (no database rows affected)';
 $messages['saveerror-pass-too-weak'] = 'New password was not set (new password is too weak)';
 
+$messages['savesuccess-config'] = 'Successfully saved configuration';
+$messages['savesuccess-config-saveerror-pass-database'] = 'Successfully saved configuration, but new password was not set (database error)';
+$messages['savesuccess-config-saveerror-pass-mismatch'] = 'Successfully saved configuration, but new password was not set (old password mismatch)';
+$messages['savesuccess-config-saveerror-pass-norows'] = 'Successfully saved configuration, but new password was not set (no database rows affected)';
+$messages['savesuccess-config-saveerror-pass-too-weak'] = 'Successfully saved configuration, but new password was not set (new password is too weak)';
+$messages['savesuccess-config-saveerror-verify-mismatch'] = 'Successfully saved configuration, but new password was not set (passwords do not match)';
+$messages['savesuccess-pass'] = 'New password was set successfully';
 ?>
