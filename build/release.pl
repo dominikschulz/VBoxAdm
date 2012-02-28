@@ -183,7 +183,9 @@ run_cmd($cmd);
 if(!$opt_local) {
     for my $dest (@git_dests) {
         $cmd = "git push $dest master";
-        run_cmd($cmd);
+        run_cmd($cmd, { MayFail => 1, });
+	$cmd = "git push --tags $dest master";
+        run_cmd($cmd, { MayFail => 1, });
     }
 }
 
