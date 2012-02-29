@@ -4,7 +4,7 @@
 
 # some variables
 NAME = vboxadm
-VERSION = 0.2.16
+VERSION = 0.2.17
 BUILDDATE = $(shell date +%Y-%m-%d)
 WWWUSER ?= www-data
 WWWGROUP ?= www-data
