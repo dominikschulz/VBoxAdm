@@ -112,6 +112,20 @@ BEGIN { use_ok( 'VWebAdm::SaltedHash', '@VERSION@' ); }
     # pwgen -snc 32 1
     is( VWebAdm::SaltedHash::ssha256( 'OUU1LPe3p6ZkK9Oz', pack( 'C*', ( 0x7c, 0x3a, 0x62, 0xb1 ) ) ),
         '{SSHA256}Ak4I8sTg2fbAbTtF3QU4MnsyB17bJBHo5F3BZroGhAJ8OmKx', 'SSHA256' );
+
+    # mustermann - VWebAdm::SaltedHash
+    is(
+        VWebAdm::SaltedHash::ssha256( 'mustermann', pack( 'C*', ( 0x50, 0x4f, 0x79, 0x42 ) ) ),
+        '{SSHA256}8UErSP924SNgFSmnVg6CaaRKoTtwM5XFSCriwNyYhRFQT3lC',
+        'SSHA256 - mustermann - perl'
+    );
+
+    # mustermann - PHP DovecotPW
+    is(
+        VWebAdm::SaltedHash::ssha256( 'mustermann', pack( 'C*', ( 0xd2, 0x87, 0x55, 0xc5, 0xaf, 0x61, 0x92, 0x15, 0x78 ) ) ),
+        '{SSHA256}uagyo3EZ7E3Shrjna+YnqBjeXfqSF2KCt8gkZB81trTSh1XFr2GSFXg=',
+        'SSHA256 - mustermann - php'
+    );
 }
 
 # Test sha512

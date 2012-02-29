@@ -352,16 +352,18 @@ sub setup {
     $self->tt_params( base_url     => $self->{base_url} );
     $self->tt_params( media_prefix => $self->{media_prefix} );
 
+    my $Messages = VWebAdm::Model::MessageQueue::->new(
+        {
+            'lh'      => $self->{'lh'},
+            'lh_en'   => $self->{'lh_en'},
+            'session' => $self->session,
+            'logger'  => $Logger,
+        }
+    );
+    $self->{'Messages'} = $Messages;
+
     # setup classes if the user is logged in
     if ( $self->authen->is_authenticated && $self->authen->username ) {
-        my $Messages = VWebAdm::Model::MessageQueue::->new(
-            {
-                'lh'      => $self->{'lh'},
-                'lh_en'   => $self->{'lh_en'},
-                'session' => $self->session,
-                'logger'  => $Logger,
-            }
-        );
 
         # if we can not create a new user object we MUST NOT die but redirect to login page instead
         my $User;
@@ -382,8 +384,8 @@ sub setup {
             $self->log("Could not create User Object: $@");
         }
         else {
-            $self->{'Messages'} = $Messages;
-            $self->{'User'}     = $User;
+
+            $self->{'User'} = $User;
             my $arg_ref = {
                 'dbh'    => $self->dbh,
                 'user'   => $User,
@@ -537,8 +539,17 @@ sub post_login_callback {
 # See Also   : n/a
 sub log_login {
     my $self = shift;
-    return unless ( $self->authen->is_authenticated );
-    $self->log( "User " . $self->authen->username . " logged in.", );
+    if ( $self->authen->is_authenticated ) {
+        $self->log( "User " . $self->authen->username . " logged in.", );
+    }
+    elsif ( $self->authen->login_attempts() && !$self->authen->is_authenticated ) {
+        $self->log( "Login failed for: " . $self->query()->param('authen_username') );
+        $self->add_message( 'error', 'Login failed!' );
+    }
+    else {
+
+        # no-logged in user accessing the login page, don't log this ...
+    }
     return 1;
 }
 

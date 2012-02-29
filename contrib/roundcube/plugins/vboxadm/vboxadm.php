@@ -809,9 +809,9 @@ class DovecotPW {
 	
 	private $hashlen = array(
 		'smd5'    => 16,
-	    'ssha'    => 20,
-	    'ssha256' => 32,
-	    'ssha512' => 64,
+		'ssha'    => 20,
+		'ssha256' => 32,
+		'ssha512' => 64,
 	);
 	
 	public function setConfig($config) {
