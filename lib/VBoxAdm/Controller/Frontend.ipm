@@ -1470,9 +1470,11 @@ sub show_create_mailbox {
     my @domains = $self->{'Domain'}->list();
 
     my %params = (
-        'title'   => $self->{lh}->maketext('Add Mailbox'),
-        'domains' => \@domains,
-        'current' => 'mailboxes',
+        'title'           => $self->{lh}->maketext('Add Mailbox'),
+        'domains'         => \@domains,
+        'current'         => 'mailboxes',
+        'max_msg_size_mb' => 25,
+        'sa_kill_score'   => 6.31,
     );
 
     return $self->tt_process( 'vboxadm/mailbox/create.tpl', \%params );
@@ -1492,7 +1494,7 @@ sub show_add_mailbox {
         'Name'            => $q->param('name'),
         'IsActive'        => $q->param('is_active'),
         'SendWelcomeMail' => $q->param('send_welcome_mail'),
-        'MaxMsgSize'      => $q->param('max_msg_size_mb'),
+        'MaxMsgSize'      => $q->param('max_msg_size_mb') || 20,
         'SAActive'        => $q->param('sa_active'),
         'SAKillScore'     => $q->param('sa_kill_score') || $self->{'config'}{'cgi'}{'sa_default_block_score'} || 6.31,
         'IsSiteadmin'     => 0,

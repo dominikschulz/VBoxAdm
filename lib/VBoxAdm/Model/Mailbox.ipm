@@ -50,7 +50,7 @@ sub create {
         'sa_kill_score'  => $self->config->{'cgi'}{'sa_default_block_score'} || 6.31,
         'is_domainadmin' => 0,
         'is_siteadmin'   => 0,
-        'max_msg_size'   => 15 * 1024,
+        'max_msg_size'   => 15 * 1024 * 1024,
         'quota'          => 100 * 1024 * 1024,
     );
 
@@ -99,7 +99,7 @@ sub create {
     # MaxMessageSize
     #
     if ( $params->{'MaxMsgSize'} ) {
-        $args{'max_msg_size'} = $params->{'MaxMsgSize'} * 1024;
+        $args{'max_msg_size'} = $params->{'MaxMsgSize'} * 1024 * 1024;
     }
 
     #
