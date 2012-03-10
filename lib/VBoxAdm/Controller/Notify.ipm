@@ -125,7 +125,7 @@ sub _init_tt {
 
     # Templates are used to build the mails sent
     my $tpl_config = {
-        INCLUDE_PATH => [ 'tpl', '../tpl', '/usr/lib/vboxadm/tpl' ],
+        INCLUDE_PATH => [ 'tpl', '../tpl', '/usr/lib/vwebadm/tpl' ],
         POST_CHOMP   => 0,
     };
     my $TT = Template->new($tpl_config);
