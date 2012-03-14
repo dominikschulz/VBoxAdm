@@ -440,6 +440,7 @@ sub update {
         #$self->log( "Mailox::update - SQL: ".$query. " - Args: ".join(',',@args));
         if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
             $self->msg->push( 'information', "Updated Mailbox [_1] (#[_2]).", $mailbox_name, $mailbox_id );
+            return 1;
         }
         else {
             $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh()->errstr() );

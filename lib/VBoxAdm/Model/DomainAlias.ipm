@@ -163,6 +163,7 @@ sub update {
         elsif ( $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $params->{'Goto'}, $domain_alias_id ) ) {
             $self->msg->push( 'information', "Domain-Alias [_1] (#[_2]) redirected to Domain [_3] (#[_4]).",
                 $domain_name, $domain_alias_id, $target_domain_name, $params->{'Goto'} );
+            return 1;
         }
         else {
             $self->logger()

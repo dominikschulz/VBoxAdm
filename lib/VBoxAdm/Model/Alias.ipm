@@ -229,6 +229,7 @@ sub update {
         if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
             $self->msg->push( 'information', "Alias [_1] (#[_2]) redirected to [_3].", $alias_name, $alias_id, $target );
             $sth->finish();
+            return 1;
         }
         else {
             $self->logger()
