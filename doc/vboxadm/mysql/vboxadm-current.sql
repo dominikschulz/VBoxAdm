@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 5.1.49, for debian-linux-gnu (x86_64)
+-- MySQL dump 10.13  Distrib 5.1.61, for debian-linux-gnu (x86_64)
 --
 -- Host: localhost    Database: vboxadm
 -- ------------------------------------------------------
--- Server version	5.1.49-3
+-- Server version	5.1.61-0+squeeze1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -27,13 +27,32 @@ CREATE TABLE `aliases` (
   `domain_id` int(16) NOT NULL,
   `local_part` varchar(255) CHARACTER SET latin1 NOT NULL,
   `goto` varchar(255) CHARACTER SET latin1 NOT NULL,
-  `is_active` tinyint(1) NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id`),
   UNIQUE KEY `domain_id` (`domain_id`,`local_part`),
   KEY `active` (`is_active`),
   CONSTRAINT `aliases_ibfk_1` FOREIGN KEY (`domain_id`) REFERENCES `domains` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Temporary table structure for view `aliases_split`
+--
+
+DROP TABLE IF EXISTS `aliases_split`;
+/*!50001 DROP VIEW IF EXISTS `aliases_split`*/;
+SET @saved_cs_client     = @@character_set_client;
+SET character_set_client = utf8;
+/*!50001 CREATE TABLE `aliases_split` (
+  `id` int(16),
+  `domain_id` int(16),
+  `local_part` varchar(255),
+  `goto` varchar(255),
+  `is_active` tinyint(1),
+  `userpart` varchar(255),
+  `domainpart` varchar(255)
+) ENGINE=MyISAM */;
+SET character_set_client = @saved_cs_client;
 
 --
 -- Table structure for table `archiv_2011_01`
@@ -60,7 +79,7 @@ CREATE TABLE `awl` (
   `id` int(16) NOT NULL AUTO_INCREMENT,
   `email` varchar(255) NOT NULL,
   `last_seen` datetime NOT NULL,
-  `disabled` tinyint(1) NOT NULL,
+  `disabled` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `email` (`email`)
 ) ENGINE=MyISAM  DEFAULT CHARSET=utf8;
@@ -77,7 +96,7 @@ CREATE TABLE `domain_aliases` (
   `id` int(16) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
   `domain_id` int(16) NOT NULL,
-  `is_active` tinyint(1) NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`),
   KEY `active` (`is_active`),
@@ -96,7 +115,7 @@ DROP TABLE IF EXISTS `domains`;
 CREATE TABLE `domains` (
   `id` int(16) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
-  `is_active` tinyint(1) NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `is_relay_domain` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`),
@@ -130,18 +149,18 @@ CREATE TABLE `mailboxes` (
   `local_part` varchar(255) NOT NULL,
   `password` varchar(255) NOT NULL,
   `name` varchar(255) NOT NULL,
-  `is_active` tinyint(1) NOT NULL,
-  `max_msg_size` int(16) NOT NULL,
-  `is_on_vacation` tinyint(1) NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `max_msg_size` int(16) unsigned NOT NULL DEFAULT '26214400',
+  `is_on_vacation` tinyint(1) NOT NULL DEFAULT '0',
   `vacation_subj` varchar(255) NOT NULL,
   `vacation_msg` text NOT NULL,
   `vacation_start` date NOT NULL,
   `vacation_end` date NOT NULL,
-  `quota` int(16) NOT NULL,
-  `is_domainadmin` tinyint(1) NOT NULL,
-  `is_siteadmin` tinyint(1) NOT NULL,
-  `sa_active` tinyint(1) NOT NULL,
-  `sa_kill_score` decimal(5,2) NOT NULL,
+  `quota` int(16) unsigned NOT NULL DEFAULT '26214400',
+  `is_domainadmin` tinyint(1) NOT NULL DEFAULT '0',
+  `is_siteadmin` tinyint(1) NOT NULL DEFAULT '0',
+  `sa_active` tinyint(1) NOT NULL DEFAULT '0',
+  `sa_kill_score` decimal(5,2) NOT NULL DEFAULT '6.31',
   `pw_ts` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `pw_lock` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
@@ -216,6 +235,25 @@ CREATE TABLE `vacation_notify` (
   KEY `notified_at` (`notified_at`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Final view structure for view `aliases_split`
+--
+
+/*!50001 DROP TABLE IF EXISTS `aliases_split`*/;
+/*!50001 DROP VIEW IF EXISTS `aliases_split`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8 */;
+/*!50001 SET character_set_results     = utf8 */;
+/*!50001 SET collation_connection      = utf8_general_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `aliases_split` AS select `aliases`.`id` AS `id`,`aliases`.`domain_id` AS `domain_id`,`aliases`.`local_part` AS `local_part`,`aliases`.`goto` AS `goto`,`aliases`.`is_active` AS `is_active`,substring_index(`aliases`.`goto`,'@',1) AS `userpart`,substring_index(`aliases`.`goto`,'@',-(1)) AS `domainpart` from `aliases` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -226,4 +264,4 @@ CREATE TABLE `vacation_notify` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2012-02-01 20:22:50
+-- Dump completed on 2012-03-17 11:48:21
