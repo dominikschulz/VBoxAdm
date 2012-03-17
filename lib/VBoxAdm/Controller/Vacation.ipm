@@ -124,7 +124,7 @@ sub _init_notify_interval {
 sub _init_logger {
     my $self = shift;
 
-    return VWebAdm::Logger::->new('vboxadm-vacation');
+    return VWebAdm::Logger::->new( { facility => 'vboxadm-vacation', filename => '/var/log/vboxadm/vacation.log', } );
 }
 
 sub _init_recipient {

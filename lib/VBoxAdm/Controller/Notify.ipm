@@ -372,6 +372,7 @@ sub _process_bounces {
     my $password    = $self->config()->{'notfiy'}->{'bounce_pass'};
 
     if ( !$mail_server || !$username || !$password ) {
+        $self->logger()->log( message => 'Bounce-Handling not configured. Aborting.', level => 'debug', );
         return;
     }
 
@@ -380,7 +381,7 @@ sub _process_bounces {
     my $bounces = 0;
 
     # connect to the mailserver
-    my $pop = new Mail::POP3Client( HOST => $mail_server );
+    my $pop = Mail::POP3Client::->new( HOST => $mail_server );
     $pop->User($username);
     $pop->Pass($password);
     $pop->Connect() >= 0 || next;
@@ -493,6 +494,9 @@ sub _process_bounces {
             $spams++;
             $pop->Delete($i);
         }
+
+        # TODO handle DMARC, DKIM, ARF reports, too
+
         ##############
         # UNKNOWN
         #######

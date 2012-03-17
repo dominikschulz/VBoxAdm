@@ -21,7 +21,7 @@ sub create {
         return;
     }
 
-    if ( $email ) {
+    if ($email) {
         my $query = "INSERT INTO vacation_blacklist (local_part,domain) VALUES(?,?)";
         my ( $local_part, $domain ) = split /@/, $email;
         if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, $local_part, $domain ) ) {

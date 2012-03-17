@@ -405,6 +405,7 @@ real-install: all test rcvboxadm
 	$(INSTALL) -d $(MANDIR)/man3
 	$(INSTALL) -d $(MANDIR)/man8
 	$(INSTALL) -d $(VBOXLIBDIR)/bin
+	$(INSTALL) -d $(VBOXLIBDIR)/munin
 	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/alias
 	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/autoconfig
 	$(INSTALL) -d $(VWEBLIBDIR)/tpl/vboxadm/awl
@@ -450,6 +451,8 @@ real-install: all test rcvboxadm
 	$(INSTALL_PROGRAM) cron/cleanup.pl $(VBOXLIBDIR)/bin/cleanup
 	$(INSTALL_PROGRAM) cron/mailarchive.pl $(VBOXLIBDIR)/bin/mailarchive
 	$(INSTALL_PROGRAM) cron/notify.pl $(VBOXLIBDIR)/bin/notify
+	$(INSTALL_PROGRAM) contrib/munin/vboxadm_cache $(VBOXLIBDIR)/munin/vboxadm_cache
+	$(INSTALL_PROGRAM) contrib/munin/vboxadm_spam $(VBOXLIBDIR)/munin/vboxadm_spam
 	$(INSTALL_CONF) doc/vboxadm/apache/vboxadm.conf $(CFGDIR)/vboxadm/apache.conf
 	$(INSTALL_CONF) doc/vboxadm/lighttpd/50-vboxadm.conf $(CFGDIR)/vboxadm/lighttpd.conf
 	$(INSTALL_CONF) doc/vdnsadm/apache/vdnsadm.conf $(CFGDIR)/vdnsadm/apache.conf

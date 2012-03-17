@@ -1,0 +1,26 @@
+#!/bin/bash
+
+case $1 in
+	autoconf)
+		echo yes
+		;;
+
+	config)
+		echo 'graph_title Cache Hitrate'
+		echo 'graph_vlabel hits per second'
+		echo 'graph_category vboxadm'
+		echo 'graph_info This graph show the cache hits per second'
+		echo 'hits.label Cache Hits'
+		echo 'hits.type DERIVE'
+		echo 'hits.min 0'
+		echo 'miss.label Cache Misses'
+		echo 'miss.type DERIVE'
+		echo 'miss.min 0'
+		;;
+
+	*)
+		echo "hits.value `egrep -a 'want_sa = [01] from cache' /var/log/vboxadm/sa.log | wc -l`"
+		echo "miss.value `egrep -a 'want_sa = [01] from DB' /var/log/vboxadm/sa.log | wc -l`"
+		;;
+esac
+

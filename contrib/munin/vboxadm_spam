@@ -1,0 +1,26 @@
+#!/bin/bash
+
+case $1 in
+	autoconf)
+		echo yes
+		;;
+
+	config)
+		echo 'graph_title Spam Rate'
+		echo 'graph_vlabel mails per second'
+		echo 'graph_category vboxadm'
+		echo 'graph_info This graph show the number of mails classified as spam per second'
+		echo 'ham.label Ham Mails'
+		echo 'ham.type DERIVE'
+		echo 'ham.min 0'
+		echo 'spam.label Spam Mails' 
+		echo 'spam.type DERIVE'
+		echo 'spam.min 0'
+		;;
+
+	*)
+		echo "ham.value `grep -a 'clean message' /var/log/vboxadm/sa.log | wc -l`"
+		echo "spam.value `grep -a 'identified spam' /var/log/vboxadm/sa.log | wc -l`"
+		;;
+esac
+
