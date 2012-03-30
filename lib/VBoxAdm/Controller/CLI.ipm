@@ -539,7 +539,7 @@ Available subcommands:
 Available subcommands:
 \tadd <email>
 \tupdate <email> -a 1|0
-\t list
+\tlist
 ",
         'domain' => "Domain - Manage Domains
 Available subcommands:
@@ -1043,47 +1043,75 @@ __PACKAGE__->meta->make_immutable;
 __END__
 
 Common opts:
--f - force
--q - quiet
--v - verbose
+-v - Verbose
+-d - Dry
+-q - Quiet
+-f - Force
+-n - Name
+-s - Source-DB
+-d - Destination-DB
+--truncate - Truncate Destination before migration
+--bootstrap - If invoked as root user this option skips all password checks.
+  This option is required to create the first user in the database (i.e. bootstrap).
+--config - Location of config file
+-a - Is active?
+-g - Goto/Target
+-p - Password
+-m - Max. Msg. Size in MB
+--siteadmin - Is Siteadmin?
+--domainadmin - Is Domainadmin?
+-k - SA Kill Score
+--saactive - SA active?
+--vacation - Is on vacation?
+--vacsubj - Subject of Vacation reply
+--vacmsg - Message of Vacation reply
+--vacstart - Start of Vacation
+--vacend - End of Vacation
+--forcepass - Allow changing of locked passwords
 
-=head1 User
+=head1 Mailbox
 
-user add [-p <password>] [-n <name>] <email> - Add a new user/mailbox
-user update [-p <password>] [-n <name>] [- ...] <email> - Modify mailbox
-user delete <email> - Delete mailbox
+mailbox add [-p <password>] [-n <name>] <email> - Add a new user/mailbox
+mailbox update [-p <password>] [-n <name>] [- ...] <email> - Modify mailbox
+mailbox delete <email> - Delete mailbox
+mailbox list - List mailboxes
 
 =head1 Alias
 
-alias add <email> <goto>
-alias update <email> <goto>
-alias delete <email>
+alias add <email> <goto> - Add a new <email> alias with <goto> as target(s)
+alias update <email> <goto> - Modify alias <email> with <goto> as target(s)
+alias delete <email> - Delete alias
+alias list - List aliases
 
 =head1 Domain
 
-domain add <domain>
-domain update [...] <domain>
-domain delete <domain>
+domain add <domain> - Add a new domain
+domain update [...] <domain> - Modify an exisiting domain
+domain delete <domain> - Delete a domain
+domain list - List domains
 
 =head1 Domain Alias
 
-domainalias add <domain> <goto>
-domainalias update [...] <domain>
-domainalias delete <domain>
+domainalias add <domain> <goto> - Add <domain> as new alias to <goto>
+domainalias update [...] <domain> - Modify a domain alias
+domainalias delete <domain> - Delete a domain alias
+domainalias list - List domain aliases
 
 =head1 Vacation Blacklist
 
-vbl add <email>
+vacbl add <email> - Add <email> to the list of mailboxes not allowed to trigger a
+  vacation reply.
+vacbl delete <email> - Delete <email> from the vacation blacklist
+vacbl list - List the vacation blacklist
 
 =head1 AWL
 
-awl add <email>
-awl lock <email>
+awl add <email> - Add <email> to the auto whiteliste
+awl update <email> -a 0|1 - Modify a whitelist entry
+awl list - List whitelist entries
 
-=head1 Setup
+=head1 Migration
 
-setup - enter interactive setup
+migrate --source <source> --source-db <source-db> - Migrate from <source> format
+  (either debmin1, debmin2, vexim of postfixadmin) with <source-db> as data source.
 
-=head1 migrate
-
-migrate -s <source-db> -t <source-type>

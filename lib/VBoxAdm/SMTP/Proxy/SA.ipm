@@ -747,6 +747,9 @@ dbhost - The MySQL database host, usually localhost.
 
 =head2 smtpproxy
 
+nodb - Don't use a database
+soft_bounce - Bounce messages w/ a temporary error code (4xx)
+caching - Cache results to reduce calls to SpamAssassin and the Database
 listen - Hostname:Port - Listen on this hostname (or IP) and port for
 incoming SMTP dialogs.
 connect - Hostname:Port - Connect to this hostname (or IP) and port
