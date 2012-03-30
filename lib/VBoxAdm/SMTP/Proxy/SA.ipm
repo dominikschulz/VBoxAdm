@@ -90,6 +90,8 @@ SQL
 sub process_request {
     my $self = shift;
 
+    my $reject_spam = $self->{server}->{vbox}->{reject_spam};
+
     # Check if the sql server went away
     if ( !$self->{server}->{vbox}->{nodb} && !$self->{server}->{vbox}->{dbh}->ping() ) {
         $self->logger()->log( message => "Ooops, looks like the SQL server went away. Trying to reconnect ...", level => 'notice', );
@@ -178,7 +180,7 @@ sub process_request {
                 }
 
                 # CHECK: SpamAssassin
-                if ( $self->is_spam($smtp_server) ) {
+                if ( $self->is_spam($smtp_server) && $reject_spam ) {
                     my $msg = "Your message appears to be SPAM";
                     if ( $self->{server}->{vbox}->{dry} ) {
                         $self->{'server'}->{'logger'}->log( message => "DRY: $msg. Would reject this mail.", level => 'notice', );
@@ -418,7 +420,8 @@ sub is_spam {
 
     my $is_spam = 0;
 
-    my $time_start = time;
+    my $time_start  = time;
+    my $reject_spam = $self->{server}->{vbox}->{reject_spam};
 
     my $msg_size = ( $server->{data}->stat )[7];
     if ( $msg_size > $self->{server}->{vbox}->{sa_max_msg_size} ) {
@@ -571,8 +574,10 @@ sub is_spam {
             else {
                 $is_spam     = 0;
                 $was_it_spam = 'clean message';
+            }
+            if ( $is_spam == 0 || $reject_spam == 0 ) {
 
-                # No spam, only add header to inform the user
+                # No spam or accepting spam for delivery: add header to inform the user
                 # what checks were performed and what the spam rating is
                 # remember that this anti-spam proxy is meant to act as an pre-queue filter,
                 # so spam is rejected and NOT delivered to the users inbox. since he will never
@@ -749,6 +754,7 @@ dbhost - The MySQL database host, usually localhost.
 
 nodb - Don't use a database
 soft_bounce - Bounce messages w/ a temporary error code (4xx)
+reject_spam - Reject mails classified as spam
 caching - Cache results to reduce calls to SpamAssassin and the Database
 listen - Hostname:Port - Listen on this hostname (or IP) and port for
 incoming SMTP dialogs.

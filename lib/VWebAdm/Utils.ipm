@@ -193,6 +193,7 @@ sub trim2 {
 }
 
 {
+
     # TODO see Email::Valid, maybe this could be used instead
 
     # RFC2822 email syntax
