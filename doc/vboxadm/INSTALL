@@ -239,7 +239,7 @@ START_SMTPPROXY in the file /etc/default/vboxadm-sa to true.
 Use the script bin/vboxadm.pl to create a new siteadmin. In order for the bootstrap option to work you'll have
 to run this script as root.
 
-$> bin/vboxadm.pl mailbox add your.name@domain.tld --bootstrap -a 1 --siteadmin=1
+$> vboxadm mailbox add your.name@domain.tld --bootstrap -a 1 --siteadmin=1
 
 Use the supplied information to log in to VBoxAdm and create your
 users and mailboxes.
