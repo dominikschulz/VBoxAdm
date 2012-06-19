@@ -109,9 +109,13 @@ BEGIN { use_ok( 'VWebAdm::SaltedHash', '@VERSION@' ); }
     isnt( VWebAdm::SaltedHash::ssha256( 'Xw1S7cBNpwTdoypo2WmzVqs0XYykVRel', pack( 'C*', ( 0x0b, 0xdf, 0x2e, 0x45 ) ) ),
         '{SSHA256}m7b51ofSx3WRsnf1hBSO660uEyBdDwTKlu3vl+eHavsK3y5f', 'SSHA256' );
 
-    # pwgen -snc 32 1
+    # 1. - pwgen -snc 16 1
     is( VWebAdm::SaltedHash::ssha256( 'OUU1LPe3p6ZkK9Oz', pack( 'C*', ( 0x7c, 0x3a, 0x62, 0xb1 ) ) ),
         '{SSHA256}Ak4I8sTg2fbAbTtF3QU4MnsyB17bJBHo5F3BZroGhAJ8OmKx', 'SSHA256' );
+    
+    # 2. - pwgen -snc 16 1
+    is( VWebAdm::SaltedHash::ssha256( 'KH3njjM3NLjebNew', pack( 'C*', ( 0x3f, 0x01, 0xdd, 0xf3 ) ) ),
+        '{SSHA256}/rPa6Fx13Eg5KTWA70j8YMZMkxVH6gKrKTVh9TFi7NA/Ad3z', 'SSHA256' );
 
     # mustermann - VWebAdm::SaltedHash
     is(
