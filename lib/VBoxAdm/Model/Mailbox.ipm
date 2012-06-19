@@ -141,7 +141,7 @@ sub create {
         $self->msg->push( 'error', "Invalid local part. This address is not RFC822 compliant!" );
     }
     else {
-        $args{'password'} = &VWebAdm::SaltedHash::make_pass( $args{'password'}, $pwscheme );
+        $args{'password'} = &VWebAdm::SaltedHash::make_pass( $args{'password'}, $pwscheme ) if $args{'password'};
         my $query = "INSERT INTO mailboxes (" . join( ",", keys %args ) . ") VALUES(";
         $query .= "?," x ( scalar( keys %args ) - 1 );
         $query .= "?)";
@@ -236,6 +236,8 @@ sub update {
     my @args = ();
 
     foreach my $key ( keys %{$params} ) {
+        next if $key eq 'Password';
+        next if $key eq 'PasswordAgain';
         $params->{$key} = Encode::decode( 'UTF-8', $params->{$key} );
     }
 

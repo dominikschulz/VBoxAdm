@@ -1489,8 +1489,8 @@ sub show_add_mailbox {
     my $domain_id  = $q->param('domain');
     my $local_part = &VWebAdm::Utils::trim( lc( $q->param('username') ) );
     my %params     = (
-        'Password'        => $q->param('password'),
-        'PasswordAgain'   => $q->param('password_2'),
+        'Password'        => $q->param('new_password_1'),
+        'PasswordAgain'   => $q->param('new_password_2'),
         'Name'            => $q->param('name'),
         'IsActive'        => $q->param('is_active'),
         'SendWelcomeMail' => $q->param('send_welcome_mail'),
@@ -1620,8 +1620,8 @@ sub show_update_mailbox {
 
     # TODO name keys in tempaltes acordingly and remove key translatation ... everywhere
     my %keys = (
-        'password'        => 'Password',
-        'password_2'      => 'PasswordAgain',
+        'new_password_1'  => 'Password',
+        'new_password_2'  => 'PasswordAgain',
         'name'            => 'Name',
         'is_active'       => 'IsActive',
         'max_msg_size_mb' => 'MaxMsgSize',

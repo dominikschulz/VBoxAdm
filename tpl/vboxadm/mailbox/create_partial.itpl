@@ -20,19 +20,19 @@
 
 		<div class="spacer"></div>
 		
-		<label for="password">
+		<label for="new_password_1">
 			[% "Password:" | l10n %]
 			<span class="small">[% "Leave both password fields empty to autogenerate a password." | l10n %]</span>
 		</label>
-		<input type="password" name="password" />
+		<input type="password" name="new_password_1" autocomplete="off" />
 		
 		<div class="spacer"></div>
 		
-		<label for="password_2">
+		<label for="new_password_2">
 			[% "Password (again):" | l10n %]
 			<span class="small">[% "Please type in the same password again." | l10n %]</span>
 		</label>
-		<input type="password" name="password_2" />
+		<input type="password" name="new_password_2" autocomplete="off" />
 		
 		<div class="spacer"></div>
 		

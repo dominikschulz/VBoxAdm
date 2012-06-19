@@ -134,8 +134,6 @@ BEGIN { use_ok( 'VWebAdm::SaltedHash', '@VERSION@' ); }
 
 # Test sha512
 {
-
-    #is(VWebAdm::SaltedHash::sha('sha512'),'','SHA512');
     foreach my $i ( 1 .. 20 ) {
         ok( VWebAdm::SaltedHash::verify_pass( 'pw' . $i, VWebAdm::SaltedHash::make_pass( 'pw' . $i, 'sha512' ) ), 'Test sha512 #' . $i );
     }
@@ -143,8 +141,6 @@ BEGIN { use_ok( 'VWebAdm::SaltedHash', '@VERSION@' ); }
 
 # Test ssha512
 {
-
-    #is(VWebAdm::SaltedHash::sha('ssha512'),'','SSHA512');
     foreach my $i ( 1 .. 20 ) {
         ok( VWebAdm::SaltedHash::verify_pass( 'pw' . $i, VWebAdm::SaltedHash::make_pass( 'pw' . $i, 'ssha512' ) ), 'Test ssha512 #' . $i );
     }
@@ -155,5 +151,25 @@ BEGIN { use_ok( 'VWebAdm::SaltedHash', '@VERSION@' ); }
     ok( VWebAdm::SaltedHash::verify_pass( 'ssha256', '{SSHA256}pJBnkoz8dh7xoiQL1eRMYQqnPD190Ni/xVMGwnbcG2sTft+e' ), 'verify pass ssha256' );
     foreach my $i ( 1 .. 20 ) {
         ok( VWebAdm::SaltedHash::verify_pass( 'pw' . $i, VWebAdm::SaltedHash::make_pass( 'pw' . $i, 'ssha512' ) ), 'Test ssha512 #' . $i );
+    }
+}
+
+# Test compatiblity with Roundcube plugin
+{
+    foreach my $pwscheme (qw(md5 smd5 sha ssha sha256 ssha256 sha512 ssha512 cram_md5 plain_md5 ldap_md5)) {
+        # Subtest 1: Generate password hashes with perl and verify them with php
+        foreach my $i ( 1 .. 20 ) {
+            my $pwplain = 'pw' . $pwscheme.$i;
+            my $pwcrypt = VWebAdm::SaltedHash::make_pass($pwplain, $pwscheme);
+            my $rv = system('t/php/vboxadm-rc.php verify '.$pwplain) >> 8;
+            is( $rv, 0, 'Perl->PHP - '.$pwplain);
+        }
+        # Subtest 2: Generate password hashes with php and verify them with perl
+        foreach my $i ( 1 .. 20 ) {
+            my $pwplain = 'pw'.$pwscheme.$i;
+            my $pwcrypt = `t/php/vboxadm-rc.php make $pwplain`;
+            chomp($pwcrypt);
+            is( VWebAdm::SaltedHash::verify_pass( $pwplain, $pwcrypt ), 'PHP->Perl - '.$pwplain );
+        }
     }
 }

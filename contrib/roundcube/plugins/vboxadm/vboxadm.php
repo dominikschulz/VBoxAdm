@@ -873,7 +873,7 @@ class DovecotPW {
 	}
 
 	public function make_salt() {
-		$len   = 8 + rand(0,8);
+		$len   = 4;
 		$bytes = array();
 		for ($i = 0; $i < $len; $i++ ) {
 			$bytes[] = rand(1,255);
@@ -898,14 +898,14 @@ class DovecotPW {
 	}
 
 	public function ldap_md5($pw) {
-		return "{SHA}" . base64_encode( hash('md5',$pw, TRUE) );
+		return "{LDAP-MD5}" . base64_encode( hash('md5',$pw, TRUE) );
 	}
 
 	public function smd5($pw, $salt) {
 		if(strlen($salt) < 1) {
 			$salt = $this->make_salt();
 		}
-		return "{SSHA}" . base64_encode( hash('md5', $pw . $salt, TRUE ) . $salt );
+		return "{SMD5}" . base64_encode( hash('md5', $pw . $salt, TRUE ) . $salt );
 	}
 
 	public function sha($pw) {
@@ -1089,9 +1089,11 @@ class DovecotPW {
 			}
 
 			# pack it again, byte-by-byte
+			$pw_str = '';
 			foreach ($hash as $h) {
 				$pw_str .= pack('C', $h);
 			}
+			$salt_str = '';
 			foreach ($salt as $s) {
 				$salt_str .= pack('C', $s);
 			}
