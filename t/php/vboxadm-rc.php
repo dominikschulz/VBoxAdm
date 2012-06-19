@@ -8,6 +8,9 @@ require_once('contrib/roundcube/plugins/vboxadm/vboxadm.php');
 
 $DPW = new DovecotPW;
 
+$STDERR = fopen('php://stderr', 'w+');
+fwrite($STDERR, print_r($argv,TRUE));
+
 if($argv[1] == "verify") {
     // vboxadm-rc.php verify <plaintext password> <crypted password>
     $plainpw = $argv[2];

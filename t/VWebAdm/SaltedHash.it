@@ -156,20 +156,28 @@ BEGIN { use_ok( 'VWebAdm::SaltedHash', '@VERSION@' ); }
 
 # Test compatiblity with Roundcube plugin
 {
-    foreach my $pwscheme (qw(md5 smd5 sha ssha sha256 ssha256 sha512 ssha512 cram_md5 plain_md5 ldap_md5)) {
+    my $iterations = 1;
+    my @schemes = qw(md5 smd5 sha ssha sha256 ssha256 sha512 ssha512 cram_md5 plain_md5 ldap_md5);
+    @schemes = qw(ssha256);
+    foreach my $pwscheme (@schemes) {
         # Subtest 1: Generate password hashes with perl and verify them with php
-        foreach my $i ( 1 .. 20 ) {
+        foreach my $i ( 1 .. $iterations ) {
             my $pwplain = 'pw' . $pwscheme.$i;
             my $pwcrypt = VWebAdm::SaltedHash::make_pass($pwplain, $pwscheme);
-            my $rv = system('t/php/vboxadm-rc.php verify '.$pwplain) >> 8;
+            my $rv = system('t/php/vboxadm-rc.php verify "'.$pwcrypt.'" 2>/dev/null') >> 8;
             is( $rv, 0, 'Perl->PHP - '.$pwplain);
+            # make sure they also verify with perl
+            ok( VWebAdm::SaltedHash::verify_pass( $pwplain, $pwcrypt ), 'Perl->Perl - ' . $pwplain );
         }
         # Subtest 2: Generate password hashes with php and verify them with perl
-        foreach my $i ( 1 .. 20 ) {
+        foreach my $i ( 1 .. $iterations ) {
             my $pwplain = 'pw'.$pwscheme.$i;
-            my $pwcrypt = `t/php/vboxadm-rc.php make $pwplain`;
+            my $pwcrypt = `t/php/vboxadm-rc.php make "$pwplain" 2>/dev/null`;
             chomp($pwcrypt);
-            is( VWebAdm::SaltedHash::verify_pass( $pwplain, $pwcrypt ), 'PHP->Perl - '.$pwplain );
+            ok( VWebAdm::SaltedHash::verify_pass( $pwplain, $pwcrypt ), 'PHP->Perl - '.$pwplain );
+            # make sure they also verfiy with php
+            my $rv = system('t/php/vboxadm-rc.php verify "'.$pwcrypt.'" 2>/dev/null') >> 8;
+            is( $rv, 0, 'PHP->PHP - '.$pwplain);
         }
     }
 }
