@@ -154,7 +154,7 @@ BEGIN { use_ok( 'VWebAdm::SaltedHash', '@VERSION@' ); }
     }
 }
 
-# Test compatiblity with Roundcube plugin
+# Test compatiblity with Roundcube plugin and dovecotpw / doveadm
 {
     my $iterations = 1;
     my @schemes = qw(md5 smd5 sha ssha sha256 ssha256 sha512 ssha512 cram_md5 plain_md5 ldap_md5);
@@ -179,5 +179,24 @@ BEGIN { use_ok( 'VWebAdm::SaltedHash', '@VERSION@' ); }
             my $rv = system('t/php/vboxadm-rc.php verify "'.$pwcrypt.'" 2>/dev/null') >> 8;
             is( $rv, 0, 'PHP->PHP - '.$pwplain);
         }
+        # Subtest 3: Generate password hashes with dovecotpw (if available) and verify them
+        # with php and perl
+        my $dovecotpw = `which dovecotpw`;
+        if($dovecotpw) {
+            chomp($dovecotpw);
+            if(-x $dovecotpw) {
+                foreach my $i ( 1 .. $iterations ) {
+                    my $pwplain = 'pw' . $pwscheme.$i;
+                    my $pwschemeuc = uc($pwscheme);
+                    my $pwcrypt = `$dovecotpw -s $pwschemeuc -p "$pwplain"`;
+                    chomp($pwcrypt);
+                    ok( VWebAdm::SaltedHash::verify_pass( $pwplain, $pwcrypt ), 'Dovecotpw->Perl - '.$pwplain );
+                    # make sure they also verfiy with php
+                    my $rv = system('t/php/vboxadm-rc.php verify "'.$pwcrypt.'" 2>/dev/null') >> 8;
+                    is( $rv, 0, 'Dovecotpw->PHP - '.$pwplain);
+                }
+            }
+        }
+        # TODO support doveadm for dovecot 2.x
     }
 }
