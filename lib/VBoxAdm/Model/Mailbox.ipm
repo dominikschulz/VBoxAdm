@@ -334,7 +334,8 @@ sub update {
     # SpamAssassin
     #
     # Kill Score
-    if ( defined( $params->{'SAKillScore'} ) && $params->{'SAKillScore'} =~ m/^\d+$/ ) {
+    if ( defined( $params->{'SAKillScore'} ) ) {
+        if($params->{'SAKillScore'} =~ m/^\d+(?:\.\d{1,2})?$/ ) {
         $query .= "sa_kill_score = ?, ";
         push( @args, $params->{'SAKillScore'} );
         if ( $params->{'SAKillScore'} > 10 ) {
@@ -343,19 +344,20 @@ sub update {
         elsif ( $params->{'SAKillScore'} < 5 ) {
             $self->msg->push( 'warning', 'SpamAssassin kill score probably set too low! Should be above 5.' );
         }
+        } else {
+            $self->msg->push( 'warning', 'SpamAssasin kill score has invalid format. Not saved.' );
+        }
     }
 
     # Scanning enabled
     if ( defined( $params->{'SAActive'} ) ) {
-        if ( $params->{'SAActive'} ) {
-            $params->{'SAActive'} = 1;
-        }
-        else {
-            $params->{'SAActive'} = 0;
-        }
-        push( @args, $params->{'SAActive'} );
-        $query .= "sa_active = ?, ";
+        $params->{'SAActive'} = 1;
     }
+    else {
+        $params->{'SAActive'} = 0;
+    }
+    push( @args, $params->{'SAActive'} );
+    $query .= "sa_active = ?, ";
 
     #
     # Vacation
