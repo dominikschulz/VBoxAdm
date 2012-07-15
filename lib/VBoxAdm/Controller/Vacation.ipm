@@ -5,6 +5,12 @@ use namespace::autoclean;
 
 use Config::Std;
 use Getopt::Long;
+# For multipart mails
+use MIME::Entity;
+# For date formating
+use Email::Date::Format qw/email_date/;
+# For Subject encoding
+use MIME::Words qw/encode_mimewords/;
 
 use VWebAdm::DB '@VERSION@';
 use VWebAdm::Logger '@VERSION@';
@@ -562,8 +568,9 @@ sub _send_vacation_mail {
     my $header_ref = shift;
 
     # get vacation subj and vacation msg
-    my $sql =
-"SELECT vacation_subj, vacation_msg FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE CONCAT(m.local_part,'\@',d.name) = ? AND is_on_vacation";
+    my $sql = "SELECT vacation_subj, vacation_msg FROM mailboxes AS m LEFT JOIN ";
+    $sql .= "domains AS d ON m.domain_id = d.id WHERE ";
+    $sql .= "CONCAT(m.local_part,'\@',d.name) = ? AND is_on_vacation";
     my $sth = $self->dbh()->prepare($sql);
 
     if ( $sth->execute( $self->recipient() ) ) {
@@ -574,17 +581,21 @@ sub _send_vacation_mail {
               ->log( level => 'debug', message => 'Recipient: ' . $self->recipient() . ' - No Vacation Subject or Message found in DB. Aborting.', );
             return;
         }
+        
+        $header_ref->{'Precedence:'} = 'bulk';
+        $header_ref->{'Date'} = email_date();
+        $header_ref->{'Subject'} = encode_mimewords( $subj, Charset => "utf-8" );
+        $header_ref->{'Type'} = 'multipart/alternative';
+        my $mime_top = MIME::Entity->build(%$header_ref);
+        # Handle ordinary text bodies
+        $mime_top->attach(
+            Type     => 'text/plain',
+            Encoding => 'quoted-printable',
+            Charset  => 'utf-8',
+            Data     => $msg,
+        );
 
-        $header_ref->{'Subject'} = $subj;
-
-        my $mail = '';
-        foreach my $key ( keys %{$header_ref} ) {
-            $mail .= ucfirst($key) . ': ' . $header_ref->{$key} . "\r\n";
-        }
-        $mail .= "\r\n";
-        $mail .= $msg;
-
-        if ( &VWebAdm::Utils::sendmail( $header_ref->{'From'}, $mail ) ) {
+        if ( &VWebAdm::Utils::sendmail( $header_ref->{'From'}, $mime_top->as_string() ) ) {
             $self->logger()->log( level => 'debug', message => "Sent vacation reply to " . $header_ref->{'To'} . " on behalf of " . $self->recipient() );
         }
         else {
