@@ -108,7 +108,7 @@ if(!-e "./Makefile") {
     die("No Makefile found! You're in the wrong directory!\n");
 }
 # We can only build a .deb if there is prepared debian packaging dir
-if(!-e "../../debian/$name/") {
+if(!-e "../../deb/$name/") {
     warn("No Debian package dir found. Only creating release tar.gz.\n");
     $nodeb = 1;
 }
@@ -140,7 +140,7 @@ print "\n";
 $cmd = 'git status -z | grep "nothing to commit" >/dev/null';
 run_cmd($cmd);
 # or the debian package repo
-$cmd = 'cd ../../debian/'.$name.'/; git status -z | grep "nothing to commit" >/dev/null';
+$cmd = 'cd ../../deb/'.$name.'/; git status -z | grep "nothing to commit" >/dev/null';
 run_cmd($cmd) unless $nodeb;
 
 # Do a testinstall to catch any Makefile errors
@@ -190,7 +190,7 @@ if(!$opt_local) {
 }
 
 # Export tagged version from git
-$cmd = "git archive --format=tar --prefix=$name-".$version."/ $version | gzip >../../debian/$name-".$version.".tar.gz";
+$cmd = "git archive --format=tar --prefix=$name-".$version."/ $version | gzip >../../deb/$name-".$version.".tar.gz";
 run_cmd($cmd);
 if($nodeb) {
   print "No debian packaging found. Only prepared tar.gz\n";
@@ -198,7 +198,7 @@ if($nodeb) {
 }
 
 # Go to debian package dir
-chdir("../../debian/$name");
+chdir("../../deb/$name");
 
 # Remove patches ...
 $cmd = "rm -rf debian/patches";
@@ -260,7 +260,7 @@ if(!$opt_local) {
 }
 
 # clean up old package files
-if(-d '../debian-archive') {
+if(-d '../deb-archive') {
 	$cmd = "egrep \"(Package|Source):\" $name/debian/control | cut -d' ' -f2";
 	my @pkgs = `$cmd`;
 	foreach my $pkg (@pkgs) {
@@ -275,7 +275,7 @@ if(-d '../debian-archive') {
 	                        my $ver = $1;
 	                        #print "Version: $ver\n";
 	                        if($ver ne $version) {
-	                                my $cmd = "mv $file ../debian-archive/";
+	                                my $cmd = "mv $file ../deb-archive/";
 	                                print "Archiving old package file - CMD: $cmd\n";
 	                                my $rv = system($cmd) >> 8;
 	                        }
