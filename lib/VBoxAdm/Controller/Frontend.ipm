@@ -181,18 +181,19 @@ sub setup {
     $self->authen->config(
         DRIVER => [
             'DBI',
-            TABLES      => [ 'mailboxes', 'domains' ],
+            TABLES      => [ 'mailboxes M', 'domains D' ],
+            JOIN_ON     => 'M.domain_id = D.id',
             CONSTRAINTS => {
-                "CONCAT(mailboxes.local_part,'\@',domains.name)" => '__CREDENTIAL_1__',
-                'mailboxes.is_active'                            => '1',
-                'domains.is_active'                              => '1',
+                "CONCAT(M.local_part,'\@',D.name)" => '__CREDENTIAL_1__',
+                'M.is_active'                      => '1',
+                'D.is_active'                      => '1',
 
                 # WARNING: This contraint relies on an implementation detail of Plugin::Authentication!
                 # This is bad style, but there is no other way right now.
                 # The correct way would probably to create a custom Authen plugin.
-                '(mailboxes.is_siteadmin OR mailboxes.is_domainadmin) AND 1' => '1',
+                '(M.is_siteadmin OR M.is_domainadmin) AND 1' => '1',
             },
-            COLUMNS => { 'dovecotpw:mailboxes.password' => '__CREDENTIAL_2__', },
+            COLUMNS => { 'dovecotpw:M.password' => '__CREDENTIAL_2__', },
             FILTERS => {
                 'dovecotpw' => sub {
 
@@ -246,7 +247,7 @@ sub setup {
         }
     }
     if ( !$conffile_used ) {
-        $self->log( "Warning: No readable config file found in search path! (" . join( ':', @conffile_locations ) . ")", 'warning', );
+        $Logger->log( message => "Warning: No readable config file found in search path! (" . join( ':', @conffile_locations ) . ")", level => 'warning', );
     }
     $self->{config} = \%config;
 
@@ -490,8 +491,8 @@ sub log {
     my $msg      = shift;
     my $severity = shift || 'debug',
 
-      # Get our database connection
-      my $dbh = $self->dbh();
+    # Get our database connection
+    my $dbh = $self->dbh();
 
     if ($msg) {
         $self->{'logger'}->log( message => $msg, level => $severity, );
@@ -1062,6 +1063,33 @@ sub show_remove_domain {
     return;
 }
 
+sub _translate_params {
+    my $self  = shift;
+    my $mapping = shift;
+    
+    my $params = {};
+    foreach my $src_key ( sort keys %{$mapping}) {
+        my $dst_key = $mapping->{$src_key}->{'Name'};
+        my $type    = $mapping->{$src_key}->{'Type'};
+        my $default = $mapping->{$src_key}->{'Default'};
+        if($type eq 'Str' && $self->query()->param($src_key)) {
+            $params->{$dst_key} = &VWebAdm::Utils::trim($self->query()->param($src_key));
+        } elsif($type eq 'Str' && $default) {
+            $params->{$dst_key} = $default;
+        } elsif($type eq 'Bool') {
+            my $val = $self->query()->param($src_key);
+            if(defined($val) && $val =~ m/^on$/i) {
+                $params->{$dst_key} = 1;
+            } else {
+                $params->{$dst_key} = 0;
+            }
+            $self->log( 'Set Bool key '.$dst_key.' to '.$params->{$dst_key}, 'debug', );
+        }
+    }
+    
+    return $params;
+}
+
 sub show_update_domain {
     my $self = shift;
 
@@ -1069,9 +1097,12 @@ sub show_update_domain {
     my $q = $self->query();
 
     my $domain_id = $q->param('domain_id');
-    my %params = ( 'IsActive' => $q->param('is_active'), );
+    my %mapping = (
+        'is_active' => { 'Type' => 'Bool', 'Name' => 'IsActive', },
+    );
+    my $params = $self->_translate_params(\%mapping);
 
-    if ( $self->{'Domain'}->update( $domain_id, \%params ) ) {
+    if ( $self->{'Domain'}->update( $domain_id, $params ) ) {
         $self->log( 'Updated Domain #' . $domain_id );
     }
     else {
@@ -1263,12 +1294,13 @@ sub show_update_domain_alias {
     my $q = $self->query();
 
     my $domain_alias_id = $q->param('domain_alias_id');
-    my %params          = (
-        'IsActive' => ( $q->param('is_active') ? 1 : 0 ),
-        'Goto' => $q->param('target'),
+    my %mapping = (
+        'is_active' => { 'Type' => 'Bool', 'Name' => 'IsActive', },
+        'target'    => { 'Type' => 'Str', 'Name' => 'Goto', },
     );
+    my $params = $self->_translate_params(\%mapping);
 
-    if ( $self->{'DomainAlias'}->update( $domain_alias_id, \%params ) ) {
+    if ( $self->{'DomainAlias'}->update( $domain_alias_id, $params ) ) {
         $self->log( 'Updated Domain-Alias #' . $domain_alias_id );
     }
     else {
@@ -1410,13 +1442,15 @@ sub show_update_alias {
     # Get CGI Query object
     my $q = $self->query();
 
-    my %params = ();
-    $params{'IsActive'} = $q->param('is_active');
-    $params{'Goto'}     = &VWebAdm::Utils::trim( $q->param('goto') );
+    my %mapping = (
+        'is_active' => { 'Type' => 'Bool', 'Name' => 'IsActive', },
+        'goto'      => { 'Type' => 'Str', 'Name' => 'Goto', },
+    );
+    my $params = $self->_translate_params(\%mapping);
 
     my $alias_id = $q->param('alias_id');
 
-    if ( $self->{'Alias'}->update( $alias_id, \%params ) ) {
+    if ( $self->{'Alias'}->update( $alias_id, $params ) ) {
         $self->log( 'Updated Alias #' . $alias_id );
     }
     else {
@@ -1488,24 +1522,21 @@ sub show_add_mailbox {
 
     my $domain_id  = $q->param('domain');
     my $local_part = &VWebAdm::Utils::trim( lc( $q->param('username') ) );
-    my %params     = (
-        'Password'        => $q->param('new_password_1'),
-        'PasswordAgain'   => $q->param('new_password_2'),
-        'Name'            => $q->param('name'),
-        'IsActive'        => $q->param('is_active'),
-        'SendWelcomeMail' => $q->param('send_welcome_mail'),
-        'MaxMsgSize'      => $q->param('max_msg_size_mb') || 20,
-        'SAActive'        => $q->param('sa_active'),
-        'SAKillScore'     => $q->param('sa_kill_score') || $self->{'config'}{'cgi'}{'sa_default_block_score'} || 6.31,
-        'IsSiteadmin'     => 0,
-        'IsDomainadmin'   => 0,
+    my %mapping = (
+        'new_password_1'    => { 'Type' => 'Str', 'Name' => 'Password', },
+        'new_password_2'    => { 'Type' => 'Str', 'Name' => 'PasswordAgain', },
+        'name'              => { 'Type' => 'Str', 'Name' => 'Name', },
+        'is_active'         => { 'Type' => 'Bool', 'Name' => 'IsActive', },
+        'send_welcome_mail' => { 'Type' => 'Bool', 'Name' => 'SendWelcomeMail', },
+        'max_msg_size_mb'   => { 'Type' => 'Str', 'Name' => 'MaxMsgSize', 'Default' => 20, },
+        'sa_active'         => { 'Type' => 'Bool', 'Name' => 'SAActive', },
+        'sa_kill_score'     => { 'Type' => 'Str', 'Name' => 'SAKillScore', 'Default' => $self->{'config'}{'cgi'}{'sa_default_block_score'} || 6.31, },
     );
+    my $params = $self->_translate_params(\%mapping);
+    $params->{'IsSiteadmin'} = 0;
+    $params->{'IsDomainadmin'} = 0;
 
-    if ( $params{'IsActive'} && $params{'IsActive'} eq 'on' ) {
-        $params{'IsActive'} = 1;
-    }
-
-    if ( $self->{'Mailbox'}->create( $local_part, $domain_id, \%params ) ) {
+    if ( $self->{'Mailbox'}->create( $local_part, $domain_id, $params ) ) {
         $self->log( 'Added Mailbox ' . $local_part . '@' . $domain_id );
     }
     else {
@@ -1616,35 +1647,25 @@ sub show_update_mailbox {
     my $q = $self->query();
 
     my $mailbox_id = $q->param('mailbox_id');
-    my $params     = {};
 
-    # TODO name keys in tempaltes acordingly and remove key translatation ... everywhere
-    my %keys = (
-        'new_password_1'  => 'Password',
-        'new_password_2'  => 'PasswordAgain',
-        'name'            => 'Name',
-        'is_active'       => 'IsActive',
-        'max_msg_size_mb' => 'MaxMsgSize',
-        'sa_active'       => 'SAActive',
-        'sa_kill_score'   => 'SAKillScore',
-        'is_siteadmin'    => 'IsSiteadmin',
-        'is_domainadmin'  => 'IsDomainadmin',
-        'is_on_vacation'  => 'IsOnVacation',
-        'vacation_msg'    => 'VacationMessage',
-        'vacation_subj'   => 'VacationSubject',
-        'vacation_start'  => 'VacationStart',
-        'vacation_end'    => 'VacationEnd',
-        'quota'           => 'Quota',
+    my %mapping = (
+        'new_password_1'    => { 'Type' => 'Str', 'Name' => 'Password', },
+        'new_password_2'    => { 'Type' => 'Str', 'Name' => 'PasswordAgain', },
+        'name'              => { 'Type' => 'Str', 'Name' => 'Name', },
+        'is_active'         => { 'Type' => 'Bool', 'Name' => 'IsActive', },
+        'max_msg_size_mb'   => { 'Type' => 'Str', 'Name' => 'MaxMsgSize', 'Default' => 20, },
+        'sa_active'         => { 'Type' => 'Bool', 'Name' => 'SAActive', },
+        'sa_kill_score'     => { 'Type' => 'Str', 'Name' => 'SAKillScore', 'Default' => $self->{'config'}{'cgi'}{'sa_default_block_score'} || 6.31, },
+        'is_siteadmin'      => { 'Type' => 'Bool', 'Name' => 'IsSiteadmin', },
+        'is_domainadmin'    => { 'Type' => 'Bool', 'Name' => 'IsDomainadmin', },
+        'is_on_vacation'    => { 'Type' => 'Bool', 'Name' => 'IsOnVacation', },
+        'vacation_msg'      => { 'Type' => 'Str', 'Name' => 'VacationMessage', },
+        'vacation_subj'     => { 'Type' => 'Str', 'Name' => 'VacationSubject', },
+        'vacation_start'    => { 'Type' => 'Str', 'Name' => 'VacationStart', },
+        'vacation_end'      => { 'Type' => 'Str', 'Name' => 'VacationEnd', },
+        'quota'             => { 'Type' => 'Str', 'Name' => 'Quota', },
     );
-    foreach my $key ( keys %keys ) {
-        my $tkey = $keys{$key};
-        if ( defined( $q->param($key) ) ) {
-            $params->{$tkey} = $q->param($key);
-        }
-        else {
-            $params->{$tkey} = 0;
-        }
-    }
+    my $params = $self->_translate_params(\%mapping);
 
     if ( $self->{'Mailbox'}->update( $mailbox_id, $params ) ) {
         $self->log( 'Updated Mailbox #' . $mailbox_id );
@@ -2133,9 +2154,12 @@ sub show_update_role_account {
     my $q = $self->query();
 
     my $roleacc_id = $q->param('roleacc_id');
-    my %params = ( 'Goto' => $q->param('goto'), );
+    my %mapping = (
+        'goto'    => { 'Type' => 'Str', 'Name' => 'Goto', },
+    );
+    my $params = $self->_translate_params(\%mapping);
 
-    if ( $self->{'RoleAccount'}->update( $roleacc_id, \%params ) ) {
+    if ( $self->{'RoleAccount'}->update( $roleacc_id, $params ) ) {
         $self->log( 'Updated Role-Account #' . $roleacc_id );
     }
     else {

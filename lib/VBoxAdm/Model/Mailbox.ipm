@@ -113,7 +113,7 @@ sub create {
             $args{'sa_active'} = 0;
         }
     }
-    if ( $params->{'SAKillScore'} ) {
+    if ( defined($params->{'SAKillScore'}) ) {
         $args{'sa_kill_score'} = $params->{'SAKillScore'};
     }
 
@@ -268,7 +268,11 @@ sub update {
                 $query .= "password = ?, ";
                 push( @args, &VWebAdm::SaltedHash::make_pass( $params->{'Password'}, $pwscheme ) );
             }
+        } else {
+            $self->msg->push('warning', 'Please enter the same password twice');
         }
+    } elsif(($params->{'Password'} && !$params->{'PasswordAgain'}) || (!$params->{'Password'} && $params->{'PasswordAgain'})) {
+        $self->msg->push( 'warning', 'Please enter password twice')
     }
 
     #
@@ -335,22 +339,24 @@ sub update {
     #
     # Kill Score
     if ( defined( $params->{'SAKillScore'} ) ) {
-        if($params->{'SAKillScore'} =~ m/^\d+(?:\.\d{1,2})?$/ ) {
-        $query .= "sa_kill_score = ?, ";
-        push( @args, $params->{'SAKillScore'} );
-        if ( $params->{'SAKillScore'} > 10 ) {
-            $self->msg->push( 'warning', 'SpamAssassin kill score probably set too high! Should be below 10.' );
-        }
-        elsif ( $params->{'SAKillScore'} < 5 ) {
-            $self->msg->push( 'warning', 'SpamAssassin kill score probably set too low! Should be above 5.' );
-        }
+        if($params->{'SAKillScore'} =~ m/^\s*(\d+(?:[.,]\d{1,2})?)/ ) {
+            $params->{'SAKillScore'} = $1;
+            $params->{'SAKillScore'} =~ s/,/./;
+            $query .= "sa_kill_score = ?, ";
+            push( @args, $params->{'SAKillScore'} );
+            if ( $params->{'SAKillScore'} > 10 ) {
+                $self->msg->push( 'warning', 'SpamAssassin kill score probably set too high! Should be below 10.' );
+            }
+            elsif ( $params->{'SAKillScore'} < 5 ) {
+                $self->msg->push( 'warning', 'SpamAssassin kill score probably set too low! Should be above 5.' );
+            }
         } else {
-            $self->msg->push( 'warning', 'SpamAssasin kill score has invalid format. Not saved.' );
+            $self->msg->push( 'warning', 'SpamAssasin kill score has an invalid format. Not saved.' );
         }
     }
 
     # Scanning enabled
-    if ( defined( $params->{'SAActive'} ) ) {
+    if ( $params->{'SAActive'} ) {
         $params->{'SAActive'} = 1;
     }
     else {
@@ -363,54 +369,54 @@ sub update {
     # Vacation
     #
     # Is_On_Vacation / Vacation Msg
-    if ( defined( $params->{'IsOnVacation'} ) ) {
-        if ( $params->{'IsOnVacation'} ) {
-            if (   $params->{'VacationSubject'}
-                && length( $params->{'VacationSubject'} )
-                && $params->{'VacationMessage'}
-                && length( $params->{'VacationMessage'} ) > 1 )
-            {
-                $params->{'IsOnVacation'} = 1;
-            }
-            else {
-                $self->msg->push( 'warning', 'Attempt to enable Vacation w/o vacation message or subject denied!' );
-            }
-            if ( $params->{'VacationStart'} && $params->{'VacationStart'} =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
-                $params->{'VacationStart'} = "$3-$2-$1";
-            }
-            elsif ( $params->{'VacationStart'} && $params->{'VacationStart'} =~ m/^\s*(\d\d\d\d)-(\d\d)-(\d\d)\s*$/ ) {
-                $params->{'VacationStart'} = "$1-$2-$3";
-            }
-            else {
-                $params->{'VacationStart'} = '0000-00-00';
-                $self->msg->push( 'error', 'Invalid vacation start date!' );
-            }
-            if ( $params->{'VacationEnd'} && $params->{'VacationEnd'} =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
-                $params->{'VacationEnd'} = "$3-$2-$1";
-            }
-            elsif ( $params->{'VacationEnd'} && $params->{'VacationEnd'} =~ m/^\s*(\d\d\d\d)-(\d\d)-(\d\d)\s*$/ ) {
-                $params->{'VacationEnd'} = "$1-$2-$3";
-            }
-            else {
-                $params->{'VacationEnd'} = '0000-00-00';
-                $self->msg->push( 'error', 'Invalid vacation end date!' );
-            }
-            $query .= "is_on_vacation = ?, vacation_msg = ?, vacation_subj = ?, vacation_start = ?, vacation_end = ?, ";
-            push( @args, $params->{'IsOnVacation'} );
-            push( @args, $params->{'VacationMessage'} );
-            push( @args, $params->{'VacationSubject'} );
-            push( @args, $params->{'VacationStart'} );
-            push( @args, $params->{'VacationEnd'} );
+    if ( $params->{'IsOnVacation'} ) {
+        if (   $params->{'VacationSubject'}
+            && length( $params->{'VacationSubject'} )
+            && $params->{'VacationMessage'}
+            && length( $params->{'VacationMessage'} ) > 1 )
+        {
+            $params->{'IsOnVacation'} = 1;
         }
         else {
-            $params->{'IsOnVacation'}  = 0;
-            $params->{'VacationStart'} = '0000-00-00';
-            $params->{'VacationEnd'}   = '0000-00-00';
-            $query .= "is_on_vacation = ?, vacation_start = ?, vacation_end = ?, ";
-            push( @args, $params->{'IsOnVacation'} );
-            push( @args, $params->{'VacationStart'} );
-            push( @args, $params->{'VacationEnd'} );
+            $self->msg->push( 'warning', 'Attempt to enable Vacation w/o vacation message or subject denied!' );
+            $params->{'IsOnVacation'} = 0;
         }
+        
+        if ( $params->{'VacationStart'} && $params->{'VacationStart'} =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
+            $params->{'VacationStart'} = "$3-$2-$1";
+        }
+        elsif ( $params->{'VacationStart'} && $params->{'VacationStart'} =~ m/^\s*(\d\d\d\d)-(\d\d)-(\d\d)\s*$/ ) {
+            $params->{'VacationStart'} = "$1-$2-$3";
+        }
+        else {
+            $params->{'VacationStart'} = '0000-00-00';
+            $self->msg->push( 'error', 'Invalid vacation start date!' );
+        }
+        if ( $params->{'VacationEnd'} && $params->{'VacationEnd'} =~ m/^\s*(\d\d)\.(\d\d)\.(\d\d\d\d)\s*$/ ) {
+            $params->{'VacationEnd'} = "$3-$2-$1";
+        }
+        elsif ( $params->{'VacationEnd'} && $params->{'VacationEnd'} =~ m/^\s*(\d\d\d\d)-(\d\d)-(\d\d)\s*$/ ) {
+            $params->{'VacationEnd'} = "$1-$2-$3";
+        }
+        else {
+            $params->{'VacationEnd'} = '0000-00-00';
+            $self->msg->push( 'error', 'Invalid vacation end date!' );
+        }
+        $query .= "is_on_vacation = ?, vacation_msg = ?, vacation_subj = ?, vacation_start = ?, vacation_end = ?, ";
+        push( @args, $params->{'IsOnVacation'} );
+        push( @args, $params->{'VacationMessage'} );
+        push( @args, $params->{'VacationSubject'} );
+        push( @args, $params->{'VacationStart'} );
+        push( @args, $params->{'VacationEnd'} );
+    }
+    else {
+        $params->{'IsOnVacation'}  = 0;
+        $params->{'VacationStart'} = '0000-00-00';
+        $params->{'VacationEnd'}   = '0000-00-00';
+        $query .= "is_on_vacation = ?, vacation_start = ?, vacation_end = ?, ";
+        push( @args, $params->{'IsOnVacation'} );
+        push( @args, $params->{'VacationStart'} );
+        push( @args, $params->{'VacationEnd'} );
     }
 
     # at least on option has changed
