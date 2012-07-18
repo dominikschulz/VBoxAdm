@@ -216,6 +216,7 @@ sub update {
     }
     if ( $target && !&VWebAdm::Utils::is_valid_addresses_rfc822($target) ) {
         $self->msg->push( 'error', "Invalid address in destination!" );
+        return;
     }
     elsif ( $alias_id && $target ) {
         my $query = "UPDATE aliases SET goto = ? WHERE id = ?";
@@ -235,6 +236,7 @@ sub update {
             $self->logger()
               ->log( message => 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh->errstr, level => 'error', );
             $self->msg->push( 'error', "Failed to redirect Alias [_1] (#[_2]) to [_3].", $alias_name, $alias_id, $target );
+            return;
         }
     }
 

@@ -145,6 +145,7 @@ sub update {
 
         # if domainadmin, verify that its his domain
         $self->msg->push( 'error', "You are not authorized to modify the domain [_1]!", $domain_name );
+        return;
     }
     elsif ( $domain_alias_id && $params->{'Goto'} ) {
         my $query              = "SELECT name FROM domains WHERE id = ?";
@@ -175,10 +176,9 @@ sub update {
                   . $self->dbh()->errstr() );
             $self->msg->push( 'error', "Failed to redirect Domain-Alias [_1] (#[_2]) to Domain [_3] (#[_4]).",
                 $domain_name, $domain_alias_id, $target_domain_name, $params->{'Goto'} );
+            return;
         }
     }
-
-    return;
 }
 
 sub read {

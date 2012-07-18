@@ -136,9 +136,11 @@ sub create {
 
         # if domainadmin, verify that its his domain
         $self->msg->push( 'error', "You are not authorized to modify this domain!" );
+        return;
     }
     elsif ( $local_part && !&VWebAdm::Utils::is_valid_localpart_rfc822($local_part) ) {
         $self->msg->push( 'error', "Invalid local part. This address is not RFC822 compliant!" );
+        return;
     }
     else {
         $args{'password'} = &VWebAdm::SaltedHash::make_pass( $args{'password'}, $pwscheme ) if $args{'password'};
@@ -165,6 +167,8 @@ sub create {
                 $emsg .= $self->msg->maketext("Welcome to your new mailbox.");
                 &VWebAdm::Utils::sendmail( 'vboxadm@' . $system_domain, $emsg );
             }
+            
+            return 1;
         }
         else {
             $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", (%args) ) . ', Error: ' . $self->dbh()->errstr() );
@@ -202,13 +206,13 @@ sub delete {
     }
     if ( $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
         $self->msg->push( 'information', "Mailbox [_1] (#[_2]) removed.", $mailbox_name, $mailbox_id );
+        return 1;
     }
     else {
         $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh()->errstr() );
         $self->msg->push( 'error', "Failed to remove Mailbox [_1] (#[_2]). Database Error: " . $self->dbh()->err(), $mailbox_name, $mailbox_id );
+        return;
     }
-
-    return 1;
 }
 
 sub update {
@@ -455,13 +459,13 @@ sub update {
         else {
             $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh()->errstr() );
             $self->msg->push( 'error', "Failed to update Mailbox [_1] (#[_2]). Database Error.", $mailbox_name, $mailbox_id );
+            return;
         }
     }
     else {
         $self->msg->push( 'warning', 'No Parameter changed.' );
+        return 1;
     }
-
-    return;
 }
 
 sub read {

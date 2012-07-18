@@ -30,6 +30,12 @@
 		
 		<div class="spacer"></div>
 		
+		<label for="is_mailman">
+			[% "Mailman:" | l10n %]
+			<span class="small">Check this box to create additional aliases which are required by mailman.</span>
+		</label>
+		<input class="flat" type="checkbox" name="is_mailman" />
+		
 		<button class="button" type="submit" name="submit">
 			<img src="[% media_prefix %]/icons/fffsilk/add.png" border="0" />
 			[% "Add Alias" | l10n %]

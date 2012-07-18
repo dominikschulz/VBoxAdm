@@ -134,6 +134,7 @@ sub delete {
             }
             else {
                 $self->logger()->log( message => 'Could not execute query ' . $query . ' due to error: ' . $self->dbh()->errstr, level => 'error', );
+                return;
             }
         }
         else {

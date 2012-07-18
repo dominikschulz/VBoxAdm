@@ -70,7 +70,7 @@ sub delete {
 
     $sth->finish();
 
-    return;
+    return 1;
 }
 
 sub update {

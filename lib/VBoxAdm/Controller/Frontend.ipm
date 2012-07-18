@@ -1370,16 +1370,27 @@ sub show_add_alias {
     # Get CGI Query object
     my $q = $self->query();
 
-    my $local_part = &VWebAdm::Utils::trim( lc( $q->param('local_part') ) );
+    my @local_parts = ();
+    my $local_part  = &VWebAdm::Utils::trim( lc( $q->param('local_part') ) );
+    push(@local_parts,$local_part);
     my $domain_id  = $q->param('domain');
     my $goto       = $q->param('goto');
-
-    if ( $self->{'Alias'}->create( $local_part, $domain_id, $goto ) ) {
-        $self->log( 'Added Alias ' . $local_part . '@' . $domain_id . ' => ' . $goto );
+    my $is_mailman = $q->param('is_mailman');
+    
+    if($is_mailman && $is_mailman eq 'on') {
+        foreach my $suffix (qw(admin bounces confirm join leave owner request subscribe unsubscribe)) {
+            push(@local_parts,$local_part.'-'.$suffix);
+        }
     }
-    else {
-        $self->log( 'Failed to add Alias ' . $local_part . '@' . $domain_id . ' => ' . $goto );
-        $self->add_message( 'error', 'Database Error!' );
+
+    foreach my $alias (@local_parts) {
+        if ( $self->{'Alias'}->create( $alias, $domain_id, $goto ) ) {
+            $self->log( 'Added Alias ' . $alias . '@' . $domain_id . ' => ' . $goto );
+        }
+        else {
+            $self->log( 'Failed to add Alias ' . $alias . '@' . $domain_id . ' => ' . $goto );
+            $self->add_message( 'error', 'Database Error!' );
+        }
     }
 
     $self->redirect( $self->{base_url} . '?rm=aliases' );
