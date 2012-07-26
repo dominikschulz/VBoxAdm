@@ -23,9 +23,9 @@
 				</td>
 				<td>
 					[% IF line.is_active == 1 %]
-					<a href="[% base_url %]?rm=update_alias&alias_id=[% line.id %]&is_active=0">[% "Yes" | l10n %]</a>
+					<a href="[% base_url %]?rm=update_alias&alias_id=[% line.id %]&is_active=off">[% "Yes" | l10n %]</a>
 					[% ELSE %]
-					<a href="[% base_url %]?rm=update_alias&alias_id=[% line.id %]&is_active=1">[% "No" | l10n %]</a>
+					<a href="[% base_url %]?rm=update_alias&alias_id=[% line.id %]&is_active=on">[% "No" | l10n %]</a>
 					[% END %]
 				</td>
 				<td>

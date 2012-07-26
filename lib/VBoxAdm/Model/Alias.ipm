@@ -240,7 +240,7 @@ sub update {
         }
     }
 
-    return;
+    return 1;
 }
 
 sub read {

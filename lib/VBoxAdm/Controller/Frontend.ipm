@@ -1078,7 +1078,7 @@ sub _translate_params {
             $params->{$dst_key} = $default;
         } elsif($type eq 'Bool') {
             my $val = $self->query()->param($src_key);
-            if(defined($val) && $val =~ m/^on$/i) {
+            if(defined($val) && $val =~ m/^(?:on|1)$/i) {
                 $params->{$dst_key} = 1;
             } else {
                 $params->{$dst_key} = 0;

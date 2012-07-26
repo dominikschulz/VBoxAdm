@@ -1,6 +1,8 @@
 <div class="forms">
 	<form name="create_domain" method="POST">
 		<input type="hidden" name="rm" value="update_alias" />
+		<input type="hidden" name="is_active" value="[% is_active %]" />
+		
 		<h1>[% "Modify an alias" | l10n %]</h1>
 		
 		<label for="alias_id">
