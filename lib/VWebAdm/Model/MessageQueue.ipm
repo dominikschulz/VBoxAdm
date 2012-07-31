@@ -5,6 +5,12 @@ use namespace::autoclean;
 
 use Carp;
 
+has 'logger' => (
+    'is'    => 'ro',
+    'isa'   => 'VWebAdm::Logger',
+    'required' => 1,
+);
+
 has 'messages' => (
     'is'      => 'ro',
     'isa'     => 'ArrayRef',
@@ -68,6 +74,8 @@ sub push {
         # No Session (CLI, API, ...)
         push( @{ $self->messages() }, $msg_ref );
     }
+    
+    $self->logger()->log( 'message' => $msg_ref->{'en'}, level => $severity, );
 
     # Done
     return 1;

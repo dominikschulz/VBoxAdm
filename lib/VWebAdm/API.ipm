@@ -9,6 +9,7 @@ use Crypt::CBC;
 use Digest::SHA;
 use JSON;
 use URI::Escape;
+use Encode;
 use VWebAdm::Logger '@VERSION@';
 
 has 'key'   => (

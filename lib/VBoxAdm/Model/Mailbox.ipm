@@ -377,12 +377,13 @@ sub update {
         if (   $params->{'VacationSubject'}
             && length( $params->{'VacationSubject'} )
             && $params->{'VacationMessage'}
-            && length( $params->{'VacationMessage'} ) > 1 )
+            && length( $params->{'VacationMessage'} ) > 0 )
         {
             $params->{'IsOnVacation'} = 1;
         }
         else {
-            $self->msg->push( 'warning', 'Attempt to enable Vacation w/o vacation message or subject denied!' );
+            my $msg = 'Attempt to enable Vacation w/o vacation message or subject denied!';
+            $self->msg->push( 'warning', $msg );
             $params->{'IsOnVacation'} = 0;
         }
         

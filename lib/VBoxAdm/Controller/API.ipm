@@ -264,19 +264,20 @@ sub _handle_v1_ro {
         my @fields = qw(mailboxes.id domains.id sa_active sa_kill_score is_on_vacation vacation_subj vacation_msg vacation_start vacation_end max_msg_size);
         my $sql = 'SELECT '.join(',',@fields).' FROM mailboxes LEFT JOIN domains ON mailboxes.domain_id = domains.id WHERE ';
         $sql .= 'mailboxes.local_part = ? AND domains.name = ? AND mailboxes.is_active AND domains.is_active LIMIT 1';
-        $self->{'logger'}->log( message => 'SQL: '.$sql, level => 'debug', );
+        #$self->{'logger'}->log( message => 'SQL: '.$sql, level => 'debug', );
         my $sth = $self->dbh()->prepare($sql);
         foreach my $username (keys %{$hash_ref->{'mailbox'}->{'read'}}) {
             my ($local_part,$domain) = split /@/, $username;
-            $self->{'logger'}->log( message => 'Args: '.join(' - ',($local_part,$domain)), level => 'debug', );
+            #$self->{'logger'}->log( message => 'Args: '.join(' - ',($local_part,$domain)), level => 'debug', );
             $sth->execute($local_part,$domain);
             my @row = $sth->fetchrow_array();
-            $self->{'logger'}->log( message => 'Mailbox-Result: '.join(' - ',@row), level => 'debug', );
+            #$self->{'logger'}->log( message => 'Mailbox-Result: '.join(' - ',@row), level => 'debug', );
             my %h;
             @h{@fields} = @row;
             foreach my $field ( keys %h ) {
                 $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8( $h{$field} );
             }
+            #$self->{'logger'}->log( message => 'Mailbox-Result: '.join(' - ',map { $_.' => '.$h{$_} } keys %h), level => 'debug', );
             $h{'id'} = $h{'mailboxes.id'};
             $h{'domain_id'} = $h{'domains.id'};
             $answer_ref->{'mailbox'}->{'read'}->{$username}->{'rv'} = \%h;
@@ -290,7 +291,7 @@ sub _handle_v1_ro {
         foreach my $domain_id (keys %{$hash_ref->{'domain'}->{'read'}}) {
             $sth->execute($domain_id);
             my @row = $sth->fetchrow_array();
-            $self->{'logger'}->log( message => 'Domain-Result: '.join(' - ',@row), level => 'debug', );
+            #$self->{'logger'}->log( message => 'Domain-Result: '.join(' - ',@row), level => 'debug', );
             my %h;
             @h{@fields} = @row;
             foreach my $field ( keys %h ) {
@@ -314,6 +315,7 @@ sub _handle_v1_rw {
         {
             'lh'    => $self->{'lh'},
             'lh_en' => $self->{'lh_en'},
+            'logger' => $self->{'logger'},
         }
     );
     $self->{'Messages'} = $Messages;
@@ -354,7 +356,7 @@ sub _handle_v1_rw {
     my $arg_ref = {
         'dbh'          => $self->dbh,
         'user'         => $User,
-        'msgq' => $Messages,
+        'msgq'         => $Messages,
         'logger'       => $self->{'logger'},
         'config'       => $self->{'config'},
     };
@@ -373,18 +375,18 @@ sub _handle_v1_rw {
         $self->{'logger'}->log( message => 'Error while instantiating model classes: '.$_, level => 'error', );
     };
 
-    $self->{'logger'}->log( message => 'Request: '.Dumper($hash_ref), level => 'debug', );
+    #$self->{'logger'}->log( message => 'Request: '.Dumper($hash_ref), level => 'debug', );
 
     # process requests in hash_ref
     # return response as crypted, json encoded string
     foreach my $module ( keys %{$hash_ref} ) {
-        $self->{'logger'}->log( message => 'Module: '.$module.'/ref:'.ref( $hash_ref->{$module} ), level => 'debug', );
+        #$self->{'logger'}->log( message => 'Module: '.$module.'/ref:'.ref( $hash_ref->{$module} ), level => 'debug', );
         $module = lc($module);
         next if ref( $hash_ref->{$module} ) ne 'HASH';
         next if $module eq 'user';
         next unless $c->{$module};
         foreach my $action ( keys %{ $hash_ref->{$module} } ) {
-            $self->{'logger'}->log( message => 'Module: '.$module.' - Action: '.$action.'/ref:'.ref( $hash_ref->{$module}->{$action} ), level => 'debug', );
+            #$self->{'logger'}->log( message => 'Module: '.$module.' - Action: '.$action.'/ref:'.ref( $hash_ref->{$module}->{$action} ), level => 'debug', );
 
             $action = lc($action);
             if ( $action eq 'list' ) {
@@ -401,7 +403,7 @@ sub _handle_v1_rw {
             else {
                 next if ref( $hash_ref->{$module}->{$action}) ne 'HASH';
                 foreach my $item ( keys %{ $hash_ref->{$module}->{$action} } ) {
-                    $self->{'logger'}->log( message => 'Module: '.$module.' - Action: '.$action.' - Item: '.$item.' - ref:'.ref( $hash_ref->{$module}->{$action}->{$item} ), level => 'debug', );
+                    #$self->{'logger'}->log( message => 'Module: '.$module.' - Action: '.$action.' - Item: '.$item.' - ref:'.ref( $hash_ref->{$module}->{$action}->{$item} ), level => 'debug', );
                     my $param_ref = $hash_ref->{$module}->{$action}->{$item};
 
                     # item may either by numeric -> use directly
@@ -430,7 +432,7 @@ sub _handle_v1_rw {
                         $answer_ref->{'action'} = 'ok';
                     }
                     elsif ( $action eq 'update' ) {
-                        $self->{'logger'}->log( message => 'Calling update for '.$module.'/'.$action.'/'.$item.' w/ id: '.$id.' and params: '.Dumper($param_ref), level => 'debug', );
+                        #$self->{'logger'}->log( message => 'Calling update for '.$module.'/'.$action.'/'.$item.' w/ id: '.$id.' and params: '.Dumper($param_ref), level => 'debug', );
                         $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->update( $id, $param_ref );
                         $answer_ref->{$module}{$action}{$item}{'msgs'} = [ $Messages->get() ];
                         $answer_ref->{'action'} = 'ok';
@@ -444,13 +446,6 @@ sub _handle_v1_rw {
             }
         }
     }
-
-    #my $ciphertext = &encrypt( $cgiapp, $answer_ref );
-    #my $output = '';
-    #$output .= "Request-Hashref: <pre>".Dumper($hash_ref)."</pre><br />\n";
-    #$output .= "Response-Ciphertext: ".$ciphertext."<br />\n";
-    #my $plaintext = &decrypt( $cgiapp, $ciphertext );
-    #$output .= "Response-Hashref: <pre>".Dumper($plaintext)."</pre><br />\n";
     return $answer_ref;
 }
 

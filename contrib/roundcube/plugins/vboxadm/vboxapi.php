@@ -100,9 +100,23 @@ class VBoxAPI {
             //$debug_str .= "Ciphertext: $ciphertext - ";
             $debug_str .= "Base64: $b64 - ";
             $debug_str .= "Urlenc: $urlenc - ";
+            $debug_str .= "JSON-Error: ".json_last_error();
             write_log('vboxadm',$debug_str);
         }
         return $urlenc;
+    }
+    
+    private function prepare_json($input) {
+   
+        //This will convert ASCII/ISO-8859-1 to UTF-8.
+        //Be careful with the third parameter (encoding detect list), because
+        //if set wrong, some input encodings will get garbled (including UTF-8!)
+        $imput = mb_convert_encoding($input, 'UTF-8', 'ASCII,UTF-8,ISO-8859-1');
+       
+        //Remove UTF-8 BOM if present, json_decode() does not like it.
+        if(substr($input, 0, 3) == pack("CCC", 0xEF, 0xBB, 0xBF)) $input = substr($input, 3);
+       
+        return $input;
     }
     
     private function decrypt($ciphertext) {
@@ -113,7 +127,8 @@ class VBoxAPI {
         $b64dec = base64_decode($urldec);
         $json_string = mcrypt_cbc(MCRYPT_BLOWFISH,$key,$b64dec,MCRYPT_DECRYPT,$iv);
         $json_string_trimmed = rtrim($json_string,chr(0));
-        $array = json_decode($json_string_trimmed,1);
+        $json_string_preped = $this->prepare_json($json_string_trimmed);
+        $array = json_decode($json_string_preped,1);
         if($this->debug) {
             $debug_str = "decrypt - ";
             $debug_str .= "Raw-Key: $raw_key - ";
@@ -124,8 +139,10 @@ class VBoxAPI {
             //$debug_str .= "Base64: $b64dec - ";
             $debug_str .= "JSON: $json_string - ";
             $debug_str .= "JSON-rtrim: $json_string_trimmed - ";
+            $debug_str .= "JSON-prep: $json_string_preped - ";
             $debug_str .= "Array: - ";
             $debug_str .= print_r($array,TRUE);
+            $debug_str .= " - JSON-Error: ".json_last_error();
             write_log('vboxadm',$debug_str);
         }
         return $array;
@@ -141,7 +158,9 @@ class VBoxAPI {
     
     /* http://de.php.net/manual/en/ref.curl.php */
     private function get_url($url, $redirect_loop = 0, $timeout = 30) {
-        write_log('vboxadm','get_url - '.$url);
+        if($this->debug) {
+                write_log('vboxadm','get_url - '.$url);
+        }
         $ch = curl_init();
         curl_setopt( $ch, CURLOPT_USERAGENT, "VBoxAdm/Curl-PHP" );
         curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
