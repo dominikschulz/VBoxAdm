@@ -75,7 +75,7 @@ sub push {
         push( @{ $self->messages() }, $msg_ref );
     }
     
-    $self->logger()->log( 'message' => $msg_ref->{'en'}, level => $severity, );
+    $self->logger()->log( 'message' => 'Msg: '.$msg_ref->{'en'}, level => 'debug', );
 
     # Done
     return 1;

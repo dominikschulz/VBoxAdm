@@ -209,12 +209,43 @@ sub _init_dispatcher {
     return $log;
 }
 
+sub _real_caller {
+
+    # $_[0] -> self
+    # $_[1] -> calldepth
+    my $max_depth = 255;
+    my $min_depth = 2;
+    $min_depth += $_[1] if $_[1];
+
+    # 0 is this sub -> not relevant
+    # 1 is Logger::log -> not relevant
+    # we want to know who called Logger::log (unless its an eval or Try)
+    foreach my $i ( 1 .. $max_depth ) {
+        my @c = caller($i);
+        return caller( $i - 1 ) unless @c;    # no caller information?
+        next unless $c[0];
+        next if $c[0] eq 'Try::Tiny';         # package Try::Tiny? Skip.
+        next unless $c[3];
+        next if $c[3] eq 'VWebAdm::Logger::log';
+        next if $c[3] =~ m/::log$/;
+        next if $c[3] eq 'Try::Tiny::try';     # calling sub Try::Tiny::try? Skip.
+        next if $c[3] eq '(eval)';             # calling sub some kind of eval? Skip.
+        next if $c[3] =~ m/__ANON__/;          # calling sub some kind of anonymous sub? Skip.
+        return @c;
+    }
+    return ();
+}
+
+
 sub log {
     my ( $self, %params ) = @_;
 
-    if ( !$params{'caller'} ) {
-        $params{'caller'} = ( caller(1) )[3] || 'n/a';
+    my ( $package, $filename, $line, $subroutine, $hasargs, $wantarray, $evaltext, $is_require, $hints, $bitmask, $hinthash ) = $self->_real_caller();
+    if ( $package eq 'main' && $subroutine eq 'VWebAdm:Logger::log' ) {
+        $subroutine = '';
     }
+    $subroutine ||= 'n/a';
+    $params{'caller'} = $subroutine unless $params{'caller'};
     $params{'ts'} = time();
     $params{'level'} ||= 'debug';
     $self->_add_to_buffer( \%params );
