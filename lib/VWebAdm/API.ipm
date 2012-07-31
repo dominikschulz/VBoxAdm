@@ -8,8 +8,20 @@ use MIME::Base64;
 use Crypt::CBC;
 use Digest::SHA;
 use JSON;
+use URI::Escape;
 use VWebAdm::Logger '@VERSION@';
-use VWebAdm::Utils '@VERSION@';
+
+has 'key'   => (
+    'is'    => 'ro',
+    'isa'   => 'Str',
+    'required' => 1,
+);
+
+has 'logger' => (
+    'is'      => 'rw',
+    'isa'     => 'VWebAdm::Logger',
+    'required'    => 1,
+);
 
 has '_ua' => (
     'is'      => 'rw',
@@ -18,27 +30,12 @@ has '_ua' => (
     'builder' => '_init_ua',
 );
 
-has '_json' => (
+has 'json' => (
     'is'      => 'rw',
     'isa'     => 'JSON',
     'lazy'    => 1,
     'builder' => '_init_json',
 );
-
-has 'logger' => (
-    'is'      => 'rw',
-    'isa'     => 'VWebAdm::Logger',
-    'lazy'    => 1,
-    'builder' => '_init_logger',
-);
-
-sub _init_logger {
-    my $self = shift;
-
-    my $Logger = VWebAdm::Logger::->new('vwebadm-remotecli');
-
-    return $Logger;
-}
 
 sub _init_ua {
     my $self = shift;
@@ -108,18 +105,17 @@ sub http_request {
 
 sub decrypt {
     my $self       = shift;
-    my $raw_key    = shift;
     my $ciphertext = shift;
 
-    $ciphertext = MIME::Base64::decode_base64( &VWebAdm::Utils::urldecode($ciphertext) );
+    $ciphertext = MIME::Base64::decode_base64( URI::Escape::uri_unescape($ciphertext) );
 
-    if ( !$raw_key || length($raw_key) < 12 ) {
+    if ( !$self->key() || length($self->key()) < 12 ) {
         $self->logger()->log( message => "Misconfigured Server. Invalid Key Length.", level => 'error', );
         return;
     }
 
-    my $key = $self->gen_key($raw_key);
-    my $iv  = $self->gen_iv($raw_key);
+    my $key = $self->gen_key($self->key());
+    my $iv  = $self->gen_iv($self->key());
 
     # the Crypt::CBC parameters are important,
     # this set of parameters makes the ciphertext
@@ -153,7 +149,6 @@ sub decrypt {
 
 sub encrypt {
     my $self     = shift;
-    my $raw_key  = shift;
     my $hash_ref = shift;
 
     my $plaintext = undef;
@@ -163,13 +158,13 @@ sub encrypt {
         return;
     }
 
-    if ( !$raw_key || length($raw_key) < 12 ) {
+    if ( !$self->key() || length($self->key()) < 12 ) {
         $self->logger()->log( message => "Misconfigured Server. Invalid Key Length.", level => 'warning', );
         return;
     }
 
-    my $key = $self->gen_key($raw_key);
-    my $iv  = $self->gen_iv($raw_key);
+    my $key = $self->gen_key($self->key());
+    my $iv  = $self->gen_iv($self->key());
 
     # the Crypt::CBC parameters are important,
     # this set of parameters makes the ciphertext
@@ -191,7 +186,7 @@ sub encrypt {
         return;
     }
     else {
-        return &VWebAdm::Utils::urlencode( encode_base64($ciphertext) );
+        return URI::Escape::uri_escape( encode_base64($ciphertext) );
     }
 }
 

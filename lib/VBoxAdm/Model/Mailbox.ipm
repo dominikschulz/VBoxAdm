@@ -589,7 +589,8 @@ sub get_email {
     my ( $self, $id ) = @_;
 
     # Authorization - No access for regular users
-    if ( !$self->user->is_admin() ) {
+    if ( !$self->user->is_admin() && $self->user->id() != $id ) {
+        $self->logger()->log( message => 'Access to get_email denied!', level => 'debug', );
         $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }
@@ -612,8 +613,9 @@ sub get_email {
 sub get_id {
     my ( $self, $email ) = @_;
 
-    # Authorization - No access for regular users
-    if ( !$self->user->is_admin() ) {
+    # Authorization - anyone is allowed
+    if ( !$self->user->is_admin() && $email ne $self->user->local_part().'@'.$self->user->domain() ) {
+        $self->logger()->log( message => 'Access to get_id denied!', level => 'debug', );
         $self->msg->push( 'error', 'Sorry. No access for regular users.' );
         return;
     }

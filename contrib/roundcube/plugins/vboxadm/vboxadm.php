@@ -10,14 +10,17 @@
  * @url http://vboxadm.gauner.org/
  * @licence GNU GPL 2
  */
-
+require_once('vboxapi.php');
+require_once('dovecotpw.php');
+ 
 class vboxadm extends rcube_plugin
 {
 	public $task = 'settings';
 	private $config;
 	private $db;
 	private $sections = array();
-	private $dovecotpw;
+	#private $dovecotpw;
+	private $vboxapi;
 
 	function init()
 	{
@@ -30,7 +33,8 @@ class vboxadm extends rcube_plugin
 		$this->include_script('vboxadm.js');
 		$this->include_stylesheet('vboxadm.css');
 
-		$this->dovecotpw = new DovecotPW;
+		#$this->dovecotpw = new DovecotPW;
+		$this->vboxapi   = new VBoxAPI;
 	}
 
 	function vboxadm_init()
@@ -68,16 +72,19 @@ class vboxadm extends rcube_plugin
 
 			$config_array = array_merge($vboxadm_config_dist, $vboxadm_config);
 			$this->config = $config_array;
-			$this->dovecotpw->setConfig($this->config);
+			#$this->dovecotpw->setConfig($this->config);
+			$this->vboxapi->setConfig($this->config);
+			//$this->vboxapi->setDebug(1);
 			ob_end_clean();
 		} else {
 			raise_error(array(
 				'code' => 527,
 				'type' => 'php',
-				'message' => "Failed to load vboxadm plugin config"), true, true);
+				'message' => "Failed to load vboxadm plugin config"), true, true
+			);
 		}
 	}
-
+/*
 	private function _db_connect($mode)
 	{
 		$this->db = new rcube_mdb2($this->config['db_dsn'], '', false);
@@ -86,12 +93,13 @@ class vboxadm extends rcube_plugin
 		// check DB connections and exit on failure
 		if ($err_str = $this->db->is_error()) {
 			raise_error(array(
-		    'code' => 603,
-		    'type' => 'db',
-		    'message' => $err_str), FALSE, TRUE);
+				'code' => 603,
+				'type' => 'db',
+				'message' => $err_str), FALSE, TRUE
+			);
 		}
 	}
-
+*/
 	function vboxadm_save()
 	{
 		$this->add_texts('localization/');
@@ -169,7 +177,7 @@ class vboxadm extends rcube_plugin
 		}
 
 		if (empty($error)) {
-			$res = $this->_save($user,$sa_active,$sa_kill_score,$is_on_vacation,$vacation_start,$vacation_end,              $vacation_subj,$vacation_msg,$max_msg_size,$alias_active,$alias_goto);
+			$res = $this->_save($user,$sa_active,$sa_kill_score,$is_on_vacation,$vacation_start,$vacation_end,$vacation_subj,$vacation_msg,$max_msg_size,$alias_active,$alias_goto);
 		}
 		else {
 			$res = implode("\n",$error);
@@ -215,7 +223,7 @@ class vboxadm extends rcube_plugin
 
 		$settings = $this->_get_configuration();
 
-		$sa_active			= $settings['sa_active'];
+		$sa_active		= $settings['sa_active'];
 		$sa_kill_score		= $settings['sa_kill_score'];
 		$is_on_vacation		= $settings['is_on_vacation'];
 		$vacation_subj		= $settings['vacation_subj'];
@@ -223,10 +231,10 @@ class vboxadm extends rcube_plugin
 		$vacation_start		= $settings['vacation_start'];
 		$vacation_end		= $settings['vacation_end'];
 		$max_msg_size_mb	= $settings['max_msg_size']/(1024*1024);
-		$user_id			= $settings['id'];
-		$domain_id			= $settings['domain_id'];
+		$user_id		= $settings['id'];
+		$domain_id		= $settings['domain_id'];
 		$alias_active		= $settings['alias_active'];
-		$alias_goto			= $settings['alias_goto'];
+		$alias_goto		= $settings['alias_goto'];
 
 		$domain_settings = $this->_get_domain_configuration($domain_id);
 
@@ -241,67 +249,6 @@ class vboxadm extends rcube_plugin
 			$out .= sprintf($this->gettext('adminlinktext'), '<a href="' . $this->config['vboxadm_url'] . '" target="_blank">', '</a>');
 			$out .= "</p>\n";
 		}
-
-		// =====================================================================================================
-		// Password
-		$out .= '<fieldset><legend>' . $this->gettext('password') . '</legend>' . "\n";
-		$out .= '<div class="fieldset-content">';
-		$out .= '<p>' . $this->gettext('passwordcurrentexplanation') . '</p>';
-		$out .= '<table class="vboxadm-settings" cellpadding="0" cellspacing="0">';
-
-		$field_id = 'curpasswd';
-		$input_passwordcurrent = new html_passwordfield(
-			array(
-				'name' => '_curpasswd',
-				'id' => $field_id,
-				'class' => 'text-long',
-				'autocomplete' => 'off'
-				)
-		);
-
-		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
-			$field_id,
-			rep_specialchars_output($this->gettext('passwordcurrent')),
-			$input_passwordcurrent->show(),
-			''
-		);
-
-		$field_id = 'newpasswd';
-		$input_passwordnew = new html_passwordfield(
-			array(
-				'name' => '_newpasswd',
-				'id' => $field_id,
-				'class' => 'text-long',
-				'autocomplete' => 'off'
-			)
-		);
-
-		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
-			$field_id,
-			rep_specialchars_output($this->gettext('passwordnew')),
-			$input_passwordnew->show(),
-			''
-		);
-
-		$field_id = 'confpasswd';
-		$input_passwordconf = new html_passwordfield(
-			array(
-				'name' => '_confpasswd',
-				'id' => $field_id,
-				'class' => 'text-long',
-				'autocomplete' => 'off'
-			)
-		);
-
-		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
-			$field_id,
-			rep_specialchars_output($this->gettext('passwordconfirm')),
-			$input_passwordconf->show(),
-			''
-		);
-
-		$out .= '</table>';
-		$out .= '</div></fieldset>'."\n\n";
 
 		// =====================================================================================================
 		// SpamAssassin
@@ -539,6 +486,81 @@ class vboxadm extends rcube_plugin
 			$out .= '</div></fieldset>' . "\n\n";
 		}
 		// ============================================================
+		
+		// =====================================================================================================
+		// Password change
+		$out .= '<fieldset><legend>' . $this->gettext('passwordchange') . '</legend>' . "\n";
+		$out .= '<div class="fieldset-content">';
+		$out .= '<p>' . $this->gettext('passwordcurrentexplanation') . '</p>';
+		$out .= '<table class="vboxadm-settings" cellpadding="0" cellspacing="0">';
+
+		$field_id = 'newpasswd';
+		$input_passwordnew = new html_passwordfield(
+			array(
+				'name' => '_newpasswd',
+				'id' => $field_id,
+				'class' => 'text-long',
+				'autocomplete' => 'off'
+			)
+		);
+
+		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+			$field_id,
+			rep_specialchars_output($this->gettext('passwordnew')),
+			$input_passwordnew->show(),
+			''
+		);
+
+		$field_id = 'confpasswd';
+		$input_passwordconf = new html_passwordfield(
+			array(
+				'name' => '_confpasswd',
+				'id' => $field_id,
+				'class' => 'text-long',
+				'autocomplete' => 'off'
+			)
+		);
+
+		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+			$field_id,
+			rep_specialchars_output($this->gettext('passwordconfirm')),
+			$input_passwordconf->show(),
+			''
+		);
+
+		$out .= '</table>';
+		$out .= '</div></fieldset>'."\n\n";
+		
+		// ============================================================
+		
+		// =====================================================================================================
+		// Password
+		$out .= '<fieldset><legend>' . $this->gettext('password') . '</legend>' . "\n";
+		$out .= '<div class="fieldset-content">';
+		$out .= '<p>' . $this->gettext('passwordexplanation') . '</p>';
+		$out .= '<table class="vboxadm-settings" cellpadding="0" cellspacing="0">';
+
+		$field_id = 'curpasswd';
+		$input_passwordcurrent = new html_passwordfield(
+			array(
+				'name' => '_curpasswd',
+				'id' => $field_id,
+				'class' => 'text-long',
+				'autocomplete' => 'off'
+				)
+		);
+
+		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+			$field_id,
+			rep_specialchars_output($this->gettext('passwordcurrent')),
+			$input_passwordcurrent->show(),
+			''
+		);
+
+		$out .= '</table>';
+		$out .= '</div></fieldset>'."\n\n";
+		
+		// ============================================================
 
 		$out .= html::p(
 			null,
@@ -595,6 +617,7 @@ class vboxadm extends rcube_plugin
 	{
 		$this->_load_config();
 		$rcmail = rcmail::get_instance();
+		/*
 		$this->_db_connect('r');
 
 		$sql = 'SELECT m.id AS user_id, d.id AS domain_id, m.local_part AS local_part,d.name AS ';
@@ -613,8 +636,10 @@ class vboxadm extends rcube_plugin
 			return $err;
 		}
 		$ret = $this->db->fetch_assoc($res);
-
+		
 		return $ret;
+		*/
+		return $this->vboxapi->get_user_config($rcmail->user->data['username']);
 	}
 
 
@@ -622,6 +647,7 @@ class vboxadm extends rcube_plugin
 	{
 		$this->_load_config();
 		$rcmail = rcmail::get_instance();
+		/*
 		$this->_db_connect('r');
 
 		$sql = 'SELECT id,name,is_active FROM domains WHERE id = ' . $this->db->quote($domain_id) . ' AND is_active LIMIT 1';
@@ -633,6 +659,8 @@ class vboxadm extends rcube_plugin
 		$ret = $this->db->fetch_assoc($res);
 
 		return $ret;
+		*/
+		return $this->vboxapi->get_domain_config($domain_id);
 	}
 
 	private function _save(
@@ -644,14 +672,12 @@ class vboxadm extends rcube_plugin
 		$rcmail = rcmail::get_instance();
 
 		$this->_load_config();
-		$this->_db_connect('w');
+		#$this->_db_connect('w');
 		$settings			= $this->_get_configuration();
 		$user_id			= $settings['user_id'];
 		$domain_id			= $settings['domain_id'];
 		$local_part			= $settings['local_part'];
-
-		$max_msg_size = $max_msg_size_mb * 1024 * 1024;
-
+/*
 		$sql = 'UPDATE mailboxes SET ';
 		$sql .= 'sa_active = '.$this->db->quote($sa_active,'text').', ';
 		$sql .= 'sa_kill_score = '.$this->db->quote($sa_kill_score,'text').', ';
@@ -669,8 +695,8 @@ class vboxadm extends rcube_plugin
 			$config_error = 1;
 		}
 		$res = $this->db->affected_rows($res);
-
-		if ($this->config['user_managed_aliases']) {
+*/
+		if (FALSE && $this->config['user_managed_aliases']) {
 			// user can edit aliases for his mail address
 			// This needs "GRANT SELECT, INSERT, UPDATE, DELETE ON vboxadm.mailboxes TO 'vboxadm_user'@'localhost'"
 			if (trim($alias_goto)=='') {
@@ -697,9 +723,25 @@ class vboxadm extends rcube_plugin
 
 		$curpwd = get_input_value('_curpasswd', RCUBE_INPUT_POST);
 		$newpwd = get_input_value('_newpasswd', RCUBE_INPUT_POST);
+		$newpwd2 = get_input_value('_confpasswd', RCUBE_INPUT_POST);
+		
+		$settings['SAActive'] 		= $sa_active;
+		$settings['SAKillScore'] 	= $sa_kill_score;
+		$settings['IsOnVacation'] 	= $is_on_vacation;
+		$settings['VacationStart'] 	= $vacation_start;
+		$settings['VacationEnd'] 	= $vacation_end;
+		$settings['VacationSubject'] 	= $vacation_subj;
+		$settings['VacationMessage']  	= $vacation_msg;
+		$settings['MaxMsgSize']  	= $msg_msg_size_mb;
+		if($newpwd == $newpwd2) {
+			$settings['Password'] = $newpwd;
+			$settings['PasswordAgain'] = $newpwd2;
+		}
+		
+		$this->vboxapi->set_user_config($user,$curpwd,$settings);
 
 		/* write_log('vboxadm','_save invoked'); */
-
+/*
 		if ($curpwd != '' and $newpwd != '') {
 			$trytochangepass = 1;
 			$password_change_error = 0;
@@ -745,6 +787,7 @@ class vboxadm extends rcube_plugin
 				}
 			}
 		} // if pw changed - end
+*/
 
 		// This error handling is a bit messy, should be improved!
 		// We may also want to check for $res and $res_pass to see if changes were done or not
@@ -788,7 +831,7 @@ class vboxadm extends rcube_plugin
 
 	}
 
-
+/*
 	private function verify_pass_by_uid($pass, $user_id) {
 		$sql = "SELECT password FROM mailboxes WHERE id = ".$this->db->quote($user_id, 'text');
 		$res = $this->db->query($sql);
@@ -800,310 +843,5 @@ class vboxadm extends rcube_plugin
 
 		return $this->dovecotpw->verify_pass($pass, $ret['password']);
 	}
-
-}
-// dovecot compatible password handling
-class DovecotPW {
-	
-	private $config;
-	
-	private $hashlen = array(
-		'smd5'    => 16,
-		'ssha'    => 20,
-		'ssha256' => 32,
-		'ssha512' => 64,
-	);
-	
-	public function setConfig($config) {
-		$this->config = $config;
-	}
-
-	public function check_password($pwd, $numeric = FALSE)
-	{
-		if($this->config['vboxadm_allow_weak_password']) {
-			$min_pw_length = 4;
-			if(isset($this->config['vboxadm_min_weak_password_length'])) {
-				$min_pw_length = $this->config['vboxadm_min_weak_password_length'];
-			}
-			if(strlen($pwd) < $min_pw_length) {
-				return FALSE;
-			}
-			return TRUE;
-		}
-
-		$score = 0;
-		/* no too short passwords at all */
-		if (strlen($pwd) < 8)
-		{
-			return FALSE;
-		}
-
-		if (strlen($pwd) >= 8)
-		{
-			$score++;
-		}
-		if (strlen($pwd) >= 12)
-		{
-			$score++;
-		}
-		/* UPPER and lower case mixed */
-		if (preg_match("/[a-z]/", $pwd) && preg_match("/[A-Z]/", $pwd))
-		{
-			$score++;
-		}
-		/* contains numbers */
-		if (preg_match("/[0-9]/", $pwd))
-		{
-			$score++;
-		}
-		/* contains special chars */
-		if (preg_match("/.[!,@,#,$,%,^,&,*,?,_,~,-,£,(,)]/", $pwd)) 
-		{
-			$score++;
-		}
-		if($numeric) {
-			return $score;
-		} else {
-			if($score > 2) {
-				return TRUE;
-			} else {
-				return FALSE;
-			}
-		}
-	}
-
-	public function make_salt() {
-		$len   = 4;
-		$bytes = array();
-		for ($i = 0; $i < $len; $i++ ) {
-			$bytes[] = rand(1,255);
-		}
-		$salt_str = '';
-		foreach ($bytes as $b) {
-			$salt_str .= pack('C', $b);
-		}
-		return $salt_str;
-	}
-
-	public function verify_pass($pass, $pwentry) {
-		$pwinfo = $this->split_pass($pwentry);
-		$passh = $this->make_pass( $pass, $pwinfo[0], $pwinfo[2] );
-
-		if ( $pwentry == $passh ) {
-			return TRUE;
-		}
-		else {
-			return FALSE;
-		}
-	}
-
-	public function ldap_md5($pw) {
-		return "{LDAP-MD5}" . base64_encode( hash('md5',$pw, TRUE) );
-	}
-
-	public function smd5($pw, $salt) {
-		if(strlen($salt) < 1) {
-			$salt = $this->make_salt();
-		}
-		return "{SMD5}" . base64_encode( hash('md5', $pw . $salt, TRUE ) . $salt );
-	}
-
-	public function sha($pw) {
-		return "{SHA}" . base64_encode( hash('sha1',$pw, TRUE) );
-	}
-	
-	public function cram_md5($pw) {
-		$dovecotpw = '/usr/sbin/dovecotpw';
-		if(isset($this->config['vboxadm_dovecotpw'])) {
-			$dovecotpw = $this->config['vboxadm_dovecotpw'];
-		}
-		
-		$pwscheme = 'CRAM-MD5';
-		
-		// write_log('vboxadm', "dovecotpw: $dovecotpw");
-		
-		$spec = array(
-			0 => array("pipe", "r"), // childs stdin
-			1 => array("pipe", "w")  // childs stdout
-		);
-		
-		$proc = proc_open("$dovecotpw '-s' $pwscheme", $spec, $pipes);
-		
-		if (!$proc) {
-			die("unable to open $dovecotpw");
-		} else {
-			// send the password twice to dovecotpw
-			//
-			fwrite($pipes[0], $pw . "\n", 1+strlen($pw)); usleep(500);
-			fwrite($pipes[0], $pw . "\n", 1+strlen($pw));
-			fclose($pipes[0]);
-			
-			// read the encrypted password
-			//
-			$encpw = fread($pipes[1], 512);
-			fclose($pipes[1]);
-			proc_close($proc);
-			
-			// strip leading or trailing whitespace.
-			// dovecotpw creates a nl at the end
-			$encpw = trim($encpw);
-			
-			// write_log('vboxadm',"cram_md5 - dovecotpw: $dovecotpw, encrypted password: $encpw");
-			
-			// Test if the supplied scheme matches the generated one
-			//
-			if ( !preg_match('/^\{'.$pwscheme.'\}/', $encpw)) { 
-				die("unable to create encrypted password with $dovecotpw"); 
-			}
-			
-			return $encpw;
-		}
-	}
-	
-
-	public function ssha($pw, $salt) {
-		if(strlen($salt) < 1) {
-			$salt = $this->make_salt();
-		}
-		return "{SSHA}" . base64_encode( hash('sha1', $pw . $salt, TRUE ) . $salt );
-	}
-
-	public function sha256($pw) {
-		return "{SHA256}" . base64_encode( hash('sha256',$pw, TRUE) );
-	}
-
-	public function ssha256($pw, $salt) {
-		if(strlen($salt) < 1) {
-			$salt = $this->make_salt();
-		}
-		return "{SSHA256}" . base64_encode( hash('sha256', $pw . $salt, TRUE ) . $salt );
-	}
-
-	public function sha512($pw) {
-		return "{SHA512}" . base64_encode( hash('sha512',$pw, TRUE) );
-	}
-
-	public function ssha512($pw, $salt) {
-		if(strlen($salt) < 1) {
-			$salt = $this->make_salt();
-		}
-		return "{SSHA512}" . base64_encode( hash('sha512', $pw . $salt, TRUE ) . $salt );
-	}
-
-	public function make_pass($pw, $pwscheme, $salt) {
-		if(strlen($salt) < 1) {
-			$salt = $this->make_salt();
-		}
-		if(strlen($pwscheme) < 1) {
-			$pwscheme = $this->config['vboxadm_cryptscheme'];
-		}
-		$pwscheme = strtolower($pwscheme);
-		switch($pwscheme) {
-			case "ldap_md5":
-				return $this->ldap_md5($pw);
-				break;
-			case "plain_md5":
-				return $this->plain_md5($pw);
-				break;
-			case "sha":
-				return $this->sha($pw);
-				break;
-			case "sha256":
-				return $this->sha256($pw);
-				break;
-			case "sha512":
-				return $this->sha512($pw);
-				break;
-			case "smd5":
-				return $this->smd5($pw,$salt);
-				break;
-			case "ssha":
-				return $this->ssha($pw,$salt);
-				break;
-			case "ssha256":
-				return $this->ssha256($pw,$salt);
-				break;
-			case "ssha512":
-				return $this->ssha512($pw,$salt);
-				break;
-			case "cram_md5":
-			case "cram-md5":
-				return $this->cram_md5($pw);
-				break;
-			default:
-				return "{CLEARTEXT}".$pw;
-		}
-	}
-
-	public function split_pass($pw) {
-		$pwscheme = 'cleartext';
-
-		# get use password scheme and remove leading block
-		if ( preg_match("/^\{([^}]+)\}/", $pw, $matches) ) {
-			$pwscheme = strtolower($matches[1]);
-			$pw = preg_replace("/^\{([^}]+)\}/",'',$pw);
-
-			# turn - into _ so we can feed pwscheme to make_pass
-			$pwscheme = preg_replace("/-/",'_',$pwscheme);
-		}
-
-		# We have 3 major cases:
-		# 1 - cleartext pw, return pw and empty salt
-		# 2 - hashed pw, no salt
-		# 3 - hashed pw with salt
-		if ( !$pwscheme || $pwscheme == 'cleartext' || $pwscheme == 'plain' ) {
-			return array('cleartext', $pw, '' );
-		}
-		elseif ( preg_match("/^(plain-md5|ldap-md5|md5|sha|sha256|sha512|cram-md5|cram_md5)$/i", $pwscheme) ) {
-			$pw = base64_decode($pw);
-			return array( $pwscheme, $pw, '' );
-		}
-		elseif ( preg_match("/^(smd5|ssha|ssha256|ssha512)/", $pwscheme) ) {
-
-			# now get hashed pass and salt
-			# hashlen can be computed by doing
-			# $hashlen = length(Digest::*::digest('string'));
-			$hashlen = $this->hashlen[$pwscheme];
-
-			# pwscheme could also specify an encoding
-			# like hex or base64, but right now we assume its b64
-			$pw = base64_decode($pw);
-
-			# unpack byte-by-byte, the hash uses the full eight bit of each byte,
-			# the salt may do so, too.
-			$tmp  = unpack( 'C*', $pw );
-			$i    = 1;
-			$hash = array();
-
-			# the salted hash has the form: $saltedhash.$salt,
-			# so the first bytes (# $hashlen) are the hash, the rest
-			# is the variable length salt
-			while ( $i <= $hashlen ) {
-				$hash[] = $tmp[$i++];
-			}
-
-			# as I've said: the rest is the salt
-			$salt = array();
-			for(; $i <= sizeof($tmp); $i++) {
-				$salt[] = $tmp[$i];
-			}
-
-			# pack it again, byte-by-byte
-			$pw_str = '';
-			foreach ($hash as $h) {
-				$pw_str .= pack('C', $h);
-			}
-			$salt_str = '';
-			foreach ($salt as $s) {
-				$salt_str .= pack('C', $s);
-			}
-
-			return array( $pwscheme, $pw_str, $salt_str );
-		}
-		else {
-
-			# unknown pw scheme
-			return FALSE;
-		}
-	}
+*/
 }

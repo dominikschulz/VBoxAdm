@@ -7,6 +7,8 @@ $labels['vboxadmaccountadmin']  = 'Postfach verwalten';
 $labels['accountadministration']  = 'Postfach verwalten';
 
 $labels['password']  = 'Passwort';
+$labels['passwordchange']  = 'Passwort ändern';
+$labels['passwordexplanation'] = 'Geben Sie hier ihr aktuelles Passwort ein um Ihre Änderungen zu bestätigen.';
 $labels['passwordcurrentexplanation']  = 'Lassen Sie die Felder leer um das alte Passwort zu übernehmen.';
 $labels['passwordcurrent']  = 'Aktuelles Passwort';
 $labels['passwordnew']  = 'Neues Passwort';

@@ -13,6 +13,8 @@ use CGI::Application::Plugin::DBH (qw/dbh_config dbh/);
 use Carp;
 use Config::Std;
 use Data::Dumper;
+use Encode;
+use Try::Tiny;
 
 use VWebAdm::API '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
@@ -91,6 +93,15 @@ sub setup {
     }
     $config{'quiet'} = 1;
     $self->{config} = \%config;
+    
+    #
+    # API helper
+    #
+    my $API = VWebAdm::API::->new({
+        'logger'    => $Logger,
+        'key'       => $self->{'config'}->{'api'}->{'key'},
+    });
+    $self->{'api'} = $API;
 
     #
     # Database
@@ -149,9 +160,6 @@ sub teardown {
     # Disconnect when done
     $self->dbh->disconnect();
 
-    # Close log
-    closelog();
-
     # to make perlcritic happy
     return 1;
 }
@@ -179,7 +187,7 @@ sub show_api {
     my $api_version = $q->param('v');
 
     if ( $api_version == 1 ) {
-        return &handle_v1($self);
+        return $self->handle_v1();
     }
     else {
         $self->header_add( -status => 400 );
@@ -210,90 +218,173 @@ sub show_test {
 }
 
 sub handle_v1 {
-    my $cgiapp = shift;
+    my $self = shift;
 
     # Get CGI Query object
-    my $q = $cgiapp->query();
+    my $q = $self->query();
 
     my $payload = $q->param('p');
 
     if ( !$payload ) {
-        $cgiapp->header_add( -status => 491 );
+        $self->header_add( -status => 491 );
         return "Missing parameters.\n";
     }
 
-    my $hash_ref = &VWebAdm::API::decrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $payload );
-    my $answer_ref = {};
+    my $hash_ref = $self->{'api'}->decrypt( $payload );
 
     if ( !$hash_ref ) {
-        $cgiapp->header_add( -status => 492 );
+        $self->header_add( -status => 492 );
         return "Unable to decode. Check you API key.\n";
     }
 
     if ( ref($hash_ref) ne 'HASH' ) {
-        $cgiapp->header_add( -status => 493 );
+        $self->header_add( -status => 493 );
         return "Illegal request.\n";
     }
+    
+    my $answer_ref = {};
+    if($hash_ref->{'auth'}->{'ro'}) {
+        $answer_ref = $self->_handle_v1_ro($hash_ref);
+    } elsif($hash_ref->{'auth'}->{'rw'}) {
+        $answer_ref = $self->_handle_v1_rw($hash_ref);
+    }
+    
+    return $self->{'api'}->encrypt($answer_ref);
+}
+
+sub _handle_v1_ro {
+    my $self = shift;
+    my $hash_ref = shift;
+    
+    my $answer_ref = {};
+    
+    $answer_ref->{'auth'} = 'ok';
+    
+    if($hash_ref->{'mailbox'}->{'read'} && scalar(keys %{$hash_ref->{'mailbox'}->{'read'}})) {
+        my @fields = qw(mailboxes.id domains.id sa_active sa_kill_score is_on_vacation vacation_subj vacation_msg vacation_start vacation_end max_msg_size);
+        my $sql = 'SELECT '.join(',',@fields).' FROM mailboxes LEFT JOIN domains ON mailboxes.domain_id = domains.id WHERE ';
+        $sql .= 'mailboxes.local_part = ? AND domains.name = ? AND mailboxes.is_active AND domains.is_active LIMIT 1';
+        $self->{'logger'}->log( message => 'SQL: '.$sql, level => 'debug', );
+        my $sth = $self->dbh()->prepare($sql);
+        foreach my $username (keys %{$hash_ref->{'mailbox'}->{'read'}}) {
+            my ($local_part,$domain) = split /@/, $username;
+            $self->{'logger'}->log( message => 'Args: '.join(' - ',($local_part,$domain)), level => 'debug', );
+            $sth->execute($local_part,$domain);
+            my @row = $sth->fetchrow_array();
+            $self->{'logger'}->log( message => 'Mailbox-Result: '.join(' - ',@row), level => 'debug', );
+            my %h;
+            @h{@fields} = @row;
+            foreach my $field ( keys %h ) {
+                $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8( $h{$field} );
+            }
+            $h{'id'} = $h{'mailboxes.id'};
+            $h{'domain_id'} = $h{'domains.id'};
+            $answer_ref->{'mailbox'}->{'read'}->{$username}->{'rv'} = \%h;
+        }
+        $answer_ref->{'action'} = 'ok';
+    }
+    if($hash_ref->{'domain'}->{'read'} && scalar(keys %{$hash_ref->{'domain'}->{'read'}})) {
+        my @fields = qw(id name is_active);
+        my $sql = 'SELECT '.join(',',@fields).' FROM domains WHERE id = ? LIMIT 1';
+        my $sth = $self->dbh()->prepare($sql);
+        foreach my $domain_id (keys %{$hash_ref->{'domain'}->{'read'}}) {
+            $sth->execute($domain_id);
+            my @row = $sth->fetchrow_array();
+            $self->{'logger'}->log( message => 'Domain-Result: '.join(' - ',@row), level => 'debug', );
+            my %h;
+            @h{@fields} = @row;
+            foreach my $field ( keys %h ) {
+                $h{$field} = Encode::decode( 'UTF-8', $h{$field} ) unless Encode::is_utf8( $h{$field} );
+            }
+            $answer_ref->{'domain'}->{'read'}->{$domain_id}->{'rv'} = \%h;
+        }
+        $answer_ref->{'action'} = 'ok';
+    }
+    
+    return $answer_ref;
+}
+
+sub _handle_v1_rw {
+    my $self = shift;
+    my $hash_ref = shift;
+    
+    my $answer_ref = {};
 
     my $Messages = VWebAdm::Model::MessageQueue::->new(
         {
-            'LH'    => $cgiapp->{'lh'},
-            'LH_EN' => $cgiapp->{'lh_en'},
+            'lh'    => $self->{'lh'},
+            'lh_en' => $self->{'lh_en'},
         }
     );
-    $cgiapp->{'Messages'} = $Messages;
+    $self->{'Messages'} = $Messages;
     my $User;
     if ( $hash_ref->{'user'}->{'username'} && $hash_ref->{'user'}->{'password'} ) {
-        eval {
+        my $success = try {
             $User = VBoxAdm::Model::User->new(
                 {
-                    'dbh'          => $cgiapp->dbh,
-                    'MessageQueue' => $Messages,
-                    'Logger'       => \&syslog,
-                    'Config'       => $cgiapp->{'config'},
-                    'Username'     => $hash_ref->{'user'}->{'username'},
-                    'Password'     => $hash_ref->{'user'}->{'password'},
+                    'dbh'       => $self->dbh,
+                    'msgq'      => $Messages,
+                    'logger'    => $self->{'logger'},
+                    'config'    => $self->{'config'},
+                    'username'  => $hash_ref->{'user'}->{'username'},
                 }
             );
+            1;
+        }
+        catch {
+            $self->{'logger'}->log( message => 'Error while instantiating user: '.$_, level => 'error', );
         };
-        if ($@) {
-            $cgiapp->header_add( -status => 494 );
+        if(!$success) {
+            $self->header_add( -status => 494 );
             $answer_ref->{'auth'} = 'error';
-            return &VBoxAdm::API::encrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $answer_ref );
+            return $answer_ref;
         }
     }
-    if ( !$User ) {
-        $cgiapp->header_add( -status => 495 );
+    if ( $User && $User->login($hash_ref->{'user'}->{'password'})) {
+        $self->{'logger'}->log( message => 'User '.$User->id().'/'.$User->local_part().'@'.$User->domain().' logged in via API', level => 'debug', );
+        $answer_ref->{'auth'} = 'ok';
+    } else {
+        $self->{'logger'}->log( message => 'Login failed for '.$hash_ref->{'user'}->{'username'}.':'.$hash_ref->{'user'}->{'password'}, level => 'error', );
+        $self->header_add( -status => 495 );
         $answer_ref->{'auth'} = 'error';
-        return &VBoxAdm::API::encrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $answer_ref );
+        return $answer_ref;
     }
-    $cgiapp->{'User'} = $User;
+    $self->{'User'} = $User;
+    
     my $arg_ref = {
-        'dbh'          => $cgiapp->dbh,
-        'User'         => $User,
-        'MessageQueue' => $Messages,
-        'Logger'       => \&syslog,
-        'Config'       => $cgiapp->{'config'},
+        'dbh'          => $self->dbh,
+        'user'         => $User,
+        'msgq' => $Messages,
+        'logger'       => $self->{'logger'},
+        'config'       => $self->{'config'},
     };
     my $c = {};
-    $c->{alias}             = VBoxAdm::Model::Alias::->new($arg_ref);
-    $c->{awl}               = VBoxAdm::Model::AWL::->new($arg_ref);
-    $c->{domain}            = VBoxAdm::Model::Domain::->new($arg_ref);
-    $c->{domainalias}       = VBoxAdm::Model::DomainAlias::->new($arg_ref);
-    $c->{mailbox}           = VBoxAdm::Model::Mailbox::->new($arg_ref);
-    $c->{rfcnotify}         = VBoxAdm::Model::RFCNotify::->new($arg_ref);
-    $c->{vacationblacklist} = VBoxAdm::Model::VacationBlacklist::->new($arg_ref);
+    my $success = try {
+        $c->{alias}             = VBoxAdm::Model::Alias::->new($arg_ref);
+        $c->{awl}               = VBoxAdm::Model::AWL::->new($arg_ref);
+        $c->{domain}            = VBoxAdm::Model::Domain::->new($arg_ref);
+        $c->{domainalias}       = VBoxAdm::Model::DomainAlias::->new($arg_ref);
+        $c->{mailbox}           = VBoxAdm::Model::Mailbox::->new($arg_ref);
+        $c->{rfcnotify}         = VBoxAdm::Model::RFCNotify::->new($arg_ref);
+        $c->{vacationblacklist} = VBoxAdm::Model::VacationBlacklist::->new($arg_ref);
+        $answer_ref->{'init'} = 'ok';
+        1;
+    } catch {
+        $self->{'logger'}->log( message => 'Error while instantiating model classes: '.$_, level => 'error', );
+    };
 
-    $answer_ref->{'auth'} = 'ok';
+    $self->{'logger'}->log( message => 'Request: '.Dumper($hash_ref), level => 'debug', );
 
     # process requests in hash_ref
     # return response as crypted, json encoded string
     foreach my $module ( keys %{$hash_ref} ) {
+        $self->{'logger'}->log( message => 'Module: '.$module.'/ref:'.ref( $hash_ref->{$module} ), level => 'debug', );
         $module = lc($module);
-        next if ref( $hash_ref->{$module} ne 'HASH' );
+        next if ref( $hash_ref->{$module} ) ne 'HASH';
         next if $module eq 'user';
         next unless $c->{$module};
         foreach my $action ( keys %{ $hash_ref->{$module} } ) {
+            $self->{'logger'}->log( message => 'Module: '.$module.' - Action: '.$action.'/ref:'.ref( $hash_ref->{$module}->{$action} ), level => 'debug', );
 
             $action = lc($action);
             if ( $action eq 'list' ) {
@@ -308,8 +399,9 @@ sub handle_v1 {
                 $answer_ref->{$module}{$action}{'msgs'} = [ $Messages->get() ];
             }
             else {
-                next if ref( $hash_ref->{$module}->{$action} ne 'HASH' );
+                next if ref( $hash_ref->{$module}->{$action}) ne 'HASH';
                 foreach my $item ( keys %{ $hash_ref->{$module}->{$action} } ) {
+                    $self->{'logger'}->log( message => 'Module: '.$module.' - Action: '.$action.' - Item: '.$item.' - ref:'.ref( $hash_ref->{$module}->{$action}->{$item} ), level => 'debug', );
                     my $param_ref = $hash_ref->{$module}->{$action}->{$item};
 
                     # item may either by numeric -> use directly
@@ -322,25 +414,31 @@ sub handle_v1 {
                         $id = $c->{$module}->get_id($item);
                         if ( !$id ) {
                             $answer_ref->{$module}{$action}{$item}{'rv'}   = 0;
-                            $answer_ref->{$module}{$action}{$item}{'msgs'} = 'User not found!';
+                            $answer_ref->{$module}{$action}{$item}{'msgs'} = 'Item not found!';
+                            $self->{'logger'}->log( message => 'Id not found for '.$module.'/'.$action.'/'.$item, level => 'warning', );
                             next;
                         }
                     }
                     if ( $action eq 'read' ) {
                         $answer_ref->{$module}{$action}{$item}{'rv'}   = $c->{$module}->read($id);
                         $answer_ref->{$module}{$action}{$item}{'msgs'} = [ $Messages->get() ];
+                        $answer_ref->{'action'} = 'ok';
                     }
                     elsif ( $action eq 'delete' ) {
                         $answer_ref->{$module}{$action}{$item}{'rv'}   = $c->{$module}->delete($id);
                         $answer_ref->{$module}{$action}{$item}{'msgs'} = [ $Messages->get() ];
+                        $answer_ref->{'action'} = 'ok';
                     }
                     elsif ( $action eq 'update' ) {
+                        $self->{'logger'}->log( message => 'Calling update for '.$module.'/'.$action.'/'.$item.' w/ id: '.$id.' and params: '.Dumper($param_ref), level => 'debug', );
                         $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->update( $id, $param_ref );
                         $answer_ref->{$module}{$action}{$item}{'msgs'} = [ $Messages->get() ];
+                        $answer_ref->{'action'} = 'ok';
                     }
                     elsif ( $action eq 'create' ) {
                         $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->create( $item, $param_ref );
                         $answer_ref->{$module}{$action}{$item}{'msgs'} = [ $Messages->get() ];
+                        $answer_ref->{'action'} = 'ok';
                     }
                 }
             }
@@ -353,8 +451,7 @@ sub handle_v1 {
     #$output .= "Response-Ciphertext: ".$ciphertext."<br />\n";
     #my $plaintext = &decrypt( $cgiapp, $ciphertext );
     #$output .= "Response-Hashref: <pre>".Dumper($plaintext)."</pre><br />\n";
-    my $output = &VWebAdm::API::encrypt( $cgiapp->{'config'}->{'api'}->{'key'}, $answer_ref );
-    return $output;
+    return $answer_ref;
 }
 
 1;

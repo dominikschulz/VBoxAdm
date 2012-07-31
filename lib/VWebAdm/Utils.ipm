@@ -369,6 +369,7 @@ sub is_local_mailbox {
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
+# DEPRECATED IN FAVOR OF URI::Escape
 sub urlencode {
     my $str = shift;
     if ($str) {
@@ -385,6 +386,7 @@ sub urlencode {
 # Throws     : no exceptions
 # Comments   : none
 # See Also   : n/a
+# DEPRECATED IN FAVOR OF URI::Escape
 sub urldecode {
     my $str = shift;
     if ($str) {

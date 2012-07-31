@@ -29,4 +29,7 @@ $vboxadm_config['vboxadm_vacation_maxlength'] = 25500;
 // Show a link to vboxadm if the user is registered as domain admin
 $vboxadm_config['show_admin_link'] = true;
 
+$vboxadm_config['api_key'] = '1234567890ab';
+$vboxadm_config['api_url'] = 'http://vboxadm/cgi-bin/vboxapi.pl';
+
 ?>
