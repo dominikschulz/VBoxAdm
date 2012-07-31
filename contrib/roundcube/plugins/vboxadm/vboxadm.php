@@ -612,12 +612,12 @@ class vboxadm extends rcube_plugin
 		$settings['IsOnVacation'] 	= $is_on_vacation;
 		$settings['VacationStart'] 	= $vacation_start;
 		$settings['VacationEnd'] 	= $vacation_end;
-		$settings['VacationSubject'] 	= utf8_encode($vacation_subj);
-		$settings['VacationMessage']  	= utf8_encode($vacation_msg);
+		$settings['VacationSubject'] 	= $vacation_subj;
+		$settings['VacationMessage']  	= $vacation_msg;
 		$settings['MaxMsgSize']  	= $msg_msg_size_mb;
 		if($newpwd == $newpwd2) {
-			$settings['Password'] = $newpwd;
-			$settings['PasswordAgain'] = $newpwd2;
+			$settings['Password']		= $newpwd;
+			$settings['PasswordAgain']	= $newpwd2;
 		}
 		
 		if($this->vboxapi->set_user_config($user,$curpwd,$settings)) {

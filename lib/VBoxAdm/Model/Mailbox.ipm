@@ -270,7 +270,9 @@ sub update {
             }
             else {
                 $query .= "password = ?, ";
-                push( @args, &VWebAdm::SaltedHash::make_pass( $params->{'Password'}, $pwscheme ) );
+                my $cryptpw = &VWebAdm::SaltedHash::make_pass( $params->{'Password'}, $pwscheme );
+                #$self->logger()->log( message => 'Updating password with '.$params->{'Password'}.'/'.$cryptpw, level => 'debug', );
+                push( @args, $cryptpw );
             }
         } else {
             $self->msg->push('warning', 'Please enter the same password twice');

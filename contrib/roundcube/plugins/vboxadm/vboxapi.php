@@ -54,10 +54,11 @@ class VBoxAPI {
     public function set_user_config($username,$password,$fields) {
         $req = array();
         $req['auth']['rw'] = 1; // request read-write mode
-        $req['user']['username'] = $username;
-        $req['user']['password'] = $password;
-        foreach ($key as $fields) {
-                $fields[$key] = utf8_encode($fields[$key]);
+        $req['user']['username'] = utf8_encode($username);
+        $req['user']['password'] = utf8_encode($password);
+        // modify values in place
+        foreach ($fields as &$value) {
+                $value = utf8_encode($value);
         }
         $req['mailbox']['update'][$username] = $fields;
         
