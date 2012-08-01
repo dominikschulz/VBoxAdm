@@ -316,7 +316,8 @@ sub update {
     #
     # Is Siteadmin / Is Domainadmin
     #
-    if ( $self->user->is_siteadmin() ) {
+    # a siteadmin can NOT revoke his own rights
+    if ( $self->user->is_siteadmin() && $self->user->id() != $mailbox_id ) {
         $query .= "is_siteadmin = ?, ";
         if ( $params->{'IsSiteadmin'} ) {
             push( @args, 1 );
