@@ -56,7 +56,6 @@ sub setup {
     # define the mappings between the rm parameter and the actual sub
     $self->run_modes(
         'api'  => 'show_api',
-        'test' => 'show_test',
     );
 
     #
@@ -193,28 +192,6 @@ sub show_api {
         $self->header_add( -status => 400 );
         return "Unknown API Version.\n";
     }
-}
-
-sub show_test {
-    my $self = shift;
-
-    my $hash_ref = {};
-    $hash_ref->{'user'}{'username'}                                           = 'admin@domain123.com';
-    $hash_ref->{'user'}{'password'}                                           = '123';
-    $hash_ref->{'mailbox'}->{'list'}                                          = 1;
-    $hash_ref->{'mailbox'}->{'read'}->{'fred@domain.com'}                     = 1;
-    $hash_ref->{'mailbox'}->{'update'}->{'fred@domain.com'}->{'IsOnVacation'} = 1;
-    my $ciphertext = &encrypt( $self, $hash_ref );
-
-    my $output = "Test Page<br />\n";
-    $output .= "Hash_ref: <pre>" . Dumper($hash_ref) . "</pre><br />\n";
-    $output .= "Ciphertext: $ciphertext<br />\n";
-    $output .= "<a href='/cgi-bin/vboxapi.pl?rm=api&v=1&p=$ciphertext'>Link</a><br />\n";
-
-    my $hash_again = &decrypt( $self, $ciphertext );
-    $output .= "Hash_again: <pre>" . Dumper($hash_again) . "</pre><br />\n";
-
-    return $output;
 }
 
 sub handle_v1 {
@@ -379,13 +356,13 @@ sub _handle_v1_rw {
 
     # process requests in hash_ref
     # return response as crypted, json encoded string
-    foreach my $module ( keys %{$hash_ref} ) {
+    MODULE: foreach my $module ( keys %{$hash_ref} ) {
         #$self->{'logger'}->log( message => 'Module: '.$module.'/ref:'.ref( $hash_ref->{$module} ), level => 'debug', );
         $module = lc($module);
         next if ref( $hash_ref->{$module} ) ne 'HASH';
         next if $module eq 'user';
         next unless $c->{$module};
-        foreach my $action ( keys %{ $hash_ref->{$module} } ) {
+        ACTION: foreach my $action ( keys %{ $hash_ref->{$module} } ) {
             #$self->{'logger'}->log( message => 'Module: '.$module.' - Action: '.$action.'/ref:'.ref( $hash_ref->{$module}->{$action} ), level => 'debug', );
 
             $action = lc($action);
@@ -402,7 +379,7 @@ sub _handle_v1_rw {
             }
             else {
                 next if ref( $hash_ref->{$module}->{$action}) ne 'HASH';
-                foreach my $item ( keys %{ $hash_ref->{$module}->{$action} } ) {
+                ITEM: foreach my $item ( keys %{ $hash_ref->{$module}->{$action} } ) {
                     #$self->{'logger'}->log( message => 'Module: '.$module.' - Action: '.$action.' - Item: '.$item.' - ref:'.ref( $hash_ref->{$module}->{$action}->{$item} ), level => 'debug', );
                     my $param_ref = $hash_ref->{$module}->{$action}->{$item};
 
@@ -418,7 +395,7 @@ sub _handle_v1_rw {
                             $answer_ref->{$module}{$action}{$item}{'rv'}   = 0;
                             $answer_ref->{$module}{$action}{$item}{'msgs'} = 'Item not found!';
                             $self->{'logger'}->log( message => 'Id not found for '.$module.'/'.$action.'/'.$item, level => 'warning', );
-                            next;
+                            next ITEM;
                         }
                     }
                     if ( $action eq 'read' ) {
