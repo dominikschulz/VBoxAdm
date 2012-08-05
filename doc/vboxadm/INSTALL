@@ -251,7 +251,7 @@ Unpack Roundcube to /opt/roundcube, create a symlink from /opt/roundcube/roundcu
 
 To satisfy the requirements you'll need to install a few aditional packages:
 
-(Debian) $> aptitude install php5-cgi php5-mysql php5-mcrypt php5-imap php5-intl
+(Debian) $> aptitude install php5-cgi php5-mysql php5-mcrypt php5-imap php5-intl php5-curl
 
 On Debian systems you have to modify the suhosin settings. Edit the file /etc/php5/conf.d/suhosin.ini
 and change the value suhosin.session.encrypt to off. Make sure the line is no longer commented.
@@ -275,13 +275,22 @@ to /opt/roundcube/current/plugins.
 
 * Configure Roundcube Plugin
 ----------------------------
-Copy the config.inc.php.dist in plugins/vboxadm to config.inc.php and set the dsn
-$rcmail_config['password_db_dsn'] = 'mysql://vboxadm_user:password@localhost/vboxadm';
+Generate an apikey with "pwgen -1 32".
+
+Copy the config.inc.php.dist in plugins/vboxadm to config.inc.php and set the api key
+and the api url.
+
+$vboxadm_config['api_key'] = '<APIKEY>';
+$vboxadm_config['api_url'] = 'http://vboxadm.<DOMAIN.TLD>/cgi-bin/vboxapi.pl';
+
+Open /etc/vboxadm/vboxadm.conf and set the api key there as well:
+ [api]
+ key = <APIKEY>
 
 Copy the config.inc.php.dist in plugins/managesieve to config.inc.php.
 
-* Active the Roundcube Plugins
-------------------------------
+* Activate the Roundcube Plugins
+--------------------------------
 Edit the file config/main.inc.php and add the plugins 'vboxadm' and 'managesieve'.
 
 $rcmail_config['plugins'] = array('vboxadm','managesieve');

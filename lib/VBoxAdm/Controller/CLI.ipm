@@ -344,6 +344,7 @@ sub _init_msgq {
         {
             'lh'    => VBoxAdm::L10N->get_handle(),
             'lh_en' => VBoxAdm::L10N->get_handle('en'),
+            'logger' => $self->logger(),
         }
     );
     return $MQ;
