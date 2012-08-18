@@ -251,6 +251,30 @@ table.display tr.even.disabled {
 	background-color: #ffeeee;
 }
 
+table.display tr.odd.red {
+	background-color: #ffdddd;
+}
+
+table.display tr.even.red {
+	background-color: #eedddd;
+}
+
+table.display tr.odd.orange {
+	background-color: #ffdddd;
+}
+
+table.display tr.even.orange {
+	background-color: #eedddd;
+}
+
+table.display tr.odd.green{
+	background-color: #ddffdd;
+}
+
+table.display tr.even.green {
+	background-color: #eeffee;
+}
+
 tr.odd {
 	background-color: #E2E4FF;
 }

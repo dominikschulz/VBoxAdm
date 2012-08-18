@@ -46,6 +46,7 @@ server - the mailserver
 username - the dmarc report mailbox
 password - the password
 folder (optional) - the folder containing the DMARC reports
+delete - when true all processed mails will be removed from the mailbox
 
 =head1 DEPENDENCIES
 

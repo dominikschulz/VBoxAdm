@@ -103,6 +103,8 @@ LIBFILES = \
 	lib/VBoxAdm/L10N/zh.pm \
 	lib/VBoxAdm/Model/Alias.pm \
 	lib/VBoxAdm/Model/AWL.pm \
+	lib/VBoxAdm/Model/DMARCRecord.pm \
+	lib/VBoxAdm/Model/DMARCReport.pm \
 	lib/VBoxAdm/Model/Domain.pm \
 	lib/VBoxAdm/Model/DomainAlias.pm \
 	lib/VBoxAdm/Model/Mailbox.pm \
@@ -263,6 +265,8 @@ TPLFILES = \
 	tpl/vboxadm/alias/edit.tpl \
 	tpl/vboxadm/alias/list.tpl \
 	tpl/vboxadm/awl/list.tpl \
+	tpl/vboxadm/dmarc_report/list.tpl \
+	tpl/vboxadm/dmarc_report/show.tpl \
 	tpl/vboxadm/domain/create_partial.tpl \
 	tpl/vboxadm/domain/create.tpl \
 	tpl/vboxadm/domain/list.tpl \

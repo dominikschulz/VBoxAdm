@@ -38,6 +38,7 @@
 				<li><a[% IF current == 'log' %] class="current"[% END %] href="[% base_url %]?rm=log">[% "View Log" | l10n %]</a></li>
 				<li><a[% IF current == 'role_accounts' %] class="current"[% END %] href="[% base_url %]?rm=role_accounts">[% "Role Accounts" | l10n %]</a></li>
 				<li><a[% IF current == 'notify' %] class="current"[% END %] href="[% base_url %]?rm=notify">[% "RFC Violation Notifications" | l10n %]</a></li>
+				<li><a[% IF current == 'dmarc' %] class="current"[% END %] href="[% base_url %]?rm=dmarc_reports">[% "DMARC Reports" | l10n %]</a></li>
 			</ul>
 		</li>
 		[% END %]

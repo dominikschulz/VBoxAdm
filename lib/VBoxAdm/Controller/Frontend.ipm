@@ -42,6 +42,8 @@ use VBoxAdm::Model::Alias '@VERSION@';
 use VBoxAdm::Model::AWL '@VERSION@';
 use VBoxAdm::Model::Domain '@VERSION@';
 use VBoxAdm::Model::DomainAlias '@VERSION@';
+use VBoxAdm::Model::DMARCReport '@VERSION@';
+use VBoxAdm::Model::DMARCRecord '@VERSION@';
 use VBoxAdm::Model::Mailbox '@VERSION@';
 use VWebAdm::Model::MessageQueue '@VERSION@';
 use VBoxAdm::Model::RFCNotify '@VERSION@';
@@ -157,6 +159,10 @@ sub setup {
         'remove_role_account' => 'show_remove_role_account',
         'edit_role_account'   => 'show_edit_role_account',
         'update_role_account' => 'show_update_role_account',
+        
+        # DMARC
+        'dmarc_reports'       => 'show_dmarc_reports',
+        'dmarc_report'        => 'show_dmarc_report',
     );
 
     # Authentication
@@ -347,6 +353,8 @@ sub setup {
                     },
                     1,
                 ],
+                
+                'localtime' => sub { "".localtime($_[0]) },
             }
         }
     );
@@ -398,6 +406,8 @@ sub setup {
             $self->{'AWL'}               = VBoxAdm::Model::AWL::->new($arg_ref);
             $self->{'Domain'}            = VBoxAdm::Model::Domain::->new($arg_ref);
             $self->{'DomainAlias'}       = VBoxAdm::Model::DomainAlias::->new($arg_ref);
+            $self->{'DMARCReport'}       = VBoxAdm::Model::DMARCReport::->new($arg_ref);
+            $self->{'DMARCRecord'}       = VBoxAdm::Model::DMARCRecord::->new($arg_ref);
             $self->{'Mailbox'}           = VBoxAdm::Model::Mailbox::->new($arg_ref);
             $self->{'RFCNotify'}         = VBoxAdm::Model::RFCNotify::->new($arg_ref);
             $self->{'RoleAccount'}       = VBoxAdm::Model::RoleAccount::->new($arg_ref);
@@ -2180,6 +2190,81 @@ sub show_update_role_account {
 
     $self->redirect( $self->{base_url} . '?rm=roleaccs' );
     return;
+}
+
+#
+# DMARC
+#
+
+sub show_dmarc_reports {
+    my $self = shift;
+    
+    if ( !$self->user->is_siteadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $search = $q->param('search');
+    my %params = (
+        'Search' => $search,
+        'Order'  => 'tsfrom',
+    );
+
+    my @reports = $self->{'DMARCReport'}->list( \%params );
+
+    %params = (
+        'title'    => $self->{lh}->maketext('VBoxAdm DMARC Reports'),
+        'current'  => 'dmarc',
+        'reports'  => \@reports,
+        'search'   => $search,
+    );
+
+    return $self->tt_process( 'vboxadm/dmarc_report/list.tpl', \%params );
+}
+
+sub show_dmarc_report {
+    my $self = shift;
+    
+    if ( !$self->user->is_siteadmin() ) {
+        my $msg = "You are not authorized to access this page.";
+        $self->log( $msg . ". User: " . $self->authen->username );
+        $self->add_message( 'error', $self->{lh}->maketext($msg) );
+        $self->redirect( $self->{base_url} . '?rm=welcome' );
+        return;
+    }
+
+    # Get our database connection
+    my $dbh = $self->dbh();
+
+    # Get CGI Query object
+    my $q = $self->query();
+
+    my $report_id  = $q->param('report_id');
+    my $report_ref = $self->{'DMARCReport'}->read($report_id);
+    
+    my @records    = $self->{'DMARCRecord'}->list( {'report_id' => $report_id,} );
+
+    my %params = (
+        'title'      => $self->{lh}->maketext('Show DMARC Report'),
+        'report_id'  => $report_id,
+        'current'    => 'dmarc',
+        'records'    => \@records,
+    );
+
+    foreach my $key ( keys %{$report_ref} ) {
+        $params{$key} = $report_ref->{$key};
+    }
+
+    return $self->tt_process( 'vboxadm/dmarc_report/show.tpl', \%params );
 }
 
 1;

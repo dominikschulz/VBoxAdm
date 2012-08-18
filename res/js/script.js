@@ -7,7 +7,7 @@ $(document).ready(function() {
 		"bJQueryUI": true,
 		"bStateSave": true,
 		"sPaginationType": "full_numbers",
-		"iDisplayLength": 25,
+		"iDisplayLength": 100,
 	});
 } );
 // setup popup window

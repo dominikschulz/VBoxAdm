@@ -1,0 +1,64 @@
+[% INCLUDE vwebadm/includes/header.tpl %]
+    <div id="main" role="main">
+    	<h2>Viewing DMARC Report: [% report_id %] from [% org %] for [% domain %] between [% tsfrom %] and [% tsto %]</h2>
+	    [% FOREACH line IN records %]
+	    [% IF loop.first %]
+	    <h2>Records</h2>
+	    <table class="datatable">
+		    <thead>
+		    <tr>
+			<th>[% "IP" | l10n %]</th>
+			<th>[% "Count" | l10n %]</th>
+			<th>[% "Disposition" | l10n %]</th>
+			<th>[% "Reason" | l10n %]</th>
+			<th>[% "DKIM Domain" | l10n %]</th>
+			<th>[% "DKIM Result" | l10n %]</th>
+			<th>[% "SPF Domain" | l10n %]</th>
+			<th>[% "SPF Reason" | l10n %]</th>
+		    </tr>
+		    </thead>
+		    <tbody>
+	    [% END %]
+		[% IF line.spfresult == 'fail' %]
+		    [% class = 'disabled' %]
+		[% ELSIF line.spfresult == 'softfail' || line.spfresult == 'temperror' %]
+		    [% class = 'orange' %]
+		[% ELSE %]
+		    [% class = 'enabled' %]
+		[% END %]
+		    <tr class="[% loop.parity %] [% class %]">
+			<td>
+			    [% line.ip %]
+			</td>
+			<td>
+			    [% line.count %]
+			</td>
+			<td>
+			    [% line.disposition %]
+			</td>
+			<td>
+			    [% line.reason %]
+			</td>
+			<td>
+			    [% line.dkimdomain %]
+			</td>
+			<td>
+			    [% line.dkimresult %]
+			</td>
+			<td>
+			    [% line.spfdomain %]
+			</td>
+			<td>
+			    [% line.spfresult %]
+			</td>
+		    </tr>
+	    [% IF loop.last %]
+	    </tbody>
+	    <tfoot>
+	    </tfoot>
+	    </table>
+	    [% END %]
+	    [% END %]
+	    <br />
+    </div>
+[% INCLUDE vwebadm/includes/footer.tpl %]

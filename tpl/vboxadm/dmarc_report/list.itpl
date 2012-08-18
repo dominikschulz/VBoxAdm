@@ -1,0 +1,42 @@
+[% INCLUDE vwebadm/includes/header.tpl %]
+    <div id="main" role="main">
+		[% FOREACH line IN reports %]
+		[% IF loop.first %]
+		<table class="datatable">
+			<thead>
+			<tr>
+				<th>[% "From" | l10n %]</th>
+				<th>[% "To" | l10n %]</th>
+				<th>[% "Domain" | l10n %]</th>
+				<th>[% "Org" | l10n %]</th>
+				<th>[% "Report ID" | l10n %]</th>
+			</tr>
+			</thead>
+			<tbody>
+		[% END %]
+			<tr>
+				<td>
+				    <a href="?rm=dmarc_report&id=[% line.id %]">[% line.tsfrom | localtime %]</a>
+				</td>
+				<td>
+				    [% line.tsto | localtime %]
+				</td>
+				<td>
+				    [% line.domain %]
+				</td>
+				<td>
+				    [% line.org %]
+				</td>
+				<td>
+				    [% line.reportid | html %]
+				</td>
+			</tr>
+		[% IF loop.last %]
+		</tbody>
+		<tfoot>
+		</tfoot>
+		</table>
+		[% END %]
+		[% END %]
+    </div>
+[% INCLUDE vwebadm/includes/footer.tpl %]
