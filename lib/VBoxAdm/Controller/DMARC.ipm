@@ -130,9 +130,9 @@ sub run {
 sub _process_reports {
     my $self = shift;
     
-    my $server      = $self->config()->{'dmarc'}->{'server'};
-    my $username    = $self->config()->{'dmarc'}->{'username'};
-    my $password    = $self->config()->{'dmarc'}->{'password'};
+    my $server      = $self->config()->{'dmarc'}->{'server'} || 'localhost';
+    my $username    = $self->config()->{'dmarc'}->{'username'} || 'dmarc-report';
+    my $password    = $self->config()->{'dmarc'}->{'password'} || '';
     my $folder      = $self->config()->{'dmarc'}->{'folder'} || 'INBOX';
     my $delete      = $self->config()->{'dmarc'}->{'delete'} || 0;
     my $imap = Net::IMAP::Client->new(
@@ -178,10 +178,10 @@ sub _process_reports {
         my $datetime = $Mail->datetime();
         
         $msgs++;
-        $self->logger()->log( level => 'debug', message => " - Mail#".$msg_id." - From: ".$from." - To: ".$to." - Subject: ".$subject." - Date: ".$datetime);
+        $self->logger()->log( level => 'debug', message => "Mail#".$msg_id." - From: ".$from." - To: ".$to." - Subject: ".$subject." - Date: ".$datetime);
         
         if($subject !~ m/^\s*Report Domain:/i) {
-            print $LOG " - SKIPPED\n";
+            $self->logger()->log( level => 'debug', message => "SKIPPED");
             next MSG;
         }
         
@@ -193,11 +193,11 @@ sub _process_reports {
             $parts++;
             # get mimetype from the parts Content-Type header
             my $mimetype = $Part->content_type()->mime_type();
-            $self->logger()->log( level => 'debug', message => "\tContent-Type: ".$mimetype;
+            $self->logger()->log( level => 'debug', message => "\tContent-Type: ".$mimetype);
             # skip all parts which are not of the following type:
             # - zip
             if($mimetype !~ m/zip/) {
-                $self->logger()->log( level => 'debug', message => " - SKIPPED");
+                $self->logger()->log( level => 'debug', message => "SKIPPED");
                 next;
             }
             # decode special-chars ("sonderzeichen")
@@ -211,21 +211,21 @@ sub _process_reports {
                 if(print $FH $Part->content()) {
                     if(close($FH)) {
                         $parts_written++;
-                        $self->logger()->log( level => 'debug', message => " - WRITTEN TO $filename");
+                        $self->logger()->log( level => 'debug', message => "WRITTEN TO $filename");
                         push(@zipfiles, $filename);
                         $imap->delete_message($msg_id) if $delete;
                     } else {
                         $errors++;
-                        $self->logger()->log( level => 'debug', message => " - CLOSE FAILED ($filename)");
+                        $self->logger()->log( level => 'debug', message => "CLOSE FAILED ($filename)");
                     }
                 } else {
                     $errors++;
-                    $self->logger()->log( level => 'debug', message => "- PRINT FAILED ($filename)");
+                    $self->logger()->log( level => 'debug', message => "PRINT FAILED ($filename)");
                 }
                 
             } else {
                 $errors++;
-                $self->logger()->log( level => 'debug', message => "- OPEN FAILED ($filename)");
+                $self->logger()->log( level => 'debug', message => "OPEN FAILED ($filename)");
             }
         }
     }
@@ -255,7 +255,8 @@ sub _handle_zip {
     }
     
     # open the zip file and process the XML contained inside.
-    if(!open(my $XML,"unzip -p " . $file . " |")) {
+    my $XML;
+    if(!open($XML,"unzip -p " . $file . " |")) {
         $self->logger()->log( message => 'Can not unzip '.$file.': '.$!, level => 'error', );
         return;
     }
@@ -274,7 +275,7 @@ sub _handle_zip {
     my $report_id = $ref->{'report_metadata'}->{'report_id'};
     my $domain =  $ref->{'policy_published'}->{'domain'};
     
-    $self->logger()->log( level => 'debug', message => "REPORT: $from - $to - $org - $id - $domain");
+    $self->logger()->log( level => 'debug', message => "REPORT: $from - $to - $org - $report_id - $domain");
     
     my $sql = 'SELECT COUNT(*) FROM dmarc_reports WHERE org = ? AND reportid = ?';
     my $sth = $self->dbh()->prepare($sql);
@@ -301,7 +302,7 @@ sub _handle_zip {
         return;
     }
     
-    $sth->execute($from,$to,$omain,$org,$report_id);
+    $sth->execute($from,$to,$domain,$org,$report_id);
     
     my $id = $self->dbh()->last_insert_id(undef, undef, undef, undef);
     
@@ -323,7 +324,7 @@ sub _handle_zip {
     }
 }
 
-sub process_record {
+sub _process_record {
     my $self = shift;
     my $report_id = shift;
     my $rec = shift;
@@ -408,7 +409,7 @@ sub process_record {
         return;
     }
     
-    if($sth->execute($report_id, $ip, $count, $disposition, $reason, $dkim, $dkimresult, $spf, $spfresult)) {
+    if($sth->execute($report_id, $ip, $count, $dispo, $reason, $dkim, $dkimresult, $spf, $spfresult)) {
         $sth->finish();
         return 1;
     } else {
