@@ -455,6 +455,7 @@ real-install: all test rcvboxadm
 	$(INSTALL_CONF) conf/vdnsadm.conf.dist $(CFGDIR)/vdnsadm/vdnsadm.conf
 	$(INSTALL_PROGRAM) cron/awl.pl $(VBOXLIBDIR)/bin/awl
 	$(INSTALL_PROGRAM) cron/cleanup.pl $(VBOXLIBDIR)/bin/cleanup
+	$(INSTALL_PROGRAM) cron/dmarc.pl $(VBOXLIBDIR)/bin/dmarc
 	$(INSTALL_PROGRAM) cron/mailarchive.pl $(VBOXLIBDIR)/bin/mailarchive
 	$(INSTALL_PROGRAM) cron/notify.pl $(VBOXLIBDIR)/bin/notify
 	$(INSTALL_PROGRAM) contrib/munin/vboxadm_cache $(VBOXLIBDIR)/munin/vboxadm_cache
