@@ -137,10 +137,10 @@ print "\n";
 
 # Abort if there are uncommited changes
 # either in this repository ...
-$cmd = 'git status -z | grep "nothing to commit" >/dev/null';
+$cmd = 'git status | grep "nothing to commit" >/dev/null';
 run_cmd($cmd);
 # or the debian package repo
-$cmd = 'cd ../../deb/'.$name.'/; git status -z | grep "nothing to commit" >/dev/null';
+$cmd = 'cd ../../deb/'.$name.'/; git status | grep "nothing to commit" >/dev/null';
 run_cmd($cmd) unless $nodeb;
 
 # Do a testinstall to catch any Makefile errors
