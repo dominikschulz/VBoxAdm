@@ -1,0 +1,426 @@
+package VBoxAdm::Controller::DMARC;
+
+use Moose;
+use namespace::autoclean;
+
+use Config::Std;
+
+use Net::IMAP::Client;
+use Courriel;
+use MIME::Words qw/decode_mimewords/;
+use XML::Simple;
+use File::Temp;
+use Data::Dumper;
+
+use VWebAdm::DB '@VERSION@';
+use VWebAdm::Logger '@VERSION@';
+
+our $VERSION = '@VERSION@';
+
+has 'dbh' => (
+    'is'      => 'ro',
+    'isa'     => 'DBI::db',
+    'lazy'    => 1,
+    'builder' => '_init_dbh',
+);
+
+sub _init_dbh {
+    my $self = shift;
+
+    my $dbhost = $self->config()->{'default'}{'dbhost'};
+    my $dbuser = $self->config()->{'default'}{'dbuser'};
+    my $dbpass = $self->config()->{'default'}{'dbpass'};
+    my $dbport = $self->config()->{'default'}{'dbport'};
+    my $dbdb   = $self->config()->{'default'}{'dbdb'};
+    my $dsn    = "DBI:mysql:host=$dbhost;database=$dbdb;port=$dbport;user=$dbuser;password=$dbpass";
+    my $dbh    = &VWebAdm::DB::connect( $dsn, undef, undef, { RaiseError => 1, } );
+
+    if ( !$dbh ) {
+        $self->logger()->log(
+            message => 'Could not connect to database with DSN $dsn - Exiting',
+            level   => 'error',
+        );
+        die("Could not connect to database with DSN $dsn");
+    }
+
+    return $dbh;
+}
+
+has 'logger' => (
+    'is'      => 'ro',
+    'isa'     => 'VWebAdm::Logger',
+    'lazy'    => 1,
+    'builder' => '_init_logger',
+);
+
+has 'config_locations' => (
+    'is'      => 'ro',
+    'isa'     => 'ArrayRef',
+    'lazy'    => 1,
+    'builder' => '_init_config_locs',
+);
+
+sub _init_config_locs {
+    my $self = shift;
+
+    # Valid config file locations to try
+    my @conffile_locations = qw(
+      vboxadm.conf
+      conf/vboxadm.conf
+      /etc/vboxadm/vboxadm.conf
+      @CFGDIR@/vboxadm/vboxadm.conf
+    );
+
+    return \@conffile_locations;
+}
+
+has 'config' => (
+    'is'  => 'rw',
+    'isa' => 'Object',
+);
+
+sub _init_logger {
+    my $self = shift;
+
+    return VWebAdm::Logger::->new('vboxadm-dmarc');
+}
+
+has 'conffile_used' => (
+    'is'  => 'rw',
+    'isa' => 'Str',
+);
+
+sub _read_config {
+    my $self = shift;
+
+    my %config;
+
+    # Try all config file locations
+    foreach my $loc ( @{ $self->config_locations() } ) {
+        if ( -r $loc ) {
+            $self->conffile_used($loc);
+            read_config $loc => %config;
+            last;
+        }
+    }
+
+    $config{'default'}{'dbhost'}   ||= 'localhost';
+    $config{'default'}{'dbuser'}   ||= 'vboxadm';
+    $config{'default'}{'dbpass'}   ||= '';
+    $config{'default'}{'dbport'}   ||= 3306;
+    $config{'default'}{'dbdb'}     ||= 'vboxadm';
+    $config{'default'}{'pwscheme'} ||= 'sha256';
+
+    $self->config( \%config );
+
+    return 1;
+}
+
+sub run {
+    my $self = shift;
+
+    $self->_read_config();
+    $self->_process_reports();
+
+    $self->logger()->log( message => "Finished", level => 'debug', );
+
+    return 1;
+}
+
+sub _process_reports {
+    my $self = shift;
+    
+    my $server      = $self->config()->{'dmarc'}->{'server'};
+    my $username    = $self->config()->{'dmarc'}->{'username'};
+    my $password    = $self->config()->{'dmarc'}->{'password'};
+    my $folder      = $self->config()->{'dmarc'}->{'folder'} || 'INBOX';
+    my $delete      = $self->config()->{'dmarc'}->{'delete'} || 0;
+    my $imap = Net::IMAP::Client->new(
+        server => $server,
+        user   => $username,
+        pass   => $password,
+        ssl    => 1,
+        port   => 993,
+    ) or die "Could not connect to IMAP server";
+    
+    # everything's useless if you can't login
+    $imap->login() or
+        die('Login failed: ' . $imap->last_error);
+    
+    # select folder
+    $imap->select($folder)
+        or die('Could not select folder '.$folder.': '.$imap->last_error);
+    
+    # fetch all message ids (as array reference)
+    my $messages = $imap->search('ALL');
+    
+    my $part_folder = File::Temp::tempdir( CLEANUP => 1, );
+    mkdir($part_folder) unless -d $part_folder;
+    
+    $self->logger()->log( level => 'debug', message => "Processing imap://".$username.'@'.$server."/".$folder);
+    
+    my $msgs = 0;
+    my $parts = 0;
+    my $parts_written = 0;
+    my $errors = 0;
+    
+    my @zipfiles = ();
+    MSG: foreach my $msg_id (@{$messages}) {
+        my $data = $imap->get_rfc822_body($msg_id);
+        next MSG unless $data;
+        
+        my $Mail = Courriel->parse( text => $data);
+        next MSG unless $Mail;
+        
+        my $subject = $Mail->subject();
+        my $from = $Mail->from();
+        my $to = $Mail->to();
+        my $datetime = $Mail->datetime();
+        
+        $msgs++;
+        $self->logger()->log( level => 'debug', message => " - Mail#".$msg_id." - From: ".$from." - To: ".$to." - Subject: ".$subject." - Date: ".$datetime);
+        
+        if($subject !~ m/^\s*Report Domain:/i) {
+            print $LOG " - SKIPPED\n";
+            next MSG;
+        }
+        
+        my ($date, undef) = split /T/, $datetime;
+        
+        my @parts = $Mail->parts();
+        # inspect each part
+        PART: foreach my $Part (@parts) {
+            $parts++;
+            # get mimetype from the parts Content-Type header
+            my $mimetype = $Part->content_type()->mime_type();
+            $self->logger()->log( level => 'debug', message => "\tContent-Type: ".$mimetype;
+            # skip all parts which are not of the following type:
+            # - zip
+            if($mimetype !~ m/zip/) {
+                $self->logger()->log( level => 'debug', message => " - SKIPPED");
+                next;
+            }
+            # decode special-chars ("sonderzeichen")
+            my $filename = decode_mimewords($Part->filename()) || 'default';
+            $filename =~ s/\s+/_/g;
+            $filename =~ s/[^!-~\s]//g;
+            $filename = $part_folder.'/'.$date.'-'.$msg_id.'-'.$filename;
+            
+            if(open(my $FH, '>', $filename)) {
+                # write content of the attachment to disk
+                if(print $FH $Part->content()) {
+                    if(close($FH)) {
+                        $parts_written++;
+                        $self->logger()->log( level => 'debug', message => " - WRITTEN TO $filename");
+                        push(@zipfiles, $filename);
+                        $imap->delete_message($msg_id) if $delete;
+                    } else {
+                        $errors++;
+                        $self->logger()->log( level => 'debug', message => " - CLOSE FAILED ($filename)");
+                    }
+                } else {
+                    $errors++;
+                    $self->logger()->log( level => 'debug', message => "- PRINT FAILED ($filename)");
+                }
+                
+            } else {
+                $errors++;
+                $self->logger()->log( level => 'debug', message => "- OPEN FAILED ($filename)");
+            }
+        }
+    }
+    # expunge deleted mails
+    $imap->expunge();
+    $imap->logout;
+    $self->logger()->log( level => 'debug', message => "- Done - $msgs emails scanned - $parts parts scanned - $parts_written attachments written");
+    
+    my $cnt_ok;
+    foreach my $zipfile (@zipfiles) {
+        if($self->_handle_zip($zipfile)) {
+            $cnt_ok++;
+            # remove successfully processed files
+            unlink($zipfile);
+        }
+    }
+    
+    return $cnt_ok;
+}
+
+sub _handle_zip {
+    my $self = shift;
+    my $file = shift;
+    
+    if(!-f $file) {
+        return;
+    }
+    
+    # open the zip file and process the XML contained inside.
+    if(!open(my $XML,"unzip -p " . $file . " |")) {
+        $self->logger()->log( message => 'Can not unzip '.$file.': '.$!, level => 'error', );
+        return;
+    }
+    my $xml;
+    while(my $line = <$XML>) {
+        $xml .= $line;
+    }
+    close($XML);
+
+    my $XS = XML::Simple->new();
+    my $ref = $XS->XMLin($xml);
+    
+    my $from = $ref->{'report_metadata'}->{'date_range'}->{'begin'};
+    my $to = $ref->{'report_metadata'}->{'date_range'}->{'end'};
+    my $org = $ref->{'report_metadata'}->{'org_name'};
+    my $report_id = $ref->{'report_metadata'}->{'report_id'};
+    my $domain =  $ref->{'policy_published'}->{'domain'};
+    
+    $self->logger()->log( level => 'debug', message => "REPORT: $from - $to - $org - $id - $domain");
+    
+    my $sql = 'SELECT COUNT(*) FROM dmarc_reports WHERE org = ? AND reportid = ?';
+    my $sth = $self->dbh()->prepare($sql);
+    
+    if(!$sth) {
+        $self->logger()->log( message => 'Failed to prepare SQL '.$sql.' w/ error: '.$self->dbh()->errstr(), level => 'error', );
+        return;
+    }
+    
+    $sth->execute($org, $report_id);
+    
+    my $count = $sth->fetchrow_array();
+    
+    if($count > 0) {
+        $self->logger()->log( message => 'Report '.$report_id.' from '.$org.' already known.', level => 'debug', );
+        return 1;
+    }
+
+    $sql = 'INSERT INTO dmarc_reports (tsfrom,tsto,domain,org,reportid) VALUES(?,?,?,?,?)';
+    $sth = $self->dbh()->prepare($sql);
+    
+    if(!$sth) {
+        $self->logger()->log( message => 'Failed to prepare SQL '.$sql.' w/ error: '.$self->dbh()->errstr(), level => 'error', );
+        return;
+    }
+    
+    $sth->execute($from,$to,$omain,$org,$report_id);
+    
+    my $id = $self->dbh()->last_insert_id(undef, undef, undef, undef);
+    
+    $sth->finish();
+    
+    if(ref($ref->{'record'}) eq 'ARRAY') {
+        # process multi-record report
+        my $cnt_ok;
+        foreach my $rec (@{$ref->{'record'}}) {
+            $cnt_ok += $self->_process_record($id,$rec);
+        }
+        return $cnt_ok;
+    } elsif(ref($ref->{'record'}) eq 'HASH') {
+        # process single-record report
+        return $self->_process_record($id,$ref->{'record'});
+    } else {
+        # unknown record type
+        return;
+    }
+}
+
+sub process_record {
+    my $self = shift;
+    my $report_id = shift;
+    my $rec = shift;
+        
+    my $ip = $rec->{'row'}->{'source_ip'};
+    
+    my $count = $rec->{'row'}->{'count'};
+    my $dispo = $rec->{'row'}->{'policy_evaluated'}->{'disposition'};
+    
+    #
+    # DKIM
+    #
+    my $res_dkim = $rec->{'auth_results'}->{'dkim'};
+    my $dkim = '';
+    my $dkimresult = '';
+    if(ref($res_dkim) eq 'HASH') {
+            $dkim = $res_dkim->{'domain'};
+            if(ref($dkim) eq 'HASH') {
+                $dkim = 'none';
+            }
+            $dkimresult = $res_dkim->{'result'};
+    } elsif(ref($res_dkim) eq 'ARRAY') {
+            $dkim = join('/',
+                map {
+                    my $d = $_->{'domain'};
+                    ref($d) eq 'HASH' ? '' : $d
+                } @{$res_dkim}
+            );
+            $dkimresult = $res_dkim->[0]->{'result'};
+    } else {
+        # unknown report type
+        $dkim = 'none';
+        $dkimresult = 'none';
+    }
+    
+    #
+    # SPF
+    #
+    my $res_spf = $rec->{'auth_results'}->{'spf'};
+    my $spf = '';
+    my $spfresult = '';
+    if(ref($res_spf) eq 'HASH') {
+            $spf = $res_spf->{'domain'};
+            $spfresult = $res_spf->{'result'};
+    } elsif(ref($res_spf) eq 'ARRAY') {
+            $spf = join('/',
+                map {
+                    my $d = $_->{'domain'};
+                    ref($d) eq 'HASH' ? '' : $d
+                } @{$res_spf}
+            );
+            $spfresult = $res_spf->[0]->{'result'};
+    } else {
+        # unknown report type
+        $spf = 'none';
+        $spfresult = 'none';
+    }
+
+    #
+    # Reason
+    #
+    my $rea = $rec->{'row'}->{'policy_evaluated'}->{'reason'};
+    my $reason = '';
+    if(ref($rea) eq 'HASH') {
+        $reason = $rea->{'type'};
+    } elsif(ref($rea) eq 'ARRAY') {
+        $reason = join('/',
+            map { $_->{'type'} } @{$rea}
+        );
+    } else {
+        # unknown report type
+        $reason = 'none';
+    }
+    
+    #print "\tip=$ip, count=$count, disp=$dispo, r=$reason, dkim=$dkim/$dkimresult, spf=$spf/$spfresult\n";
+    # insert record into db
+    my $sql = 'INSERT INTO dmarc_records (report_id,ip,count,disposition,reason,dkimdomain,dkimresult,spfdomain,spfresult) VALUES(?,?,?,?,?,?,?,?,?)';
+    my $sth = $self->dbh()->prepare($sql);
+    
+    if(!$sth) {
+        $self->logger()->log( message => 'Failed to prepare SQL '.$sql.' w/ error: '.$self->dbh()->errstr(), level => 'error', );
+        return;
+    }
+    
+    if($sth->execute($report_id, $ip, $count, $disposition, $reason, $dkim, $dkimresult, $spf, $spfresult)) {
+        $sth->finish();
+        return 1;
+    } else {
+        $self->logger()->log( message => 'Failed to execute SQL '.$sql.' w/ error: '.$sth->errstr(), level => 'error', );
+        return;
+    }
+}
+
+no Moose;
+__PACKAGE__->meta->make_immutable();
+
+1;
+
+__END__
+

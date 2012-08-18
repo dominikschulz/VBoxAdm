@@ -64,8 +64,9 @@ BINFILES = \
 	cgi-bin/vdnsadm.fcgi \
 	cgi-bin/vdnsadm.pl \
 	cgi-bin/vdnsapi.pl \
-	cron/cleanup.pl \
 	cron/awl.pl \
+	cron/cleanup.pl \
+	cron/dmarc.pl \
 	cron/notify.pl \
 	cron/mailarchive.pl \
 	contrib/inst_deps.pl \
@@ -80,6 +81,7 @@ LIBFILES = \
 	lib/VBoxAdm/Controller/AWL.pm \
 	lib/VBoxAdm/Controller/Cleanup.pm \
 	lib/VBoxAdm/Controller/CLI.pm \
+	lib/VBoxAdm/Controller/DMARC.pm \
 	lib/VBoxAdm/Controller/Frontend.pm \
 	lib/VBoxAdm/Controller/Mailarchive.pm \
 	lib/VBoxAdm/Controller/Notify.pm \
