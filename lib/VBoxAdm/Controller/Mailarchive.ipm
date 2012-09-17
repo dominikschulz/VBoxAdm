@@ -77,7 +77,7 @@ sub _init_config_locs {
 
 has 'config' => (
     'is'      => 'rw',
-    'isa'     => 'Object',
+    'isa'     => 'HashRef',
     'lazy'    => 1,
     'builder' => '_init_config',
 );
