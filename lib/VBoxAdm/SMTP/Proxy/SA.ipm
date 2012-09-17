@@ -638,9 +638,18 @@ sub is_spam {
                 level => 'notice',
             );
 
-            # Cleanup the SA analysis object
+            # Cleanup the SA analysis and mail objects
+            # due to a windows-compatiblity "fix" in
+            # SpamAssassin::Util::secure_tmpfile the temporary files are not immedeately
+            # unlinked after parsing. So they linger around /tmp until the
+            # parent process is done. finish "should" remove those.
+            # but we set the object to undef, too. this should trigger
+            # a call to DESTROY
             $status->finish();
-
+            $status = undef;
+            $mail->finish();
+            $mail = undef;
+ 
             1;
         };
 
