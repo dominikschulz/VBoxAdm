@@ -278,7 +278,7 @@ sub update {
             $self->msg->push('warning', 'Please enter the same password twice');
         }
     } elsif(($params->{'Password'} && !$params->{'PasswordAgain'}) || (!$params->{'Password'} && $params->{'PasswordAgain'})) {
-        $self->msg->push( 'warning', 'Please enter password twice')
+        $self->msg->push( 'warning', 'Password mismatch. Please enter the same password twice.');
     }
 
     #

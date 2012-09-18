@@ -340,6 +340,7 @@ sub _handle_v1_rw {
         return $answer_ref;
     }
     $self->{'User'} = $User;
+    $self->{'logger'}->suffix('[User: '.$User->get_name().']');
     
     my $arg_ref = {
         'dbh'          => $self->dbh,

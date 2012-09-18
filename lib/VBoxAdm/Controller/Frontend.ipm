@@ -395,6 +395,7 @@ sub setup {
         else {
 
             $self->{'User'} = $User;
+            $Logger->suffix('[User: '.$User->get_name().']');
             my $arg_ref = {
                 'dbh'    => $self->dbh,
                 'user'   => $User,
@@ -1093,7 +1094,7 @@ sub _translate_params {
             } else {
                 $params->{$dst_key} = 0;
             }
-            $self->log( 'Set Bool key '.$dst_key.' to '.$params->{$dst_key}, 'debug', );
+            #$self->log( 'Set Bool key '.$dst_key.' to '.$params->{$dst_key}, 'debug', );
         }
     }
     

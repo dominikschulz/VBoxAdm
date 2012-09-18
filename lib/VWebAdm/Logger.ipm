@@ -63,6 +63,12 @@ has 'prefix' => (
     'default' => '',
 );
 
+has 'suffix' => (
+    'is'      => 'rw',
+    'isa'     => 'Str',
+    'default' => '',
+);
+
 has 'verbosity' => (
     'is'      => 'rw',
     'isa'     => 'Int',
@@ -227,6 +233,7 @@ sub _real_caller {
         next if $c[0] eq 'Try::Tiny';         # package Try::Tiny? Skip.
         next unless $c[3];
         next if $c[3] eq 'VWebAdm::Logger::log';
+        next if $c[3] eq 'VWebAdm::Model::MessageQueue::push';
         next if $c[3] =~ m/::log$/;
         next if $c[3] eq 'Try::Tiny::try';     # calling sub Try::Tiny::try? Skip.
         next if $c[3] eq '(eval)';             # calling sub some kind of eval? Skip.
@@ -266,6 +273,11 @@ sub log {
     # prepend a user-supplied prefix, e.g. [CHILD 24324/234342]
     if ( $self->prefix() ) {
         $params{'message'} = $self->prefix() . "\t" . $params{'message'};
+    }
+    
+    # append a user-supplied suffix
+    if ( $self->suffix() ) {
+        $params{'message'} = $params{'message'} . "\t" . $self->suffix();
     }
 
     # prepend log message w/ a timestamp
