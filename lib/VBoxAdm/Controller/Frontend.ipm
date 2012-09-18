@@ -1171,13 +1171,13 @@ sub show_create_domain_alias {
         'current' => 'domain_aliases',
     );
 
-    my $query = "SELECT id,name,is_active FROM domains WHERE 1 ";
+    my $query = "SELECT id,name,is_active FROM domains WHERE 1";
     my @args  = ();
     if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-        $query .= "AND id = ? ";
+        $query .= ' AND id = ?';
         push( @args, $self->user->get_domain_id() );
     }
-    $query .= "ORDER BY name";
+    $query .= ' ORDER BY name';
     my $sth = $dbh->prepare($query);
     if ( !$sth ) {
         $self->add_message( 'error', 'Database Error!' );
@@ -1267,12 +1267,12 @@ sub show_edit_domain_alias {
 
     $params{'domains'} = [ $self->{'Domain'}->list() ];
 
-    my $query = "SELECT da.id, da.name, da.domain_id, da.is_active, d.name FROM domain_aliases AS da ";
-    $query .= "LEFT JOIN domains AS d ON da.domain_id = d.id WHERE da.id = ?";
+    my $query = 'SELECT da.id, da.name, da.domain_id, da.is_active, d.name FROM domain_aliases AS da';
+    $query .= ' LEFT JOIN domains AS d ON da.domain_id = d.id WHERE da.id = ?';
     my @args = ();
     push( @args, $domain_alias_id );
     if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-        $query .= "AND da.domain_id = ?";
+        $query .= ' AND da.domain_id = ?';
         push( @args, $self->user->get_domain_id() );
     }
     my $sth = $dbh->prepare($query);

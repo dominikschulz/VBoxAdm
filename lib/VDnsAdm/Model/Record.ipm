@@ -628,7 +628,7 @@ sub update {
         elsif ( $self->user->is_domainadmin() ) {
 
             # Domainadmin? - Only your domain please!
-            $query .= "AND domain_id = ?";
+            $query .= " AND domain_id = ?";
             push( @args, $self->user->get_domain_id() );
         }
         else {
@@ -798,7 +798,7 @@ sub list {
         push( @args, $term );
     }
     if ( $param->{'domain_id'} ) {
-        $sql .= " AND domain_id = ?";
+        $sql .= ' AND domain_id = ?';
         push( @args, $param->{'domain_id'} );
     }
     if ( $param->{'Type'} ) {
@@ -851,7 +851,7 @@ sub _list_addn {
     my $self      = shift;
     my $entry_ref = shift;
 
-    my $sql = "SELECT name FROM domains WHERE id = ?";
+    my $sql = 'SELECT name FROM domains WHERE id = ?';
     my $sth = $self->dbh()->prepare($sql);
 
     foreach my $entry ( @{$entry_ref} ) {

@@ -34,7 +34,7 @@ sub get_id {
 
     # non-siteadmins may only retreive information for their domain
     if ( !$self->user->is_siteadmin() ) {
-        $sql .= " AND a.domain_id = ?";
+        $sql .= ' AND a.domain_id = ?';
         push( @args, $self->user->get_domain_id() );
     }
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
@@ -130,7 +130,7 @@ sub delete {
         my @args = ();
         push( @args, $alias_id );
         if ( !$self->user->is_siteadmin() ) {
-            $query .= "AND domain_id = ?";
+            $query .= ' AND domain_id = ?';
             push( @args, $self->user->get_domain_id() );
         }
         if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
@@ -189,7 +189,7 @@ sub update {
 
         # Authorization
         if ( !$self->user->is_siteadmin() ) {
-            $query .= "AND domain_id = ?";
+            $query .= ' AND domain_id = ?';
             push( @args, $self->user->get_domain_id() );
         }
         my $status_str = 'disabled';
@@ -224,7 +224,7 @@ sub update {
 
         # Authorization
         if ( !$self->user->is_siteadmin() ) {
-            $query .= " AND domain_id = ?";
+            $query .= ' AND domain_id = ?';
             push( @args, $self->user->get_domain_id() );
         }
         if ( my $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
@@ -257,7 +257,7 @@ sub read {
 
     # Authorization
     if ( !$self->user->is_siteadmin() ) {
-        $sql .= " AND a.domain_id = ?";
+        $sql .= ' AND a.domain_id = ?';
         push( @args, $self->user->get_domain_id() );
     }
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );
@@ -299,7 +299,7 @@ sub list {
 
     # Authorization
     if ( !$self->user->is_siteadmin() ) {
-        $sql .= " AND a.domain_id = ?";
+        $sql .= ' AND a.domain_id = ?';
         push( @args, $self->user->get_domain_id() );
     }
     my $sth = &VWebAdm::DB::prepexec( $self->dbh, $sql, @args );

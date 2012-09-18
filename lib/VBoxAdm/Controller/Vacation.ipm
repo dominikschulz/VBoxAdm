@@ -475,12 +475,12 @@ sub _is_on_vacation {
     my $self = shift;
 
     # if the user is not found or not on vacation count will be zero which is false wrt. to perl
-    my $query = "SELECT COUNT(*) FROM mailboxes AS ma LEFT JOIN domains AS d ON ma.domain_id = d.id ";
-    $query .= "WHERE is_on_vacation AND CONCAT(ma.local_part,'\@',d.name) = ? ";
+    my $query = 'SELECT COUNT(*) FROM mailboxes AS ma LEFT JOIN domains AS d ON ma.domain_id = d.id';
+    $query .= q{ WHERE is_on_vacation AND CONCAT(ma.local_part,'\@',d.name) = ?};
 
     # this part of the where clause covers a) infinite vacations, b) finite vacations w/ a lower bound and no upper bound and c)
     # finite vacations w/ a lower and upper bound
-    $query .= "AND (ma.vacation_start = '0000-00-00' OR NOW() >= ma.vacation_start) AND (ma.vacation_end = '0000-00-00' OR ma.vacation_end >= NOW())";
+    $query .= q{ AND (ma.vacation_start = '0000-00-00' OR NOW() >= ma.vacation_start) AND (ma.vacation_end = '0000-00-00' OR ma.vacation_end >= NOW())};
     my $sth = &VWebAdm::DB::prepexec( $self->dbh(), $query, $self->recipient() );
     my $count = $sth->fetchrow_array();
 
@@ -568,9 +568,9 @@ sub _send_vacation_mail {
     my $header_ref = shift;
 
     # get vacation subj and vacation msg
-    my $sql = "SELECT vacation_subj, vacation_msg FROM mailboxes AS m LEFT JOIN ";
-    $sql .= "domains AS d ON m.domain_id = d.id WHERE ";
-    $sql .= "CONCAT(m.local_part,'\@',d.name) = ? AND is_on_vacation";
+    my $sql = "SELECT vacation_subj, vacation_msg FROM mailboxes AS m LEFT JOIN";
+    $sql .= " domains AS d ON m.domain_id = d.id WHERE";
+    $sql .= " CONCAT(m.local_part,'\@',d.name) = ? AND is_on_vacation";
     my $sth = $self->dbh()->prepare($sql);
 
     if ( $sth->execute( $self->recipient() ) ) {

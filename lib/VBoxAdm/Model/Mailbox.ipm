@@ -201,7 +201,7 @@ sub delete {
     my @args = ();
     push( @args, $mailbox_id );
     if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-        $query .= "AND domain_id = ?";
+        $query .= ' AND domain_id = ?';
         push( @args, $self->user->get_domain_id() );
     }
     if ( $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
@@ -441,7 +441,7 @@ sub update {
         $query =~ s/,\s*$//;
 
         # finialize query
-        $query .= " WHERE id = ?";
+        $query .= ' WHERE id = ?';
         push( @args, $mailbox_id );
 
         # if domainadmin, verify that its his domain
@@ -452,13 +452,13 @@ sub update {
         elsif ( $self->user->is_domainadmin() ) {
 
             # Domainadmin? - Only your domain please!
-            $query .= "AND domain_id = ?";
+            $query .= ' AND domain_id = ?';
             push( @args, $self->user->get_domain_id() );
         }
         elsif ( $self->user->is_user() ) {
 
             # Regular User? - Only your mailbox please!
-            $query .= "AND id = ?";
+            $query .= ' AND id = ?';
             push( @args, $self->user->get_id() );
         }
 
@@ -471,8 +471,8 @@ sub update {
             return 1;
         }
         else {
-            $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( "-", @args ) . ', Error: ' . $self->dbh()->errstr() );
-            $self->msg->push( 'error', "Failed to update Mailbox [_1] (#[_2]). Database Error.", $mailbox_name, $mailbox_id );
+            $self->logger()->log( 'Could not execute Query: ' . $query . ', Args: ' . join( q{-}, @args ) . ', Error: ' . $self->dbh()->errstr() );
+            $self->msg->push( 'error', 'Failed to update Mailbox [_1] (#[_2]). Database Error.', $mailbox_name, $mailbox_id );
             return;
         }
     }

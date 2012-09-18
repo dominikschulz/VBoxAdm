@@ -89,7 +89,7 @@ sub delete {
     my @args = ();
     push( @args, $domain_alias_id );
     if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-        $query .= "AND domain_id = ?";
+        $query .= ' AND domain_id = ?';
         push( @args, $self->user->get_domain_id() );
     }
     if ( $sth = &VWebAdm::DB::prepexec( $self->dbh, $query, @args ) ) {
@@ -124,7 +124,7 @@ sub update {
         push( @args, $params->{'IsActive'} );
         push( @args, $domain_alias_id );
         if ( !$self->user->is_siteadmin() && $self->user->is_domainadmin() ) {
-            $query .= "AND domain_id = ?";
+            $query .= ' AND domain_id = ?';
             push( @args, $self->user->get_domain_id() );
         }
         my $status_str = 'disabled';
@@ -148,7 +148,7 @@ sub update {
         return;
     }
     elsif ( $domain_alias_id && $params->{'Goto'} ) {
-        my $query              = "SELECT name FROM domains WHERE id = ?";
+        my $query              = 'SELECT name FROM domains WHERE id = ?';
         my $sth                = &VWebAdm::DB::prepexec( $self->dbh, $query, $params->{'Goto'} );
         my $target_domain_name = $sth->fetchrow_array();
         $sth->finish();
@@ -205,7 +205,7 @@ sub list {
     my $sql  = "SELECT da.id, da.name, da.is_active, d.name FROM domain_aliases AS da LEFT JOIN domains AS d ON da.domain_id = d.id WHERE 1";
     my @args = ();
     if ( $params->{Search} ) {
-        $sql .= " AND (da.name LIKE ? OR d.name LIKE ?)";
+        $sql .= ' AND (da.name LIKE ? OR d.name LIKE ?)';
         my $term = $params->{'Search'};
         $term =~ s/[*%]+//g;
         $term = '%' . $term . '%';
