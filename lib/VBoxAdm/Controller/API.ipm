@@ -286,7 +286,15 @@ sub _handle_v1_rw {
     my $self = shift;
     my $hash_ref = shift;
     
-    my $answer_ref = {};
+    # set defaults here
+    my $answer_ref = {
+        'action'    => 'none',
+        'auth'      => 'error',
+        'error'     => {
+            'num'   => 0,
+            'str'   => '',
+        },
+    };
 
     my $Messages = VWebAdm::Model::MessageQueue::->new(
         {
@@ -299,7 +307,7 @@ sub _handle_v1_rw {
     my $User;
     if ( $hash_ref->{'user'}->{'username'} && $hash_ref->{'user'}->{'password'} ) {
         my $success = try {
-            $User = VBoxAdm::Model::User->new(
+            $User = VBoxAdm::Model::User::->new(
                 {
                     'dbh'       => $self->dbh,
                     'msgq'      => $Messages,
@@ -315,7 +323,8 @@ sub _handle_v1_rw {
         };
         if(!$success) {
             $self->header_add( -status => 494 );
-            $answer_ref->{'auth'} = 'error';
+            $answer_ref->{'error'}->{'num'} = 494;
+            $answer_ref->{'error'}->{'str'} = 'Failed to instantiate user. Please check your configuration.';
             return $answer_ref;
         }
     }
@@ -323,9 +332,11 @@ sub _handle_v1_rw {
         $self->{'logger'}->log( message => 'User '.$User->id().'/'.$User->local_part().'@'.$User->domain().' logged in via API', level => 'debug', );
         $answer_ref->{'auth'} = 'ok';
     } else {
-        $self->{'logger'}->log( message => 'Login failed for '.$hash_ref->{'user'}->{'username'}.':'.$hash_ref->{'user'}->{'password'}, level => 'error', );
+        my $msg = 'Login failed for '.$hash_ref->{'user'}->{'username'}.':'.$hash_ref->{'user'}->{'password'};
+        $self->{'logger'}->log( message => $msg, level => 'error', );
         $self->header_add( -status => 495 );
-        $answer_ref->{'auth'} = 'error';
+        $answer_ref->{'error'}->{'num'} = 495;
+        $answer_ref->{'error'}->{'str'} = $msg;
         return $answer_ref;
     }
     $self->{'User'} = $User;
@@ -351,11 +362,16 @@ sub _handle_v1_rw {
     } catch {
         $self->{'logger'}->log( message => 'Error while instantiating model classes: '.$_, level => 'error', );
     };
-
-    #$self->{'logger'}->log( message => 'Request: '.Dumper($hash_ref), level => 'debug', );
+    if(!$success) {
+        $self->header_add( -status => 496 );
+        $answer_ref->{'error'}->{'num'} = 496;
+        $answer_ref->{'error'}->{'str'} = 'Failed to instantiate model classes. Please check your configuration.';
+        return $answer_ref;
+    }
 
     # process requests in hash_ref
     # return response as crypted, json encoded string
+    my $items_processed = 0;
     MODULE: foreach my $module ( keys %{$hash_ref} ) {
         #$self->{'logger'}->log( message => 'Module: '.$module.'/ref:'.ref( $hash_ref->{$module} ), level => 'debug', );
         $module = lc($module);
@@ -398,31 +414,42 @@ sub _handle_v1_rw {
                             next ITEM;
                         }
                     }
+                    
                     if ( $action eq 'read' ) {
                         $answer_ref->{$module}{$action}{$item}{'rv'}   = $c->{$module}->read($id);
                         $answer_ref->{$module}{$action}{$item}{'msgs'} = [ $Messages->get() ];
                         $answer_ref->{'action'} = 'ok';
+                        $items_processed++;
                     }
                     elsif ( $action eq 'delete' ) {
                         $answer_ref->{$module}{$action}{$item}{'rv'}   = $c->{$module}->delete($id);
                         $answer_ref->{$module}{$action}{$item}{'msgs'} = [ $Messages->get() ];
                         $answer_ref->{'action'} = 'ok';
+                        $items_processed++;
                     }
                     elsif ( $action eq 'update' ) {
                         #$self->{'logger'}->log( message => 'Calling update for '.$module.'/'.$action.'/'.$item.' w/ id: '.$id.' and params: '.Dumper($param_ref), level => 'debug', );
                         $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->update( $id, $param_ref );
                         $answer_ref->{$module}{$action}{$item}{'msgs'} = [ $Messages->get() ];
                         $answer_ref->{'action'} = 'ok';
+                        $items_processed++;
                     }
                     elsif ( $action eq 'create' ) {
                         $answer_ref->{$module}{$action}{$item}{'rv'} = $c->{$module}->create( $item, $param_ref );
                         $answer_ref->{$module}{$action}{$item}{'msgs'} = [ $Messages->get() ];
                         $answer_ref->{'action'} = 'ok';
+                        $items_processed++;
                     }
                 }
             }
         }
     }
+    
+    if($items_processed < 1) {
+        $answer_ref->{'error'}->{'num'} = 497;
+        $answer_ref->{'error'}->{'str'} = 'No valid jobs found.';
+    }
+    
     return $answer_ref;
 }
 

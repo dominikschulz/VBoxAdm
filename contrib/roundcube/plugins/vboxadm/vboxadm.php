@@ -137,17 +137,27 @@ class vboxadm extends rcube_plugin
 			$error[] = $this->gettext('messagesizeformat');
 		}
 		
+		$save_success = FALSE;
+		$save_message = '';
 		if (empty($error)) {
-			$res = $this->_save($user,$sa_active,$sa_kill_score,$is_on_vacation,$vacation_start,$vacation_end,$vacation_subj,$vacation_msg,$max_msg_size,$alias_active,$alias_goto);
+			$result_array = $this->_save($user,$sa_active,$sa_kill_score,$is_on_vacation,$vacation_start,$vacation_end,$vacation_subj,$vacation_msg,$max_msg_size,$alias_active,$alias_goto);
+			if($result_array[0] === TRUE) {
+				$save_success = TRUE;
+				$save_message = $result_array[1];
+			} else {
+				$save_success = FALSE;
+				$save_message = $result_array[1];
+			}
 		}
 		else {
-			$res = implode("\n",$error);
+			$save_success = FALSE;
+			$save_message = implode("\n",$error);
 		}
 
-		if (!$res) {
+		if ($save_success) {
 			$rcmail->output->command('display_message', $this->gettext('savesuccess-config'), 'confirmation');
 		} else {
-			$rcmail->output->command('display_message', $res, 'error');
+			$rcmail->output->command('display_message', $save_message, 'error');
 		}
 
 		rcmail_overwrite_action('plugin.vboxadm');
