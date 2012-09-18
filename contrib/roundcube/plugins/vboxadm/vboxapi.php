@@ -65,6 +65,10 @@ class VBoxAPI {
         $arr = $this->get_url($this->build_url($req));
         $res = $this->decrypt($arr[0]);
         
+        if(empty($res)) {
+                return array(FALSE, 'Decode error');
+        }
+        
         if($this->debug) {
                 $debug_str = '';
                 $debug_str .= print_r($req,TRUE);
@@ -74,9 +78,9 @@ class VBoxAPI {
         }
         
         if($res['action'] == 'ok') {
-            return TRUE;
+            return array(TRUE, $res['mailbox']['update'][$username]['msgs']);
         } else {
-            return FALSE;
+            return array(FALSE, $res['error']['str']);
         }
     }
     
