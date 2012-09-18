@@ -269,9 +269,28 @@ sub _purge_mailboxes {
 # See Also   : n/a
 sub _clean_vacation {
     my $self = shift;
-
-    my $sql = "DELETE FROM vacation_notify WHERE notified_at < NOW() - ?";
-    my $sth = $self->dbh->prepare($sql);
+    
+    #
+    # Reset all vacation flags of expired vacations
+    #
+    my $sql = 'UPDATE mailboxes SET is_on_vacation = 0 WHERE vacation_end <= NOW()';
+    $sth = $self->dbh->prepare($sql);
+    $sth->execute();
+    $sth->finish();
+    
+    #
+    # Remove notifications for mailboxes no longer on vacation
+    #
+    $sql = q{DELETE FROM vacation_notify WHERE WHERE on_vacation NOT IN (SELECT CONCAT(m.local_part,'@',d.name) FROM mailboxes AS m LEFT JOIN domains AS d ON m.domain_id = d.id WHERE m.is_on_vacation = 1 m.vacation_end <= NOW())};
+    $sth = $self->dbh->prepare($sql);
+    $sth->execute();
+    $sth->finish();
+    
+    #
+    # Remove expired notfys
+    #
+    $sql = 'DELETE FROM vacation_notify WHERE notified_at < NOW() - ?';
+    $sth = $self->dbh->prepare($sql);
     $sth->execute( $self->config()->{'vacation'}{'notify_interval'} * 2 );
     $sth->finish();
 
