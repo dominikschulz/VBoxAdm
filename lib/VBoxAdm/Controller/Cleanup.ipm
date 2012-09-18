@@ -274,7 +274,7 @@ sub _clean_vacation {
     # Reset all vacation flags of expired vacations
     #
     my $sql = 'UPDATE mailboxes SET is_on_vacation = 0 WHERE vacation_end <= NOW()';
-    $sth = $self->dbh->prepare($sql);
+    my $sth = $self->dbh->prepare($sql);
     $sth->execute();
     $sth->finish();
     
