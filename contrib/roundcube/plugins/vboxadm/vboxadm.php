@@ -630,10 +630,6 @@ class vboxadm extends rcube_plugin
 			$settings['PasswordAgain']	= $newpwd2;
 		}
 		
-		if($this->vboxapi->set_user_config($user,$curpwd,$settings)) {
-			return;
-		} else {
-			return $this->gettext('saveerror-internalerror') . $addtomessage;
-		}
+		return $this->vboxapi->set_user_config($user,$curpwd,$settings);
 	}
 }
