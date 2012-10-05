@@ -480,7 +480,7 @@ sub _is_on_vacation {
 
     # this part of the where clause covers a) infinite vacations, b) finite vacations w/ a lower bound and no upper bound and c)
     # finite vacations w/ a lower and upper bound
-    $query .= q{ AND (ma.vacation_start = '0000-00-00' OR NOW() >= ma.vacation_start) AND (ma.vacation_end = '0000-00-00' OR ma.vacation_end >= NOW())};
+    $query .= q{ AND (ma.vacation_start = '0000-00-00' OR DATE(NOW()) >= DATE(ma.vacation_start)) AND (ma.vacation_end = '0000-00-00' OR DATE(ma.vacation_end) >= DATE(NOW()))};
     my $sth = &VWebAdm::DB::prepexec( $self->dbh(), $query, $self->recipient() );
     my $count = $sth->fetchrow_array();
 
