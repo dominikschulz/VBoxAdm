@@ -17,7 +17,7 @@
 			[% "Password:" | l10n %]
 			<span class="small">[% IF pw_lock %][% "Password is locked." | l10n %][% END %]</span>
 		</label>
-		<input class="flat" type="password" name="new_password_1" autocomplete="off"[% IF pw_lock %] disabled[% END %] />
+		<input class="flat" type="password" name="new_password_1" autocomplete="off" [% IF pw_lock %] disabled[% END %] />
 		
 		<div class="spacer"></div>
 		
@@ -25,13 +25,13 @@
 			[% "Password (again):" | l10n %]
 			<span class="small"></span>
 		</label>
-		<input class="flat" type="password" name="new_password_2" autocomplete="off"[% IF pw_lock %] disabled[% END %] />
+		<input class="flat" type="password" name="new_password_2" autocomplete="off" [% IF pw_lock %] disabled[% END %] />
 		
 		<div class="spacer"></div>
 		
 		<label for="name">
 			[% "Name:" | l10n %]
-			<span class="small"></span>
+			<span class="small">The name of this user. Only informational.</span>
 		</label>
 		<input class="flat" type="text" name="name" value="[% name %]" />
 		
@@ -39,7 +39,7 @@
 		
 		<label for="is_active">
 			[% "Active:" | l10n %]
-			<span class="small"></span>
+			<span class="small">A disabled mailbox can neither receive nor send any mails.</span>
 		</label>
 		<input class="flat" type="checkbox" name="is_active" [% IF is_active %]checked[% END %] />
 		
@@ -47,7 +47,7 @@
 		
 		<label for="max_msg_size_mb">
 			[% "Max. Message Size:" | l10n %]
-			<span class="small"></span>
+			<span class="small">Messages exceeding this size will be rejected.</span>
 		</label>
 		<input class="flat" type="text" name="max_msg_size_mb" value="[% max_msg_size_mb %]" /> MB
 		
@@ -55,7 +55,8 @@
 		
 		<label for="is_on_vacation">
 			[% "On Vacation:" | l10n %]
-			<span class="small"></span>
+			<span class="small">Tick this box enable the autoresponder for this user. Please note that you must also set an
+			subject and an message. Setting a start and end date as well is highly recommended.</span>
 		</label>
 		<input class="flat" type="checkbox" name="is_on_vacation" [% IF is_on_vacation %]checked[% END %] />
 		
@@ -63,7 +64,8 @@
 		
 		<label for="vacation_start">
 			[% "Begin of Vacation:" | l10n %] (dd.mm.yyyy)
-			<span class="small"></span>
+			<span class="small">If this user is marked as being on vacation and the current date is greater
+			or equal than this date vacation notifications will be sent.</span>
 		</label>
 		<input id="vacation_start" type="text" name="vacation_start" value="[% vacation_start %]" />
 		
@@ -71,7 +73,8 @@
 		
 		<label for="vacation_end">
 			[% "End of Vacation:" | l10n %] (dd.mm.yyyy)
-			<span class="small"></span>
+			<span class="small">IF this user is marked as being on vacation and the current date is smaller
+			or equal than this date vacation notifications will be sent.</span>
 		</label>
 		<input id="vacation_end" class="flat" type="text" name="vacation_end" value="[% vacation_end %]" />
 		
@@ -79,7 +82,7 @@
 		
 		<label for="vacation_subj">
 			[% "Vacation Subject:" | l10n %]
-			<span class="small"></span>
+			<span class="small">This text will be placed in the subject line of auto-generated messages.</span>
 		</label>
 		<input class="flat" type="text" name="vacation_subj" value="[% vacation_subj %]" />
 		

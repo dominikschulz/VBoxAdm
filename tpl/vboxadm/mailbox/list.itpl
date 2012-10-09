@@ -10,8 +10,10 @@
 				<th>[% "Active" | l10n %]</th>
 				<th>[% "Max. Msgsize" | l10n %]</th>
 				<th>[% "Vacation" | l10n %]</th>
+				[% IF show_quota %]
 				<th>[% "Quota" | l10n %]</th>
-				<th>[% "SA Active" | l10n %]</th>
+				[% END %]
+				<th><div title="[% "SpamAssassin (Spam-Filter) active" | l10n %]">[% "SA Active" | l10n %]</div></th>
 				<th></th>
 				<th></th>
 			</tr>
@@ -42,9 +44,11 @@
 					[% "No" | l10n %]
 					[% END %]
 				</td>
+				[% IF show_quota %]
 				<td>
 					[% line.quota %]
 				</td>
+				[% END %]
 				<td>
 					[% IF line.sa_active == 1 %]
 					[% "Yes" | l10n %]

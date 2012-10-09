@@ -1500,6 +1500,8 @@ sub show_mailboxes {
 
     my @mailboxes = $self->{'Mailbox'}->list( \%params );
     my @domains   = $self->{'Domain'}->list();
+    
+    my $show_quota = $self->{'config'}{'cgi'}{'show_quota'} || 0;
 
     %params = (
         'title'     => $self->{lh}->maketext('VBoxAdm Mailboxes'),
@@ -1507,6 +1509,7 @@ sub show_mailboxes {
         'mailboxes' => \@mailboxes,
         'domains'   => \@domains,
         'search'    => $search,
+        'show_quota' => $show_quota,
     );
 
     return $self->tt_process( 'vboxadm/mailbox/list.tpl', \%params );
@@ -1531,6 +1534,7 @@ sub show_create_mailbox {
         'current'         => 'mailboxes',
         'max_msg_size_mb' => 25,
         'sa_kill_score'   => 6.31,
+        'sa_active'       => 1,
     );
 
     return $self->tt_process( 'vboxadm/mailbox/create.tpl', \%params );
