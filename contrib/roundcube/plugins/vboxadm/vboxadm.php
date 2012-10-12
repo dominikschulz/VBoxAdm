@@ -236,7 +236,8 @@ class vboxadm extends rcube_plugin
 			)
 		);
 
-		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+//		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td>\n",
 			$field_id,
 			rep_specialchars_output($this->gettext('spamenabled')),
 			$input_spamenabled->show($sa_active ? 1 : 0 ),
@@ -253,7 +254,8 @@ class vboxadm extends rcube_plugin
 			)
 		);
 
-		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+//		$out .= sprintf("<tr><th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
+		$out .= sprintf("<th><label for=\"%s\">%s</label>:</th><td>%s%s</td></tr>\n",
 			$field_id,
 			rep_specialchars_output($this->gettext('spamscorerefuse')),
 			$input_spamscorerefuse->show($sa_kill_score),
@@ -267,6 +269,7 @@ class vboxadm extends rcube_plugin
 		// Autoresponder
 		$out .= '<fieldset><legend>' . $this->gettext('autoresponder') . '</legend>' . "\n";
 		$out .= '<div class="fieldset-content">';
+		$out .= '<table><tr><td>';
 		$out .= '<table class="vboxadm-settings" cellpadding="0" cellspacing="0">';
 
 		$field_id = 'is_on_vacation';
@@ -350,6 +353,9 @@ class vboxadm extends rcube_plugin
 			'<br /><span class="vboxadm-explanation">' . $this->gettext('autorespondersubjectexplanation') . '.</span>'
 		);
 
+		$out .= '</table></td>';
+		$out .= '<td><table class="vboxadm-settings" cellpadding="0" cellspacing="0">';
+
 		$field_id = 'vacation_msg';
 		$input_vacation_msg = new html_textarea(
 			array(
@@ -366,11 +372,12 @@ class vboxadm extends rcube_plugin
 			'<br /><span class="vboxadm-explanation">' . $this->gettext('autorespondermessageexplanation') . '</span>'
 		);
 
-		$out .= '</table>';
+		$out .= '</table></td></tr></table>';
 		$out .= '</div></fieldset>' . "\n\n";
 
 		// ============================================================
 		// Parameters
+		$out .= '<table><tr><td>';
 		$out .= '<fieldset><legend>' . $this->gettext('parameters') . '</legend>' . "\n";
 
 		$out .= '<div class="fieldset-content">';
@@ -457,7 +464,7 @@ class vboxadm extends rcube_plugin
 			$out .= '</div></fieldset>' . "\n\n";
 		}
 		// ============================================================
-		
+		$out .= '</td><td>';	
 		// =====================================================================================================
 		// Password change
 		$out .= '<fieldset><legend>' . $this->gettext('passwordchange') . '</legend>' . "\n";
@@ -503,7 +510,7 @@ class vboxadm extends rcube_plugin
 		$out .= '</div></fieldset>'."\n\n";
 		
 		// ============================================================
-		
+		$out .= '</td></tr></table>';
 		// =====================================================================================================
 		// Password
 		$out .= '<fieldset><legend>' . $this->gettext('password') . '</legend>' . "\n";
