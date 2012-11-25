@@ -7,8 +7,7 @@ use MIME::Base64;
 use Digest::MD5;
 use Digest::Perl::MD5;
 use Digest::SHA;
-
-use VWebAdm::Password '@VERSION@';
+use Data::Pwgen;
 
 our $VERSION = '@VERSION@';
 
@@ -252,7 +251,7 @@ sub make_pass {
 # Comments   : none
 # See Also   : http://wiki.dovecot.org/Authentication/PasswordSchemes
 sub make_salt {
-    return VWebAdm::Password::pwgen(4);
+    return Data::Pwgen::pwgen(4);
 }
 
 ############################################

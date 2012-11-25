@@ -22,7 +22,6 @@ use VWebAdm::DB '@VERSION@';
 use VWebAdm::Utils '@VERSION@';
 use VBoxAdm::Migration '@VERSION@';
 use VWebAdm::SaltedHash '@VERSION@';
-use VWebAdm::Password '@VERSION@';
 use VBoxAdm::Model::Alias '@VERSION@';
 use VBoxAdm::Model::AWL '@VERSION@';
 use VBoxAdm::Model::Domain '@VERSION@';

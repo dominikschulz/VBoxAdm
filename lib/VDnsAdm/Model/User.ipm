@@ -4,9 +4,9 @@ use Moose;
 use namespace::autoclean;
 
 use Carp;
+use Data::Pwgen;
 
 use VWebAdm::DB '@VERSION@';
-use VWebAdm::Password '@VERSION@';
 use VWebAdm::SaltedHash '@VERSION@';
 use VWebAdm::Utils '@VERSION@';
 
@@ -153,7 +153,7 @@ sub update {
             }
 
             # Check password strength
-            my $strength = &VWebAdm::Password::strength( $params->{'password'} );
+            my $strength = Data::Pwgen::strength( $params->{'password'} );
             if ( $strength < 2 ) {
                 $self->msg->push( 'warning', 'Weak password - Strength: [_1].', $strength );
             }

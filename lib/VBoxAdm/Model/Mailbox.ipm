@@ -5,9 +5,9 @@ use namespace::autoclean;
 
 use Carp;
 use Encode;
+use Data::Pwgen;
 
 use VWebAdm::SaltedHash '@VERSION@';
-use VWebAdm::Password '@VERSION@';
 use VBoxAdm::Model::Domain '@VERSION@';
 
 extends 'VWebAdm::Model';
@@ -122,7 +122,7 @@ sub create {
     #
     # No Passwords given, generate one
     if ( !$params->{'Password'} && !$params->{'PasswordAgain'} ) {
-        $args{'password'} = &VWebAdm::Password::pwgen(16);
+        $args{'password'} = Data::Pwgen::pwgen(16);
         $self->msg->push( 'information', 'Generated Password: [_1]', $args{'password'} );
     }
 
@@ -259,7 +259,7 @@ sub update {
             }
 
             # Check password strength
-            my $strength = &VWebAdm::Password::strength( $params->{'Password'} );
+            my $strength = Data::Pwgen::strength( $params->{'Password'} );
             if ( $strength < 2 ) {
                 $self->msg->push( 'warning', 'Weak password - Strength: [_1].', $strength );
             }
