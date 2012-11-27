@@ -55,7 +55,7 @@ has 'config' => (
 sub _init_logger {
     my $self = shift;
 
-    return VWebAdm::Logger::->new('vboxadm-vacation');
+    return VWebAdm::Logger::->new('vboxadm-adisc');
 }
 
 has 'conffile_used' => (
