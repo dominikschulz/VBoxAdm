@@ -1,0 +1,64 @@
+package VBoxAdm::Cmd::Command::awladd;
+# ABSTRACT: add a new alias
+
+use 5.010_000;
+use mro 'c3';
+use feature ':5.10';
+
+use Moose;
+use namespace::autoclean;
+
+# use IO::Handle;
+# use autodie;
+# use MooseX::Params::Validate;
+# use Carp;
+# use English qw( -no_match_vars );
+# use Try::Tiny;
+use VBoxAdm::Model::AWL;
+
+# extends ...
+extends 'VBoxAdm::Cmd::Command';
+# has ...
+has 'email' => (
+    'is'            => 'ro',
+    'isa'           => 'Str',
+    'required'      => 1,
+    'default'       => 0,
+    'traits'        => [qw(Getopt)],
+    'cmd_aliases'   => 'e',
+    'documentation' => 'Email address to add',
+);
+# with ...
+# initializers ...
+
+# your code here ...
+sub execute {
+    my $self = shift;
+
+    return;
+}
+
+sub abstract {
+    return 'Command';
+}
+
+no Moose;
+__PACKAGE__->meta->make_immutable;
+
+1;
+
+__END__
+
+=head1 NAME
+
+VBoxAdm::Cmd::Command::aliasadd - 
+
+=method abstract
+
+Workadound.
+
+=method execute
+
+Command
+
+=cut
