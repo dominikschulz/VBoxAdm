@@ -19,7 +19,7 @@ use Try::Tiny;
 use VWebAdm::API '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
 use VWebAdm::Utils '@VERSION@';
-use VWebAdm::Logger '@VERSION@';
+use Log::Tree '@VERSION@';
 
 use VBoxAdm::Model::Alias '@VERSION@';
 use VBoxAdm::Model::AWL '@VERSION@';
@@ -47,7 +47,7 @@ our $VERSION = '@VERSION@';
 sub setup {
     my $self = shift;
 
-    my $Logger = VWebAdm::Logger::->new( { 'facility' => 'VBoxAdm/API', } );
+    my $Logger = Log::Tree::->new( { 'facility' => 'VBoxAdm/API', } );
     $self->{'logger'} = $Logger;
 
     # define the default run mode

@@ -27,7 +27,7 @@ use VDnsAdm::Model::Record '@VERSION@';
 use VWebAdm::Model::MessageQueue '@VERSION@';
 use VDnsAdm::Model::User '@VERSION@';
 use VDnsAdm::L10N '@VERSION@';
-use VWebAdm::Logger '@VERSION@';
+use Log::Tree '@VERSION@';
 
 our $VERSION = '@VERSION@';
 

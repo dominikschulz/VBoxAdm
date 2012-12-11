@@ -9,7 +9,7 @@ use Mail::POP3Client;
 
 use VWebAdm::DB '@VERSION@';
 use VWebAdm::DNS '@VERSION@';
-use VWebAdm::Logger '@VERSION@';
+use Log::Tree '@VERSION@';
 use VWebAdm::Utils '@VERSION@';
 
 our $VERSION = '@VERSION@';
@@ -45,7 +45,7 @@ sub _init_dbh {
 
 has 'logger' => (
     'is'      => 'ro',
-    'isa'     => 'VWebAdm::Logger',
+    'isa'     => 'Log::Tree',
     'lazy'    => 1,
     'builder' => '_init_logger',
 );
@@ -79,7 +79,7 @@ has 'config' => (
 sub _init_logger {
     my $self = shift;
 
-    return VWebAdm::Logger::->new('vboxadm-rfcnotify');
+    return Log::Tree::->new('vboxadm-rfcnotify');
 }
 
 has 'conffile_used' => (

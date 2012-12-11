@@ -36,7 +36,7 @@ use Try::Tiny;
 use VWebAdm::Utils '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
 use VWebAdm::SaltedHash '@VERSION@';
-use VWebAdm::Logger '@VERSION@';
+use Log::Tree '@VERSION@';
 
 use VBoxAdm::Model::Alias '@VERSION@';
 use VBoxAdm::Model::AWL '@VERSION@';
@@ -68,7 +68,7 @@ Readonly my $ENTRIES_PER_PAGE => 20;
 sub setup {
     my $self = shift;
 
-    my $Logger = VWebAdm::Logger::->new( { 'facility' => 'VBoxAdm/Frontend', } );
+    my $Logger = Log::Tree::->new( { 'facility' => 'VBoxAdm/Frontend', } );
     $self->{'logger'} = $Logger;
 
     # define the default run mode

@@ -10,7 +10,7 @@ use Digest::SHA;
 use JSON;
 use URI::Escape;
 use Encode;
-use VWebAdm::Logger '@VERSION@';
+use Log::Tree '@VERSION@';
 
 has 'key'   => (
     'is'    => 'ro',
@@ -20,7 +20,7 @@ has 'key'   => (
 
 has 'logger' => (
     'is'      => 'rw',
-    'isa'     => 'VWebAdm::Logger',
+    'isa'     => 'Log::Tree',
     'required'    => 1,
 );
 

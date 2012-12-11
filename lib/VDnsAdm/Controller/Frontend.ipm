@@ -34,7 +34,7 @@ use Try::Tiny;
 use VWebAdm::Utils '@VERSION@';
 use VDnsAdm::L10N '@VERSION@';
 use VWebAdm::SaltedHash '@VERSION@';
-use VWebAdm::Logger '@VERSION@';
+use Log::Tree '@VERSION@';
 
 use VWebAdm::Model::MessageQueue '@VERSION@';
 
@@ -61,7 +61,7 @@ Readonly my $ENTRIES_PER_PAGE => 20;
 sub setup {
     my $self = shift;
 
-    my $Logger = VWebAdm::Logger::->new('VDnsAdm/Frontend');
+    my $Logger = Log::Tree::->new('VDnsAdm/Frontend');
     $self->{'logger'} = $Logger;
 
     # define the default run mode

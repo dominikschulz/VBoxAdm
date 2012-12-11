@@ -35,7 +35,7 @@ use VBoxAdm::Model::VacationBlacklist '@VERSION@';
 use VBoxAdm::Model::VacationNotify '@VERISON@';
 use VWebAdm::Model::MessageQueue '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
-use VWebAdm::Logger '@VERSION@';
+use Log::Tree '@VERSION@';
 
 binmode( STDIN, ':utf8' );
 
@@ -46,7 +46,7 @@ has 'config' => (
 
 has 'logger' => (
     'is'      => 'ro',
-    'isa'     => 'VWebAdm::Logger',
+    'isa'     => 'Log::Tree',
     'lazy'    => 1,
     'builder' => '_init_logger',
 );
@@ -310,7 +310,7 @@ sub _init_vacationnotify {
 sub _init_logger {
     my $self = shift;
 
-    return VWebAdm::Logger::->new('vboxadm/cli');
+    return Log::Tree::->new('vboxadm/cli');
 }
 
 sub _init_dbh {

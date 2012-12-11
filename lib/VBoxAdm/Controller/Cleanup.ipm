@@ -7,7 +7,7 @@ use Config::Std;
 use Getopt::Long;
 
 use VWebAdm::DB '@VERSION@';
-use VWebAdm::Logger '@VERSION@';
+use Log::Tree '@VERSION@';
 use VWebAdm::Utils '@VERSION@';
 
 our $VERSION = '@VERSION@';
@@ -43,7 +43,7 @@ sub _init_dbh {
 
 has 'logger' => (
     'is'      => 'ro',
-    'isa'     => 'VWebAdm::Logger',
+    'isa'     => 'Log::Tree',
     'lazy'    => 1,
     'builder' => '_init_logger',
 );
@@ -51,7 +51,7 @@ has 'logger' => (
 sub _init_logger {
     my $self = shift;
 
-    return VWebAdm::Logger::->new('vboxadm-cleanup');
+    return Log::Tree::->new('vboxadm-cleanup');
 }
 
 has 'config_locations' => (
