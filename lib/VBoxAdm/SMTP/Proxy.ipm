@@ -161,16 +161,7 @@ __END__
 
 VBoxAdm::SMTP::Proxy - Spam Filtering SMTP-Proxy for VBoxAdm
 
-=head1 VERSION
-
-This documentation refers to VBoxAdm::SMTP::Proxy version @VERSION@
-built on @BUILDDATE@.
-
-=head1 SYNOPSIS
-
-    use VBoxAdm::SMTP::Proxy;
-
-=head1 SCHEMA
+=head1 MESSAGE FLOW
 
  Internet -> Postfix1 (Client) -> smtpproxy -> Postfix2 (Server)
 
@@ -237,6 +228,7 @@ has its own section in the config file and all use the values
 from the default section when appropriate.
 
 =head2 default
+
 The default section should contain at least the database configuration.
 
 dbuser - The user used to connect to the MySQL database.
@@ -261,45 +253,5 @@ max_servers - Run no more than this number of children.
 min_spare_servers - Min. spare Children.
 max_spare_servers - Max. spare Children.
 max_requests - Each children will complete this much requests and than exit.
-
-=head1 DEPENDENCIES
-
-VWebAdm::Utils, VBoxAdm::SMTP::Proxy, VBoxAdm::SMTP::Client, VBoxAdm::SMTP::Server.
-
-=head1 INCOMPATIBILITIES
-
-None known.
-
-=head1 BUGS AND LIMITATIONS
-
-There are no known bugs in this module.
-Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
-Patches are welcome.
-
-=head1 AUTHOR
-
-Dominik Schulz (dominik.schulz@gauner.org)
-
-=head1 LICENCE AND COPYRIGHT
-
-This implementation was previously based on smtpproxy but switched to
-Net::Server::PreFork later. Large parts of this code are based on the ideas
-of SpamPD, which is itself based on smtpprox, but all code was written by myself.
-The SMTP Classes are modeled closely after MSDW::SMTP::*.
-
-Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 =cut

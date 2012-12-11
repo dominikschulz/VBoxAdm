@@ -210,3 +210,8 @@ __PACKAGE__->meta->make_immutable();
 
 __END__
 
+=head1 NAME
+
+VBoxAdm::Controller::Autodiscover - autodiscovery support for Mozilla and Outlook
+
+=cut

@@ -1116,3 +1116,4 @@ awl list - List whitelist entries
 migrate --source <source> --source-db <source-db> - Migrate from <source> format
   (either debmin1, debmin2, vexim of postfixadmin) with <source-db> as data source.
 
+=cut

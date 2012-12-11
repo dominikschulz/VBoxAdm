@@ -176,3 +176,8 @@ __PACKAGE__->meta->make_immutable;
 
 __END__
 
+=head1 NAME
+
+VWebAdm::Model
+
+=cut

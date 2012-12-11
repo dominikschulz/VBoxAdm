@@ -592,3 +592,8 @@ __PACKAGE__->meta->make_immutable();
 
 __END__
 
+=head1 NAME
+
+VBoxAdm::Controller::Notify - Send notifications to broken mailservers
+
+=cut

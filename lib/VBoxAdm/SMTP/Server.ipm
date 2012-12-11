@@ -11,14 +11,6 @@ use Carp qw(carp croak);
 
 our $VERSION = '@VERSION@';
 
-############################################
-# Usage      : ????
-# Purpose    : ????
-# Returns    : ????
-# Parameters : ????
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
 sub new {
     my ( $this, @opts ) = @_;
 
@@ -52,14 +44,6 @@ sub new {
     return $self;
 }
 
-############################################
-# Usage      : ????
-# Purpose    : ????
-# Returns    : ????
-# Parameters : ????
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
 sub accept {
     my ( $self, @opts ) = @_;
 
@@ -77,14 +61,6 @@ sub accept {
     return 1;
 }
 
-############################################
-# Usage      : ????
-# Purpose    : ????
-# Returns    : ????
-# Parameters : ????
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
 sub chat {
     my $self = shift;
 
@@ -179,14 +155,6 @@ sub chat {
     return $self->{state};
 }
 
-############################################
-# Usage      : ????
-# Purpose    : ????
-# Returns    : ????
-# Parameters : ????
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
 sub getline {
     my $self = shift;
     local $/ = "\r\n";
@@ -198,14 +166,6 @@ sub getline {
     return $line;
 }
 
-############################################
-# Usage      : ????
-# Purpose    : ????
-# Returns    : ????
-# Parameters : ????
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
 sub print {
     my ( $self, @msg ) = @_;
 
@@ -214,14 +174,6 @@ sub print {
     return 1;
 }
 
-############################################
-# Usage      : ????
-# Purpose    : ????
-# Returns    : ????
-# Parameters : ????
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
 sub ok {
     my ( $self, @msg ) = @_;
 
@@ -232,14 +184,6 @@ sub ok {
     return 1;
 }
 
-############################################
-# Usage      : ????
-# Purpose    : ????
-# Returns    : ????
-# Parameters : ????
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
 sub tempfail {
     my ( $self, @msg ) = @_;
 
@@ -250,14 +194,6 @@ sub tempfail {
     return 1;
 }
 
-############################################
-# Usage      : ????
-# Purpose    : ????
-# Returns    : ????
-# Parameters : ????
-# Throws     : no exceptions
-# Comments   : none
-# See Also   : n/a
 sub fail {
     my ( $self, @msg ) = @_;
 
@@ -276,11 +212,6 @@ __END__
 
 VBoxAdm::SMTP::Server - An SMTP Server.
 
-=head1 VERSION
-
-This documentation refers to VBoxAdm::SMTP::Server version @VERSION@
-built on @BUILDDATE@.
-
 =head1 SYNOPSIS
 
     use VBoxAdm::SMTP::Server;
@@ -292,62 +223,5 @@ built on @BUILDDATE@.
 =head1 DESCRIPTION
 
 This class implements the protocol stage necessary to implement a minimal SMTP server.
-
-=head1 SUBROUTINES/METHODS
-
-=head2 accept
-
-=head2 chat
-
-=head2 fail
-
-=head2 getline
-
-=head2 new
-
-=head2 ok
-
-=head2 print
-
-=head2 tempfail
-
-=head1 DIAGNOSTICS
-
-TODO
-
-=head1 DEPENDENCIES
-
-IO::Socket and IO::File.
-
-=head1 INCOMPATIBILITIES
-
-None known.
-
-=head1 BUGS AND LIMITATIONS
-
-There are no known bugs in this module.
-Please report problems to Dominik Schulz (dominik.schulz@gauner.org)
-Patches are welcome.
-
-=head1 AUTHOR
-
-Dominik Schulz (dominik.schulz@gauner.org)
-
-=head1 LICENCE AND COPYRIGHT
-
-Copyright (c) 2010 Dominik Schulz (dominik.schulz@gauner.org). All rights reserved.
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 =cut
