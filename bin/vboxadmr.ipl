@@ -16,7 +16,7 @@ use MIME::Base64;
 
 use VWebAdm::Utils '@VERSION@';
 use VWebAdm::API '@VERSION@';
-use VWebAdm::Logger '@VERSION@';
+use Log::Tree '@VERSION@';
 
 my ( $conffile_used, %config, @modes, $opts );
 $opts = {};
@@ -29,7 +29,7 @@ my @conffile_locations = qw(
   @CFGDIR@/vboxadm/vboxadm.conf
 );
 
-my $Logger = VWebAdm::Logger::->new('vboxadmr');
+my $Logger = Log::Tree::->new('vboxadmr');
 
 GetOptions(
     'verbose|v+' => \$opts->{Verbose},

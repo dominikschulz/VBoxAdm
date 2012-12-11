@@ -13,7 +13,7 @@ use File::Temp;
 use Data::Dumper;
 
 use VWebAdm::DB '@VERSION@';
-use VWebAdm::Logger '@VERSION@';
+use Log::Tree '@VERSION@';
 
 our $VERSION = '@VERSION@';
 
@@ -48,7 +48,7 @@ sub _init_dbh {
 
 has 'logger' => (
     'is'      => 'ro',
-    'isa'     => 'VWebAdm::Logger',
+    'isa'     => 'Log::Tree',
     'lazy'    => 1,
     'builder' => '_init_logger',
 );
@@ -82,7 +82,7 @@ has 'config' => (
 sub _init_logger {
     my $self = shift;
 
-    return VWebAdm::Logger::->new('vboxadm-dmarc');
+    return Log::Tree::->new('vboxadm-dmarc');
 }
 
 has 'conffile_used' => (

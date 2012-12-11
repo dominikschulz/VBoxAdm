@@ -16,7 +16,7 @@ has 'config' => (
 
 has 'logger' => (
     'is'      => 'ro',
-    'isa'     => 'VWebAdm::Logger',
+    'isa'     => 'Log::Tree',
     'lazy'    => 1,
     'builder' => '_init_logger',
 );

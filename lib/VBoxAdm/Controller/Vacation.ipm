@@ -13,7 +13,7 @@ use Email::Date::Format qw/email_date/;
 use MIME::Words qw/encode_mimewords/;
 
 use VWebAdm::DB '@VERSION@';
-use VWebAdm::Logger '@VERSION@';
+use Log::Tree '@VERSION@';
 use VWebAdm::Utils '@VERSION@';
 
 has 'dbh' => (
@@ -50,7 +50,7 @@ sub _init_dbh {
 
 has 'logger' => (
     'is'      => 'ro',
-    'isa'     => 'VWebAdm::Logger',
+    'isa'     => 'Log::Tree',
     'lazy'    => 1,
     'builder' => '_init_logger',
 );
@@ -130,7 +130,7 @@ sub _init_notify_interval {
 sub _init_logger {
     my $self = shift;
 
-    return VWebAdm::Logger::->new( { facility => 'vboxadm-vacation', filename => '/var/log/vboxadm/vacation.log', } );
+    return Log::Tree::->new( { facility => 'vboxadm-vacation', filename => '/var/log/vboxadm/vacation.log', } );
 }
 
 sub _init_recipient {

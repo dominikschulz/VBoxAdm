@@ -14,7 +14,7 @@ use Carp;
 use Getopt::Long;
 use Config::Std;
 
-use VWebAdm::Logger '@VERSION@';
+use Log::Tree '@VERSION@';
 use VBoxAdm::SMTP::Proxy::SA '@VERSION@';
 
 my $syntax = "syntax: $0 [--verbose] [--config=<FILE>]\n";
@@ -86,7 +86,7 @@ my $sa_default_block_score = $config{'smtpproxy'}{'sa_default_block_score'} || 6
 my $sa_default_status = $config{'smtpproxy'}{'sa_default_status'} // 1;
 my $recipient_delimiter = $config{'smtpproxy'}{'recipient_delimiter'};
 
-my $Logger = VWebAdm::Logger::->new( { 'facility' => 'vboxadm-sa', 'filename' => $logfile, } );
+my $Logger = Log::Tree::->new( { 'facility' => 'vboxadm-sa', 'filename' => $logfile, } );
 
 # Important: Make sure the logfile exists (by logging to it) and is owned by the user
 # our child will be running as. Otherwise you may experience a situation

@@ -24,7 +24,7 @@ use VDnsAdm::Model::Record '@VERSION@';
 use VWebAdm::Model::MessageQueue '@VERSION@';
 use VDnsAdm::Model::User '@VERSION@';
 use VDnsAdm::L10N '@VERSION@';
-use VWebAdm::Logger '@VERSION@';
+use Log::Tree '@VERSION@';
 
 binmode( STDIN, ':utf8' );
 
@@ -35,7 +35,7 @@ has 'config' => (
 
 has 'logger' => (
     'is'      => 'ro',
-    'isa'     => 'VWebAdm::Logger',
+    'isa'     => 'Log::Tree',
     'lazy'    => 1,
     'builder' => '_init_logger',
 );
@@ -117,7 +117,7 @@ sub _init_record {
 sub _init_logger {
     my $self = shift;
 
-    return VWebAdm::Logger::->new('vdnsadm/cli');
+    return Log::Tree::->new('vdnsadm/cli');
 }
 
 sub _init_dbh {

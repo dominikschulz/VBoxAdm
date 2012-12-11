@@ -16,7 +16,7 @@ has 'dbh' => (
 
 has 'logger' => (
     'is'       => 'ro',
-    'isa'      => 'VWebAdm::Logger',
+    'isa'      => 'Log::Tree',
     'required' => 1,
 );
 
