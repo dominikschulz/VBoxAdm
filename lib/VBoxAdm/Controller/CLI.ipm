@@ -17,6 +17,7 @@ use Net::SMTP;
 use Net::POP3;
 use Net::IMAP::Client;
 use Text::Levenshtein qw(distance);
+use File::Blarf;
 
 use VWebAdm::DB '@VERSION@';
 use VWebAdm::Utils '@VERSION@';
@@ -796,7 +797,7 @@ sub _init_actions {
 
                 # Longer vacation messages can not be given on the commandline, they may also be a file
                 if ( $params->{VacationMessage} && -f $params->{VacationMessage} ) {
-                    $params->{VacationMessage} = &VWebAdm::Utils::slurp( $params->{VacationMessage} );
+                    $params->{VacationMessage} = File::Blarf::slurp( $params->{VacationMessage} );
                 }
                 print "Update User: $email\n";
 

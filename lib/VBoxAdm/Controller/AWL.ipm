@@ -5,6 +5,7 @@ use namespace::autoclean;
 
 use Config::Std;
 use Getopt::Long;
+use File::Blarf;
 
 use VWebAdm::DB '@VERSION@';
 use VWebAdm::Logger '@VERSION@';
@@ -192,7 +193,7 @@ sub _reload_postgrey {
 
     my $pidfile = '/var/run/postgrey.pid';
     if ( -f $pidfile ) {
-        my $pid = &VWebAdm::Utils::slurp($pidfile);
+        my $pid = File::Blarf::slurp($pidfile);
         if ( $pid =~ m/^\d+$/ ) {
             my $cmd = "kill -HUP $pid";
             my $rv  = system($cmd) >> 8;

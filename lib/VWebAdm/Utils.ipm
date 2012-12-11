@@ -70,51 +70,6 @@ sub unroll_recipient {
 
     return;
 }
-############################################
-# Usage      : my $content = VBoxAdm::Utils::slurp($file);
-# Purpose    : Read a whole file in a string
-# See Also   : Perl6::Slurp
-sub slurp {
-    my $file = shift;
-    my $opts = shift || {};
-
-    if ( -f $file && open( my $FH, "<", $file ) ) {
-        my $buf = "";
-        while ( my $line = <$FH> ) {
-            $buf .= $line;
-        }
-        close($FH);
-        if ( $opts->{Chomp} ) {
-            chomp($buf);
-        }
-        return $buf;
-    }
-    else {
-        return;
-    }
-}
-
-############################################
-# Usage      : VBoxAdm::Utils::blarf($file,'a string');
-# Purpose    : Write a string to a file
-sub blarf {
-    my $file = shift;
-    my $str  = shift;
-    my $opts = shift || {};
-
-    my $mode = '>';
-    if ( $opts->{Append} ) {
-        $mode = '>>';
-    }
-    if ( open( my $FH, $mode, $file ) ) {
-        print $FH $str;
-        close($FH);
-        return 1;
-    }
-    else {
-        return;
-    }
-}
 
 ############################################
 # Usage      : VBoxAdm::Utils::sendmail($envelope-from,$message);
@@ -451,10 +406,6 @@ local part.
 =head2 sendmail
 
 Send a mail via sendmail.
-
-=head2 slurp
-
-Read in a whole file at once.
 
 =head2 trim
 

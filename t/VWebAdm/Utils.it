@@ -52,7 +52,6 @@ is( VWebAdm::Utils::trim2("  key = value # comment   \r\n"), "key = value", 'tri
     }
 }
 
-# Test slurp
 # Test is_valid_address_rfc822
 # Test is_valid_addresses_rfc822
 # Test is_valid_localpart_rfc822
