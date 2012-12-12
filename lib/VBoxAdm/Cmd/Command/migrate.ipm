@@ -1,4 +1,4 @@
-package VBoxAdm::Cmd::Command::domain;
+package VBoxAdm::Cmd::Command::migrate;
 # ABSTRACT: add a new alias
 
 use 5.010_000;
@@ -14,52 +14,81 @@ use namespace::autoclean;
 # use Carp;
 # use English qw( -no_match_vars );
 # use Try::Tiny;
-use VBoxAdm::Model::Domain;
+use VBoxAdm::Migration;
 
 # extends ...
 extends 'VBoxAdm::Cmd::Command';
 # has ...
-has 'email' => (
+has 'type' => (
     'is'            => 'ro',
     'isa'           => 'Str',
     'required'      => 1,
     'default'       => 0,
     'traits'        => [qw(Getopt)],
-    'cmd_aliases'   => 'e',
-    'documentation' => 'Email address to add',
+    'cmd_aliases'   => 't',
+    'documentation' => 'Source type',
 );
 
-has '_domain' => (
-    'is'      => 'ro',
-    'isa'     => 'VBoxAdm::Model::Domain',
-    'lazy'    => 1,
-    'builder' => '_init_domain',
-    'accessor' => 'domain',
+has 'sourcedb' => (
+    'is'            => 'ro',
+    'isa'           => 'Str',
+    'required'      => 1,
+    'default'       => 0,
+    'traits'        => [qw(Getopt)],
+    'cmd_aliases'   => 's',
+    'documentation' => 'Source database',
 );
 
-sub _init_domain {
-    my $self = shift;
+has 'targetdb' => (
+    'is'            => 'ro',
+    'isa'           => 'Str',
+    'required'      => 1,
+    'default'       => 0,
+    'traits'        => [qw(Getopt)],
+    'cmd_aliases'   => 'd',
+    'documentation' => 'Target database',
+);
 
-    my $Domain = VBoxAdm::Model::Domain::->new(
-        {
-            'dbh'    => $self->dbh(),
-            'logger' => $self->logger(),
-            'config' => $self->config(),
-            'user'   => $self->user(),
-            'msgq'   => $self->msgq(),
-        }
-    );
+has 'truncate' => (
+    'is'            => 'ro',
+    'isa'           => 'Bool',
+    'required'      => 0,
+    'default'       => 0,
+    'traits'        => [qw(Getopt)],
+    'cmd_aliases'   => 't',
+    'documentation' => 'Truncate target database',
+);
 
-    return $Domain;
-}
+has '_mig' => (
+    'is'    => 'ro',
+    'isa'   => 'VBoxAdm::Migration',
+    'lazy'  => 1,
+    'builder' => '_init_mig',
+);
 # with ...
 # initializers ...
+sub _init_mig {
+    my $self = shift;
+    
+    my $MiG = VBoxAdm::Migration::->new({
+        'dbh' => undef, # TODO this not work!!
+        'type' => $self->type(),
+        'sourcedb' => $self->sourcedb(),
+        'targetdb' => $self->targetdb(),
+    });
+    
+    return $MiG;
+}
 
 # your code here ...
 sub execute {
     my $self = shift;
+    
+    if($self->truncate()) {
+        $self->_mig->truncate();
+    }
 
-    return;
+    return $self->_mig()->migrate();
 }
 
 sub abstract {

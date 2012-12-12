@@ -5,7 +5,7 @@ use namespace::autoclean;
 
 has 'dbh' => (
     'is'      => 'ro',
-    'isa'     => 'Object',
+    'isa'     => 'DBI::db',
     'lazy'    => 1,
     'builder' => '_init_dbh',
 );

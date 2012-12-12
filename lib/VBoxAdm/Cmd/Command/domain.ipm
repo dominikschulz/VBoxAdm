@@ -19,14 +19,34 @@ use VBoxAdm::Model::Domain;
 # extends ...
 extends 'VBoxAdm::Cmd::Command';
 # has ...
-has 'email' => (
+has 'add' => (
     'is'            => 'ro',
     'isa'           => 'Str',
     'required'      => 1,
     'default'       => 0,
     'traits'        => [qw(Getopt)],
-    'cmd_aliases'   => 'e',
-    'documentation' => 'Email address to add',
+    'cmd_aliases'   => 'a',
+    'documentation' => 'Domain to add',
+);
+
+has 'update' => (
+    'is'            => 'ro',
+    'isa'           => 'Str',
+    'required'      => 1,
+    'default'       => 0,
+    'traits'        => [qw(Getopt)],
+    'cmd_aliases'   => 'u',
+    'documentation' => 'Domain to update',
+);
+
+has 'delete' => (
+    'is'            => 'ro',
+    'isa'           => 'Str',
+    'required'      => 1,
+    'default'       => 0,
+    'traits'        => [qw(Getopt)],
+    'cmd_aliases'   => 'd',
+    'documentation' => 'Domain to delete',
 );
 
 has '_domain' => (
@@ -58,8 +78,66 @@ sub _init_domain {
 # your code here ...
 sub execute {
     my $self = shift;
-
+    
+    if($self->add()) {
+        return $self->exec_add();
+    } elsif($self->update()) {
+        return $self->exec_update();
+    } elsif($self->delete()) {
+        return $self->exec_delete();
+    } else {
+        return $self->list();
+    }
+    
     return;
+}
+
+sub exec_add {
+    my $self = shift;
+    
+    print "Add Domain.\n";
+    my $status = $self->domain()->create($domain);
+    $self->display_messages();
+    
+    return $status;
+}
+
+sub exec_update {
+    my $self = shift;
+    
+    my $params;
+    foreach my $key (qw(IsActive)) {
+        $params->{$key} = $self->opts()->{$key} if defined( $self->opts()->{$key} );
+    }
+    print "Update Domain.\n";
+    my $status = $self->domain()->update( $self->domain()->get_id($self->update()), $params );
+    $self->display_messages();
+    
+    return $status;
+}
+
+sub exec_delete {
+    my $self = shift;
+    
+    print "Delete Domain.\n";
+    my $status = $self->domain()->delete( $self->domain()->get_id($self->delete()) );
+    $self->display_messages();
+    
+    return $status;
+}
+
+sub list {
+    my $self = shift;
+    
+    print "Listing Domains:\n";
+    my $format = "%i\t%s\t%i\n";
+    print "ID\tDomain\tIs Active\n";
+    foreach my $domain ( $self->domain()->list() ) {
+        printf( $format, @{$domain}{qw(id name is_active)} );
+    }
+    $self->display_messages();
+    
+    return 1;
 }
 
 sub abstract {
@@ -75,7 +153,7 @@ __END__
 
 =head1 NAME
 
-VBoxAdm::Cmd::Command::aliasadd - 
+VBoxAdm::Cmd::Command::domain - 
 
 =method abstract
 
