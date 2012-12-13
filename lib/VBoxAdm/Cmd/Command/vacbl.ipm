@@ -1,5 +1,5 @@
-package VBoxAdm::Cmd::Command::domain;
-# ABSTRACT: add a new alias
+package VBoxAdm::Cmd::Command::vacbl;
+# ABSTRACT: edit vacation blacklist entries
 
 use 5.010_000;
 use mro 'c3';
@@ -14,12 +14,12 @@ use namespace::autoclean;
 # use Carp;
 # use English qw( -no_match_vars );
 # use Try::Tiny;
-use VBoxAdm::Model::Domain;
+use VBoxAdm::Model::VacationBlacklist;
 
 # extends ...
 extends 'VBoxAdm::Cmd::Command';
 # has ...
-has 'email' => (
+has 'add' => (
     'is'            => 'ro',
     'isa'           => 'Str',
     'required'      => 1,
@@ -29,18 +29,17 @@ has 'email' => (
     'documentation' => 'Email address to add',
 );
 
-has '_domain' => (
+has 'vacationblacklist' => (
     'is'      => 'ro',
-    'isa'     => 'VBoxAdm::Model::Domain',
+    'isa'     => 'VBoxAdm::Model::VacationBlacklist',
     'lazy'    => 1,
-    'builder' => '_init_domain',
-    'accessor' => 'domain',
+    'builder' => '_init_vacationblacklist',
 );
 
-sub _init_domain {
+sub _init_vacationblacklist {
     my $self = shift;
 
-    my $Domain = VBoxAdm::Model::Domain::->new(
+    my $VB = VBoxAdm::Model::VacationBlacklist::->new(
         {
             'dbh'    => $self->dbh(),
             'logger' => $self->logger(),
@@ -50,7 +49,7 @@ sub _init_domain {
         }
     );
 
-    return $Domain;
+    return $VB;
 }
 # with ...
 # initializers ...
@@ -59,8 +58,54 @@ sub _init_domain {
 sub execute {
     my $self = shift;
 
+    if($self->add()) {
+        return $self->exec_add();
+    } elsif($self->update()) {
+        return $self->exec_update();
+    } elsif($self->delete()) {
+        return $self->exec_delete();
+    } else {
+        return $self->list();
+    }
+    
     return;
 }
+
+sub exec_add {
+    my $self = shift;
+    
+    my $email = shift;
+    print "Add VacationBlacklist entry: $email\n";
+    my $status = $self->vacationblacklist()->create($email);
+    $self->display_messages();
+    
+    return $status;
+}
+
+sub exec_delete {
+    my $self = shift;
+    
+    my $email = shift;
+    print "Delete VacationBlacklist entry.\n";
+    my $status = $self->vacationblacklist()->delete( $self->vacationblacklist()->get_id($email) );
+    $self->display_messages();
+    
+    return $status;
+}
+
+sub list {
+    my $self = shift;
+    
+    print "List VacationBlacklist entries:\n";
+    print "ID\tEmail\n";
+    my $format = "%i\t%s\@%s\n";
+    foreach my $e ( $self->vacationblacklist()->list() ) {
+        printf( $format, @{$e}{qw(id local_part domain)} );
+    }
+    $self->display_messages();
+    
+    return 1;
+},
 
 sub abstract {
     return 'Command';
@@ -75,7 +120,7 @@ __END__
 
 =head1 NAME
 
-VBoxAdm::Cmd::Command::aliasadd - 
+VBoxAdm::Cmd::Command::vacbl - 
 
 =method abstract
 
