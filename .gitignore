@@ -1,6 +1,4 @@
-*.pl
 *~
-*.pm
 *.bak
 *.ERR
 *.pm.LOG
