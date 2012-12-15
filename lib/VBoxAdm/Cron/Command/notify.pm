@@ -4,7 +4,7 @@ use warnings;
 
 use lib '@LIBDIR@';
 
-use VBoxAdm::Controller::Notify '@VERSION@';
+use VBoxAdm::Controller::Notify;
 
 my $RN = VBoxAdm::Controller::Notify::->new();
 $RN->run();

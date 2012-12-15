@@ -93,7 +93,7 @@ sub exec_add {
     my $self = shift;
     
     print "Add AWL.\n";
-    $self->awl()->create($email);
+    $self->awl()->create($self->add());
     $self->display_messages();
 }
 sub exec_update {
@@ -103,7 +103,7 @@ sub exec_update {
     $params->{Disabled} = !$self->opts()->{IsActive} if defined( $self->opts()->{IsActive} );
     print "Update AWL.\n";
     
-    my $status = $self->awl()->update( $self->awl()->get_id($email), $params );
+    my $status = $self->awl()->update( $self->awl()->get_id($self->update()), $params );
     $self->display_messages();
     
     return $status;

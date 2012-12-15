@@ -5,9 +5,9 @@ use namespace::autoclean;
 
 use Carp;
 
-use VWebAdm::DB '@VERSION@';
-use VWebAdm::Utils '@VERSION@';
-use VWebAdm::SaltedHash '@VERSION@';
+use VWebAdm::DB;
+use VWebAdm::Utils;
+use VWebAdm::SaltedHash;
 
 extends 'VWebAdm::Model';
 

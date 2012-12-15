@@ -6,10 +6,10 @@ use namespace::autoclean;
 use Carp;
 use Encode;
 
-use VWebAdm::DB '@VERSION@';
-use VWebAdm::Utils '@VERSION@';
+use VWebAdm::DB;
+use VWebAdm::Utils;
 
-use VBoxAdm::Model::Domain '@VERSION@';
+use VBoxAdm::Model::Domain;
 
 extends 'VWebAdm::Model';
 

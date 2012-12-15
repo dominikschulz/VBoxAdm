@@ -9,7 +9,7 @@ use Digest::Perl::MD5;
 use Digest::SHA;
 use Data::Pwgen;
 
-our $VERSION = '@VERSION@';
+
 
 my %hashlen = (
     'smd5'    => 16,

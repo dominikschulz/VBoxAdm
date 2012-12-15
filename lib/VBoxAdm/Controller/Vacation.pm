@@ -12,9 +12,9 @@ use Email::Date::Format qw/email_date/;
 # For Subject encoding
 use MIME::Words qw/encode_mimewords/;
 
-use VWebAdm::DB '@VERSION@';
-use Log::Tree '@VERSION@';
-use VWebAdm::Utils '@VERSION@';
+use VWebAdm::DB;
+use Log::Tree;
+use VWebAdm::Utils;
 
 has 'dbh' => (
     'is'      => 'ro',

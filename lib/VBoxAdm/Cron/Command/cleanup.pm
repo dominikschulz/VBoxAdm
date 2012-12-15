@@ -4,7 +4,7 @@ use warnings;
 
 use lib '@LIBDIR@';
 
-use VBoxAdm::Controller::Cleanup '@VERSION@';
+use VBoxAdm::Controller::Cleanup;
 
 my $CU = VBoxAdm::Controller::Cleanup::->new();
 

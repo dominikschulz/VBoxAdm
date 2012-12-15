@@ -22,21 +22,21 @@ use DBI;
 use Readonly;
 use Try::Tiny;
 
-use VWebAdm::Utils '@VERSION@';
-use VDnsAdm::L10N '@VERSION@';
-use VWebAdm::SaltedHash '@VERSION@';
-use Log::Tree '@VERSION@';
+use VWebAdm::Utils;
+use VDnsAdm::L10N;
+use VWebAdm::SaltedHash;
+use Log::Tree;
 
-use VWebAdm::Model::MessageQueue '@VERSION@';
+use VWebAdm::Model::MessageQueue;
 
-use VDnsAdm::Model::User '@VERSION@';
-use VDnsAdm::Model::Domain '@VERSION@';
-use VDnsAdm::Model::Record '@VERSION@';
-use VDnsAdm::Model::Group '@VERSION@';
-use VDnsAdm::Model::Template '@VERSION@';
-use VDnsAdm::Model::TemplateRecord '@VERSION@';
+use VDnsAdm::Model::User;
+use VDnsAdm::Model::Domain;
+use VDnsAdm::Model::Record;
+use VDnsAdm::Model::Group;
+use VDnsAdm::Model::Template;
+use VDnsAdm::Model::TemplateRecord;
 
-our $VERSION = '@VERSION@';
+
 
 Readonly my $ENTRIES_PER_PAGE => 20;
 
@@ -434,7 +434,7 @@ sub tt_pre_process {
     $vars->{username}                 = $self->authen->username;
     $vars->{system_domain}            = $self->{config}{'default'}{'domain'} || 'localhost';
     $vars->{long_forms}               = $self->{config}{'cgi'}{'long_forms'} || 0;
-    $vars->{version}                  = $VERSION;
+    #$vars->{version}                  = $VERSION;
     $vars->{messages}                 = $self->get_messages();
     $vars->{is_siteadmin}             = $self->user->is_siteadmin() if $self->user();
     $vars->{is_domainadmin}           = $self->user->is_domainadmin() if $self->user();

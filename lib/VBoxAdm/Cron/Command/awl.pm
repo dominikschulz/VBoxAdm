@@ -4,7 +4,7 @@ use warnings;
 
 use lib '@LIBDIR@';
 
-use VBoxAdm::Controller::AWL '@VERSION@';
+use VBoxAdm::Controller::AWL;
 
 my $AWL = VBoxAdm::Controller::AWL::->new();
 

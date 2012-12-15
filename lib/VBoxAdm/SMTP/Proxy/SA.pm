@@ -13,12 +13,12 @@ use Mail::SpamAssassin;
 
 use Digest::SHA;
 
-use VBoxAdm::SMTP::Server '@VERSION@';
-use VBoxAdm::SMTP::Client '@VERSION@';
-use VWebAdm::Utils '@VERSION@';
-use VWebAdm::DB '@VERSION@';
+use VBoxAdm::SMTP::Server;
+use VBoxAdm::SMTP::Client;
+use VWebAdm::Utils;
+use VWebAdm::DB;
 
-our $VERSION = '@VERSION@';
+
 
 use base qw(VBoxAdm::SMTP::Proxy);
 

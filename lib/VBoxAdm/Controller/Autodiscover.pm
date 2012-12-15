@@ -7,10 +7,8 @@ use Config::Std;
 use CGI;
 use Template;
 
-use VWebAdm::DB '@VERSION@';
-use Log::Tree '@VERSION@';
-
-our $VERSION = '@VERSION@';
+use VWebAdm::DB;
+use Log::Tree;
 
 has 'dbh' => (
     'is'      => 'ro',

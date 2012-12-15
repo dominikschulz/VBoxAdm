@@ -8,7 +8,7 @@ use IO::Socket::INET6;
 
 # Not using moose for performance reasons
 
-our $VERSION = '@VERSION@';
+
 
 ############################################
 # Usage      : ????

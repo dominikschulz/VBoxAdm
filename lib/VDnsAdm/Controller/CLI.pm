@@ -15,16 +15,16 @@ use Config::Std;    # TODO use config class
 use Net::Domain;
 use Text::Levenshtein qw(distance);
 
-use VWebAdm::DB '@VERSION@';
-use VWebAdm::Utils '@VERSION@';
-use VBoxAdm::Migration '@VERSION@';
-use VWebAdm::SaltedHash '@VERSION@';
-use VDnsAdm::Model::Domain '@VERSION@';
-use VDnsAdm::Model::Record '@VERSION@';
-use VWebAdm::Model::MessageQueue '@VERSION@';
-use VDnsAdm::Model::User '@VERSION@';
-use VDnsAdm::L10N '@VERSION@';
-use Log::Tree '@VERSION@';
+use VWebAdm::DB;
+use VWebAdm::Utils;
+use VBoxAdm::Migration;
+use VWebAdm::SaltedHash;
+use VDnsAdm::Model::Domain;
+use VDnsAdm::Model::Record;
+use VWebAdm::Model::MessageQueue;
+use VDnsAdm::Model::User;
+use VDnsAdm::L10N;
+use Log::Tree;
 
 binmode( STDIN, ':utf8' );
 
@@ -302,7 +302,7 @@ sub _init_help {
 
     my %help = (
         'help' => "Invocation: $0 <Module> <Action> <Parameter(s)> <Options>
-VDnsAdm CLI Client, Version @VERSION@
+VDnsAdm CLI Client
 Enter 'vdnsadm help <module>' to get help for a module.
 Available subcommands:
 \talias - Manage Aliases

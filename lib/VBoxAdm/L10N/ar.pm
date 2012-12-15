@@ -8,7 +8,7 @@ use base qw(VBoxAdm::L10N);
 # Machine translation by translate.google.com
 # 06.12.2010
 
-our $VERSION = '@VERSION@';
+
 
 sub left {
     return 'right';

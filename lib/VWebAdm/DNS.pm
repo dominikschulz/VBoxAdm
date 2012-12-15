@@ -5,7 +5,7 @@ use warnings;
 
 use Net::DNS;
 
-our $VERSION = '@VERSION@';
+
 
 {
     my $res;

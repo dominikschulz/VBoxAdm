@@ -6,7 +6,7 @@ use warnings;
 use Carp;
 use DBI qw(:sql_types);
 
-our $VERSION = '@VERSION@';
+
 
 ############################################
 # Usage      : VWebAdm::DB->show_child_handles($dbh);

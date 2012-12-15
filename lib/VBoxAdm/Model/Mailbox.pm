@@ -7,8 +7,8 @@ use Carp;
 use Encode;
 use Data::Pwgen;
 
-use VWebAdm::SaltedHash '@VERSION@';
-use VBoxAdm::Model::Domain '@VERSION@';
+use VWebAdm::SaltedHash;
+use VBoxAdm::Model::Domain;
 
 extends 'VWebAdm::Model';
 

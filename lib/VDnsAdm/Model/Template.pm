@@ -5,8 +5,8 @@ use namespace::autoclean;
 
 use Carp;
 
-use VWebAdm::DB '@VERSION@';
-use VWebAdm::Utils '@VERSION@';
+use VWebAdm::DB;
+use VWebAdm::Utils;
 
 extends 'VDnsAdm::Model::Domain';
 

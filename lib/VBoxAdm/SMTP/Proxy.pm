@@ -9,10 +9,10 @@ use IO::File;
 use Time::HiRes qw(time);
 use List::Util qw(shuffle);
 
-use VWebAdm::Utils '@VERSION@';
-use VWebAdm::DB '@VERSION@';
+use VWebAdm::Utils;
+use VWebAdm::DB;
 
-our $VERSION = '@VERSION@';
+
 
 use base qw(Net::Server::PreFork);
 

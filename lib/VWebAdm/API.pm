@@ -10,7 +10,7 @@ use Digest::SHA;
 use JSON;
 use URI::Escape;
 use Encode;
-use Log::Tree '@VERSION@';
+use Log::Tree;
 
 has 'key'   => (
     'is'    => 'ro',

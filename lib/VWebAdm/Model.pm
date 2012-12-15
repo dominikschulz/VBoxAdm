@@ -6,7 +6,7 @@ use namespace::autoclean;
 use Carp;
 use Encode;
 use Data::Dumper;
-use VWebAdm::DB '@VERSION@';
+use VWebAdm::DB;
 
 has 'dbh' => (
     'is'       => 'ro',

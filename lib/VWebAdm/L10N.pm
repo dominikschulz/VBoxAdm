@@ -5,7 +5,7 @@ use warnings;
 
 use base qw(Locale::Maketext);
 
-our $VERSION = '@VERSION@';
+
 
 our %Lexicon = ( '_AUTO' => 1, );
 

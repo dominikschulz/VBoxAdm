@@ -9,7 +9,7 @@ use Carp qw(carp croak);
 
 # Not using moose for performance reasons
 
-our $VERSION = '@VERSION@';
+
 
 sub new {
     my ( $this, @opts ) = @_;

@@ -3,7 +3,7 @@ package VWebAdm::Utils;
 use strict;
 use warnings;
 
-our $VERSION = '@VERSION@';
+
 
 ############################################
 # Usage      : my @recipients = &extract_recipients($recipients_string);

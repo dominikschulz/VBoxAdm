@@ -21,26 +21,26 @@ use DBI;
 use Readonly;
 use Try::Tiny;
 
-use VWebAdm::Utils '@VERSION@';
-use VBoxAdm::L10N '@VERSION@';
-use VWebAdm::SaltedHash '@VERSION@';
-use Log::Tree '@VERSION@';
+use VWebAdm::Utils;
+use VBoxAdm::L10N;
+use VWebAdm::SaltedHash;
+use Log::Tree;
 
-use VBoxAdm::Model::Alias '@VERSION@';
-use VBoxAdm::Model::AWL '@VERSION@';
-use VBoxAdm::Model::Domain '@VERSION@';
-use VBoxAdm::Model::DomainAlias '@VERSION@';
-use VBoxAdm::Model::DMARCReport '@VERSION@';
-use VBoxAdm::Model::DMARCRecord '@VERSION@';
-use VBoxAdm::Model::Mailbox '@VERSION@';
-use VWebAdm::Model::MessageQueue '@VERSION@';
-use VBoxAdm::Model::RFCNotify '@VERSION@';
-use VBoxAdm::Model::RoleAccount '@VERSION@';
-use VBoxAdm::Model::User '@VERSION@';
-use VBoxAdm::Model::VacationBlacklist '@VERSION@';
-use VBoxAdm::Model::VacationNotify '@VERSION@';
+use VBoxAdm::Model::Alias;
+use VBoxAdm::Model::AWL;
+use VBoxAdm::Model::Domain;
+use VBoxAdm::Model::DomainAlias;
+use VBoxAdm::Model::DMARCReport;
+use VBoxAdm::Model::DMARCRecord;
+use VBoxAdm::Model::Mailbox;
+use VWebAdm::Model::MessageQueue;
+use VBoxAdm::Model::RFCNotify;
+use VBoxAdm::Model::RoleAccount;
+use VBoxAdm::Model::User;
+use VBoxAdm::Model::VacationBlacklist;
+use VBoxAdm::Model::VacationNotify;
 
-our $VERSION = '@VERSION@';
+
 
 Readonly my $ENTRIES_PER_PAGE => 20;
 
@@ -463,7 +463,7 @@ sub tt_pre_process {
     $vars->{username}       = $self->authen->username;
     $vars->{system_domain}  = $self->{config}{'default'}{'domain'} || 'localhost';
     $vars->{long_forms}     = $self->{config}{'cgi'}{'long_forms'} || 0;
-    $vars->{version}        = $VERSION;
+    #$vars->{version}        = $VERSION;
     $vars->{messages}       = $self->get_messages();
     $vars->{is_siteadmin}   = $self->user->is_siteadmin() if $self->user();
     $vars->{is_domainadmin} = $self->user->is_domainadmin() if $self->user();

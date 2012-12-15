@@ -6,11 +6,9 @@ use namespace::autoclean;
 use Config::Std;
 use Getopt::Long;
 
-use VWebAdm::DB '@VERSION@';
-use Log::Tree '@VERSION@';
-use VWebAdm::Utils '@VERSION@';
-
-our $VERSION = '@VERSION@';
+use VWebAdm::DB;
+use Log::Tree;
+use VWebAdm::Utils;
 
 has 'dbh' => (
     'is'      => 'ro',

@@ -8,7 +8,7 @@ use base qw(VBoxAdm::L10N);
 # Manual translation by Dominik Schulz <dominik.schulz@gauner.org>
 # 01.12.2010
 
-our $VERSION = '@VERSION@';
+
 
 our %Lexicon = (
     'Sign In'                                                      => 'Anmelden',

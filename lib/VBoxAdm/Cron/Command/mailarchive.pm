@@ -4,7 +4,7 @@ use warnings;
 
 use lib '@LIBDIR@';
 
-use VBoxAdm::Controller::Mailarchive '@VERSION@';
+use VBoxAdm::Controller::Mailarchive;
 
 my $MA = VBoxAdm::Controller::Mailarchive::->new();
 $MA->run();

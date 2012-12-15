@@ -6,9 +6,9 @@ use namespace::autoclean;
 use Carp;
 use Data::Pwgen;
 
-use VWebAdm::DB '@VERSION@';
-use VWebAdm::SaltedHash '@VERSION@';
-use VWebAdm::Utils '@VERSION@';
+use VWebAdm::DB;
+use VWebAdm::SaltedHash;
+use VWebAdm::Utils;
 
 extends 'VWebAdm::Model::User';
 

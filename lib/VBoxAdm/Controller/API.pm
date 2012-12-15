@@ -16,24 +16,22 @@ use Data::Dumper;
 use Encode;
 use Try::Tiny;
 
-use VWebAdm::API '@VERSION@';
-use VBoxAdm::L10N '@VERSION@';
-use VWebAdm::Utils '@VERSION@';
-use Log::Tree '@VERSION@';
+use VWebAdm::API;
+use VBoxAdm::L10N;
+use VWebAdm::Utils;
+use Log::Tree;
 
-use VBoxAdm::Model::Alias '@VERSION@';
-use VBoxAdm::Model::AWL '@VERSION@';
-use VBoxAdm::Model::Domain '@VERSION@';
-use VBoxAdm::Model::DomainAlias '@VERSION@';
-use VBoxAdm::Model::Mailbox '@VERSION@';
-use VWebAdm::Model::MessageQueue '@VERSION@';
-use VBoxAdm::Model::RFCNotify '@VERSION@';
-use VBoxAdm::Model::RoleAccount '@VERSION@';
-use VBoxAdm::Model::User '@VERSION@';
-use VBoxAdm::Model::VacationBlacklist '@VERSION@';
-use VBoxAdm::Model::VacationNotify '@VERSION@';
-
-our $VERSION = '@VERSION@';
+use VBoxAdm::Model::Alias;
+use VBoxAdm::Model::AWL;
+use VBoxAdm::Model::Domain;
+use VBoxAdm::Model::DomainAlias;
+use VBoxAdm::Model::Mailbox;
+use VWebAdm::Model::MessageQueue;
+use VBoxAdm::Model::RFCNotify;
+use VBoxAdm::Model::RoleAccount;
+use VBoxAdm::Model::User;
+use VBoxAdm::Model::VacationBlacklist;
+use VBoxAdm::Model::VacationNotify;
 
 ############################################
 # Usage      : Invoked by CGIApp

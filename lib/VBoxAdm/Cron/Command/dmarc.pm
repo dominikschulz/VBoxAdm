@@ -4,7 +4,7 @@ use warnings;
 
 use lib '@LIBDIR@';
 
-use VBoxAdm::Controller::DMARC '@VERSION@';
+use VBoxAdm::Controller::DMARC;
 
 my $RN = VBoxAdm::Controller::DMARC::->new();
 $RN->run();

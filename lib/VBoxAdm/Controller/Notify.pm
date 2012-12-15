@@ -7,12 +7,12 @@ use Config::Std;
 use Template;
 use Mail::POP3Client;
 
-use VWebAdm::DB '@VERSION@';
-use VWebAdm::DNS '@VERSION@';
-use Log::Tree '@VERSION@';
-use VWebAdm::Utils '@VERSION@';
+use VWebAdm::DB;
+use VWebAdm::DNS;
+use Log::Tree;
+use VWebAdm::Utils;
 
-our $VERSION = '@VERSION@';
+
 
 has 'dbh' => (
     'is'      => 'ro',

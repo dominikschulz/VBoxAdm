@@ -19,23 +19,23 @@ use Net::IMAP::Client;
 use Text::Levenshtein qw(distance);
 use File::Blarf;
 
-use VWebAdm::DB '@VERSION@';
-use VWebAdm::Utils '@VERSION@';
-use VBoxAdm::Migration '@VERSION@';
-use VWebAdm::SaltedHash '@VERSION@';
-use VBoxAdm::Model::Alias '@VERSION@';
-use VBoxAdm::Model::AWL '@VERSION@';
-use VBoxAdm::Model::Domain '@VERSION@';
-use VBoxAdm::Model::DomainAlias '@VERSION@';
-use VBoxAdm::Model::Mailbox '@VERSION@';
-use VBoxAdm::Model::RFCNotify '@VERSION@';
-use VBoxAdm::Model::RoleAccount '@VERSION@';
-use VBoxAdm::Model::User '@VERSION@';
-use VBoxAdm::Model::VacationBlacklist '@VERSION@';
-use VBoxAdm::Model::VacationNotify '@VERISON@';
-use VWebAdm::Model::MessageQueue '@VERSION@';
-use VBoxAdm::L10N '@VERSION@';
-use Log::Tree '@VERSION@';
+use VWebAdm::DB;
+use VWebAdm::Utils;
+use VBoxAdm::Migration;
+use VWebAdm::SaltedHash;
+use VBoxAdm::Model::Alias;
+use VBoxAdm::Model::AWL;
+use VBoxAdm::Model::Domain;
+use VBoxAdm::Model::DomainAlias;
+use VBoxAdm::Model::Mailbox;
+use VBoxAdm::Model::RFCNotify;
+use VBoxAdm::Model::RoleAccount;
+use VBoxAdm::Model::User;
+use VBoxAdm::Model::VacationBlacklist;
+use VBoxAdm::Model::VacationNotify;
+use VWebAdm::Model::MessageQueue;
+use VBoxAdm::L10N;
+use Log::Tree;
 
 binmode( STDIN, ':utf8' );
 
@@ -495,7 +495,7 @@ sub _init_help {
 
     my %help = (
         'help' => "Invocation: $0 <Module> <Action> <Parameter(s)> <Options>
-VBoxAdm CLI Client, Version @VERSION@
+VBoxAdm CLI Client
 Enter 'vboxadm help <module>' to get help for a module.
 Available subcommands:
 \talias - Manage Aliases

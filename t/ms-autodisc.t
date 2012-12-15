@@ -1,12 +1,13 @@
 #!perl
-
 use strict;
 use warnings;
+
 use Test::More;
+use Plack::Test;
+use HTTP::Request::Common;
 
 # Microsoft Outlook 2010+ Autodiscover Test
 
-use HTTP::Request::Common;
 use LWP::UserAgent;
 
 my $url = "http://localhost/cgi-bin/autodiscover.pl";
@@ -30,3 +31,6 @@ else {
     print $response->content();
 }
 
+# TODO test web app w/ Plack::Test
+
+plan( skip_all => "Not yet implemented" );

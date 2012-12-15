@@ -5,7 +5,7 @@ use warnings;
 
 use base qw(VWebAdm::L10N);
 
-our $VERSION = '@VERSION@';
+
 
 our %Lexicon = ( '_AUTO' => 1, );
 

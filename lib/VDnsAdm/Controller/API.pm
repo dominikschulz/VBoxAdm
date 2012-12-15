@@ -14,22 +14,22 @@ use Carp;
 use Config::Std;
 use Data::Dumper;
 
-use VWebAdm::API '@VERSION@';
-use VDnsAdm::L10N '@VERSION@';
-use VWebAdm::Utils '@VERSION@';
+use VWebAdm::API;
+use VDnsAdm::L10N;
+use VWebAdm::Utils;
 
-use VWebAdm::DB '@VERSION@';
-use VWebAdm::Utils '@VERSION@';
-use VBoxAdm::Migration '@VERSION@';
-use VWebAdm::SaltedHash '@VERSION@';
-use VDnsAdm::Model::Domain '@VERSION@';
-use VDnsAdm::Model::Record '@VERSION@';
-use VWebAdm::Model::MessageQueue '@VERSION@';
-use VDnsAdm::Model::User '@VERSION@';
-use VDnsAdm::L10N '@VERSION@';
-use Log::Tree '@VERSION@';
+use VWebAdm::DB;
+use VWebAdm::Utils;
+use VBoxAdm::Migration;
+use VWebAdm::SaltedHash;
+use VDnsAdm::Model::Domain;
+use VDnsAdm::Model::Record;
+use VWebAdm::Model::MessageQueue;
+use VDnsAdm::Model::User;
+use VDnsAdm::L10N;
+use Log::Tree;
 
-our $VERSION = '@VERSION@';
+
 
 ############################################
 # Usage      : Invoked by CGIApp

@@ -12,10 +12,10 @@ use XML::Simple;
 use File::Temp;
 use Data::Dumper;
 
-use VWebAdm::DB '@VERSION@';
-use Log::Tree '@VERSION@';
+use VWebAdm::DB;
+use Log::Tree;
 
-our $VERSION = '@VERSION@';
+
 
 has 'dbh' => (
     'is'      => 'ro',

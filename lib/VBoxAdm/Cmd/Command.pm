@@ -12,7 +12,7 @@ use namespace::autoclean;
 # use autodie;
 # use MooseX::Params::Validate;
 # use Carp;
-# use English qw( -no_match_vars );
+use English qw( -no_match_vars );
 # use Try::Tiny;
 use Config::Yak;
 use Log::Tree;
