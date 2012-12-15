@@ -1,5 +1,5 @@
-package VBoxAdm::Cmd;
-# ABSTRACT: VBoxAdm CLI
+package VBoxAdm::Cron;
+# ABSTRACT: VBoxAdm Cron
 
 use 5.010_000;
 use mro 'c3';
@@ -32,7 +32,7 @@ __END__
 
 =head1 NAME
 
-VBoxAdm::Cmd - Command base class.
+VBoxAdm::Cron - Cron Command base class.
 
 =head1 DESCRIPTION
 

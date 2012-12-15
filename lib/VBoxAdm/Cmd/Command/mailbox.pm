@@ -1,5 +1,5 @@
-package VBoxAdm::Cmd::Command::domain;
-# ABSTRACT: add a new alias
+package VBoxAdm::Cmd::Command::mailbox;
+# ABSTRACT: modify mailboxes
 
 use 5.010_000;
 use mro 'c3';
@@ -19,14 +19,34 @@ use VBoxAdm::Model::Domain;
 # extends ...
 extends 'VBoxAdm::Cmd::Command';
 # has ...
-has 'email' => (
+has 'add' => (
     'is'            => 'ro',
     'isa'           => 'Str',
-    'required'      => 1,
+    'required'      => 0,
     'default'       => 0,
     'traits'        => [qw(Getopt)],
-    'cmd_aliases'   => 'e',
+    'cmd_aliases'   => 'a',
     'documentation' => 'Email address to add',
+);
+
+has 'update' => (
+    'is'            => 'ro',
+    'isa'           => 'Str',
+    'required'      => 0,
+    'default'       => 0,
+    'traits'        => [qw(Getopt)],
+    'cmd_aliases'   => 'u',
+    'documentation' => 'Email address to update',
+);
+
+has 'delete' => (
+    'is'            => 'ro',
+    'isa'           => 'Str',
+    'required'      => 0,
+    'default'       => 0,
+    'traits'        => [qw(Getopt)],
+    'cmd_aliases'   => 'd',
+    'documentation' => 'Email address to delete',
 );
 
 has '_domain' => (
@@ -34,7 +54,7 @@ has '_domain' => (
     'isa'     => 'VBoxAdm::Model::Domain',
     'lazy'    => 1,
     'builder' => '_init_domain',
-    'accessor' => 'domain',
+    'reader'  => 'domain',
 );
 
 sub _init_domain {

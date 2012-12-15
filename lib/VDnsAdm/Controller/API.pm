@@ -1,4 +1,4 @@
-package VBoxAdm::Controller::API;
+package VDnsAdm::Controller::API;
 
 use base 'CGI::Application';
 

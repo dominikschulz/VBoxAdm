@@ -29,11 +29,12 @@ has 'add' => (
     'documentation' => 'Email address to add',
 );
 
-has 'vacationblacklist' => (
+has '_vacationblacklist' => (
     'is'      => 'ro',
     'isa'     => 'VBoxAdm::Model::VacationBlacklist',
     'lazy'    => 1,
     'builder' => '_init_vacationblacklist',
+    'reader'  => 'vacationblacklist',
 );
 
 sub _init_vacationblacklist {
@@ -105,7 +106,7 @@ sub list {
     $self->display_messages();
     
     return 1;
-},
+}
 
 sub abstract {
     return 'Command';

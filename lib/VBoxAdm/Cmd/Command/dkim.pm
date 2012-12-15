@@ -1,4 +1,4 @@
-package VBoxAdm::Cmd::Command::awl;
+package VBoxAdm::Cmd::Command::dkim;
 # ABSTRACT: add a new alias
 
 use 5.010_000;

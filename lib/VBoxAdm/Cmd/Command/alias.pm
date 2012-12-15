@@ -1,4 +1,4 @@
-package VBoxAdm::Cmd::Command::aliasadd;
+package VBoxAdm::Cmd::Command::alias;
 # ABSTRACT: add a new alias
 
 use 5.010_000;
@@ -19,14 +19,34 @@ use VBoxAdm::Model::Alias;
 # extends ...
 extends 'VBoxAdm::Cmd::Command';
 # has ...
-has 'email' => (
+has 'add' => (
+    'is'            => 'ro',
+    'isa'           => 'Str',
+    'required'      => 1,
+    'default'       => 0,
+    'traits'        => [qw(Getopt)],
+    'cmd_aliases'   => 'a',
+    'documentation' => 'Email address to add',
+);
+
+has 'update' => (
     'is'            => 'ro',
     'isa'           => 'Str',
     'required'      => 1,
     'default'       => 0,
     'traits'        => [qw(Getopt)],
     'cmd_aliases'   => 'e',
-    'documentation' => 'Email address to add',
+    'documentation' => 'Email address to update',
+);
+
+has 'delete' => (
+    'is'            => 'ro',
+    'isa'           => 'Str',
+    'required'      => 1,
+    'default'       => 0,
+    'traits'        => [qw(Getopt)],
+    'cmd_aliases'   => 'd',
+    'documentation' => 'Email address to delete',
 );
 
 has '_alias' => (
@@ -34,7 +54,7 @@ has '_alias' => (
     'isa'     => 'VBoxAdm::Model::Alias',
     'lazy'    => 1,
     'builder' => '_init_alias',
-    'accessor' => 'alias',
+    'reader'  => 'alias',
 );
 
 
@@ -43,7 +63,7 @@ has '_domain' => (
     'isa'     => 'VBoxAdm::Model::Domain',
     'lazy'    => 1,
     'builder' => '_init_domain',
-    'accessor' => 'domain',
+    'reader'  => 'domain',
 );
 
 sub _init_alias {

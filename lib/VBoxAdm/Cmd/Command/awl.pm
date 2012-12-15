@@ -54,7 +54,7 @@ has '_awl' => (
     'isa'     => 'VBoxAdm::Model::AWL',
     'lazy'    => 1,
     'builder' => '_init_awl',
-    'accessor' => 'awl',
+    'reader'  => 'awl',
 );
 # with ...
 # initializers ...

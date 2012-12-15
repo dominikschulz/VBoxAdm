@@ -54,7 +54,7 @@ has '_domain' => (
     'isa'     => 'VBoxAdm::Model::Domain',
     'lazy'    => 1,
     'builder' => '_init_domain',
-    'accessor' => 'domain',
+    'reader'  => 'domain',
 );
 
 sub _init_domain {
@@ -96,7 +96,7 @@ sub exec_add {
     my $self = shift;
     
     print "Add Domain.\n";
-    my $status = $self->domain()->create($domain);
+    my $status = $self->domain()->create($self->add());
     $self->display_messages();
     
     return $status;

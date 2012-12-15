@@ -14,6 +14,7 @@ use namespace::autoclean;
 # use Carp;
 use English qw( -no_match_vars );
 # use Try::Tiny;
+use Config::Tiny;
 use Config::Yak;
 use Log::Tree;
 
@@ -80,14 +81,16 @@ sub _init_user {
     my %user_config;
     if ( -f $conf || $self->config()->{'quiet'} ) {
         print "check_login - Reading config from $conf ...\n" if $self->opts()->{'Verbose'};
-        read_config $conf => %user_config;
+        #read_config $conf => %user_config;
+        # TODO use Config::Tiny
     }
     else {
         print "No .vboxadm.cnf found in your home.\n";
         $user_config{'auth'}{'username'} = $self->ask_string('Please enter the email of an site-admin');
         $user_config{'auth'}{'password'} = $self->ask_string('Please enter the password');
         if ( $self->ask_yesno('Should I create a .vboxadm.cnf for you?') ) {
-            write_config %user_config => $conf;
+            #write_config %user_config => $conf;
+            # TODO use Config::Tiny
         }
     }
 

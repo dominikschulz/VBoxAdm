@@ -1,4 +1,4 @@
-package VBoxAdm::Cmd::Command::domain;
+package VBoxAdm::Cmd::Command::domainalias;
 # ABSTRACT: add a new alias
 
 use 5.010_000;
@@ -64,7 +64,7 @@ has '_domain' => (
     'isa'     => 'VBoxAdm::Model::Domain',
     'lazy'    => 1,
     'builder' => '_init_domain',
-    'accessor' => 'domain',
+    'reader'  => 'domain',
 );
 
 has '_domainalias' => (
@@ -72,7 +72,7 @@ has '_domainalias' => (
     'isa'     => 'VBoxAdm::Model::DomainAlias',
     'lazy'    => 1,
     'builder' => '_init_domainalias',
-    'accessor' => 'domainalias',
+    'reader'  => 'domainalias',
 );
 
 sub _init_domain {
@@ -166,6 +166,8 @@ sub exec_delete {
 }
 
 sub list {
+    my $self = shift;
+    
     print "Listing DomainAliases:\n";
     my $format = "%i\t%s\t%s\t%i\n";
     print "ID\tDomain\tGoto\tIs Active\n";
