@@ -29,7 +29,7 @@ GIT = /usr/bin/git
 FILEPP = build/filepp.pl -u
 PERLTIDY = /usr/bin/perltidy -syn -l=160 -nce -nbl -b
 PERLCRITIC = /usr/bin/perlcritic
-PERL = /usr/bin/perl
+PERL ?= /usr/bin/perl
 PROVE = /usr/bin/prove -l
 YUIC = /usr/bin/java -jar build/yuicompressor-2.4.2.jar --charset UTF-8 --line-break 4000
 HTMLC = /usr/bin/java -jar build/htmlcompressor-0.9.9.jar --type html --charset UTF-8 --remove-intertag-spaces --remove-quotes --compress-js --compress-css --line-break 4000
@@ -138,9 +138,7 @@ LIBFILES = \
 	lib/VWebAdm/DB.pm \
 	lib/VWebAdm/DNS.pm \
 	lib/VWebAdm/L10N.pm \
-	lib/VWebAdm/Logger.pm \
 	lib/VWebAdm/Model.pm \
-	lib/VWebAdm/Password.pm \
 	lib/VWebAdm/SaltedHash.pm \
 	lib/VWebAdm/Utils.pm
 

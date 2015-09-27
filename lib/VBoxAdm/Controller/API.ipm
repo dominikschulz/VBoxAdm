@@ -19,7 +19,7 @@ use Try::Tiny;
 use VWebAdm::API '@VERSION@';
 use VBoxAdm::L10N '@VERSION@';
 use VWebAdm::Utils '@VERSION@';
-use Log::Tree '@VERSION@';
+use Log::Tree;
 
 use VBoxAdm::Model::Alias '@VERSION@';
 use VBoxAdm::Model::AWL '@VERSION@';

@@ -16,7 +16,7 @@ use MIME::Base64;
 
 use VWebAdm::Utils '@VERSION@';
 use VWebAdm::API '@VERSION@';
-use Log::Tree '@VERSION@';
+use Log::Tree;
 
 my ( $conffile_used, %config, @modes, $opts );
 $opts = {};

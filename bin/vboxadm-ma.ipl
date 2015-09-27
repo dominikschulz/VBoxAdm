@@ -12,7 +12,7 @@ use Getopt::Long;
 use Config::Std;
 use Net::Domain;
 
-use Log::Tree '@VERSION@';
+use Log::Tree;
 use VBoxAdm::SMTP::Proxy::MA '@VERSION@';
 
 my $syntax = "syntax: $0 [--verbose] [--config=<FILE>]\n";

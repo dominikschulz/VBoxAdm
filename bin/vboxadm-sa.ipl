@@ -14,7 +14,7 @@ use Carp;
 use Getopt::Long;
 use Config::Std;
 
-use Log::Tree '@VERSION@';
+use Log::Tree;
 use VBoxAdm::SMTP::Proxy::SA '@VERSION@';
 
 my $syntax = "syntax: $0 [--verbose] [--config=<FILE>]\n";
