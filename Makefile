@@ -195,9 +195,7 @@ MANFILES = \
 	lib/VWebAdm/DB.3 \
 	lib/VWebAdm/DNS.3 \
 	lib/VWebAdm/L10N.3 \
-	lib/VWebAdm/Logger.3 \
 	lib/VWebAdm/Model.3 \
-	lib/VWebAdm/Password.3 \
 	lib/VWebAdm/SaltedHash.3 \
 	lib/VWebAdm/Utils.3
 
@@ -240,9 +238,7 @@ TESTFILES = \
 	t/VWebAdm/API.t \
 	t/VWebAdm/DB.t \
 	t/VWebAdm/DNS.t \
-	t/VWebAdm/Logger.t \
 	t/VWebAdm/Model.t \
-	t/VWebAdm/Password.t \
 	t/VWebAdm/SaltedHash.t \
 	t/VWebAdm/Utils.t
 

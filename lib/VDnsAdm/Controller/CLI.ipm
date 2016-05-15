@@ -655,8 +655,15 @@ __PACKAGE__->meta->make_immutable;
 
 __END__
 
+=head1 NAME
+
+VDnsAdm::Controller::CLI - CLI controller
+
+=head1 SYNOPSIS
+
 Common opts:
 -f - force
 -q - quiet
 -v - verbose
 
+=cut
