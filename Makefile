@@ -387,7 +387,7 @@ quick-install: real-install
 
 install: clean real-install
 
-real-install: all test rcvboxadm
+real-install: all test
 	$(INSTALL) -d $(BINDIR)
 	$(INSTALL) -d $(SBINDIR)
 	$(INSTALL) -d $(DESTDIR)/etc
@@ -557,10 +557,6 @@ clean:
 	$(FIND) . -name "*.pm~" -exec $(RM) {} \;
 	$(RM) -f bin/tmon.out
 	$(RM) -f doc/man/*
-	$(RM) -f contrib/roundcube-plugin-vboxadm.tar.gz
-
-rcvboxadm:
-	cd contrib/roundcube/plugins/ && tar -cvzf ../../roundcube-plugin-vboxadm.tar.gz vboxadm/ && cd ../../../
 
 git: tidy all clean
 	$(GIT) status
