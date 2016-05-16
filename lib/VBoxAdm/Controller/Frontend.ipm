@@ -59,6 +59,39 @@ sub setup {
     my $Logger = Log::Tree::->new( { 'facility' => 'VBoxAdm/Frontend', } );
     $self->{'logger'} = $Logger;
 
+    #
+    # Configuration
+    #
+    # Valid config file locations to try
+    my @conffile_locations = qw(
+      vboxadm.conf
+      conf/vboxadm.conf
+      /etc/vboxadm/vboxadm.conf
+      @CFGDIR@/vboxadm/vboxadm.conf
+    );
+
+    # if the application if run as a FastCGI app, the server might
+    # provide an additional configuration location. if the points to file
+    # add it to the list of possible locations
+    if ( $ENV{CGIAPP_CONFIG_FILE} && -f $ENV{CGIAPP_CONFIG_FILE} ) {
+        unshift( @conffile_locations, $ENV{CGIAPP_CONFIG_FILE} );
+    }
+
+    my ( %config, $conffile_used );
+
+    # Try all config file locations
+    foreach my $loc (@conffile_locations) {
+        if ( -r $loc ) {
+            $conffile_used = $loc;
+            read_config $loc => %config;
+            last;
+        }
+    }
+    if ( !$conffile_used ) {
+        $Logger->log( message => "Warning: No readable config file found in search path! (" . join( ':', @conffile_locations ) . ")", level => 'warning', );
+    }
+    $self->{config} = \%config;
+
     # define the default run mode
     $self->start_mode('public_login');
 
@@ -217,39 +250,6 @@ sub setup {
     if ( !$self->is_shell() ) {
         $self->authen->protected_runmodes(qr/^(?!public_|api)/);
     }
-
-    #
-    # Configuration
-    #
-    # Valid config file locations to try
-    my @conffile_locations = qw(
-      vboxadm.conf
-      conf/vboxadm.conf
-      /etc/vboxadm/vboxadm.conf
-      @CFGDIR@/vboxadm/vboxadm.conf
-    );
-
-    # if the application if run as a FastCGI app, the server might
-    # provide an additional configuration location. if the points to file
-    # add it to the list of possible locations
-    if ( $ENV{CGIAPP_CONFIG_FILE} && -f $ENV{CGIAPP_CONFIG_FILE} ) {
-        unshift( @conffile_locations, $ENV{CGIAPP_CONFIG_FILE} );
-    }
-
-    my ( %config, $conffile_used );
-
-    # Try all config file locations
-    foreach my $loc (@conffile_locations) {
-        if ( -r $loc ) {
-            $conffile_used = $loc;
-            read_config $loc => %config;
-            last;
-        }
-    }
-    if ( !$conffile_used ) {
-        $Logger->log( message => "Warning: No readable config file found in search path! (" . join( ':', @conffile_locations ) . ")", level => 'warning', );
-    }
-    $self->{config} = \%config;
 
     #
     # Database
