@@ -2,15 +2,14 @@
 dbuser=vboxadm
 dbpass=vboxadm
 dbdb=vboxadm
-dbhost=localhost
-domain=domain.tld
+dbhost=db
+domain=localhost.localdomain
 mail_location=/srv/vmail
-
 pwscheme=ssha256
 
 [autodiscover]
-imap_hostname=mail.domain.tld
-pop3_hostname=mail.domain.tld
+imap_hostname=localhost.localdomain
+pop3_hostname=localhost.localdomain
 pw_encrypt = 0
 pop3_ssl = 1
 pop3_tls = 1
@@ -20,6 +19,7 @@ smtp_sma = 1
 
 # config for webfrontend
 [cgi]
+secret=SOME_SECRET_STRING
 no_ssl=1
 base_url=/cgi-bin/vboxadm.pl
 media_prefix=
@@ -31,7 +31,6 @@ obey_pw_lock=1
 
 # config for vacation autoresonder
 [vacation]
-
 notify_interval=7
 
 [awl]

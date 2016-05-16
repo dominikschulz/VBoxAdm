@@ -52,11 +52,13 @@ RUN cpanm \
 
 ADD . /srv/vboxadm
 WORKDIR /srv/vboxadm
-RUN make install
+RUN make real-install
 
 RUN ln -s /srv/vboxadm/doc/vboxadm/lighttpd/50-vboxadm-fcgi.conf /etc/lighttpd/conf-enabled/
+RUN mkdir -p /etc/vboxadm
+RUN cp /srv/vboxadm/conf/vboxadm.conf.dist /etc/vboxadm/vboxadm.conf && chmod 0644 /etc/vboxadm/vboxadm.conf
 
 EXPOSE 80
 EXPOSE 443
 
-#ENTRYPOINT ["lighttpd", "-D", "-f", "/etc/lighttpd/lighttpd.conf"]
+CMD ["lighttpd", "-D", "-f", "/etc/lighttpd/lighttpd.conf"]

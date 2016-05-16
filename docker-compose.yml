@@ -1,0 +1,17 @@
+mariadb:
+  image: 'mariadb:10'
+  restart: 'unless-stopped'
+  ports:
+    - '3306:3306'
+  environment:
+    MYSQL_ROOT_PASSWORD: ''
+  volumes:
+    - '/srv/mariadb:/var/lib/mysql'
+vboxadm:
+  build: .
+  ports:
+    - '8080:80'
+  environment:
+    COOKIE_SECRET: 'GENERATE_LONG_RANDOM_STRING'
+  links:
+    - 'mariadb:db'

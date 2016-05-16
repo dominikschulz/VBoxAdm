@@ -205,6 +205,12 @@ sub setup {
         LOGOUT_RUNMODE      => 'public_login',
         LOGIN_RUNMODE       => 'public_login',
         POST_LOGIN_CALLBACK => \&post_login_callback,
+        STORE               => [
+          'Cookie',
+          SECRET => $ENV{'COOKIE_SECRET'} || $config{'cgi'}{'secret'},
+          NAME   => 'VBOXADM_AUTH',
+          EXPIRY => '+1y',
+        ],
     );
 
     # only enable authen if called as CGI, this helps with testing and debugging from the commandline
@@ -361,6 +367,7 @@ sub setup {
 
     # setup classes if the user is logged in
     if ( $self->authen->is_authenticated && $self->authen->username ) {
+        $self->log( "Setting up authed user: ". $self->authen->username, 'info', );
 
         # if we can not create a new user object we MUST NOT die but redirect to login page instead
         my $User;
@@ -378,7 +385,7 @@ sub setup {
             $User->login('forced-login');
         };
         if ( $@ || !$User ) {
-            $self->log("Could not create User Object: $@");
+            $self->log("Could not create User Object: $@", 'error');
         }
         else {
 
@@ -438,6 +445,23 @@ sub cgiapp_init {
         'keep_in_ssl'  => 1,
         'ignore_check' => $ignore_ssl_check,
     );
+
+    # Sessions
+    $self->session_config(
+      CGI_SESSION_OPTIONS => [
+        "driver:File",
+        $self->query,
+        {
+          Directory => '/tmp',
+        },
+      ],
+      COOKIE_PARAMS       => {
+        -path     => '/',
+        -expires  => '+1w',
+      },
+      SEND_COOKIE         => 1,
+    );
+
 
     # to make perlcritic happy
     return 1;
@@ -548,7 +572,7 @@ sub log_login {
     }
     else {
 
-        # no-logged in user accessing the login page, don't log this ...
+        # non-logged in user accessing the login page, don't log this ...
     }
     return 1;
 }
